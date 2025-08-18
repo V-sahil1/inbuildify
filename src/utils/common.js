@@ -1,16 +1,67 @@
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
+const jwt = require("jsonwebtoken");
 
-export const generateRequestId = () => {
+const generateRequestId = () => {
   return uuidv4();
-}
-
-export const checkRequiredFields = (bodyFields, requiredFields) => {
-  console.log("🚀 ~ common.js:2 ~ checkRequiredFields ~ bodyFields:", bodyFields);
-  console.log("🚀 ~ common.js:2 ~ checkRequiredFields ~ requiredFields:", requiredFields);
-  return requiredFields.every(field => bodyFields.includes(field));
 };
 
-export const checkValidEmail = (email) => {
+const checkRequiredFields = (bodyFields, requiredFields) => {
+  console.log(
+    "🚀 ~ common.js:2 ~ checkRequiredFields ~ bodyFields:",
+    bodyFields
+  );
+  console.log(
+    "🚀 ~ common.js:2 ~ checkRequiredFields ~ requiredFields:",
+    requiredFields
+  );
+  return requiredFields.every((field) => bodyFields.includes(field));
+};
+
+const checkValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+};
+
+const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000);
+};
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+const generateAccessToken = (userId) => {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1d" });
+};
+
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ userId }, JWT_REFRESH_SECRET, { expiresIn: "1d" });
+};
+
+const decrypt = (encryptedText) => {
+  if (encryptedText == null || encryptedText === "") {
+    return "";
+  }
+
+  const buffer = Buffer.from(encryptedText, "base64");
+  return buffer.toString("utf8");
+}
+
+const encrypt = (text) => {
+  if (text == null || text === "") {
+    return "";
+  }
+
+  const buffer = Buffer.from(text, "utf8");
+  return buffer.toString("base64");
+}
+
+module.exports = {
+  generateRequestId,
+  checkRequiredFields,
+  checkValidEmail,
+  generateOtp,
+  generateAccessToken,
+  generateRefreshToken,
+  decrypt,
+  encrypt,
 };

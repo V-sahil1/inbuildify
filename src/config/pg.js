@@ -3,9 +3,9 @@ dotenv.config({ quiet: true });
 
 const pgConfig = {
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  // ssl: {
+  //   rejectUnauthorized: false,
+  // },
   max: 10000,
   idleTimeoutMillis: 60000,
   connectionTimeoutMillis: 0,
