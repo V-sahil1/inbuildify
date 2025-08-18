@@ -1,11 +1,11 @@
 const jwt = require("jsonwebtoken");
 const getPool = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
-const errorResponse = require("../helper/response");
+const { errorResponse } = require("../helper/response");
 const dotenv = require("dotenv");
 dotenv.config({ quiet: true });
 
-const handleTokenAuthorization = async (requestId, token, res, next) => {
+const handleTokenAuthorization = async (requestId, token, req, res, next) => {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -24,8 +24,8 @@ const handleTokenAuthorization = async (requestId, token, res, next) => {
 
     const query = `
       SELECT *
-      FROM USERS u
-      INNER JOIN user_token ut ON u.users_id = ut.users_id
+      FROM users u
+      INNER JOIN users_token ut ON u.users_id = ut.user_id
       WHERE ut.access_token = $1 
         AND u.users_id = $2 
         AND u.is_verified = $3;

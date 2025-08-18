@@ -8,6 +8,7 @@ const {
   decrypt,
   generateAccessToken,
   generateRefreshToken,
+  keysToCamelCase,
 } = require("../utils/common");
 const sendEmail = require("../helper/sendMail.js");
 
@@ -199,6 +200,51 @@ exports.loginUser = async (req, res) => {
         refreshToken,
       },
       "Login successful."
+    );
+  } catch (error) {
+    console.error({ error });
+    return errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message || "Internal Server Error"
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.getProfile = async (req, res) => {
+  console.log("🚀 ~ user.controller.js:217 ~ req:", req.user);
+  const userId = req.user.users_id;
+
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const userQuery = `SELECT * FROM users WHERE users_id = $1;`;
+    const userResult = await client.query(userQuery, [userId]);
+
+    console.log("🚀 ~ user.controller.js:226 ~ userResult.rowCount:", userResult.rowCount);
+    if (userResult.rowCount === 0) {
+      console.log("🚀 ~ userResult:", userResult);
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    const userData = userResult.rows[0];
+    return successResponse(
+      res,
+      keysToCamelCase({
+        name: userData.name,
+        email: userData.email,
+        role: userData.account_roles,
+        builderId: userData.builder_id,
+        userId: userData.users_id,
+        isVerified: userData.is_verified,
+        rootUser: userData.root_user,
+        createdAt: userData.created_at,
+        updatedAt: userData.updated_at,
+      }),
+      "User profile fetched successfully."
     );
   } catch (error) {
     console.error({ error });

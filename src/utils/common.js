@@ -55,6 +55,42 @@ const encrypt = (text) => {
   return buffer.toString("base64");
 }
 
+
+function toSnakeCase(str) {
+  return str.replace(/([A-Z])/g, "_$1").toLowerCase();
+}
+function toCamelCase(str) {
+  return str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+function keysToSnakeCase(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(keysToSnakeCase);
+  } else if (obj !== null && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [
+        toSnakeCase(key),
+        keysToSnakeCase(value),
+      ])
+    );
+  }
+  return obj;
+}
+
+function keysToCamelCase(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(keysToCamelCase);
+  } else if (obj !== null && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [
+        toCamelCase(key),
+        keysToCamelCase(value),
+      ])
+    );
+  }
+  return obj;
+}
+
 module.exports = {
   generateRequestId,
   checkRequiredFields,
@@ -64,4 +100,6 @@ module.exports = {
   generateRefreshToken,
   decrypt,
   encrypt,
+  keysToSnakeCase,
+  keysToCamelCase,
 };
