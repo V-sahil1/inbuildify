@@ -9,7 +9,7 @@ const roleMiddleware = async (
   next
 ) => {
   const {user} = req;
-  let accountRoles = user.account_roles;
+  let accountRoles = user.role;
   if (!isAuthorized(accountRoles, REQUIRED_ROLES)) {
     return errorResponse(res, 403, ERROR_MESSAGES.FORBIDDEN);
   }
