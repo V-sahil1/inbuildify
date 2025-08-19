@@ -1,15 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { createUser, loginUser, getProfile, verifyEmail, forgotPassword, verifyOtp, resetPassword } = require("../controllers/user.controller");
-const authMiddleware = require("../middleware/authMiddleware.js");
-const roleMiddleware = require("../middleware/roleMiddleware.js");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const { getUsersByBuilderId } = require("../controllers/user.controller");
 
-router.post("/register", createUser);
-router.post("/login", loginUser);
-router.get("/profile", authMiddleware, roleMiddleware, getProfile);
-router.post("/forgot-password", forgotPassword);
-router.post("/verify-otp", verifyOtp);
-// router.post("/reset-password", resetPassword);
-// router.get("/verify-email", verifyEmail);
 
+router.use(authMiddleware);
+router.use(roleMiddleware);
+
+router.get("/", getUsersByBuilderId);
 module.exports = router;
