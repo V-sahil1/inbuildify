@@ -46,6 +46,7 @@ CREATE TABLE contractor (
   builder_id UUID NOT NULL,
   phone VARCHAR(15),
   address TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
