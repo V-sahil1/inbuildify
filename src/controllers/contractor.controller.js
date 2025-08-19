@@ -3,25 +3,8 @@ const { errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { successResponse } = require("../helper/response");
 
-
 exports.createContractor = async (req, res) => {
-  const requiredFields = ["name", "email", "phone", "address"];
-  const requestBody = req.body || {};
-
-  // Validate the request body
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
-    return errorResponse(
-      res,
-      400,
-      `Invalid request body, requireFields: ${requiredFields.join(", ")}`
-    );
-  }
-
-  const { name, email, phone, address } = requestBody;
+  const { name, email, builderId, phone, address } = req.body || {};
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
@@ -84,86 +67,25 @@ exports.getContractors = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const getContractorsQuery = `SELECT * FROM contractor WHERE builder_id = $1 AND is_deleted = false;`;
-    const getContractorsResult = await client.query(getContractorsQuery, [builderId]);
+    const query = `
+      SELECT * FROM contractor 
+      WHERE builder_id = $1 AND is_deleted = false;
+    `;
+    const result = await client.query(query, [builderId]);
 
-    const contractorData = getContractorsResult.rows;
-    console.log("🚀 ~ exports.getContractors= ~ contractorData:", contractorData)
     return successResponse(
       res,
-      keysToCamelCase(contractorData),
+      keysToCamelCase(result.rows),
       "Contractors fetched successfully."
     );
   } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
-  } finally {
-    client.release();
-  }
-}
-
-exports.getContractorById = async (req, res) => {
-  const { id } = req.params;
-  const builderId = req.user.builder_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const getContractorByIdQuery = `SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;`;
-    const getContractorByIdResult = await client.query(getContractorByIdQuery, [id, builderId]);
-
-    const contractorData = getContractorByIdResult.rows;
-    return successResponse(
-      res,
-      keysToCamelCase(contractorData),
-      "Contractor fetched successfully."
-    );
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
+    console.error("Get contractors error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
-exports.getContractors = async (req, res) => {
-  const builderId = req.user.builder_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const getContractorsQuery = `SELECT * FROM contractor WHERE builder_id = $1 AND is_deleted = false;`;
-    const getContractorsResult = await client.query(getContractorsQuery, [builderId]);
-
-    const contractorData = getContractorsResult.rows;
-    console.log("🚀 ~ exports.getContractors= ~ contractorData:", contractorData)
-    return successResponse(
-      res,
-      keysToCamelCase(contractorData),
-      "Contractors fetched successfully."
-    );
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
-  } finally {
-    client.release();
-  }
-}
-
 exports.getContractorById = async (req, res) => {
   const { id } = req.params;
   const builderId = req.user.builder_id;
@@ -172,57 +94,33 @@ exports.getContractorById = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const getContractorByIdQuery = `SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;`;
-    const getContractorByIdResult = await client.query(getContractorByIdQuery, [id, builderId]);
+    const query = `
+      SELECT * FROM contractor 
+      WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;
+    `;
+    const result = await client.query(query, [id, builderId]);
 
-    const contractorData = getContractorByIdResult.rows;
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "Contractor not found.");
+    }
+
     return successResponse(
       res,
-      keysToCamelCase(contractorData),
+      keysToCamelCase(result.rows[0]),
       "Contractor fetched successfully."
     );
   } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
+    console.error("Get contractor by ID error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
-}
+};
 
 exports.updateContractor = async (req, res) => {
   const { id } = req.params;
-  console.log("🚀 ~ exports.updateContractor= ~ id:", id)
   const builderId = req.user.builder_id;
-  const allowedFields = ["name", "phone", "address"]; 
-  const updates = {};
-
-  const invalidFields = Object.keys(req.body).filter(
-    (key) => !allowedFields.includes(key)
-  );
-
-  if (invalidFields.length > 0) {
-    return errorResponse(
-      res,
-      400,
-      `Invalid field(s): ${invalidFields.join(", ")}. These field(s) cannot be updated.`
-    );
-  }
-
-  for (const field of allowedFields) {
-    const value = req.body[field];
-    if (value !== undefined && value !== null) {
-      if (typeof value === "string" && value.trim() === "") continue;
-      updates[field] = typeof value === "string" ? value.trim() : value;
-    }
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return errorResponse(res, 400, "No valid fields to update.");
-  }
+  const updates = req.body;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -252,17 +150,16 @@ exports.updateContractor = async (req, res) => {
       WHERE contractor_id = $${idx} AND builder_id = $${idx + 1}
       RETURNING *;
     `;
-    console.log("🚀 ~ exports.updateContractor= ~ updateQuery:", updateQuery)
 
-    const result = await client.query(updateQuery, values);
+    const updateResult = await client.query(updateQuery, values);
 
-    if (result.rowCount === 0) {
+    if (updateResult.rowCount === 0) {
       return errorResponse(res, 404, "Contractor not found.");
     }
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(updateResult.rows[0]),
       "Contractor updated successfully."
     );
 
@@ -296,11 +193,7 @@ exports.deleteContractor = async (req, res) => {
       return errorResponse(res, 404, "Contractor not found.");
     }
 
-    return successResponse(
-      res,
-      {},
-      "Contractor deleted successfully."
-    );
+    return successResponse(res, {}, "Contractor deleted successfully.");
   } catch (error) {
     console.error("Error deleting contractor:", error);
     return errorResponse(res, 500, "Internal Server Error");
@@ -308,5 +201,3 @@ exports.deleteContractor = async (req, res) => {
     client.release();
   }
 };
-
-

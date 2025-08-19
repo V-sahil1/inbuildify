@@ -1,43 +1,59 @@
 const Joi = require('joi');
 
+// Reusable rules
+const nameRule = Joi.string().min(2).max(100).trim().required().messages({
+  'string.base': 'Name must be a string',
+  'string.empty': 'Name is required',
+  'string.min': 'Name must be at least 2 characters long',
+  'string.max': 'Name must not exceed 100 characters',
+  'any.required': 'Name is required'
+});
+
+const emailRule = Joi.string().email().lowercase().trim().required().messages({
+  'string.base': 'Email must be a string',
+  'string.empty': 'Email is required',
+  'string.email': 'Please provide a valid email address',
+  'any.required': 'Email is required'
+});
+
+const passwordRule = Joi.string().min(6).max(100).required().messages({
+  'string.base': 'Password must be a string',
+  'string.empty': 'Password is required',
+  'string.min': 'Password must be at least 6 characters long',
+  'string.max': 'Password must not exceed 100 characters',
+  'any.required': 'Password is required'
+});
+
+const otpRule = Joi.string().length(6).pattern(/^[0-9]+$/).required().messages({
+  'string.base': 'OTP must be a string',
+  'string.empty': 'OTP is required',
+  'string.length': 'OTP must be exactly 6 digits',
+  'string.pattern.base': 'OTP must contain only numbers',
+  'any.required': 'OTP is required'
+});
+
+const phoneRule = Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow('').messages({
+  'string.base': 'Phone must be a string',
+  'string.pattern.base': 'Phone must contain only digits and be 10-15 characters long'
+});
+
+// Schemas
 const createUserSchema = Joi.object({
-  name: Joi.string().min(2).max(100).required().trim().messages({
-    'string.base': 'Name must be a string',
-    'string.empty': 'Name is required',
-    'string.min': 'Name must be at least 2 characters long',
-    'string.max': 'Name must not exceed 100 characters',
-    'any.required': 'Name is required'
-  }),
-  email: Joi.string().email().required().lowercase().trim().messages({
-    'string.base': 'Email must be a string',
-    'string.empty': 'Email is required',
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required'
-  }),
-  password: Joi.string().min(6).max(100).required().messages({
-    'string.base': 'Password must be a string',
-    'string.empty': 'Password is required',
-    'string.min': 'Password must be at least 6 characters long',
-    'string.max': 'Password must not exceed 100 characters',
-    'any.required': 'Password is required'
-  }),
-  role: Joi.string().valid('super_admin', 'admin', 'project_owner', 'service_provider', 'client').default('client').messages({
-    'string.base': 'Role must be a string',
-    'any.only': 'Role must be one of: admin, user, builder, contractor'
-  }),
-  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow('').messages({
-    'string.base': 'Phone must be a string',
-    'string.pattern.base': 'Phone must contain only digits and be 10-15 characters long'
-  })
+  name: nameRule,
+  email: emailRule,
+  password: passwordRule,
+  role: Joi.string()
+    .valid('super_admin', 'admin', 'project_owner', 'service_provider', 'client')
+    .default('client')
+    .messages({
+      'string.base': 'Role must be a string',
+      'any.only': 'Role must be one of: super_admin, admin, project_owner, service_provider, client'
+    }),
+  phone: phoneRule
 });
 
 const loginUserSchema = Joi.object({
-  email: Joi.string().email().required().lowercase().trim().messages({
-    'string.base': 'Email must be a string',
-    'string.empty': 'Email is required',
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required'
-  }),
+  email: emailRule,
   password: Joi.string().required().messages({
     'string.base': 'Password must be a string',
     'string.empty': 'Password is required',
@@ -45,53 +61,19 @@ const loginUserSchema = Joi.object({
   })
 });
 
-// Additional validation schemas you might need
 const verifyEmailSchema = Joi.object({
-  email: Joi.string().email().required().lowercase().trim().messages({
-    'string.base': 'Email must be a string',
-    'string.empty': 'Email is required',
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required'
-  }),
-  otp: Joi.string().length(6).pattern(/^[0-9]+$/).required().messages({
-    'string.base': 'OTP must be a string',
-    'string.empty': 'OTP is required',
-    'string.length': 'OTP must be exactly 6 digits',
-    'string.pattern.base': 'OTP must contain only numbers',
-    'any.required': 'OTP is required'
-  })
+  email: emailRule,
+  otp: otpRule
 });
 
 const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().required().lowercase().trim().messages({
-    'string.base': 'Email must be a string',
-    'string.empty': 'Email is required',
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required'
-  })
+  email: emailRule
 });
 
 const resetPasswordSchema = Joi.object({
-  email: Joi.string().email().required().lowercase().trim().messages({
-    'string.base': 'Email must be a string',
-    'string.empty': 'Email is required',
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required'
-  }),
-  otp: Joi.string().length(6).pattern(/^[0-9]+$/).required().messages({
-    'string.base': 'OTP must be a string',
-    'string.empty': 'OTP is required',
-    'string.length': 'OTP must be exactly 6 digits',
-    'string.pattern.base': 'OTP must contain only numbers',
-    'any.required': 'OTP is required'
-  }),
-  newPassword: Joi.string().min(6).max(100).required().messages({
-    'string.base': 'New password must be a string',
-    'string.empty': 'New password is required',
-    'string.min': 'New password must be at least 6 characters long',
-    'string.max': 'New password must not exceed 100 characters',
-    'any.required': 'New password is required'
-  })
+  email: emailRule,
+  otp: otpRule,
+  newPassword: passwordRule.label('New password') // override label for better messages
 });
 
 const changePasswordSchema = Joi.object({
@@ -100,13 +82,7 @@ const changePasswordSchema = Joi.object({
     'string.empty': 'Current password is required',
     'any.required': 'Current password is required'
   }),
-  newPassword: Joi.string().min(6).max(100).required().messages({
-    'string.base': 'New password must be a string',
-    'string.empty': 'New password is required',
-    'string.min': 'New password must be at least 6 characters long',
-    'string.max': 'New password must not exceed 100 characters',
-    'any.required': 'New password is required'
-  })
+  newPassword: passwordRule.label('New password')
 });
 
 module.exports = {
