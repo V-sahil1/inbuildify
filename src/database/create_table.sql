@@ -75,3 +75,18 @@ CREATE TABLE statusLogs (
   response TEXT,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE public.customer (
+  customer_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+  "name" varchar(100) NOT NULL,
+  email varchar(100) NOT NULL,
+  builder_id uuid NOT NULL,
+  phone varchar(15) NULL,
+  address text NULL,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+  updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+  is_deleted bool DEFAULT false NOT NULL,
+  CONSTRAINT customer_email_key UNIQUE (email),
+  CONSTRAINT customer_pkey PRIMARY KEY (customer_id),
+  CONSTRAINT customer_builder_id_fkey FOREIGN KEY (builder_id) REFERENCES public.builder(builder_id) ON DELETE CASCADE
+);
