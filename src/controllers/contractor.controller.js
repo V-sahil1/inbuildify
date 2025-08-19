@@ -5,7 +5,23 @@ const { successResponse } = require("../helper/response");
 
 
 exports.createContractor = async (req, res) => {
-  const { name, email, builderId, phone, address } = req.body || {};
+  const requiredFields = ["name", "email", "phone", "address"];
+  const requestBody = req.body || {};
+
+  // Validate the request body
+  if (!requestBody || Object.keys(requestBody).length === 0) {
+    return errorResponse(res, 400, "Invalid request");
+  }
+
+  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
+    return errorResponse(
+      res,
+      400,
+      `Invalid request body, requireFields: ${requiredFields.join(", ")}`
+    );
+  }
+
+  const { name, email, phone, address } = requestBody;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
