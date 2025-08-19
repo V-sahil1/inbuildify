@@ -3,9 +3,13 @@ const router = express.Router();
 const {
   createContractor,
 } = require("../controllers/contractor.controller");
-const authMiddleware = require("../middleware/authMiddleware.js");
-const roleMiddleware = require("../middleware/roleMiddleware.js");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const { createContractorSchema } = require("../validations/contractor.validation");
 
-router.post("/", authMiddleware,roleMiddleware, createContractor);
+router.use(authMiddleware)
+
+router.post("/", validateRequest(createContractorSchema), roleMiddleware, createContractor);
 
 module.exports = router;

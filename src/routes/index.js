@@ -1,9 +1,9 @@
-const user = require("./user.routes");
-const builder = require("./builder.routes.js");
-const contractor = require("./contractor.routes.js");
+const authRoutes = require("./auth.routes");
+const builderRoutes = require("./builder.routes");
+const contractorRoutes = require("./contractor.routes");
 
 module.exports = function (app) {
-  app.use("/user", user);
-  app.use("/builder", builder);
-  app.use("/contractor",contractor);
+  app.use("/auth", authRoutes);
+  app.use("/builder", builderRoutes);
+  app.use("/contractor",contractorRoutes);
 };

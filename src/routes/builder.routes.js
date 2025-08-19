@@ -7,13 +7,15 @@ const {
   updateBuilder,
   deleteBuilder,
 } = require("../controllers/builder.controller");
-const authMiddleware = require("../middleware/authMiddleware.js");
-const roleMiddleware = require("../middleware/roleMiddleware.js");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
 
-router.post("/", authMiddleware, roleMiddleware, createBuilder);
-router.get("/", authMiddleware, roleMiddleware, getBuilders);
-router.get("/:id", authMiddleware, roleMiddleware, getBuilderById);
-router.put("/:id", authMiddleware, roleMiddleware, updateBuilder);
-router.delete("/:id", authMiddleware, roleMiddleware, deleteBuilder);
+router.use(authMiddleware)
+
+router.post("/", roleMiddleware, createBuilder);
+router.get("/", roleMiddleware, getBuilders);
+router.get("/:id", roleMiddleware, getBuilderById);
+router.put("/:id", roleMiddleware, updateBuilder);
+router.delete("/:id", roleMiddleware, deleteBuilder);
 
 module.exports = router;

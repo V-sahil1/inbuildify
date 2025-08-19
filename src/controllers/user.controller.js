@@ -2,63 +2,51 @@ const { successResponse, errorResponse } = require("../helper/response");
 const getPool = require("../config/database");
 const {
   generateOtp,
-  checkRequiredFields,
-  checkValidEmail,
   encrypt,
   decrypt,
   generateAccessToken,
   generateRefreshToken,
   keysToCamelCase,
 } = require("../utils/common");
-const sendEmail = require("../helper/sendMail.js");
+const sendEmail = require("../helper/sendMail");
 
-exports.createUser = async (req, res) => {
-  const requiredFields = ["name", "email", "password"];
-
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  if (!checkRequiredFields(Object.keys(req.body), requiredFields)) {
-    return errorResponse(res, 400, "Invalid request body");
-  }
-
-  const { name, email, password } = req.body;
+exports.registerUser = async (req, res) => {
+  // Data is already validated by Joi middleware, so we can trust it's clean
+  const { name, email, password, role = 'user', phone } = req.body;
   const lowerCaseEmail = email.toLowerCase();
-
-  if (!checkValidEmail(lowerCaseEmail)) {
-    return errorResponse(res, 400, "Invalid email");
-  }
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const query = `SELECT u.is_verified, u.expires_at, b.email FROM users u JOIN builder b ON u.builder_id = b.builder_id WHERE LOWER(b.email) = $1;`;
-    const result = await client.query(query, [lowerCaseEmail]);
+    // Check if user already exists
+    const existingUserQuery = `
+      SELECT u.is_verified, u.expires_at, b.email 
+      FROM users u 
+      JOIN builder b ON u.builder_id = b.builder_id 
+      WHERE LOWER(b.email) = $1;
+    `;
+    const existingUserResult = await client.query(existingUserQuery, [lowerCaseEmail]);
 
-    if (result.rowCount > 0) {
-      const { is_verified } = result.rows[0];
+    if (existingUserResult.rowCount > 0) {
+      const { is_verified } = existingUserResult.rows[0];
 
       if (is_verified) {
-        console.log("🚀 ~ is_verified:", is_verified);
-        return errorResponse(res, 400, "User already exists.");
+        return errorResponse(res, 409, "User already exists and is verified.");
       }
 
+      // User exists but not verified, send new OTP
       const otp = generateOtp();
       const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      const subject = "OTP for Email Verification";
-      const verificationLink = `${process.env.FRONTED_BASE_URL}/verify-email?email=${lowerCaseEmail}`;
-      const text = `Your new OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+      const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
 
-      const emailVerify = await sendEmail(lowerCaseEmail, subject, text);
-
-      if (emailVerify) {
+      if (emailSent) {
         await client.query(
           `UPDATE users SET otp = $1, expires_at = $2 WHERE LOWER(email) = $3;`,
           [otp, newExpiresAt, lowerCaseEmail]
         );
+        
         return successResponse(
           res,
           {
@@ -68,129 +56,131 @@ exports.createUser = async (req, res) => {
           "OTP sent successfully."
         );
       } else {
-        console.log("🚀 ~ emailVerify:", emailVerify);
-        return errorResponse(res, 400, "Failed to send OTP email.");
+        return errorResponse(res, 500, "Failed to send OTP email.");
       }
     }
 
+    // Create new user
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const subject = "OTP for Email Verification";
-    const verificationLink = `${process.env.FRONTED_BASE_URL}/verify-email?email=${lowerCaseEmail}`;
-    const text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+    const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
 
-    const emailVerify = await sendEmail(lowerCaseEmail, subject, text);
+    if (!emailSent) {
+      return errorResponse(res, 500, "Failed to send verification email.");
+    }
 
-    if (emailVerify) {
+    await client.query('BEGIN');
+
+    try {
+      // Insert into builder table
       const builderResult = await client.query(
-        `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING *;`,
-        [name, lowerCaseEmail]
+        `INSERT INTO builder (name, email, phone) VALUES ($1, $2, $3) RETURNING builder_id;`,
+        [name, lowerCaseEmail, phone || null]
       );
       const builderId = builderResult.rows[0].builder_id;
 
+      // Insert into users table
       await client.query(
-        `INSERT INTO users (account_roles, builder_id, name, email, password, root_user, otp, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
+        `INSERT INTO users (
+          role, builder_id, name, email, password, 
+          root_user, otp, expires_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
         [
-          ["administrator"],
+          [role === 'admin' ? 'administrator' : role],
           builderId,
           name,
           lowerCaseEmail,
           encrypt(password),
-          true,
+          role === 'admin',
           otp,
           expiresAt,
         ]
       );
 
+      await client.query('COMMIT');
+
       return successResponse(
         res,
         {
-          message: "User registered successfully.",
+          message: "User registered successfully. Please check your email for verification.",
           link: `/verify-email?email=${lowerCaseEmail}`,
         },
         "User registered successfully."
       );
-    } else {
-      console.log("🚀 ~ emailVerify:", emailVerify);
-      return errorResponse(res, 400, "Failed to send email.");
+    } catch (insertError) {
+      await client.query('ROLLBACK');
+      throw insertError;
     }
+
   } catch (error) {
-    console.error({ error });
-    return errorResponse(res, 400, "Failed to create user.");
+    console.error('Create user error:', error);
+    return errorResponse(res, 500, "Failed to create user.");
   } finally {
     client.release();
   }
 };
 
 exports.loginUser = async (req, res) => {
-  const requiredFields = ["email", "password"];
-  const requestBody = req.body || {};
-
-  // Validate the request body
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
-    return errorResponse(
-      res,
-      400,
-      `Invalid request body, requireFields: ${requiredFields.join(", ")}`
-    );
-  }
-
-  const { email, password } = requestBody;
+  // Data is already validated by Joi middleware
+  const { email, password } = req.body;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT users_id, password, is_verified, otp, expires_at FROM users WHERE LOWER(email) = $1;`;
+    const userQuery = `
+      SELECT users_id, password, is_verified, otp, expires_at, role
+      FROM users 
+      WHERE LOWER(email) = $1;
+    `;
     const userResult = await client.query(userQuery, [lowerCaseEmail]);
 
     if (userResult.rows.length === 0) {
-      return errorResponse(res, 400, "Invalid email or password");
+      return errorResponse(res, 401, "Invalid email or password.");
     }
 
     const user = userResult.rows[0];
-    console.log("🚀 ~ user.controller.js:157 ~ user:", user);
 
-    // Validate the password
-    const isPasswordValid = decrypt(user?.password);
-    if (isPasswordValid !== password) {
-      return errorResponse(res, 400, "Invalid Credentials for password");
+    // Validate password
+    const decryptedPassword = decrypt(user.password);
+    if (decryptedPassword !== password) {
+      return errorResponse(res, 401, "Invalid email or password.");
     }
 
+    // Check if user is verified
     if (!user.is_verified) {
       const otp = generateOtp();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      const subject = "OTP for Email Verification";
-      const verificationLink = `${process.env.FRONTED_BASE_URL}/verify-email`;
-      const text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}?email=${lowerCaseEmail}`;
+      const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
 
-      const emailVerify = await sendEmail(lowerCaseEmail, subject, text);
-
-      if (emailVerify) {
+      if (emailSent) {
         await client.query(
           `UPDATE users SET otp = $1, expires_at = $2 WHERE LOWER(email) = $3;`,
           [otp, expiresAt, lowerCaseEmail]
         );
+        
         return successResponse(
           res,
-          { link: `/verify-email?email=${email}` },
-          "A new OTP has been sent to your email. Please verify your email before logging in."
+          { link: `/verify-email?email=${lowerCaseEmail}` },
+          "Please verify your email before logging in. A new OTP has been sent."
         );
       } else {
         return errorResponse(res, 500, "Failed to send OTP email.");
       }
     }
+
+    // Generate tokens
     const accessToken = generateAccessToken(user.users_id);
     const refreshToken = generateRefreshToken(user.users_id);
 
-    const tokenQuery = `INSERT INTO users_token (user_id, access_token, refresh_token) VALUES ($1, $2, $3);`;
+    // Store tokens
+    const tokenQuery = `
+      INSERT INTO users_token (user_id, access_token, refresh_token) 
+      VALUES ($1, $2, $3);
+    `;
     await client.query(tokenQuery, [user.users_id, accessToken, refreshToken]);
 
     return successResponse(
@@ -198,47 +188,53 @@ exports.loginUser = async (req, res) => {
       {
         accessToken,
         refreshToken,
+        user: {
+          id: user.users_id,
+          email: lowerCaseEmail,
+          roles: user.role
+        }
       },
       "Login successful."
     );
+
   } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
+    console.error('Login error:', error);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.getProfile = async (req, res) => {
-  console.log("🚀 ~ user.controller.js:217 ~ req:", req.user);
   const userId = req.user.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT * FROM users WHERE users_id = $1;`;
+    const userQuery = `
+      SELECT u.*, b.phone 
+      FROM users u 
+      LEFT JOIN builder b ON u.builder_id = b.builder_id 
+      WHERE u.users_id = $1;
+    `;
     const userResult = await client.query(userQuery, [userId]);
 
-    console.log("🚀 ~ user.controller.js:226 ~ userResult.rowCount:", userResult.rowCount);
     if (userResult.rowCount === 0) {
-      console.log("🚀 ~ userResult:", userResult);
       return errorResponse(res, 404, "User not found.");
     }
 
     const userData = userResult.rows[0];
+    
     return successResponse(
       res,
       keysToCamelCase({
+        userId: userData.users_id,
         name: userData.name,
         email: userData.email,
-        role: userData.account_roles,
+        phone: userData.phone,
+        roles: userData.role,
         builderId: userData.builder_id,
-        userId: userData.users_id,
         isVerified: userData.is_verified,
         rootUser: userData.root_user,
         createdAt: userData.created_at,
@@ -246,14 +242,25 @@ exports.getProfile = async (req, res) => {
       }),
       "User profile fetched successfully."
     );
+
   } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
+    console.error('Get profile error:', error);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
+
+// Helper function to send verification email
+async function sendVerificationEmail(email, otp) {
+  try {
+    const subject = "OTP for Email Verification";
+    const verificationLink = `${process.env.FRONTED_BASE_URL}/verify-email?email=${email}`;
+    const text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+
+    return await sendEmail(email, subject, text);
+  } catch (error) {
+    console.error('Email sending error:', error);
+    return false;
+  }
+}

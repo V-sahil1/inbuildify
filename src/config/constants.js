@@ -6,9 +6,16 @@ const DEFAULT_LIMIT = 25;
 
 const MAX_BATCH_SIZE = 100;
 
+const REQUEST_SOURCE = {
+  BODY: "body",
+  QUERY: "query",
+  PARAMS: "params",
+}
+
 module.exports = {
   REQUIRED_ROLES,
   VALID_SORT_COLUMNS,
   DEFAULT_LIMIT,
   MAX_BATCH_SIZE,
+  REQUEST_SOURCE,
 };
