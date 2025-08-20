@@ -90,7 +90,7 @@ CREATE TABLE statusLogs (
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE public.customer (
+CREATE TABLE customer (
   customer_id uuid DEFAULT uuid_generate_v4() NOT NULL,
   "name" varchar(100) NOT NULL,
   email varchar(100) NOT NULL,
@@ -103,4 +103,20 @@ CREATE TABLE public.customer (
   CONSTRAINT customer_email_key UNIQUE (email),
   CONSTRAINT customer_pkey PRIMARY KEY (customer_id),
   CONSTRAINT customer_builder_id_fkey FOREIGN KEY (builder_id) REFERENCES public.builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TYPE lead_source_enum AS ENUM ('ADMIN_PANEL', 'WEBSITE', 'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'LINKEDIN', 'TWITTER', 'TIKTOK', 'WHATSAPP', 'EMAIL_CAMPAIGN', 'GOOGLE_ADS', 'FACEBOOK_ADS', 'INSTAGRAM_ADS', 'YOUTUBE_ADS', 'LINKEDIN_ADS', 'REFERRAL', 'PHONE_CALL', 'TRADE_SHOW', 'PARTNER', 'OTHER');
+
+CREATE TABLE leads (
+  lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(20),
+  status VARCHAR(50) DEFAULT 'new' NOT NULL,
+  lead_source lead_source_enum NOT NULL DEFAULT 'OTHER',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
