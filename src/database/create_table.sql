@@ -53,15 +53,29 @@ CREATE TABLE contractor (
 );
 
 CREATE TABLE customer (
-  customer_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  contractor_id UUID NOT NULL,
-  phone VARCHAR(15),
-  address TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (contractor_id) REFERENCES contractor(contractor_id) ON DELETE CASCADE
+	customer_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	name varchar(100) NOT NULL,
+	email varchar(100) NOT NULL,
+	builder_id uuid NOT NULL,
+	phone varchar(15) NULL,
+	address text NULL,
+	is_deleted boolean DEFAULT false NOT NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	CONSTRAINT customer_email_key UNIQUE (email),
+	CONSTRAINT customer_pkey PRIMARY KEY (customer_id),
+	CONSTRAINT customer_builder_id_fkey FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE invites (
+  invite_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) NOT NULL,
+  invite_token TEXT NOT NULL UNIQUE,
+  builder_id UUID NOT NULL,
+  role users_role_enum NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  invited_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
 CREATE TABLE statusLogs (

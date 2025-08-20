@@ -1,18 +1,56 @@
-const { successResponse, errorResponse } = require("../helper/response");
 const getPool = require("../config/database");
+const { successResponse, errorResponse } = require("../helper/response");
+const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
+const sendEmail = require("../helper/sendMail");
 const {
   generateOtp,
   encrypt,
   decrypt,
   generateAccessToken,
   generateRefreshToken,
-  keysToCamelCase,
+  checkRequiredFields,
 } = require("../utils/common");
-const sendEmail = require("../helper/sendMail");
+
+exports.getUsersByBuilderId = async (req, res) => {
+  const builderId = req.user.builder_id;
+  console.log("🚀 ~ exports.getUsersByBuilderId= ~ builderId:", builderId)
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT users_id, builder_id, name, email, is_verified, role::TEXT[], created_at, updated_at FROM users 
+      WHERE builder_id = $1 AND is_deleted = false;
+    `;
+    const result = await client.query(query, [builderId]);
+
+    const userData = result.rows.map((user) => ({
+      usersId: user.users_id,
+      builderId: user.builder_id,
+      name: user.name,
+      email: user.email,
+      isVerified: user.is_verified,
+      role: user.role,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    })); 
+    return successResponse(
+      res,
+      userData,
+      "Users fetched successfully."
+    );
+  } catch (error) {
+    console.error("Get users error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
 
 exports.registerUser = async (req, res) => {
   // Data is already validated by Joi middleware, so we can trust it's clean
-  const { name, email, password, role = 'user', phone } = req.body;
+  const { name, email, password, role = "user", phone } = req.body;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
@@ -70,7 +108,7 @@ exports.registerUser = async (req, res) => {
       return errorResponse(res, 500, "Failed to send verification email.");
     }
 
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     try {
       // Insert into builder table
@@ -92,24 +130,21 @@ exports.registerUser = async (req, res) => {
           name,
           lowerCaseEmail,
           encrypt(password),
-          role === 'admin',
+          role === "admin",
           otp,
           expiresAt,
         ]
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       return successResponse(
         res,
-        {
-          message: "User registered successfully. Please check your email for verification.",
-          link: `/verify-email?email=${lowerCaseEmail}`,
-        },
-        "User registered successfully."
+        userData,
+        "Users fetched successfully."
       );
     } catch (insertError) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw insertError;
     }
 
@@ -196,9 +231,8 @@ exports.loginUser = async (req, res) => {
       },
       "Login successful."
     );
-
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -235,9 +269,8 @@ exports.getProfile = async (req, res) => {
       },
       "User profile fetched successfully."
     );
-
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error("Get profile error:", error);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -246,61 +279,178 @@ exports.getProfile = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   const requiredFields = ["email"];
+  const requestBody = req.body || {};
 
-  if (!req.body || Object.keys(req.body).length === 0) {
+  if (!requestBody || Object.keys(requestBody).length === 0) {
     return errorResponse(res, 400, "Invalid request");
   }
 
-  if (!checkRequiredFields(Object.keys(req.body), requiredFields)) {
-    return errorResponse(
-      res,
-      400,
-      `Invalid request body, requireFields: ${requiredFields.join(", ")}`
-    );
+  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
+    return errorResponse(res, 400, "Invalid request body");
   }
 
-  const { email } = req.body;
+  const { email } = requestBody;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT users_id, password FROM users WHERE LOWER(email) = $1;`;
-    const userResult = await client.query(userQuery, [lowerCaseEmail]);
+    const query = `SELECT u.users_id FROM users u WHERE LOWER(u.email) = $1 AND u.is_deleted = FALSE;`;
+    const result = await client.query(query, [lowerCaseEmail]);
 
-    if (userResult.rowCount === 0) {
-      return errorResponse(res, 404, "User not found.");
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "User not found or inactive.");
     }
 
-    const user = userResult.rows[0];
+    const resetPasswordToken = uuidv4();
+    const resetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const resetLink = `${process.env.FRONTED_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${lowerCaseEmail}`;
+    const emailSent = await sendVerificationEmail(
+      lowerCaseEmail,
+      null,
+      resetPasswordToken
+    );
 
-    const subject = "OTP for Password Reset";
-    const verificationLink = `${process.env.FRONTED_BASE_URL}/reset-password?email=${lowerCaseEmail}`;
-    const text = `Your OTP for password reset is: ${otp}\n\nPlease reset your password by clicking the following link: ${verificationLink}`;
-
-    const emailVerify = await sendEmail(lowerCaseEmail, subject, text);
-
-    if (emailVerify) {
+    if (emailSent) {
       await client.query(
-        `UPDATE users SET otp = $1, expires_at = $2 WHERE LOWER(email) = $3;`,
-        [otp, expiresAt, user?.email]
+        `UPDATE users SET reset_password_token = $1, reset_token_expires_at = $2 WHERE LOWER(email) = $3;`,
+        [resetPasswordToken, resetTokenExpiresAt, lowerCaseEmail]
       );
       return successResponse(
         res,
-        {
-          message: "A new OTP has been sent to your email.",
-          link: `/reset-password?email=${lowerCaseEmail}`,
-        },
-        "OTP sent successfully."
+        { link: resetLink },
+        "Password reset email sent."
       );
     } else {
-      console.log("🚀 ~ emailVerify:", emailVerify);
-      return errorResponse(res, 400, "Failed to send OTP email.");
+      return errorResponse(res, 400, "Failed to send reset email.");
     }
+  } catch (error) {
+    console.error({ error });
+    return errorResponse(res, 500, "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const requestBody = req?.body || {};
+
+  if (!requestBody || Object.keys(requestBody).length === 0) {
+    return errorResponse(res, 400, "Invalid request");
+  }
+
+  const { email, resetPasswordToken, password } = requestBody;
+
+  if (!email) {
+    return errorResponse(res, 400, "Email is required.");
+  }
+
+  if (!resetPasswordToken) {
+    return errorResponse(res, 400, "Reset password token is required.");
+  }
+
+  if (!password) {
+    return errorResponse(res, 400, "Password is required.");
+  }
+
+  const lowerCaseEmail = email.toLowerCase();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const query = `
+        SELECT u.reset_token_expires_at, u.users_id
+        FROM users u 
+        WHERE LOWER(u.email) = $1 
+        AND u.reset_password_token = $2 
+        AND u.is_deleted = FALSE;
+      `;
+    const result = await client.query(query, [
+      lowerCaseEmail,
+      resetPasswordToken,
+    ]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid or expired token, or email does not exist."
+      );
+    }
+
+    const { reset_token_expires_at: resetTokenExpiresAt, users_id } =
+      result.rows[0];
+
+    if (new Date() > resetTokenExpiresAt) {
+      return errorResponse(
+        res,
+        400,
+        "Token has expired. Please request a new password reset."
+      );
+    }
+
+    const encryptedPassword = encrypt(password);
+
+    await client.query(
+      `UPDATE users SET password = $1, reset_password_token = NULL, reset_token_expires_at = NULL WHERE users_id = $2;`,
+      [encryptedPassword, users_id]
+    );
+
+    return successResponse(
+      res,
+      null,
+      "Password reset successfully. You can now log in with your new password."
+    );
+  } catch (error) {
+    console.error({ error });
+    return errorResponse(
+      res,
+      500,
+      "An error occurred while resetting password."
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body || {};
+
+  if (!refreshToken) {
+    return errorResponse(res, 400, "Refresh token is missing.");
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (error) {
+      return errorResponse(res, 401, "Invalid or expired refresh token.");
+    }
+
+    const query = `SELECT * FROM users_token WHERE user_id = $1 AND refresh_token = $2;`;
+    const result = await client.query(query, [decoded?.userId, refreshToken]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(res, 401, "Invalid or expired refresh token.");
+    }
+
+    const newAccessToken = generateAccessToken(decoded?.userId);
+    await client.query(
+      `UPDATE users_token SET access_token = $1 WHERE user_id = $2 AND refresh_token = $3;`,
+      [newAccessToken, decoded?.userId, refreshToken]
+    );
+
+    return successResponse(
+      res,
+      { accessToken: newAccessToken },
+      "Refresh token updated successfully."
+    );
   } catch (error) {
     console.error({ error });
     return errorResponse(
@@ -309,160 +459,308 @@ exports.forgotPassword = async (req, res) => {
       error.message || "Internal Server Error"
     );
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 };
 
-exports.verifyOtp = async (req, res) => {
-  const requiredFields = ["email", "otp"];
-  const requestBody = req?.body || {};
+exports.getInvitedUser = async (req, res) => {
+  const { user } = req;
 
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request: Empty request body");
+  if (!user) {
+    return errorResponse(res, 400, "Your information is missing.");
   }
 
-  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
-    return errorResponse(res, 400, `Invalid request body: ${requiredFields}`);
-  }
-
-  const { email, otp } = requestBody;
+  const { limit, offset } = req.query || {};
+  const parsedLimit = parseInt(limit, 10) || 25;
+  const parsedOffset = parseInt(offset, 10) || 0;
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT users_id, otp, expires_at, is_verified FROM users WHERE email = $1;`;
-    const userResult = await client.query(userQuery, [email]);
-
-    if (userResult.rows.length === 0) {
-      return errorResponse(res, 400, "User not found.");
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.is_verified) {
-      return errorResponse(res, 400, "User is already verified.");
-    }
-
-    const currentTime = new Date();
-    const otpExpiryTime = new Date(user.expires_at);
-
-    if (otp !== user.otp) {
-      return errorResponse(res, 400, "Invalid or expired OTP.");
-    }
-
-    if (currentTime > otpExpiryTime) {
-      return errorResponse(res, 400, "OTP has expired.");
-    }
-
-    await client.query(
-      `UPDATE users SET is_verified = $1, otp = NULL, expires_at = NULL WHERE email = $2;`,
-      [true, email]
+    const userResult = await client.query(
+      `SELECT * FROM invites WHERE builder_id = $1 LIMIT $2 OFFSET $3`,
+      [user?.builder_id, parsedLimit, parsedOffset]
     );
 
-    const accessToken = generateAccessToken(user.users_id);
-    const refreshToken = generateRefreshToken(user.users_id);
+    if (userResult?.rows?.length === 0) {
+      return errorResponse(res, 404, "User not found.");
+    }
 
-    await client.query(
-      `INSERT INTO user_token (user_id, access_token, refresh_token) VALUES ($1, $2, $3);`,
-      [user.users_id, accessToken, refreshToken]
+    const totalResult = await client.query(
+      `SELECT COUNT(*) FROM invites WHERE builder_id = $1`,
+      [user?.builder_id]
     );
+
+    const totalItems = parseInt(totalResult.rows[0].count, 10);
+    const totalPages = Math.ceil(totalItems / parsedLimit);
+    const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
+
+    return successResponse(
+      res,
+      {
+        users: userResult?.rows?.map((user) => ({
+          inviteId: user.invite_id,
+          email: user.email,
+          inviteToken: user.invite_token,
+          builderId: user.builder_id,
+          role: user.role,
+          expiresAt: user.expires_at,
+          invitedAt: user.invited_at,
+        })),
+        pagination: {
+          totalItems,
+          totalPages,
+          currentPage,
+          limit: parsedLimit,
+        },
+      },
+      "Invited Users get successfully."
+    );
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    return errorResponse(res, 500, "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.inviteUser = async (req, res) => {
+  const roleEnum = [
+    "super_admin",
+    "admin",
+    "project_owner",
+    "service_provider",
+    "client",
+  ];
+  const generateToken = () => crypto.randomBytes(20).toString("hex");
+  const INVITE_EXPIRATION_MINUTES = 10;
+
+  const { user } = req;
+
+  const { email: inputEmail, role } = req.body;
+
+  if (!inputEmail || !role) {
+    console.log("🚀 ~ role (missing):", role);
+    console.log("🚀 ~ inputEmail (email):", inputEmail);
+    return errorResponse(res, 400, "Missing required fields.");
+  }
+
+  if (!roleEnum.includes(role)) {
+    console.log("🚀 ~ add specified role:", role);
+    return errorResponse(res, 400, "Please add specified role.");
+  }
+
+  const email = inputEmail.toLowerCase();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const existingUserQuery = `SELECT * FROM users WHERE email = $1 AND is_deleted = $2`;
+    const existingUserResult = await client.query(existingUserQuery, [
+      email,
+      false,
+    ]);
+
+    if (existingUserResult?.rows?.length > 0) {
+      console.log("🚀 ~ existingUserResult:", existingUserResult);
+      return errorResponse(res, 400, "User email is already exists.");
+    }
+
+    const recentInviteQuery = `
+      SELECT * FROM invites 
+      WHERE email = $1 
+      AND builder_id = $2 
+      ORDER BY invited_at DESC LIMIT 1
+    `;
+    const recentInviteResult = await client.query(recentInviteQuery, [
+      email,
+      user?.builder_id,
+    ]);
+
+    if (recentInviteResult?.rows?.length > 0) {
+      const existingInvite = recentInviteResult.rows[0];
+      const invitedAt = new Date(existingInvite.invited_at);
+      const currentTime = new Date();
+      const timeDifferenceInMinutes =
+        (currentTime.getTime() - invitedAt.getTime()) / 60000;
+
+      if (timeDifferenceInMinutes < INVITE_EXPIRATION_MINUTES) {
+        console.log(
+          "🚀 ~ INVITE_EXPIRATION_MINUTES:",
+          INVITE_EXPIRATION_MINUTES
+        );
+        console.log("🚀 ~ timeDifferenceInMinutes:", timeDifferenceInMinutes);
+        return errorResponse(
+          res,
+          400,
+          "An invite was already sent. Please wait for 10 minutes before sending again."
+        );
+      }
+
+      await sendVerificationEmail(email, null, null, existingInvite.invite_token);
+
+      const updateInviteQuery = `
+        UPDATE invites 
+        SET invited_at = NOW() 
+        WHERE invite_token = $1
+      `;
+      await client.query(updateInviteQuery, [existingInvite.invite_token]);
+
+      return successResponse(res, null, "Invitation resent successfully.");
+    }
+
+    const inviteToken = generateToken();
+    const insertInviteQuery = `INSERT INTO invites (email, invite_token, builder_id, role, expires_at) VALUES ($1, $2, $3, $4, NOW() + '1 days')`;
+    await client.query(insertInviteQuery, [
+      email,
+      inviteToken,
+      user?.builder_id,
+      role,
+    ]);
+
+    await sendVerificationEmail(email, null, null, inviteToken);
+
+    return successResponse(res, null, "Invitation sent successfully.");
+  } catch (error) {
+    console.error("Error inviting user:", error);
+    return errorResponse(
+      res,
+      error?.statusCode || 500,
+      error.message || "Internal server error"
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.acceptInvite = async (req, res) => {
+  const { name, password } = req.body;
+
+  const queryParams = req?.query || {};
+  const { token } = queryParams;
+
+  if (!token || !name || !password) {
+    console.log("🚀 ~ name:", name)
+    return errorResponse(res, 400, "Missing required fields");
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const inviteQuery = `SELECT * FROM invites WHERE invite_token = $1 AND expires_at > NOW()`;
+    const inviteResult = await client.query(inviteQuery, [token]);
+
+    if (inviteResult?.rows?.length === 0) {
+      console.log("🚀 ~ inviteResult (Invalid or expired invitation):", inviteResult)
+      await client.query('ROLLBACK');
+      return errorResponse(res, 401, "Invalid or expired invitation.");
+    }
+
+    const invite = inviteResult.rows[0];
+    const hashedPassword = encrypt(password);
+
+    const insertUserQuery = `INSERT INTO users (builder_id, name, email, password, role, root_user, is_verified, created_at) VALUES ($1, $2, $3, $4, ARRAY[$5]::users_role_enum[], FALSE, TRUE, NOW()) RETURNING users_id;`;
+    const userResult = await client.query(insertUserQuery, [
+      invite.builder_id,
+      name,
+      invite.email,
+      hashedPassword,
+      invite.role,
+    ]);
+
+    await client.query(`DELETE FROM invites WHERE invite_token = $1`, [token]);
+
+    // Generate tokens
+    const accessToken = generateAccessToken(userResult.rows[0].users_id);
+    const refreshToken = generateRefreshToken(userResult.rows[0].users_id);
+
+    // Store tokens
+    const tokenQuery = `
+      INSERT INTO users_token (user_id, access_token, refresh_token) 
+      VALUES ($1, $2, $3);
+    `;
+    await client.query(tokenQuery, [userResult.rows[0].users_id, accessToken, refreshToken]);
 
     return successResponse(
       res,
       {
         accessToken,
         refreshToken,
+        user: {
+          id: userResult.rows[0].users_id,
+          email: invite.email,
+          roles: invite.role,
+        },
       },
-      "User verified successfully."
+      "Login successful."
     );
   } catch (error) {
-    console.error({ error });
-    return errorResponse(res, 500, "An error occurred while verifying OTP.");
+    await client.query('ROLLBACK');
+    console.error("Error accepting invitation:", error);
+    return errorResponse(res, error?.statusCode || 500, error.message || "Internal server error");
   } finally {
     client.release();
+    await client.query('COMMIT');
   }
 };
 
-exports.resendOtp = async (req, res) => {
-  const requiredFields = ["email"];
-  const requestBody = req.body || {};
+exports.logoutUser = async (req, res) => {
+  const { user } = req;
 
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
-    return errorResponse(res, 400, `Invalid request body: ${requiredFields}`);
-  }
-
-  const { email } = requestBody;
+  const pool = getPool();
+  const client = await pool.connect();
 
   try {
-    const pool = getPool();
-    const client = await pool.connect();
+    const query = `DELETE FROM users_token WHERE user_id = $1 AND access_token = $2;`;
+    const result = await client.query(query, [
+      user?.user_id,
+      user?.access_token,
+    ]);
 
-    const userQuery = `SELECT users_id, otp, expires_at FROM users WHERE email = $1;`;
-    const userResult = await client.query(userQuery, [email]);
-
-    if (userResult.rows.length === 0) {
-      return errorResponse(res, 400, "User not found.");
+    if (result.rowCount === 0) {
+      return errorResponse(res, 401, "Invalid or expired refresh token");
     }
 
-    const user = userResult.rows[0];
-    const currentTime = new Date();
-    const otpExpiryTime = new Date(user.expires_at);
-
-    if (currentTime < otpExpiryTime) {
-      return errorResponse(
-        res,
-        400,
-        `Cannot resend OTP before the previous one expires. ${otpExpiryTime.toISOString()}`
-      );
-    }
-
-    const newOtp = generateOtp();
-    const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await client.query(
-      `UPDATE users SET otp = $1, expires_at = $2 WHERE email = $3;`,
-      [newOtp, newExpiresAt, email]
-    );
-
-    const subject = "Resend OTP for Email Verification";
-    const text = `Your new OTP for email verification is: ${newOtp}`;
-
-    const emailSent = await sendEmail(email, subject, text);
-
-    if (emailSent) {
-      return successResponse(
-        res,
-        {
-          expiresAt: newExpiresAt.toISOString(),
-        },
-        "New OTP sent successfully."
-      );
-    } else {
-      return errorResponse(res, 500, "Failed to send OTP email.");
-    }
+    return successResponse(res, null, "User logged out successfully");
   } catch (error) {
     console.error({ error });
-    return errorResponse(res, 500, error.message || "Internal Server Error");
+    return errorResponse(res, 500, "Internal server error");
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 };
 
 // Helper function to send verification email
-async function sendVerificationEmail(email, otp) {
+async function sendVerificationEmail(email, otp, resetPasswordToken = null, inviteToken = null) {
+  let subject;
+  let verificationLink;
+  let text;
   try {
-    const subject = "OTP for Email Verification";
-    const verificationLink = `${process.env.FRONTED_BASE_URL}/verify-email?email=${email}`;
-    const text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+    if (resetPasswordToken) {
+      subject = "CRMSimplify - Password Reset Request";
+      verificationLink = `${process.env.FRONTED_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
+      text = `You requested a password reset. Use the following link to reset your password:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
+    } else if (inviteToken) {
+      subject = "Invitation to Join";
+      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTED_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
+      text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
+    } else {
+      subject = "OTP for Email Verification";
+      verificationLink = `${process.env.FRONTED_BASE_URL}/auth/verify-email?email=${email}`;
+      text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+    }
 
     return await sendEmail(email, subject, text);
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error("Email sending error:", error);
     return false;
   }
 }

@@ -1,4 +1,4 @@
-const { replace } = require('lodash');
+const { replace } = require("lodash");
 
 module.exports = (validationMessageArray) => {
   return validationMessageArray.reduce((obj, item) => {
