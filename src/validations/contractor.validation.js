@@ -49,8 +49,7 @@ const createContractorSchema = Joi.object({
   name: nameRule.required(),
   email: emailRule.required(),
   phone: phoneRule.required(),
-  address: addressRule.required(),
-  builderId: builderIdRule.required()
+  address: addressRule.required()
 });
 
 // Get contractor by ID validation (params)
