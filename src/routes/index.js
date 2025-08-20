@@ -1,8 +1,8 @@
 const authRoutes = require("./auth.routes");
 const builderRoutes = require("./builder.routes");
 const contractorRoutes = require("./contractor.routes");
-const customerRoutes = require("./customer.routes.js")
-const leadRoutes = require("./leads.routes.js")
+const customerRoutes = require("./customer.routes")
+const leadRoutes = require("./leads.routes")
 
 module.exports = function (app) {
     app.use("/auth", authRoutes);
