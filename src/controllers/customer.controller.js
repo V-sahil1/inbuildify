@@ -4,7 +4,8 @@ const {keysToCamelCase} = require("../utils/common");
 const {successResponse} = require("../helper/response");
 
 exports.createCustomer = async (req, res) => {
-    const {name, email, builderId, phone, address} = req.body || {};
+    const {name, email, phone, address} = req.body || {};
+    const builderId = req.user.builder_id;
     const lowerCaseEmail = email.toLowerCase();
 
     const pool = getPool();
