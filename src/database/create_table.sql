@@ -90,21 +90,6 @@ CREATE TABLE statusLogs (
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE customer (
-  customer_id uuid DEFAULT uuid_generate_v4() NOT NULL,
-  "name" varchar(100) NOT NULL,
-  email varchar(100) NOT NULL,
-  builder_id uuid NOT NULL,
-  phone varchar(15) NULL,
-  address text NULL,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-  is_deleted bool DEFAULT false NOT NULL,
-  CONSTRAINT customer_email_key UNIQUE (email),
-  CONSTRAINT customer_pkey PRIMARY KEY (customer_id),
-  CONSTRAINT customer_builder_id_fkey FOREIGN KEY (builder_id) REFERENCES public.builder(builder_id) ON DELETE CASCADE
-);
-
 CREATE TYPE lead_source_enum AS ENUM ('ADMIN_PANEL', 'WEBSITE', 'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'LINKEDIN', 'TWITTER', 'TIKTOK', 'WHATSAPP', 'EMAIL_CAMPAIGN', 'GOOGLE_ADS', 'FACEBOOK_ADS', 'INSTAGRAM_ADS', 'YOUTUBE_ADS', 'LINKEDIN_ADS', 'REFERRAL', 'PHONE_CALL', 'TRADE_SHOW', 'PARTNER', 'OTHER');
 
 CREATE TABLE leads (

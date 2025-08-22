@@ -8,7 +8,7 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js",
-    "seed:emails": "node src/seeder/seedEmailTemplates.js"
+    "seed:all": "node src/seeder/seedAll.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
