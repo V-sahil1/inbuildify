@@ -15,9 +15,9 @@ const imageRule = Joi.string().uri().max(500).trim().messages({
   'string.max': 'Image URL must not exceed 500 characters'
 });
 
-const rangeRule = Joi.string().valid('NONE', 'PREMIUM', 'DELUX', 'LUXURY').messages({
+const rangeRule = Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY').messages({
   'string.base': 'Range must be a string',
-  'any.only': 'Range must be one of: NONE, PREMIUM, DELUX, LUXURY'
+  'any.only': 'Range must be one of: NONE, PREMIUM, DELUXE, LUXURY'
 });
 
 const dwellingTypeRule = Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE').messages({
@@ -82,7 +82,7 @@ const getFloorPlanByIdSchema = Joi.object({
 
 // Get floor plans with filters validation (query)
 const getFloorPlansSchema = Joi.object({
-  range: Joi.string().valid('NONE', 'PREMIUM', 'DELUX', 'LUXURY', 'all').optional(),
+  range: Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY', 'all').optional(),
   dwelling_type: Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE', 'all').optional(),
   page: pageRule,
   limit: limitRule

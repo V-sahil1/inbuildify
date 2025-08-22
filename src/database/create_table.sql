@@ -106,7 +106,7 @@ CREATE TABLE leads (
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
-CREATE TYPE range_type AS ENUM ('NONE', 'PREMIUM', 'DELUX', 'LUXURY');
+CREATE TYPE range_type AS ENUM ('NONE', 'PREMIUM', 'DELUXE', 'LUXURY');
 CREATE TYPE dwelling_type AS ENUM ('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE');
 
 CREATE TABLE floor_plan (
@@ -129,4 +129,18 @@ CREATE TABLE floor_plan (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
   CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE facade (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    builder_id UUID NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    image VARCHAR(500), -- URL link to image
+    range range_type,
+    dwelling_type dwelling_type,
+    standard BOOLEAN DEFAULT FALSE,
+    upgrade BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
