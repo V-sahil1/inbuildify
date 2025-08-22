@@ -105,3 +105,28 @@ CREATE TABLE leads (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
+
+CREATE TYPE range_type AS ENUM ('NONE', 'PREMIUM', 'DELUX', 'LUXURY');
+CREATE TYPE dwelling_type AS ENUM ('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE');
+
+CREATE TABLE floor_plan (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  image VARCHAR(500), -- URL link to image
+  range range_type,
+  dwelling_type dwelling_type,
+  beds INTEGER DEFAULT 0,
+  bath INTEGER DEFAULT 0,
+  car_park INTEGER DEFAULT 0,
+  width_meter DECIMAL(8,2) DEFAULT 0, -- Width in meters
+  depth_meter DECIMAL(8,2) DEFAULT 0, -- Depth in meters
+  dwelling INTEGER DEFAULT 0,
+  garage INTEGER DEFAULT 0,
+  porch INTEGER DEFAULT 0,
+  alfresco INTEGER DEFAULT 0,
+  total_sqft DECIMAL(10,2) DEFAULT 0, -- Total area in sq ft
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+  CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
