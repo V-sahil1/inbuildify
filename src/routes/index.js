@@ -6,6 +6,7 @@ const customerRoutes = require("./customer.routes");
 const leadRoutes = require("./leads.routes");
 const categoryRoutes = require("./category.routes");
 const floorPlanRoutes = require("./floor-plan.routes");
+const facadeRoutes = require("./facade.routes");
 
 module.exports = function (app) {
   app.use("/auth", authRoutes);
@@ -16,4 +17,5 @@ module.exports = function (app) {
   app.use("/leads", leadRoutes);
   app.use("/category", categoryRoutes);
   app.use("/floor-plan", floorPlanRoutes);
+  app.use("/facade", facadeRoutes);
 };

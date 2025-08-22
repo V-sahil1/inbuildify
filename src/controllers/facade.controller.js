@@ -6,7 +6,6 @@ exports.createFacade = async (req, res) => {
   const {
     name,
     image,
-    range,
     dwelling_type,
     standard,
     upgrade
@@ -27,7 +26,7 @@ exports.createFacade = async (req, res) => {
 
     // Check if facade with same name already exists for this builder
     const existingFacadeQuery = `
-      SELECT id, name FROM facade 
+      SELECT facade_id, name FROM facade 
       WHERE LOWER(name) = $1 AND builder_id = $2;
     `;
     const existingFacadeResult = await client.query(existingFacadeQuery, [
@@ -41,8 +40,8 @@ exports.createFacade = async (req, res) => {
 
     const facadeQuery = `
       INSERT INTO facade (
-        builder_id, name, image, range, dwelling_type, standard, upgrade
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        builder_id, name, image, dwelling_type, standard, upgrade
+      ) VALUES ($1, $2, $3, $4, $5, $6) 
       RETURNING *;
     `;
     
@@ -50,7 +49,6 @@ exports.createFacade = async (req, res) => {
       builderId,
       name,
       image || null,
-      range || 'none',
       dwelling_type || 'single_storey',
       standard || false,
       upgrade || false
@@ -71,7 +69,7 @@ exports.createFacade = async (req, res) => {
       return errorResponse(res, 409, "Facade with this name already exists.");
     }
     
-    return errorResponse(res, 500, "Failed to create facade.");
+    return errorResponse(res, 500, error.message || "Failed to create facade.");
   } finally {
     client.release();
   }
@@ -79,7 +77,7 @@ exports.createFacade = async (req, res) => {
 
 exports.getFacades = async (req, res) => {
   const builderId = req.user.builder_id;
-  const { range, dwelling_type, standard, upgrade, page = 1, limit = 10 } = req.query;
+  const { dwelling_type, standard, upgrade, page = 1, limit = 25 } = req.query;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -94,12 +92,6 @@ exports.getFacades = async (req, res) => {
     let paramIndex = 2;
 
     // Add filters
-    if (range && range !== 'all') {
-      baseQuery += ` AND range = $${paramIndex}`;
-      queryParams.push(range);
-      paramIndex++;
-    }
-
     if (dwelling_type && dwelling_type !== 'all') {
       baseQuery += ` AND dwelling_type = $${paramIndex}`;
       queryParams.push(dwelling_type);
@@ -132,12 +124,6 @@ exports.getFacades = async (req, res) => {
     `;
     const countParams = [builderId];
     let countParamIndex = 2;
-
-    if (range && range !== 'all') {
-      countQuery += ` AND range = $${countParamIndex}`;
-      countParams.push(range);
-      countParamIndex++;
-    }
 
     if (dwelling_type && dwelling_type !== 'all') {
       countQuery += ` AND dwelling_type = $${countParamIndex}`;
@@ -174,7 +160,7 @@ exports.getFacades = async (req, res) => {
     );
   } catch (error) {
     console.error("Get facades error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -334,12 +320,6 @@ exports.getFacadeFilters = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const rangeQuery = `
-      SELECT DISTINCT range FROM facade 
-      WHERE builder_id = $1 AND range IS NOT NULL 
-      ORDER BY range;
-    `;
-    
     const dwellingTypeQuery = `
       SELECT DISTINCT dwelling_type FROM facade 
       WHERE builder_id = $1 AND dwelling_type IS NOT NULL 
@@ -358,15 +338,13 @@ exports.getFacadeFilters = async (req, res) => {
       ORDER BY upgrade;
     `;
 
-    const [rangeResult, dwellingTypeResult, standardResult, upgradeResult] = await Promise.all([
-      client.query(rangeQuery, [builderId]),
+    const [dwellingTypeResult, standardResult, upgradeResult] = await Promise.all([
       client.query(dwellingTypeQuery, [builderId]),
       client.query(standardQuery, [builderId]),
       client.query(upgradeQuery, [builderId])
     ]);
 
     const filters = {
-      ranges: rangeResult.rows.map(row => row.range),
       dwellingTypes: dwellingTypeResult.rows.map(row => row.dwelling_type),
       standardOptions: standardResult.rows.map(row => row.standard),
       upgradeOptions: upgradeResult.rows.map(row => row.upgrade)
@@ -379,7 +357,7 @@ exports.getFacadeFilters = async (req, res) => {
     );
   } catch (error) {
     console.error("Get facade filters error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

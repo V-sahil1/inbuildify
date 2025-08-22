@@ -35,7 +35,7 @@ exports.createFloorPlan = async (req, res) => {
 
     // Check if floor plan with same name already exists for this builder
     const existingFloorPlanQuery = `
-      SELECT id, name FROM floor_plan 
+      SELECT floor_plan_id, name FROM floor_plan 
       WHERE LOWER(name) = $1 AND builder_id = $2;
     `;
     const existingFloorPlanResult = await client.query(existingFloorPlanQuery, [
@@ -79,15 +79,8 @@ exports.createFloorPlan = async (req, res) => {
       keysToCamelCase(createdFloorPlan),
       "Floor plan created successfully."
     );
-
   } catch (error) {
     console.error('Create floor plan error:', error);
-
-    // Handle specific database errors
-    if (error.code === '23505') { // Unique constraint violation
-      return errorResponse(res, 409, "Floor plan with this name already exists.");
-    }
-    
     return errorResponse(res, 500, "Failed to create floor plan.");
   } finally {
     client.release();
@@ -96,7 +89,7 @@ exports.createFloorPlan = async (req, res) => {
 
 exports.getFloorPlans = async (req, res) => {
   const builderId = req.user.builder_id;
-  const { range, dwelling_type, page = 1, limit = 10 } = req.query;
+  const { range, dwelling_type, page = 1, limit = 25 } = req.query;
 
   const pool = getPool();
   const client = await pool.connect();

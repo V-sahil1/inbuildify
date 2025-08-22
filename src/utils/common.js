@@ -64,7 +64,9 @@ function toCamelCase(str) {
 }
 
 function keysToSnakeCase(obj) {
-  if (Array.isArray(obj)) {
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  } else if (Array.isArray(obj)) {
     return obj.map(keysToSnakeCase);
   } else if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
@@ -78,7 +80,9 @@ function keysToSnakeCase(obj) {
 }
 
 function keysToCamelCase(obj) {
-  if (Array.isArray(obj)) {
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  } else if (Array.isArray(obj)) {
     return obj.map(keysToCamelCase);
   } else if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(

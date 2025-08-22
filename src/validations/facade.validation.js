@@ -15,11 +15,6 @@ const imageRule = Joi.string().uri().max(500).trim().messages({
   'string.max': 'Image URL must not exceed 500 characters'
 });
 
-const rangeRule = Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY').messages({
-  'string.base': 'Range must be a string',
-  'any.only': 'Range must be one of: NONE, PREMIUM, DELUXE, LUXURY'
-});
-
 const dwellingTypeRule = Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE').messages({
   'string.base': 'Dwelling type must be a string',
   'any.only': 'Dwelling type must be one of: SINGLE_STOREY, DOUBLE_STOREY, RENOVATION, TOWN_HOUSE'
@@ -57,7 +52,6 @@ const booleanFilterRule = Joi.string().valid('true', 'false', 'all').messages({
 const createFacadeSchema = Joi.object({
   name: nameRule.required(),
   image: imageRule.optional(),
-  range: rangeRule.optional(),
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
   upgrade: booleanRule('Upgrade').optional()
@@ -70,7 +64,6 @@ const getFacadeByIdSchema = Joi.object({
 
 // Get facades with filters validation (query)
 const getFacadesSchema = Joi.object({
-  range: Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY', 'all').optional(),
   dwelling_type: Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE', 'all').optional(),
   standard: booleanFilterRule.optional(),
   upgrade: booleanFilterRule.optional(),
@@ -82,7 +75,6 @@ const getFacadesSchema = Joi.object({
 const updateFacadeSchema = Joi.object({
   name: nameRule.optional(),
   image: imageRule.optional(),
-  range: rangeRule.optional(),
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
   upgrade: booleanRule('Upgrade').optional()

@@ -78,14 +78,14 @@ CREATE TABLE invites (
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
-CREATE TABLE statusLogs (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  requestId UUID NOT NULL,
-  statusCode INT NOT NULL,
+CREATE TABLE status_logs (
+  status_log_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID NOT NULL,
+  status_code INT NOT NULL,
   error TEXT,
   method VARCHAR(10),
   url VARCHAR(255),
-  requestBody TEXT,
+  request_body TEXT,
   response TEXT,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -110,37 +110,36 @@ CREATE TYPE range_type AS ENUM ('NONE', 'PREMIUM', 'DELUXE', 'LUXURY');
 CREATE TYPE dwelling_type AS ENUM ('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE');
 
 CREATE TABLE floor_plan (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  floor_plan_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,
   name VARCHAR(100) NOT NULL,
-  image VARCHAR(500), -- URL link to image
+  image VARCHAR(500),
   range range_type,
   dwelling_type dwelling_type,
   beds INTEGER DEFAULT 0,
   bath INTEGER DEFAULT 0,
   car_park INTEGER DEFAULT 0,
-  width_meter DECIMAL(8,2) DEFAULT 0, -- Width in meters
-  depth_meter DECIMAL(8,2) DEFAULT 0, -- Depth in meters
+  width_meter DECIMAL(8,2) DEFAULT 0,
+  depth_meter DECIMAL(8,2) DEFAULT 0,
   dwelling INTEGER DEFAULT 0,
   garage INTEGER DEFAULT 0,
   porch INTEGER DEFAULT 0,
   alfresco INTEGER DEFAULT 0,
-  total_sqft DECIMAL(10,2) DEFAULT 0, -- Total area in sq ft
+  total_sqft DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
   CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
 CREATE TABLE facade (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    builder_id UUID NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    image VARCHAR(500), -- URL link to image
-    range range_type,
-    dwelling_type dwelling_type,
-    standard BOOLEAN DEFAULT FALSE,
-    upgrade BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  image VARCHAR(500),
+  dwelling_type dwelling_type,
+  standard BOOLEAN DEFAULT FALSE,
+  upgrade BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
