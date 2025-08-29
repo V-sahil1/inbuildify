@@ -1,9 +1,7 @@
 name: Deploy Node.js App to EC2
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -21,9 +19,6 @@ jobs:
 
     - name: Install dependencies
       run: npm install
-      
-    # - name: Build app
-    #   run: npm run build
 
     - name: Clean old app folder on EC2
       uses: appleboy/ssh-action@v1.0.3
