@@ -20,10 +20,10 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci --legacy-peer-deps
+      run: npm install
 
-    - name: Build app
-      run: npm run build
+    # - name: Build app
+    #   run: npm run build
 
     - name: Clean old app folder on EC2
       uses: appleboy/ssh-action@v1.0.3
