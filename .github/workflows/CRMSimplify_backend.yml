@@ -48,20 +48,20 @@ jobs:
         script: |
           cd ~/app
           cat > .env << EOF
-          PORT=5000
-          DATABASE_URL=
-          JWT_SECRET=
-          JWT_REFRESH_SECRET=
-          JWT_SECRET_EXPIRATION=
-          JWT_REFRESH_SECRET_EXPIRATION=
-          GMAIL=
-          PASSWORD=
-          FRONTED_BASE_URL=
-          BACKEND_URL=
-          AWS_ACCESS_KEY_ID=
-          AWS_SECRET_ACCESS_KEY=
-          AWS_REGION=
-          S3_BUCKET_NAME=
+          PORT=${{ vars.PORT }}
+          DATABASE_URL=${{ vars.DATABASE_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_SECRET_EXPIRATION=${{ secrets.JWT_SECRET_EXPIRATION }}
+          JWT_REFRESH_SECRET_EXPIRATION=${{ secrets.JWT_REFRESH_SECRET_EXPIRATION }}
+          GMAIL=${{ vars.GMAIL }}
+          PASSWORD=${{ secrets.PASSWORD }}
+          FRONTED_BASE_URL=${{ vars.FRONTED_BASE_URL }}
+          BACKEND_URL=${{ vars.BACKEND_URL }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=${{ vars.AWS_REGION }}
+          S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}
           EOF
 
     - name: Install and restart app on EC2
