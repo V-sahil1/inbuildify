@@ -22,8 +22,8 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Build app
-      run: npm run build
+    # - name: Build app
+    #   run: npm run build
 
     - name: Clean old app folder on EC2
       uses: appleboy/ssh-action@v1.0.3
@@ -77,5 +77,6 @@ jobs:
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd ~/app
+          npm install
           pm2 restart node-app || pm2 start npm --name "node-app" -- start
           pm2 save
