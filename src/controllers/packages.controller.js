@@ -54,7 +54,7 @@ exports.createPackage = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase({...result.rows[0], category_items_descriptions: checkResult.rows.map(row => row.description)}),
+      keysToCamelCase({...result.rows[0], category_item_descriptions: checkResult.rows.map(row => row.description)}),
       "Package created successfully."
     );
   } catch (err) {
