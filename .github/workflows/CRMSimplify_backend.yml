@@ -22,6 +22,7 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    # Optional: Build app
     # - name: Build app
     #   run: npm run build
 
@@ -30,71 +31,17 @@ jobs:
       with:
         host: 52.66.68.116
         username: ubuntu
-        key: |
-          -----BEGIN RSA PRIVATE KEY-----
-          MIIEpQIBAAKCAQEAyU/9VofXPmRG58ki9jf28PgOSTcvN/uzye9ux+itctsnHZkO
-          i+n9Wz5hWJoFQWUvT3LHZa7a4Uv6Q3lgmtY2EaVANrksrgAHMFf0RpFlSi9qqCS0
-          dOdst+yOBRv+ORyy2f+3GkQd1NaWSQ9Mqlfv9Q0P/0XgBgyVS8c49BD13T0XZGE1
-          dJA5f8ZqJjxxZNHo3z5mBJ6GKKYtEZWql2mTdQ33CAnZQ78sTpBub4/FncmnjpY7
-          BOjpaeX4KBJ9rly3nShdODSpEAhuZ2XVwhT/u05/CZOQBGcg9lLO7pZzjfA1W2CW
-          26p6r7gYgkemOL2jzfF2gxkQt6ccR+cB/Qt4wQIDAQABAoIBAQCzDGrleGJPwr5x
-          zypCVZpTzjxekC92Gm9Y7pTYRrFmE1ch8wzGEnJdogjQ1gRQmp9OiWahoLhaY8oO
-          EzmB3X4viYuoYGBFzg6Wx9OipBSzu6KgNC0wQNkoaMQT9UbSIx1L2S1Qtj7WG5mF
-          F493fkkU6e5NfCd5Gd37jRCxuxgCEY0DccHI6O/m3CfyMDO3ZlaVVaDQI0WibjkI
-          eorH1Wwdmzkz8YcND9k0aclVgNOX7vYtGcflqDfX4Q4hga49+EsvUVx5k85FuEBZ
-          FryC7AH5APXMHSiLBv4+WIPIcsHD8G0LAD9eKjoN/RXkMM7lo2wmflQRQ10or26e
-          ovkizChFAoGBAOdxKls0vN0ZnLHS+LN0sdnycxNVz9cxbLGr0otuhjn1yUXLcz4c
-          MIwy4sZlubej2a0dtBxgo9/Luyfq74pNiaenfaX0PciTraFtXydaPXEvoTX0P/wc
-          bXJC6RK+rya/n/XMyoV50Hh4vYOEUCCHwfnJEn9NbOzfV3ISUiScu3p/AoGBAN6s
-          ZC9QMyvXz+kk6oit1oCvhrLhPmEms6L07VgqQMmmGIB0ex38pgvair8IfvQt5mmH
-          ldLN/ggILNnqhonQ2daf/dIMMLXQ6OnuV98yZQQrb/HOlPCNe2jR1jt13l/t+5Fk
-          2T6zViLfPtUyN//dDxGKhOBY4EZG/lWL0YScwuy/AoGBAJda95M78wM5G7NjQAfE
-          GgdpOf58EPcvOGEc+Az9U8SVy3Hcclo8/zbAlHOg1QqWmeVP1pj0TlcuGhAp4Ut2
-          F77PlykviDQi99ro9uB6cFIUDv6E5E9Qm/ascVYz48GYcdjCe/M8TaxrcayPnAMa
-          JS3gZDtifAiQqtRLzPJqmWSrAoGBAJFqxZZ8ap6UNqwMNroBxNaPSokhPeqWKrQd
-          /a4ZEexecxvYddq0dv/AveFZvAbcvt9l8zsS2XYHWLsLRMdVxB08qLb2zQy/nIvA
-          4lPZhky9zUJ95Zhe3RwsBRsZs5q0QRjHYnRnC7aEUnVKcXW/uKp86p/Uisp6bHgT
-          ckWHVmjjAoGAFBVN/NcuhPlQMHFMlZLWEj+ie2SG8q+XYTuWupboMzx8Y48Zis8n
-          jwS4UWyZmm0wo1+0OhwNxrjwXFleZsjBn4ycPPWGImImwhI3ZroyzdSX0qH2a0yc
-          jCBdXHxsGaSoR7PW96cE3RQYWyQDdzHIxp2cjR2664bbIg54BmewFAQ=
-          -----END RSA PRIVATE KEY-----
+        key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           [ -d ~/app ] && rm -rf ~/app
           mkdir -p ~/app
 
-    - name: Copy source code
+    - name: Copy source code to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
         host: 52.66.68.116
         username: ubuntu
-        key: |
-          -----BEGIN RSA PRIVATE KEY-----
-          MIIEpQIBAAKCAQEAyU/9VofXPmRG58ki9jf28PgOSTcvN/uzye9ux+itctsnHZkO
-          i+n9Wz5hWJoFQWUvT3LHZa7a4Uv6Q3lgmtY2EaVANrksrgAHMFf0RpFlSi9qqCS0
-          dOdst+yOBRv+ORyy2f+3GkQd1NaWSQ9Mqlfv9Q0P/0XgBgyVS8c49BD13T0XZGE1
-          dJA5f8ZqJjxxZNHo3z5mBJ6GKKYtEZWql2mTdQ33CAnZQ78sTpBub4/FncmnjpY7
-          BOjpaeX4KBJ9rly3nShdODSpEAhuZ2XVwhT/u05/CZOQBGcg9lLO7pZzjfA1W2CW
-          26p6r7gYgkemOL2jzfF2gxkQt6ccR+cB/Qt4wQIDAQABAoIBAQCzDGrleGJPwr5x
-          zypCVZpTzjxekC92Gm9Y7pTYRrFmE1ch8wzGEnJdogjQ1gRQmp9OiWahoLhaY8oO
-          EzmB3X4viYuoYGBFzg6Wx9OipBSzu6KgNC0wQNkoaMQT9UbSIx1L2S1Qtj7WG5mF
-          F493fkkU6e5NfCd5Gd37jRCxuxgCEY0DccHI6O/m3CfyMDO3ZlaVVaDQI0WibjkI
-          eorH1Wwdmzkz8YcND9k0aclVgNOX7vYtGcflqDfX4Q4hga49+EsvUVx5k85FuEBZ
-          FryC7AH5APXMHSiLBv4+WIPIcsHD8G0LAD9eKjoN/RXkMM7lo2wmflQRQ10or26e
-          ovkizChFAoGBAOdxKls0vN0ZnLHS+LN0sdnycxNVz9cxbLGr0otuhjn1yUXLcz4c
-          MIwy4sZlubej2a0dtBxgo9/Luyfq74pNiaenfaX0PciTraFtXydaPXEvoTX0P/wc
-          bXJC6RK+rya/n/XMyoV50Hh4vYOEUCCHwfnJEn9NbOzfV3ISUiScu3p/AoGBAN6s
-          ZC9QMyvXz+kk6oit1oCvhrLhPmEms6L07VgqQMmmGIB0ex38pgvair8IfvQt5mmH
-          ldLN/ggILNnqhonQ2daf/dIMMLXQ6OnuV98yZQQrb/HOlPCNe2jR1jt13l/t+5Fk
-          2T6zViLfPtUyN//dDxGKhOBY4EZG/lWL0YScwuy/AoGBAJda95M78wM5G7NjQAfE
-          GgdpOf58EPcvOGEc+Az9U8SVy3Hcclo8/zbAlHOg1QqWmeVP1pj0TlcuGhAp4Ut2
-          F77PlykviDQi99ro9uB6cFIUDv6E5E9Qm/ascVYz48GYcdjCe/M8TaxrcayPnAMa
-          JS3gZDtifAiQqtRLzPJqmWSrAoGBAJFqxZZ8ap6UNqwMNroBxNaPSokhPeqWKrQd
-          /a4ZEexecxvYddq0dv/AveFZvAbcvt9l8zsS2XYHWLsLRMdVxB08qLb2zQy/nIvA
-          4lPZhky9zUJ95Zhe3RwsBRsZs5q0QRjHYnRnC7aEUnVKcXW/uKp86p/Uisp6bHgT
-          ckWHVmjjAoGAFBVN/NcuhPlQMHFMlZLWEj+ie2SG8q+XYTuWupboMzx8Y48Zis8n
-          jwS4UWyZmm0wo1+0OhwNxrjwXFleZsjBn4ycPPWGImImwhI3ZroyzdSX0qH2a0yc
-          jCBdXHxsGaSoR7PW96cE3RQYWyQDdzHIxp2cjR2664bbIg54BmewFAQ=
-          -----END RSA PRIVATE KEY-----
+        key: ${{ secrets.EC2_PRIVATE_KEY }}
         source: "src,server.js,package.json,package-lock.json"
         target: "~/app"
 
@@ -103,37 +50,9 @@ jobs:
       with:
         host: 52.66.68.116
         username: ubuntu
-        key: |
-          -----BEGIN RSA PRIVATE KEY-----
-          MIIEpQIBAAKCAQEAyU/9VofXPmRG58ki9jf28PgOSTcvN/uzye9ux+itctsnHZkO
-          i+n9Wz5hWJoFQWUvT3LHZa7a4Uv6Q3lgmtY2EaVANrksrgAHMFf0RpFlSi9qqCS0
-          dOdst+yOBRv+ORyy2f+3GkQd1NaWSQ9Mqlfv9Q0P/0XgBgyVS8c49BD13T0XZGE1
-          dJA5f8ZqJjxxZNHo3z5mBJ6GKKYtEZWql2mTdQ33CAnZQ78sTpBub4/FncmnjpY7
-          BOjpaeX4KBJ9rly3nShdODSpEAhuZ2XVwhT/u05/CZOQBGcg9lLO7pZzjfA1W2CW
-          26p6r7gYgkemOL2jzfF2gxkQt6ccR+cB/Qt4wQIDAQABAoIBAQCzDGrleGJPwr5x
-          zypCVZpTzjxekC92Gm9Y7pTYRrFmE1ch8wzGEnJdogjQ1gRQmp9OiWahoLhaY8oO
-          EzmB3X4viYuoYGBFzg6Wx9OipBSzu6KgNC0wQNkoaMQT9UbSIx1L2S1Qtj7WG5mF
-          F493fkkU6e5NfCd5Gd37jRCxuxgCEY0DccHI6O/m3CfyMDO3ZlaVVaDQI0WibjkI
-          eorH1Wwdmzkz8YcND9k0aclVgNOX7vYtGcflqDfX4Q4hga49+EsvUVx5k85FuEBZ
-          FryC7AH5APXMHSiLBv4+WIPIcsHD8G0LAD9eKjoN/RXkMM7lo2wmflQRQ10or26e
-          ovkizChFAoGBAOdxKls0vN0ZnLHS+LN0sdnycxNVz9cxbLGr0otuhjn1yUXLcz4c
-          MIwy4sZlubej2a0dtBxgo9/Luyfq74pNiaenfaX0PciTraFtXydaPXEvoTX0P/wc
-          bXJC6RK+rya/n/XMyoV50Hh4vYOEUCCHwfnJEn9NbOzfV3ISUiScu3p/AoGBAN6s
-          ZC9QMyvXz+kk6oit1oCvhrLhPmEms6L07VgqQMmmGIB0ex38pgvair8IfvQt5mmH
-          ldLN/ggILNnqhonQ2daf/dIMMLXQ6OnuV98yZQQrb/HOlPCNe2jR1jt13l/t+5Fk
-          2T6zViLfPtUyN//dDxGKhOBY4EZG/lWL0YScwuy/AoGBAJda95M78wM5G7NjQAfE
-          GgdpOf58EPcvOGEc+Az9U8SVy3Hcclo8/zbAlHOg1QqWmeVP1pj0TlcuGhAp4Ut2
-          F77PlykviDQi99ro9uB6cFIUDv6E5E9Qm/ascVYz48GYcdjCe/M8TaxrcayPnAMa
-          JS3gZDtifAiQqtRLzPJqmWSrAoGBAJFqxZZ8ap6UNqwMNroBxNaPSokhPeqWKrQd
-          /a4ZEexecxvYddq0dv/AveFZvAbcvt9l8zsS2XYHWLsLRMdVxB08qLb2zQy/nIvA
-          4lPZhky9zUJ95Zhe3RwsBRsZs5q0QRjHYnRnC7aEUnVKcXW/uKp86p/Uisp6bHgT
-          ckWHVmjjAoGAFBVN/NcuhPlQMHFMlZLWEj+ie2SG8q+XYTuWupboMzx8Y48Zis8n
-          jwS4UWyZmm0wo1+0OhwNxrjwXFleZsjBn4ycPPWGImImwhI3ZroyzdSX0qH2a0yc
-          jCBdXHxsGaSoR7PW96cE3RQYWyQDdzHIxp2cjR2664bbIg54BmewFAQ=
-          -----END RSA PRIVATE KEY-----
+        key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd ~/app
-          # Create .env with static values
           cat > .env << EOF
           PORT=5000
           DATABASE_URL=
@@ -151,48 +70,13 @@ jobs:
           S3_BUCKET_NAME=
           EOF
 
-    - name: Save private key
-      run: |
-        echo "$PRIVATE_KEY" > key.pem
-        chmod 600 key.pem
-      env:
-        PRIVATE_KEY: |
-          -----BEGIN RSA PRIVATE KEY-----
-          MIIEpQIBAAKCAQEAyU/9VofXPmRG58ki9jf28PgOSTcvN/uzye9ux+itctsnHZkO
-          i+n9Wz5hWJoFQWUvT3LHZa7a4Uv6Q3lgmtY2EaVANrksrgAHMFf0RpFlSi9qqCS0
-          dOdst+yOBRv+ORyy2f+3GkQd1NaWSQ9Mqlfv9Q0P/0XgBgyVS8c49BD13T0XZGE1
-          dJA5f8ZqJjxxZNHo3z5mBJ6GKKYtEZWql2mTdQ33CAnZQ78sTpBub4/FncmnjpY7
-          BOjpaeX4KBJ9rly3nShdODSpEAhuZ2XVwhT/u05/CZOQBGcg9lLO7pZzjfA1W2CW
-          26p6r7gYgkemOL2jzfF2gxkQt6ccR+cB/Qt4wQIDAQABAoIBAQCzDGrleGJPwr5x
-          zypCVZpTzjxekC92Gm9Y7pTYRrFmE1ch8wzGEnJdogjQ1gRQmp9OiWahoLhaY8oO
-          EzmB3X4viYuoYGBFzg6Wx9OipBSzu6KgNC0wQNkoaMQT9UbSIx1L2S1Qtj7WG5mF
-          F493fkkU6e5NfCd5Gd37jRCxuxgCEY0DccHI6O/m3CfyMDO3ZlaVVaDQI0WibjkI
-          eorH1Wwdmzkz8YcND9k0aclVgNOX7vYtGcflqDfX4Q4hga49+EsvUVx5k85FuEBZ
-          FryC7AH5APXMHSiLBv4+WIPIcsHD8G0LAD9eKjoN/RXkMM7lo2wmflQRQ10or26e
-          ovkizChFAoGBAOdxKls0vN0ZnLHS+LN0sdnycxNVz9cxbLGr0otuhjn1yUXLcz4c
-          MIwy4sZlubej2a0dtBxgo9/Luyfq74pNiaenfaX0PciTraFtXydaPXEvoTX0P/wc
-          bXJC6RK+rya/n/XMyoV50Hh4vYOEUCCHwfnJEn9NbOzfV3ISUiScu3p/AoGBAN6s
-          ZC9QMyvXz+kk6oit1oCvhrLhPmEms6L07VgqQMmmGIB0ex38pgvair8IfvQt5mmH
-          ldLN/ggILNnqhonQ2daf/dIMMLXQ6OnuV98yZQQrb/HOlPCNe2jR1jt13l/t+5Fk
-          2T6zViLfPtUyN//dDxGKhOBY4EZG/lWL0YScwuy/AoGBAJda95M78wM5G7NjQAfE
-          GgdpOf58EPcvOGEc+Az9U8SVy3Hcclo8/zbAlHOg1QqWmeVP1pj0TlcuGhAp4Ut2
-          F77PlykviDQi99ro9uB6cFIUDv6E5E9Qm/ascVYz48GYcdjCe/M8TaxrcayPnAMa
-          JS3gZDtifAiQqtRLzPJqmWSrAoGBAJFqxZZ8ap6UNqwMNroBxNaPSokhPeqWKrQd
-          /a4ZEexecxvYddq0dv/AveFZvAbcvt9l8zsS2XYHWLsLRMdVxB08qLb2zQy/nIvA
-          4lPZhky9zUJ95Zhe3RwsBRsZs5q0QRjHYnRnC7aEUnVKcXW/uKp86p/Uisp6bHgT
-          ckWHVmjjAoGAFBVN/NcuhPlQMHFMlZLWEj+ie2SG8q+XYTuWupboMzx8Y48Zis8n
-          jwS4UWyZmm0wo1+0OhwNxrjwXFleZsjBn4ycPPWGImImwhI3ZroyzdSX0qH2a0yc
-          jCBdXHxsGaSoR7PW96cE3RQYWyQDdzHIxp2cjR2664bbIg54BmewFAQ=
-          -----END RSA PRIVATE KEY-----
-
     - name: Install and restart app on EC2
       uses: appleboy/ssh-action@v0.1.3
       with:
         host: 52.66.68.116
         username: ubuntu
-        key_path: key.pem
+        key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd ~/app
           pm2 restart node-app || pm2 start npm --name "node-app" -- start
           pm2 save
-
