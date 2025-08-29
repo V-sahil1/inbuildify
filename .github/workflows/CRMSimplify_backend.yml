@@ -23,7 +23,7 @@ jobs:
     - name: Clean old app folder on EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: 52.66.68.116
+        host: ${{ secrets.HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
@@ -33,7 +33,7 @@ jobs:
     - name: Copy source code to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: 52.66.68.116
+        host: ${{ secrets.HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         source: "src,server.js,package.json,package-lock.json"
@@ -42,7 +42,7 @@ jobs:
     - name: Create .env on EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: 52.66.68.116
+        host: ${{ secrets.HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
