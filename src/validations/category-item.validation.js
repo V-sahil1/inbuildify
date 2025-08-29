@@ -73,7 +73,7 @@ const createCategoryItemSchema = Joi.object({
     if (!value.cost_type_text || value.cost_type_text.trim() === "") {
       return helpers.error("cost.included.textRequired");
     }
-    if (value.cost_option) {
+    if (value.cost_option !== "NONE") {
       return helpers.error("cost.included.optionForbidden");
     }
   }
