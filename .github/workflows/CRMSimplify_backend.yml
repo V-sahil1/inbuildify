@@ -21,10 +21,9 @@ jobs:
 
     - name: Install dependencies
       run: npm install
-
-    # Optional: Build app
-    # - name: Build app
-    #   run: npm run build
+      
+    - name: Build app
+      run: npm run build
 
     - name: Clean old app folder on EC2
       uses: appleboy/ssh-action@v1.0.3
