@@ -151,12 +151,12 @@ jobs:
           S3_BUCKET_NAME=
           EOF
 
-    - name: Install and restart app on EC2
-      uses: appleboy/ssh-action@v0.1.3
-      with:
-        host: 52.66.68.116
-        username: ubuntu
-        key: |
+    - name: Save private key
+      run: |
+        echo "$PRIVATE_KEY" > key.pem
+        chmod 600 key.pem
+      env:
+        PRIVATE_KEY: |
           -----BEGIN RSA PRIVATE KEY-----
           MIIEpQIBAAKCAQEAyU/9VofXPmRG58ki9jf28PgOSTcvN/uzye9ux+itctsnHZkO
           i+n9Wz5hWJoFQWUvT3LHZa7a4Uv6Q3lgmtY2EaVANrksrgAHMFf0RpFlSi9qqCS0
@@ -184,6 +184,13 @@ jobs:
           jwS4UWyZmm0wo1+0OhwNxrjwXFleZsjBn4ycPPWGImImwhI3ZroyzdSX0qH2a0yc
           jCBdXHxsGaSoR7PW96cE3RQYWyQDdzHIxp2cjR2664bbIg54BmewFAQ=
           -----END RSA PRIVATE KEY-----
+
+    - name: Install and restart app on EC2
+      uses: appleboy/ssh-action@v0.1.3
+      with:
+        host: 52.66.68.116
+        username: ubuntu
+        key_path: key.pem
         script: |
           cd ~/app
           pm2 restart node-app || pm2 start npm --name "node-app" -- start
