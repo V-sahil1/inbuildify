@@ -64,7 +64,7 @@ exports.createFacade = async (req, res) => {
       upgrade || false
     ]);
     
-    const createdFacade = facadeResult.rows[0];
+    const createdFacade = {...facadeResult.rows[0], dwelling_type: dwelling_type};
     return successResponse(
       res,
       keysToCamelCase(createdFacade),

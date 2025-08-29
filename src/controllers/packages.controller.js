@@ -11,7 +11,7 @@ exports.createPackage = async (req, res) => {
     const builderId = req.user.builder_id;
 
     const checkQuery = `
-      SELECT category_item_id 
+      SELECT category_item_id, description 
       FROM category_items 
       WHERE builder_id = $1 AND status = 'ACTIVE' AND category_item_id = ANY($2::uuid[])
     `;
@@ -54,7 +54,7 @@ exports.createPackage = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase({...result.rows[0], category_items_descriptions: checkResult.rows.map(row => row.description)}),
       "Package created successfully."
     );
   } catch (err) {
