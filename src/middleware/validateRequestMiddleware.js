@@ -7,7 +7,6 @@ module.exports.validateRequest =
   (req, res, next) => {
     let dataToValidate;
 
-    // Handle different request sources
     switch (source) {
       case REQUEST_SOURCE.BODY:
         dataToValidate = req.body;
@@ -19,14 +18,11 @@ module.exports.validateRequest =
         dataToValidate = req.params;
         break;
       case REQUEST_SOURCE.FORM_DATA:
-        // For form data, combine body fields with file info
         dataToValidate = {
           ...req.body,
-          // Add file information if present
-          ...(req.file && { 
+          ...(req.file && {
             image: req.file.location || req.file.path,
-            // imageKey: req.file.key 
-          })
+          }),
         };
         break;
       default:
@@ -36,14 +32,14 @@ module.exports.validateRequest =
     if (dataToValidate === undefined || dataToValidate === null) {
       return res.status(NOT_ACCEPTABLE.code).json({
         message: NOT_ACCEPTABLE.message,
-        errors: ['Request payload is missing.'],
+        errors: ["Request payload is missing."],
       });
     }
 
     const { error } = schema.validate(dataToValidate, {
       abortEarly: false,
     });
-    
+
     if (error) {
       const validationError = validationMessageFormatterHelper(error.details);
 

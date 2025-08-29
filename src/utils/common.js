@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
+const { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } = require("../config/constants");
 
 const generateRequestId = () => {
   return uuidv4();
@@ -95,6 +96,13 @@ function keysToCamelCase(obj) {
   return obj;
 }
 
+function allowedFileData() {
+  return {
+    types: ALLOWED_FILE_TYPES,
+    size: ALLOWED_FILE_SIZE,
+  };
+}
+
 module.exports = {
   generateRequestId,
   checkRequiredFields,
@@ -106,4 +114,5 @@ module.exports = {
   encrypt,
   keysToSnakeCase,
   keysToCamelCase,
+  allowedFileData,
 };

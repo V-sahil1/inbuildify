@@ -96,7 +96,7 @@ exports.createQuotation = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Each item must have itemId, quantity, price, total."
+          "Each item must have itemId, quantity, price, total which are of type number."
         );
       }
     }

@@ -11,7 +11,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
-const { upload } = require("../utils/s3Upload");
+const { createUpload, handleMulterError } = require("../utils/s3Upload");
 const {
   createFloorPlanSchema,
   getFloorPlanByIdSchema,
@@ -25,7 +25,9 @@ const { REQUEST_SOURCE } = require("../config/constants");
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-router.post("/", upload.single("image"), validateRequest(createFloorPlanSchema, REQUEST_SOURCE.FORM_DATA), createFloorPlan);
+const upload = createUpload("floor-plans");
+
+router.post("/", upload.single("image"), handleMulterError, validateRequest(createFloorPlanSchema, REQUEST_SOURCE.FORM_DATA), createFloorPlan);
 
 router.get("/", validateRequest(getFloorPlansSchema, REQUEST_SOURCE.QUERY), getFloorPlans);
 

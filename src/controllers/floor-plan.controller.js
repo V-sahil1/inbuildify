@@ -5,7 +5,6 @@ const { keysToCamelCase } = require("../utils/common");
 exports.createFloorPlan = async (req, res) => {
   const {
     name,
-    image,
     range,
     dwelling_type,
     beds,
@@ -19,6 +18,7 @@ exports.createFloorPlan = async (req, res) => {
     alfresco,
     total_sqft
   } = req.body || {};
+  const image = req.file?.location || req.body.image || null;
   const builderId = req.user.builder_id;
 
   const pool = getPool();

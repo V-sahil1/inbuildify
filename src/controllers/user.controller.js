@@ -10,7 +10,6 @@ const crypto = require("crypto");
 
 exports.getUsersByBuilderId = async (req, res) => {
   const builderId = req.user.builder_id;
-  console.log("🚀 ~ exports.getUsersByBuilderId= ~ builderId:", builderId);
   const pool = getPool();
   const client = await pool.connect();
   try {

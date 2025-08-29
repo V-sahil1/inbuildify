@@ -8,8 +8,8 @@ exports.createLead = async (req, res) => {
 
   try {
     const query = `
-      INSERT INTO leads (name, email, phone, builder_id, lead_source)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO leads (name, email, phone, lead_source)
+      VALUES ($1, $2, $3, $4)
       RETURNING lead_id, name, email, phone, status, lead_source, created_at, updated_at;
     `;
 
@@ -17,7 +17,6 @@ exports.createLead = async (req, res) => {
       name,
       email.toLowerCase(),
       phone || null,
-      builderId || null,
       leadSource || "OTHER",
     ]);
 

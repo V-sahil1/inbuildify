@@ -104,6 +104,7 @@ CREATE TABLE leads (
   status lead_status_enum DEFAULT 'NEW' NOT NULL,
   lead_source lead_source_enum NOT NULL DEFAULT 'OTHER',
   notes TEXT,
+  message TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 );
@@ -278,3 +279,14 @@ CREATE TABLE quotation (
   FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
   FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
 );
+
+CREATE TABLE job (
+  job_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  quotation_id UUID NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (quotation_id) REFERENCES quotation(quotation_id) ON DELETE CASCADE
+);
+  

@@ -3,3 +3,6 @@ ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE customer
 ADD COLUMN is_deleted boolean DEFAULT false NOT NULL;
+
+ALTER TABLE leads
+ADD COLUMN message TEXT;
