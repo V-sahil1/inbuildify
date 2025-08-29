@@ -47,22 +47,20 @@ jobs:
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd ~/app
-          cat > .env << EOF
-          PORT=${{ vars.PORT }}
-          DATABASE_URL=${{ vars.DATABASE_URL }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-          JWT_SECRET_EXPIRATION=${{ secrets.JWT_SECRET_EXPIRATION }}
-          JWT_REFRESH_SECRET_EXPIRATION=${{ secrets.JWT_REFRESH_SECRET_EXPIRATION }}
-          GMAIL=${{ vars.GMAIL }}
-          PASSWORD=${{ secrets.PASSWORD }}
-          FRONTED_BASE_URL=${{ vars.FRONTED_BASE_URL }}
-          BACKEND_URL=${{ vars.BACKEND_URL }}
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ vars.AWS_REGION }}
-          S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}
-          EOF
+          echo "PORT=${{ vars.PORT }}" >> .env
+          echo "DATABASE_URL=${{ vars.DATABASE_URL }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
+          echo "JWT_SECRET_EXPIRATION=${{ secrets.JWT_SECRET_EXPIRATION }}" >> .env
+          echo "JWT_REFRESH_SECRET_EXPIRATION=${{ secrets.JWT_REFRESH_SECRET_EXPIRATION }}" >> .env
+          echo "GMAIL=${{ vars.GMAIL }}" >> .env
+          echo "PASSWORD=${{ secrets.PASSWORD }}" >> .env
+          echo "FRONTED_BASE_URL=${{ vars.FRONTED_BASE_URL }}" >> .env
+          echo "BACKEND_URL=${{ vars.BACKEND_URL }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ vars.AWS_REGION }}" >> .env
+          echo "S3_BUCKET_NAME=${{ vars.S3_BUCKET_NAME }}" >> .env
 
     - name: Install and restart app on EC2
       uses: appleboy/ssh-action@v1.0.3
