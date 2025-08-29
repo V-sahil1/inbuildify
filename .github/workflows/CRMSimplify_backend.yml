@@ -188,3 +188,4 @@ jobs:
           cd ~/app
           pm2 restart node-app || pm2 start npm --name "node-app" -- start
           pm2 save
+
