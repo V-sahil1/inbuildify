@@ -186,7 +186,5 @@ jobs:
           -----END RSA PRIVATE KEY-----
         script: |
           cd ~/app
-          npm install --production
-          pm2 stop node-app || true
-          pm2 start server.js --name "node-app"
+          pm2 restart node-app || pm2 start npm --name "node-app" -- start
           pm2 save
