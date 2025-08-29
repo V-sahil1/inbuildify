@@ -23,7 +23,7 @@ exports.createContractor = async (req, res) => {
     // Check if contractor already exists with the same email and builder
     const existingContractorQuery = `
       SELECT contractor_id, email FROM contractor 
-      WHERE LOWER(email) = $1 AND builder_id = $2 AND is_deleted = false;
+      WHERE LOWER(email) = $1 AND builder_id = $2;
     `;
     const existingContractorResult = await client.query(existingContractorQuery, [
       lowerCaseEmail, 
