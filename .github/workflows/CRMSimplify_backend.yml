@@ -47,6 +47,7 @@ jobs:
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd ~/app
+          echo "EC2_PRIVATE_KEY=${{ secrets.EC2_PRIVATE_KEY }}" >> .env
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
