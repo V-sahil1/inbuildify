@@ -40,9 +40,7 @@ exports.createContractor = async (req, res) => {
     const createdContractor = contractorResult.rows[0];
     return successResponse(
       res,
-      {
-        ...createdContractor,
-      },
+      keysToCamelCase(createdContractor),
       "Contractor created successfully."
     );
 

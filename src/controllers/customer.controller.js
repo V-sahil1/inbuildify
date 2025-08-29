@@ -53,9 +53,7 @@ exports.createCustomer = async (req, res) => {
         const createdCustomer = customerResult.rows[0];
         return successResponse(
             res,
-            {
-                ...createdCustomer,
-            },
+            keysToCamelCase(createdCustomer),
             "Customer created successfully."
         );
 

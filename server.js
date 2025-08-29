@@ -14,7 +14,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
-require("./src/routes/index.js")(app);
+require("./src/routes/index")(app);
 
 app.use("*path", (req, res) => {
   return errorResponse(res, 404, "Please check endPoint, not any api of this route!");

@@ -15,7 +15,7 @@ const {
 
 exports.registerUser = async (req, res) => {
   // Data is already validated by Joi middleware, so we can trust it's clean
-  const { name, email, password, role = "user", phone } = req.body;
+  const { name, email, password, role = "user" } = req.body;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
@@ -80,8 +80,8 @@ exports.registerUser = async (req, res) => {
     try {
       // Insert into builder table
       const builderResult = await client.query(
-        `INSERT INTO builder (name, email, phone) VALUES ($1, $2, $3) RETURNING builder_id;`,
-        [name, lowerCaseEmail, phone || null]
+        `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id;`,
+        [name, lowerCaseEmail]
       );
       const builderId = builderResult.rows[0].builder_id;
 
@@ -105,7 +105,7 @@ exports.registerUser = async (req, res) => {
 
       await client.query("COMMIT");
 
-      return successResponse(res, userData, "Users fetched successfully.");
+      return successResponse(res, null, "Users fetched successfully.");
     } catch (insertError) {
       await client.query("ROLLBACK");
       throw insertError;

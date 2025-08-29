@@ -47,9 +47,29 @@ exports.createFloorPlan = async (req, res) => {
       return errorResponse(res, 409, "Floor plan with this name already exists for this builder.");
     }
 
+    const rangeQuery = `
+      SELECT range_id, name FROM range 
+      WHERE name = $1;
+    `;
+    const rangeResult = await client.query(rangeQuery, [range]);
+
+    if (rangeResult.rows.length === 0) {
+      return errorResponse(res, 404, "Invalid range.");
+    }
+    
+    const dwellingTypeQuery = `
+      SELECT dwelling_type_id, name FROM dwelling_type 
+      WHERE name = $1;
+    `;
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type]);
+
+    if (dwellingTypeResult.rows.length === 0) {
+      return errorResponse(res, 404, "Invalid dwelling type.");
+    }
+
     const floorPlanQuery = `
       INSERT INTO floor_plan (
-        builder_id, name, image, range, dwelling_type, beds, bath, car_park,
+        builder_id, name, image, range_id, dwelling_type_id, beds, bath, car_park,
         width_meter, depth_meter, dwelling, garage, porch, alfresco, total_sqft
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
       RETURNING *;
@@ -59,8 +79,8 @@ exports.createFloorPlan = async (req, res) => {
       builderId,
       name,
       image || null,
-      range || 'none',
-      dwelling_type || 'single_storey',
+      rangeResult.rows[0].range_id,
+      dwellingTypeResult.rows[0].dwelling_type_id,
       beds || 0,
       bath || 0,
       car_park || 0,
@@ -73,7 +93,7 @@ exports.createFloorPlan = async (req, res) => {
       total_sqft || 0
     ]);
     
-    const createdFloorPlan = floorPlanResult.rows[0];
+    const createdFloorPlan = {...floorPlanResult.rows[0], range_name: rangeResult.rows[0].name, dwelling_type_name: dwellingTypeResult.rows[0].name};
     return successResponse(
       res,
       keysToCamelCase(createdFloorPlan),
@@ -95,51 +115,80 @@ exports.getFloorPlans = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    let baseQuery = `
-      SELECT * FROM floor_plan 
-      WHERE builder_id = $1
-    `;
-    
-    const queryParams = [builderId];
-    let paramIndex = 2;
+    let rangeId = null;
+    let dwellingTypeId = null;
 
-    // Add filters
     if (range && range !== 'all') {
-      baseQuery += ` AND range = $${paramIndex}`;
-      queryParams.push(range);
-      paramIndex++;
+      const rangeResult = await client.query(
+        'SELECT range_id, name FROM range WHERE name = $1',
+        [range]
+      );
+      if (rangeResult.rows.length === 0) {
+        return errorResponse(res, 400, 'Invalid range value');
+      }
+      rangeId = rangeResult.rows[0].range_id;
     }
 
     if (dwelling_type && dwelling_type !== 'all') {
-      baseQuery += ` AND dwelling_type = $${paramIndex}`;
-      queryParams.push(dwelling_type);
+      const dwellingTypeResult = await client.query(
+        'SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1',
+        [dwelling_type]
+      );
+      if (dwellingTypeResult.rows.length === 0) {
+        return errorResponse(res, 400, 'Invalid dwelling type value');
+      }
+      dwellingTypeId = dwellingTypeResult.rows[0].dwelling_type_id;
+    }
+
+    let baseQuery = `
+      SELECT 
+        fp.*, 
+        r.name AS range_name, 
+        dt.name AS dwelling_type_name
+      FROM floor_plan fp
+      JOIN range r ON fp.range_id = r.range_id
+      JOIN dwelling_type dt ON fp.dwelling_type_id = dt.dwelling_type_id
+      WHERE fp.builder_id = $1
+    `;
+
+    const queryParams = [builderId];
+    let paramIndex = 2;
+
+    if (rangeId) {
+      baseQuery += ` AND fp.range_id = $${paramIndex}`;
+      queryParams.push(rangeId);
       paramIndex++;
     }
 
-    // Add pagination
+    if (dwellingTypeId) {
+      baseQuery += ` AND fp.dwelling_type_id = $${paramIndex}`;
+      queryParams.push(dwellingTypeId);
+      paramIndex++;
+    }
+
     const offset = (page - 1) * limit;
-    baseQuery += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    baseQuery += ` ORDER BY fp.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     queryParams.push(limit, offset);
 
     const result = await client.query(baseQuery, queryParams);
 
-    // Get total count for pagination
     let countQuery = `
-      SELECT COUNT(*) as total FROM floor_plan 
-      WHERE builder_id = $1
+      SELECT COUNT(*) as total
+      FROM floor_plan fp
+      WHERE fp.builder_id = $1
     `;
     const countParams = [builderId];
     let countParamIndex = 2;
 
-    if (range && range !== 'all') {
-      countQuery += ` AND range = $${countParamIndex}`;
-      countParams.push(range);
+    if (rangeId) {
+      countQuery += ` AND fp.range_id = $${countParamIndex}`;
+      countParams.push(rangeId);
       countParamIndex++;
     }
 
-    if (dwelling_type && dwelling_type !== 'all') {
-      countQuery += ` AND dwelling_type = $${countParamIndex}`;
-      countParams.push(dwelling_type);
+    if (dwellingTypeId) {
+      countQuery += ` AND fp.dwelling_type_id = $${countParamIndex}`;
+      countParams.push(dwellingTypeId);
     }
 
     const countResult = await client.query(countQuery, countParams);
@@ -153,14 +202,14 @@ exports.getFloorPlans = async (req, res) => {
           currentPage: parseInt(page),
           totalPages: Math.ceil(total / limit),
           totalRecords: total,
-          limit: parseInt(limit)
-        }
+          limit: parseInt(limit),
+        },
       },
-      "Floor plans fetched successfully."
+      'Floor plans fetched successfully.'
     );
   } catch (error) {
-    console.error("Get floor plans error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
+    console.error('Get floor plans error:', error);
+    return errorResponse(res, 500, 'Internal Server Error');
   } finally {
     client.release();
   }
@@ -321,15 +370,19 @@ exports.getFloorPlanFilters = async (req, res) => {
 
   try {
     const rangeQuery = `
-      SELECT DISTINCT range FROM floor_plan 
-      WHERE builder_id = $1 AND range IS NOT NULL 
-      ORDER BY range;
+      SELECT DISTINCT r.name
+      FROM floor_plan fp
+      JOIN range r ON fp.range_id = r.range_id
+      WHERE fp.builder_id = $1 AND r.name IS NOT NULL
+      ORDER BY r.name;
     `;
-    
+
     const dwellingTypeQuery = `
-      SELECT DISTINCT dwelling_type FROM floor_plan 
-      WHERE builder_id = $1 AND dwelling_type IS NOT NULL 
-      ORDER BY dwelling_type;
+      SELECT DISTINCT dt.name
+      FROM floor_plan fp
+      JOIN dwelling_type dt ON fp.dwelling_type_id = dt.dwelling_type_id
+      WHERE fp.builder_id = $1 AND dt.name IS NOT NULL
+      ORDER BY dt.name;
     `;
 
     const [rangeResult, dwellingTypeResult] = await Promise.all([
@@ -338,8 +391,8 @@ exports.getFloorPlanFilters = async (req, res) => {
     ]);
 
     const filters = {
-      ranges: rangeResult.rows.map(row => row.range),
-      dwellingTypes: dwellingTypeResult.rows.map(row => row.dwelling_type)
+      ranges: rangeResult.rows.map(row => row.name),
+      dwellingTypes: dwellingTypeResult.rows.map(row => row.name)
     };
 
     return successResponse(

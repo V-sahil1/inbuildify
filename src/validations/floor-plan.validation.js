@@ -9,11 +9,20 @@ const nameRule = Joi.string().min(2).max(100).trim().messages({
   'any.required': 'Name is required'
 });
 
-const imageRule = Joi.string().uri().max(500).trim().messages({
-  'string.base': 'Image must be a string',
-  'string.uri': 'Image must be a valid URL',
-  'string.max': 'Image URL must not exceed 500 characters'
-});
+const imageRule = Joi.alternatives().try(
+  Joi.string().uri().max(500).trim().messages({
+    'string.base': 'Image must be a string',
+    'string.uri': 'Image must be a valid URL',
+    'string.max': 'Image URL must not exceed 500 characters'
+  }),
+  Joi.object({
+    fieldname: Joi.string().valid('image').required(),
+    originalname: Joi.string().required(),
+    mimetype: Joi.string().required(),
+    size: Joi.number().max(10 * 1024 * 1024).required(), // enforce max 10MB
+    location: Joi.string().uri().required() // s3 URL added by multer-s3
+  }).unknown(true) // allow extra multer fields
+).optional();
 
 const rangeRule = Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY').messages({
   'string.base': 'Range must be a string',

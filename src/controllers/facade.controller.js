@@ -38,9 +38,19 @@ exports.createFacade = async (req, res) => {
       return errorResponse(res, 409, "Facade with this name already exists for this builder.");
     }
 
+    const dwellingTypeQuery = `
+      SELECT dwelling_type_id FROM dwelling_type 
+      WHERE name = $1;
+    `;
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type]);
+
+    if (dwellingTypeResult.rows.length === 0) {
+      return errorResponse(res, 404, "Invalid dwelling type.");
+    }
+    
     const facadeQuery = `
       INSERT INTO facade (
-        builder_id, name, image, dwelling_type, standard, upgrade
+        builder_id, name, image, dwelling_type_id, standard, upgrade
       ) VALUES ($1, $2, $3, $4, $5, $6) 
       RETURNING *;
     `;
@@ -49,7 +59,7 @@ exports.createFacade = async (req, res) => {
       builderId,
       name,
       image || null,
-      dwelling_type || 'single_storey',
+      dwellingTypeResult.rows[0].dwelling_type_id,
       standard || false,
       upgrade || false
     ]);
@@ -83,62 +93,77 @@ exports.getFacades = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    let dwellingTypeId = null;
+
+    if (dwelling_type && dwelling_type !== 'all') {
+      const dtResult = await client.query(
+        'SELECT dwelling_type_id FROM dwelling_type WHERE name = $1',
+        [dwelling_type]
+      );
+      if (dtResult.rows.length === 0) {
+        return errorResponse(res, 400, 'Invalid dwelling type');
+      }
+      dwellingTypeId = dtResult.rows[0].dwelling_type_id;
+    }
+
     let baseQuery = `
-      SELECT * FROM facade 
-      WHERE builder_id = $1
+      SELECT 
+        f.*, 
+        dt.name AS dwelling_type_name
+      FROM facade f
+      JOIN dwelling_type dt ON f.dwelling_type_id = dt.dwelling_type_id
+      WHERE f.builder_id = $1
     `;
     
     const queryParams = [builderId];
     let paramIndex = 2;
 
-    // Add filters
-    if (dwelling_type && dwelling_type !== 'all') {
-      baseQuery += ` AND dwelling_type = $${paramIndex}`;
-      queryParams.push(dwelling_type);
+    if (dwellingTypeId) {
+      baseQuery += ` AND f.dwelling_type_id = $${paramIndex}`;
+      queryParams.push(dwellingTypeId);
       paramIndex++;
     }
 
     if (standard && standard !== 'all') {
-      baseQuery += ` AND standard = $${paramIndex}`;
+      baseQuery += ` AND f.standard = $${paramIndex}`;
       queryParams.push(standard === 'true');
       paramIndex++;
     }
 
     if (upgrade && upgrade !== 'all') {
-      baseQuery += ` AND upgrade = $${paramIndex}`;
+      baseQuery += ` AND f.upgrade = $${paramIndex}`;
       queryParams.push(upgrade === 'true');
       paramIndex++;
     }
 
-    // Add pagination
     const offset = (page - 1) * limit;
-    baseQuery += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    baseQuery += ` ORDER BY f.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     queryParams.push(limit, offset);
 
     const result = await client.query(baseQuery, queryParams);
 
-    // Get total count for pagination
     let countQuery = `
-      SELECT COUNT(*) as total FROM facade 
-      WHERE builder_id = $1
+      SELECT COUNT(*) as total
+      FROM facade f
+      WHERE f.builder_id = $1
     `;
     const countParams = [builderId];
     let countParamIndex = 2;
 
-    if (dwelling_type && dwelling_type !== 'all') {
-      countQuery += ` AND dwelling_type = $${countParamIndex}`;
-      countParams.push(dwelling_type);
+    if (dwellingTypeId) {
+      countQuery += ` AND f.dwelling_type_id = $${countParamIndex}`;
+      countParams.push(dwellingTypeId);
       countParamIndex++;
     }
 
     if (standard && standard !== 'all') {
-      countQuery += ` AND standard = $${countParamIndex}`;
+      countQuery += ` AND f.standard = $${countParamIndex}`;
       countParams.push(standard === 'true');
       countParamIndex++;
     }
 
     if (upgrade && upgrade !== 'all') {
-      countQuery += ` AND upgrade = $${countParamIndex}`;
+      countQuery += ` AND f.upgrade = $${countParamIndex}`;
       countParams.push(upgrade === 'true');
     }
 
@@ -321,19 +346,23 @@ exports.getFacadeFilters = async (req, res) => {
 
   try {
     const dwellingTypeQuery = `
-      SELECT DISTINCT dwelling_type FROM facade 
-      WHERE builder_id = $1 AND dwelling_type IS NOT NULL 
-      ORDER BY dwelling_type;
+      SELECT DISTINCT dt.name AS dwelling_type
+      FROM facade f
+      JOIN dwelling_type dt ON f.dwelling_type_id = dt.dwelling_type_id
+      WHERE f.builder_id = $1 AND dt.name IS NOT NULL
+      ORDER BY dt.name;
     `;
 
     const standardQuery = `
-      SELECT DISTINCT standard FROM facade 
+      SELECT DISTINCT standard 
+      FROM facade 
       WHERE builder_id = $1 
       ORDER BY standard;
     `;
 
     const upgradeQuery = `
-      SELECT DISTINCT upgrade FROM facade 
+      SELECT DISTINCT upgrade 
+      FROM facade 
       WHERE builder_id = $1 
       ORDER BY upgrade;
     `;

@@ -4,9 +4,18 @@ const builderRoutes = require("./builder.routes");
 const contractorRoutes = require("./contractor.routes");
 const customerRoutes = require("./customer.routes");
 const leadRoutes = require("./leads.routes");
+const opportunitiesRoutes = require("./opportunities.routes");
 const categoryRoutes = require("./category.routes");
+const rangeRoutes = require("./range.routes");
+const dwellingTypeRoutes = require("./dwelling-type.routes");
 const floorPlanRoutes = require("./floor-plan.routes");
 const facadeRoutes = require("./facade.routes");
+const categoryItemRoutes = require("./category-item.routes");
+const conditionRoutes = require("./condition.routes");
+const packageRoutes = require("./package.routes");
+const propertyRoutes = require("./property.routes");
+const dashboardRoutes = require("./dashboard.routes");
+const quotationRoutes = require("./quotation.routes");
 
 module.exports = function (app) {
   app.use("/auth", authRoutes);
@@ -15,7 +24,16 @@ module.exports = function (app) {
   app.use("/contractor", contractorRoutes);
   app.use("/customer", customerRoutes);
   app.use("/leads", leadRoutes);
+  app.use("/opportunities", opportunitiesRoutes);
   app.use("/category", categoryRoutes);
+  app.use("/range", rangeRoutes);
+  app.use("/dwelling-type", dwellingTypeRoutes);
   app.use("/floor-plan", floorPlanRoutes);
   app.use("/facade", facadeRoutes);
+  app.use("/condition", conditionRoutes);
+  app.use("/category-item", categoryItemRoutes);
+  app.use("/package", packageRoutes);
+  app.use("/property", propertyRoutes);
+  app.use("/dashboard", dashboardRoutes);
+  app.use("/quotation", quotationRoutes);
 };

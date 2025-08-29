@@ -4,6 +4,9 @@ CREATE TABLE builder (
   builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
+  logo VARCHAR(500),
+  slogen VARCHAR(500),
+  firm_name VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -91,31 +94,41 @@ CREATE TABLE status_logs (
 );
 
 CREATE TYPE lead_source_enum AS ENUM ('ADMIN_PANEL', 'WEBSITE', 'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'LINKEDIN', 'TWITTER', 'TIKTOK', 'WHATSAPP', 'EMAIL_CAMPAIGN', 'GOOGLE_ADS', 'FACEBOOK_ADS', 'INSTAGRAM_ADS', 'YOUTUBE_ADS', 'LINKEDIN_ADS', 'REFERRAL', 'PHONE_CALL', 'TRADE_SHOW', 'PARTNER', 'OTHER');
+CREATE TYPE lead_status_enum AS ENUM ('NEW', 'IN_PROGRESS', 'JOB', 'CONSTRUCTION', 'COMPLETED', 'CANCELLED');
 
 CREATE TABLE leads (
   lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  builder_id UUID,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL,
   phone VARCHAR(20),
-  status VARCHAR(50) DEFAULT 'new' NOT NULL,
+  status lead_status_enum DEFAULT 'NEW' NOT NULL,
   lead_source lead_source_enum NOT NULL DEFAULT 'OTHER',
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
-CREATE TYPE range_type AS ENUM ('NONE', 'PREMIUM', 'DELUXE', 'LUXURY');
-CREATE TYPE dwelling_type AS ENUM ('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE');
+CREATE TABLE range (
+  range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE dwelling_type (
+  dwelling_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE floor_plan (
   floor_plan_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,
   name VARCHAR(100) NOT NULL,
   image VARCHAR(500),
-  range range_type,
-  dwelling_type dwelling_type,
+  range_id UUID NOT NULL,
+  dwelling_type_id UUID NOT NULL,
   beds INTEGER DEFAULT 0,
   bath INTEGER DEFAULT 0,
   car_park INTEGER DEFAULT 0,
@@ -128,7 +141,9 @@ CREATE TABLE floor_plan (
   total_sqft DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
-  CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  CONSTRAINT fk_floor_plan_range FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
+  CONSTRAINT fk_floor_plan_dwelling_type FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
 );
 
 CREATE TABLE facade (
@@ -136,10 +151,130 @@ CREATE TABLE facade (
   builder_id UUID NOT NULL,
   name VARCHAR(100) NOT NULL,
   image VARCHAR(500),
-  dwelling_type dwelling_type,
+  dwelling_type_id UUID NOT NULL,
   standard BOOLEAN DEFAULT FALSE,
   upgrade BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  CONSTRAINT fk_facade_dwelling_type FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
+);
+
+CREATE TYPE cost_type AS ENUM ('INCLUDED', 'FIXED', 'VARIABLE');
+CREATE TYPE cost_option AS ENUM ('NONE', 'TBA', 'TBC');
+CREATE TYPE item_status AS ENUM ('ACTIVE', 'INACTIVE');
+
+CREATE TABLE conditions (
+  condition_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE category_items (
+  category_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  category_id UUID NOT NULL,
+  description TEXT NOT NULL,
+  short_description VARCHAR(500),
+  cost_type cost_type NOT NULL,
+  cost NUMERIC(12,2),
+  cost_type_text VARCHAR(255),
+  cost_option cost_option DEFAULT 'NONE',
+  include_by_default BOOLEAN DEFAULT FALSE,
+  show_in_hl_package BOOLEAN DEFAULT TRUE,
+  package_only BOOLEAN DEFAULT FALSE,
+  uom VARCHAR(50),
+  sort_order INT DEFAULT 0,
+  range_id UUID,
+  dwelling_type_id UUID,
+  status item_status DEFAULT 'ACTIVE',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE SET NULL,
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL
+);
+
+CREATE TABLE category_items_condition (
+  category_items_condition_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  category_item_id UUID NOT NULL,
+  condition_id UUID NOT NULL,
+  range_start NUMERIC(12,2),
+  range_end NUMERIC(12,2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_item_id) REFERENCES category_items(category_item_id) ON DELETE CASCADE,
+  FOREIGN KEY (condition_id) REFERENCES conditions(condition_id) ON DELETE CASCADE
+);
+
+CREATE TABLE packages (
+  package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  builder_id UUID NOT NULL,
+  category_item_ids UUID[] NOT NULL,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_item_id) REFERENCES category_items(category_item_id) ON DELETE CASCADE
+);
+
+CREATE TYPE property_title_status AS ENUM ('ESTIMATED', 'ACTUAL');
+CREATE TYPE property_compaction_report AS ENUM ('AVAILABLE', 'NOT_AVAILABLE');
+CREATE TYPE property_land_type AS ENUM ('REGULAR', 'IRREGULAR');
+
+CREATE TABLE property (
+  property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  lead_id UUID NOT NULL,
+  country VARCHAR(100) NOT NULL,
+  address1 VARCHAR(255) NOT NULL,
+  address2 VARCHAR(255),
+  city_suburb VARCHAR(100) NOT NULL,
+  state_region VARCHAR(100) NOT NULL,
+  zip_postal_code VARCHAR(20) NOT NULL,
+  estate_name VARCHAR(150),
+  title_status property_title_status NOT NULL,
+  title_date DATE,
+  compaction_report property_compaction_report NOT NULL,
+  land_type property_land_type NOT NULL,
+  width_m NUMERIC(8,2),
+  depth_m NUMERIC(8,2),
+  total_size_m2 NUMERIC(12,2),
+  site_fall_mm NUMERIC(12,2),
+  land_fill_mm NUMERIC(12,2),
+  bush_fire BOOLEAN DEFAULT FALSE,
+  corner_block BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE
+);
+
+CREATE TABLE quotation (
+  quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  lead_id UUID NOT NULL,
+  property_id UUID NOT NULL,
+  floor_plan_id UUID NOT NULL,
+  facade_id UUID NOT NULL,
+  package_id UUID NOT NULL,
+  range_id UUID NOT NULL,
+  dwelling_type_id UUID NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE,
+  FOREIGN KEY (property_id) REFERENCES property(property_id) ON DELETE CASCADE,
+  FOREIGN KEY (floor_plan_id) REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
+  FOREIGN KEY (facade_id) REFERENCES facade(facade_id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES packages(package_id) ON DELETE CASCADE,
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
 );

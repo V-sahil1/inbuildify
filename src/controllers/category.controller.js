@@ -1,5 +1,6 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
+const { keysToCamelCase } = require("../utils/common");
 
 exports.getAllCategories = async (req, res) => {
   const { limit, offset } = req.query;
@@ -23,7 +24,7 @@ exports.getAllCategories = async (req, res) => {
     return successResponse(
       res,
       {
-        categories: result.rows,
+        categories: keysToCamelCase(result.rows),
         pagination: {
           totalItems,
           totalPages,
