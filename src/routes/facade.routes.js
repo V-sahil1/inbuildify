@@ -11,6 +11,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const { upload } = require("../utils/s3Upload");
 const {
   createFacadeSchema,
   getFacadeByIdSchema,
@@ -24,7 +25,12 @@ const { REQUEST_SOURCE } = require("../config/constants");
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-router.post("/", validateRequest(createFacadeSchema), createFacade);
+router.post(
+  "/", 
+  upload.single('image'),
+  validateRequest(createFacadeSchema, REQUEST_SOURCE.FORM_DATA), 
+  createFacade
+);
 
 router.get("/", validateRequest(getFacadesSchema, REQUEST_SOURCE.QUERY), getFacades);
 

@@ -5,11 +5,11 @@ const { keysToCamelCase } = require("../utils/common");
 exports.createFacade = async (req, res) => {
   const {
     name,
-    image,
     dwelling_type,
     standard,
     upgrade
   } = req.body || {};
+  const imageUrl = req.file?.location; // S3 URL from multer-s3
   const builderId = req.user.builder_id;
 
   const pool = getPool();
@@ -58,7 +58,7 @@ exports.createFacade = async (req, res) => {
     const facadeResult = await client.query(facadeQuery, [
       builderId,
       name,
-      image || null,
+      imageUrl || null,
       dwellingTypeResult.rows[0].dwelling_type_id,
       standard || false,
       upgrade || false

@@ -10,6 +10,7 @@ const REQUEST_SOURCE = {
   BODY: "body",
   QUERY: "query",
   PARAMS: "params",
+  FORM_DATA: "formData",
 }
 
 module.exports = {
