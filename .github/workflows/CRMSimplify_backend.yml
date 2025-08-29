@@ -134,7 +134,7 @@ jobs:
         script: |
           cd ~/app
           # Create .env with static values
-          cat > .env <<EOL
+          cat > .env <<EOF
           PORT=5000
           DATABASE_URL=
           JWT_SECRET=
@@ -149,7 +149,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY=
           AWS_REGION=
           S3_BUCKET_NAME=
-          EOL
+          EOF
 
     - name: Install and restart app on EC2
       uses: appleboy/ssh-action@v0.1.3
