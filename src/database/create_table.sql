@@ -106,7 +106,7 @@ CREATE TABLE leads (
   notes TEXT,
   message TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE range (
@@ -217,7 +217,7 @@ CREATE TABLE packages (
   package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   builder_id UUID NOT NULL,
-  category_item_ids UUID[] NOT NULL,
+  category_item_id UUID[] NOT NULL,
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
