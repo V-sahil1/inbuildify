@@ -78,5 +78,11 @@ jobs:
         script: |
           cd ~/app
           npm install
-          pm2 restart node-app || pm2 start npm --name "node-app" -- start
+          pm2 describe node-app >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            pm2 restart node-app
+          else
+            pm2 start npm --name "node-app" -- start
+          fi
           pm2 save
+
