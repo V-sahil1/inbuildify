@@ -98,3 +98,54 @@ exports.getLeadById = async (req, res) => {
     client.release();
   }
 };
+
+exports.updateLead = async (req, res) => {
+  const { lead_id } = req.params;
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { name, phone, leadSource } = req.body;
+
+    const fields = [];
+    const values = [lead_id];
+    let index = 2;
+
+    if (name !== undefined) {
+      fields.push(`name = $${index++}`);
+      values.push(name);
+    }
+    if (phone !== undefined) {
+      fields.push(`phone = $${index++}`);
+      values.push(phone);
+    }
+    if (leadSource !== undefined) {
+      fields.push(`lead_source = $${index++}`);
+      values.push(leadSource);
+    }
+
+    if (fields.length === 0) {
+      return errorResponse(res, 400, "No valid fields provided for update.");
+    }
+
+    const query = `
+      UPDATE leads
+      SET ${fields.join(", ")}
+      WHERE lead_id = $1
+      RETURNING lead_id, name, phone, status, lead_source, created_at, updated_at;
+    `;
+
+    const result = await client.query(query, values);
+
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "Lead not found.");
+    }
+
+    return successResponse(res, result.rows[0], "Lead updated successfully.");
+  } catch (error) {
+    console.error("Update lead error:", error);
+    return errorResponse(res, 500, "Failed to update lead.");
+  } finally {
+    client.release();
+  }
+};

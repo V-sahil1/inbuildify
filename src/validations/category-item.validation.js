@@ -36,14 +36,14 @@ const createCategoryItemSchema = Joi.object({
     .valid(...costTypes)
     .required(),
   cost: Joi.number().precision(2).optional().allow(null),
-  cost_type_text: Joi.string().max(255).optional().allow(null, ""),
+  cost_type_text: Joi.string().max(255).optional().allow(null),
   cost_option: Joi.string()
     .valid(...costOptions)
     .default("NONE"),
   include_by_default: Joi.boolean().default(false),
   show_in_hl_package: Joi.boolean().default(true),
   package_only: Joi.boolean().default(false),
-  uom: Joi.string().max(50).optional().allow(null, ""),
+  uom: Joi.string().max(50).optional().allow(null),
   sort_order: Joi.number().integer().min(0).default(0),
   range: Joi.string().optional().allow(null),
   dwelling: Joi.string().optional().allow(null),
@@ -88,6 +88,8 @@ const createCategoryItemSchema = Joi.object({
 });
 
 const getCategoryItemsByCategoryIdSchema = Joi.object({
+  range: Joi.string().optional().allow(null),
+  dwellingType: Joi.string().optional().allow(null),
   status: Joi.string()
     .valid(...itemStatuses)
     .default("ACTIVE"),

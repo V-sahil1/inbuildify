@@ -83,7 +83,25 @@ const getQuotationSchema = Joi.object({
   }),
 });
 
+const getQuotationsSchema = Joi.object({
+  leadId: Joi.string().uuid().required().messages({
+    "string.guid": "Lead ID must be a valid UUID",
+    "any.required": "Lead ID is required",
+  }),
+  page: Joi.number().integer().required().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.min": "Page must be greater than or equal to 1",
+    "any.default": "Page is required",
+  }),
+  limit: Joi.number().integer().required().min(1).default(25).messages({
+    "number.base": "Limit must be a number",
+    "number.min": "Limit must be greater than or equal to 1",
+    "any.default": "Limit is required",
+  }),
+});
+
 module.exports = {
   createQuotationSchema,
   getQuotationSchema,
+  getQuotationsSchema,
 };

@@ -6,7 +6,9 @@ CREATE TABLE builder (
   email VARCHAR(100) UNIQUE NOT NULL,
   logo VARCHAR(500),
   slogen VARCHAR(500),
-  firm_name VARCHAR(500),
+  license_number VARCHAR(100),
+  abn_number VARCHAR(100),
+  phone_number VARCHAR(20),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

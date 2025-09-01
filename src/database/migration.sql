@@ -6,3 +6,8 @@ ADD COLUMN is_deleted boolean DEFAULT false NOT NULL;
 
 ALTER TABLE leads
 ADD COLUMN message TEXT;
+
+ALTER TABLE builder
+ADD COLUMN license_number VARCHAR(100),
+ADD COLUMN abn_number VARCHAR(100),
+ADD COLUMN phone_number VARCHAR(20);

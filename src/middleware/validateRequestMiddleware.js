@@ -43,9 +43,13 @@ module.exports.validateRequest =
     if (error) {
       const validationError = validationMessageFormatterHelper(error.details);
 
+      const validationErrorMessage = Object.keys(validationError)
+        .map((key) => `${validationError[key]}`)
+        .join(", ");
+      
       return res.status(UNPROCESSABLE_ENTITY.code).json({
-        message: UNPROCESSABLE_ENTITY.message,
-        errors: validationError,
+        message: validationErrorMessage,
+        errors: UNPROCESSABLE_ENTITY.message,
       });
     }
 

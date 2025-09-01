@@ -7,13 +7,13 @@ exports.createPackage = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { name, category_item_ids, amount } = req.body;
+    const { name, categoryItemIds: category_item_ids, amount } = req.body;
     const builderId = req.user.builder_id;
 
     const checkQuery = `
       SELECT category_item_id, description 
       FROM category_items 
-      WHERE builder_id = $1 AND status = 'ACTIVE' AND category_item_id = ANY($2::uuid[])
+      WHERE builder_id = $1 AND status = 'ACTIVE' AND package_only = 'TRUE' AND category_item_id = ANY($2::uuid[])
     `;
     const checkResult = await client.query(checkQuery, [
       builderId,
@@ -175,6 +175,7 @@ exports.getPackageItems = async (req, res) => {
           AND ci.status = 'ACTIVE'
           AND ci.range_id = $2
           AND ci.dwelling_type_id = $3
+          AND ci.package_only = 'TRUE'
         ORDER BY ci.sort_order ASC;
       `;
 
@@ -191,6 +192,121 @@ exports.getPackageItems = async (req, res) => {
     );
   } catch (err) {
     console.error("Error fetching package items:", err);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updatePackage = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { package_id } = req.params;
+    const { name, categoryItemIds: category_item_ids, amount } = req.body;
+    const builderId = req.user.builder_id;
+
+    const packageCheck = await client.query(
+      `SELECT * FROM packages WHERE package_id = $1 AND builder_id = $2`,
+      [package_id, builderId]
+    );
+    if (packageCheck.rowCount === 0) {
+      return errorResponse(res, 404, "Package not found");
+    }
+
+    if (category_item_ids && category_item_ids.length > 0) {
+      const checkQuery = `
+        SELECT category_item_id, description
+        FROM category_items
+        WHERE builder_id = $1
+          AND status = 'ACTIVE'
+          AND package_only = 'TRUE'
+          AND category_item_id = ANY($2::uuid[])
+      `;
+      const checkResult = await client.query(checkQuery, [
+        builderId,
+        category_item_ids,
+      ]);
+
+      if (checkResult.rowCount !== category_item_ids.length) {
+        return errorResponse(
+          res,
+          400,
+          "One or more category_item_ids are invalid or not ACTIVE"
+        );
+      }
+    }
+
+    if (name) {
+      const nameCheck = await client.query(
+        `SELECT 1 FROM packages WHERE name = $1 AND builder_id = $2 AND package_id != $3`,
+        [name, builderId, package_id]
+      );
+      if (nameCheck.rowCount > 0) {
+        return errorResponse(
+          res,
+          400,
+          "Package name already exists for this builder"
+        );
+      }
+    }
+
+    const updateQuery = `
+      UPDATE packages
+      SET name = COALESCE($1, name),
+          category_item_ids = COALESCE($2, category_item_ids),
+          amount = COALESCE($3, amount),
+          updated_at = NOW()
+      WHERE package_id = $4 AND builder_id = $5
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [
+      name || null,
+      category_item_ids || null,
+      amount || null,
+      package_id,
+      builderId,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Package updated successfully."
+    );
+  } catch (err) {
+    console.error("Error updating package:", err);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.deletePackage = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { package_id } = req.params;
+    const builderId = req.user.builder_id;
+
+    const check = await client.query(
+      `SELECT 1 FROM packages WHERE package_id = $1 AND builder_id = $2`,
+      [package_id, builderId]
+    );
+    if (check.rowCount === 0) {
+      return errorResponse(res, 404, "Package not found");
+    }
+
+    await client.query(
+      `DELETE FROM packages WHERE package_id = $1 AND builder_id = $2`,
+      [package_id, builderId]
+    );
+
+    return successResponse(res, null, "Package deleted successfully.");
+  } catch (err) {
+    console.error("Error deleting package:", err);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();

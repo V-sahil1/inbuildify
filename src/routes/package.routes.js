@@ -5,12 +5,16 @@ const {
   getPackageById,
   getAllPackages,
   getPackageItems,
+  updatePackage,
+  deletePackage,
 } = require("../controllers/packages.controller");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   createPackageSchema,
   getPackageByIdSchema,
   getPackageItemsSchema,
+  updatePackageSchema,
+  deletePackageSchema,
 } = require("../validations/packages.validation");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -20,8 +24,10 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 
 router.post("/", validateRequest(createPackageSchema), createPackage);
+router.post("/:package_id", validateRequest(updatePackageSchema), updatePackage);
 router.get("/:package_id", validateRequest(getPackageByIdSchema, REQUEST_SOURCE.PARAMS), getPackageById);
 router.get("/", getAllPackages);
 router.get("/category/items", validateRequest(getPackageItemsSchema, REQUEST_SOURCE.QUERY), getPackageItems);
+router.delete("/:package_id", validateRequest(deletePackageSchema, REQUEST_SOURCE.PARAMS), deletePackage);
 
 module.exports = router;

@@ -47,7 +47,7 @@ exports.createQuotation = async (req, res) => {
 
     const validationQuery = `
       SELECT 
-        (SELECT COUNT(*) FROM leads WHERE lead_id = $2 AND status = 'IN_PROGRESS') as lead_exists,
+        (SELECT COUNT(*) FROM leads WHERE lead_id = $2 AND status IN ('IN_PROGRESS', 'COMPLETED')) as lead_exists,
         (SELECT COUNT(*) FROM property WHERE property_id = $3 AND builder_id = $1 AND lead_id = $2) as property_exists,
         (SELECT COUNT(*) FROM floor_plan WHERE floor_plan_id = $4 AND builder_id = $1 AND range_id = $7 AND dwelling_type_id = $8) as floor_plan_exists,
         (SELECT COUNT(*) FROM facade WHERE facade_id = $5 AND builder_id = $1 AND dwelling_type_id = $8) as facade_exists,
@@ -239,6 +239,72 @@ exports.getQuotationById = async (req, res) => {
       "Quotation fetched successfully."
     );
   } catch (error) {
+    console.error(error);
+    return errorResponse(
+      res,
+      error?.code || 400,
+      error?.message || "Internal Server Error"
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.getQuotations = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  const builderId = req.user.builder_id;
+  const { page, limit, leadId } = req.query;
+
+  try {
+    await client.query("BEGIN");
+
+    const offset = (page - 1) * limit;
+    const quotationsQuery = `
+      SELECT 
+        q.quotation_id, q.created_at, q.updated_at, q.items,
+        b.builder_id, b.name as builder_name,
+        l.lead_id, l.status as lead_status,
+        p.property_id, p.address1 as property_address,
+        f.floor_plan_id, f.name as floor_plan_name,
+        fa.facade_id, fa.name as facade_name,
+        pk.package_id, pk.name as package_name,
+        r.range_id, r.name as range_name,
+        dt.dwelling_type_id, dt.name as dwelling_type_name
+      FROM quotation q
+      JOIN builder b ON q.builder_id = b.builder_id
+      JOIN leads l ON q.lead_id = l.lead_id
+      JOIN property p ON q.property_id = p.property_id
+      JOIN floor_plan f ON q.floor_plan_id = f.floor_plan_id
+      JOIN facade fa ON q.facade_id = fa.facade_id
+      JOIN packages pk ON q.package_id = pk.package_id
+      JOIN range r ON q.range_id = r.range_id
+      JOIN dwelling_type dt ON q.dwelling_type_id = dt.dwelling_type_id
+      WHERE q.builder_id = $1 AND q.lead_id = $2
+      ORDER BY q.created_at DESC
+      LIMIT $3 OFFSET $4;
+    `;
+    const quotationsResult = await client.query(quotationsQuery, [builderId, leadId, limit, offset]);
+    const quotations = quotationsResult.rows;
+
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM quotation
+      WHERE builder_id = $1 AND lead_id = $2;
+    `;
+    const countResult = await client.query(countQuery, [builderId, leadId]);
+    const count = countResult.rows[0].count;
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      { count, quotations },
+      "Quotations fetched successfully."
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
     return errorResponse(
       res,

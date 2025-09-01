@@ -2,7 +2,7 @@ const Joi = require("joi");
 
 const createPackageSchema = Joi.object({
   name: Joi.string().min(2).max(255).required(),
-  category_item_ids: Joi.array()
+  categoryItemIds: Joi.array()
     .items(
       Joi.string().uuid().messages({
         "string.guid": "Each Category Item ID must be a valid UUID",
@@ -41,8 +41,33 @@ const getPackageItemsSchema = Joi.object({
   }),
 });
 
+const updatePackageSchema = Joi.object({
+  name: Joi.string().min(2).max(255),
+  categoryItemIds: Joi.array()
+    .items(Joi.string().uuid().messages({
+      "string.guid": "Each Category Item ID must be a valid UUID",
+    }))
+    .min(1)
+    .unique(),
+  amount: Joi.number().precision(2).min(0).messages({
+    "number.base": "Amount must be a number",
+    "number.min": "Amount must be greater than or equal to 0",
+  }),
+}).min(1).messages({
+  "object.min": "At least one field (name, categoryItemIds, amount) must be provided",
+});
+
+const deletePackageSchema = Joi.object({
+  package_id: Joi.string().uuid().required().messages({
+    "string.guid": "Package ID must be a valid UUID",
+    "any.required": "Package ID is required",
+  }),
+});
+
 module.exports = {
   createPackageSchema,
   getPackageByIdSchema,
   getPackageItemsSchema,
+  updatePackageSchema,
+  deletePackageSchema
 };

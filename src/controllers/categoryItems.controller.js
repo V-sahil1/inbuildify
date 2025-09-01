@@ -162,7 +162,7 @@ exports.createCategoryItem = async (req, res) => {
   } catch (err) {
     await client.query(`ROLLBACK`);
     console.error("Error creating category item:", err);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, err?.statusCode || 400, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -175,7 +175,7 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
     const { category_id } = req.params;
     const builderId = req.user.builder_id;
 
-    let { status } = req.query;
+    let { status, range, dwellingType } = req.query;
 
     if (status) {
       status = status.toUpperCase();
@@ -186,7 +186,32 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
       status = "ACTIVE";
     }
 
-    const query = `
+    let rangeId = null;
+    let dwellingTypeId = null;
+
+    if (range) {
+      const rangeResult = await client.query(
+        `SELECT range_id FROM range WHERE name = $1`,
+        [range]
+      );
+      if (rangeResult.rowCount === 0) {
+        return errorResponse(res, 404, `Range '${range}' not found.`);
+      }
+      rangeId = rangeResult.rows[0].range_id;
+    }
+
+    if (dwellingType) {
+      const dwellingResult = await client.query(
+        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1`,
+        [dwellingType]
+      );
+      if (dwellingResult.rowCount === 0) {
+        return errorResponse(res, 404, `Dwelling type '${dwellingType}' not found.`);
+      }
+      dwellingTypeId = dwellingResult.rows[0].dwelling_type_id;
+    }
+
+    let query = `
       SELECT 
         ci.category_item_id,
         ci.builder_id,
@@ -225,11 +250,27 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
       LEFT JOIN conditions c 
         ON cic.condition_id = c.condition_id
       WHERE ci.category_id = $1 AND ci.builder_id = $2 AND ci.status = $3
-      GROUP BY ci.category_item_id, r.name, d.name
-      ORDER BY ci.sort_order;
     `;
 
-    const result = await client.query(query, [category_id, builderId, status]);
+    const params = [category_id, builderId, status];
+    let paramIndex = 4;
+
+    if (rangeId) {
+      query += ` AND ci.range_id = $${paramIndex++}`;
+      params.push(rangeId);
+    }
+
+    if (dwellingTypeId) {
+      query += ` AND ci.dwelling_type_id = $${paramIndex++}`;
+      params.push(dwellingTypeId);
+    }
+
+    query += `
+      GROUP BY ci.category_item_id, r.name, d.name
+      ORDER BY ci.created_at DESC;
+    `;
+
+    const result = await client.query(query, params);
 
     return successResponse(
       res,
@@ -238,7 +279,7 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
     );
   } catch (err) {
     console.error("Error fetching category items:", err);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, err?.statusCode || 400, err?.message || "Internal Server Error");
   } finally {
     client.release();
   }

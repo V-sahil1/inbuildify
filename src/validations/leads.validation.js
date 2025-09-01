@@ -79,7 +79,33 @@ const getLeadByIdSchema = Joi.object({
   }),
 });
 
+const updateLeadSchema = {
+  params: Joi.object({
+    lead_id: Joi.string().uuid().required().messages({
+      "string.guid": "Lead ID must be a valid UUID",
+      "any.required": "Lead ID is required",
+    }),
+  }),
+  body: Joi.object({
+    name: Joi.string().min(2).max(255).messages({
+      "string.base": "Name must be a string",
+      "string.min": "Name must be at least 2 characters long",
+      "string.max": "Name must not exceed 255 characters",
+    }),
+    phone: Joi.string()
+      .pattern(/^\+?[0-9]{7,15}$/)
+      .messages({
+        "string.pattern.base":
+          "Phone must be a valid number with 7-15 digits (optional leading +)",
+      }),
+    leadSource: leadSourceRule,
+  }).min(1).messages({
+    "object.min": "At least one field (name, phone, or leadSource) must be provided",
+  }),
+};
+
 module.exports = {
   createLeadSchema,
   getLeadByIdSchema,
+  updateLeadSchema,
 };
