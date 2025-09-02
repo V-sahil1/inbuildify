@@ -4,7 +4,7 @@ CREATE TABLE builder (
   builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
-  logo VARCHAR(500),
+  logo VARCHAR(500) DEFAULT 'https://cdn.dribbble.com/userupload/5245642/file/original-430a2e28de5df4e1932405b3a9f783e7.png?resize=752x&vertical=center',
   slogen VARCHAR(500),
   license_number VARCHAR(100),
   abn_number VARCHAR(100),

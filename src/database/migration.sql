@@ -11,3 +11,6 @@ ALTER TABLE builder
 ADD COLUMN license_number VARCHAR(100),
 ADD COLUMN abn_number VARCHAR(100),
 ADD COLUMN phone_number VARCHAR(20);
+
+ALTER TABLE builder
+ALTER COLUMN logo SET DEFAULT 'https://cdn.dribbble.com/userupload/5245642/file/original-430a2e28de5df4e1932405b3a9f783e7.png?resize=752x&vertical=center';
