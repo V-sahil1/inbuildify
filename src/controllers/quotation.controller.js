@@ -44,6 +44,34 @@ function validateReferences(row, res, errorResponse) {
   }
 }
 
+function parseItemsAndCalculateTotal(itemsRaw, packageAmount) {
+  let items = [];
+  try {
+    items = Array.isArray(itemsRaw) ? itemsRaw : JSON.parse(itemsRaw || "[]");
+  } catch {
+    items = [];
+  }
+
+  let itemsTotal = 0;
+  items = items.map((item) => {
+    const price = Number(item.price || 0);
+    const quantity = Number(item.quantity || 0);
+    const total = price * quantity;
+    itemsTotal += total;
+    return {
+      ...item,
+      price,
+      quantity,
+      total,
+    };
+  });
+
+  const packageAmt = Number(packageAmount || 0);
+  const totalAmount = itemsTotal + packageAmt;
+
+  return { items, totalAmount };
+}
+
 exports.createQuotation = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -206,7 +234,7 @@ exports.getQuotationById = async (req, res) => {
           p.property_id, p.address1 as property_address,
           f.floor_plan_id, f.name as floor_plan_name,
           fa.facade_id, fa.name as facade_name,
-          pk.package_id, pk.name as package_name,
+          pk.package_id, pk.name as package_name, pk.amount as package_amount,
           r.range_id, r.name as range_name,
           dt.dwelling_type_id, dt.name as dwelling_type_name
         FROM quotation q
@@ -229,21 +257,17 @@ exports.getQuotationById = async (req, res) => {
 
     const row = keysToCamelCase(result.rows[0]);
 
-    let items = [];
-    try {
-      items = Array.isArray(row.items)
-        ? row.items
-        : JSON.parse(row.items || "[]");
-    } catch {
-      items = [];
-    }
+    const { items, totalAmount } = parseItemsAndCalculateTotal(
+      row.items,
+      row.packageAmount
+    );
 
     const responseData = {
       quotationId: row.quotationId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       items,
-
+      totalAmount,
       builder: {
         builderId: row.builderId,
         name: row.builderName,
@@ -267,6 +291,7 @@ exports.getQuotationById = async (req, res) => {
       package: {
         packageId: row.packageId,
         name: row.packageName,
+        amount: row.packageAmount,
       },
       range: {
         rangeId: row.rangeId,
@@ -314,7 +339,7 @@ exports.getQuotations = async (req, res) => {
         p.property_id, p.address1 as property_address,
         f.floor_plan_id, f.name as floor_plan_name,
         fa.facade_id, fa.name as facade_name,
-        pk.package_id, pk.name as package_name,
+        pk.package_id, pk.name as package_name, pk.amount as package_amount,
         r.range_id, r.name as range_name,
         dt.dwelling_type_id, dt.name as dwelling_type_name
       FROM quotation q
@@ -331,7 +356,18 @@ exports.getQuotations = async (req, res) => {
       LIMIT $3 OFFSET $4;
     `;
     const quotationsResult = await client.query(quotationsQuery, [builderId, leadId, limit, offset]);
-    const quotations = quotationsResult.rows;
+    const quotations = quotationsResult.rows.map((row) => {
+      // const camelRow = keysToCamelCase(row);
+      const { items, totalAmount } = parseItemsAndCalculateTotal(
+        row.items,
+        row.package_amount
+      );
+      return {
+        ...row,
+        items,
+        total_amount: totalAmount,
+      };
+    });
 
     const countQuery = `
       SELECT COUNT(*) as count
