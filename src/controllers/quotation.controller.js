@@ -64,6 +64,7 @@ exports.createQuotation = async (req, res) => {
       dwellingTypeId,
     ]);
     const row = validationResult.rows[0];
+    console.log("🚀 ~ quotation.controller.js:67 ~ row:", row);
 
     if (
       row.lead_exists == 0 ||
