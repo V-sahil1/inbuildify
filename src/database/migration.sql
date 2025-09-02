@@ -19,3 +19,18 @@ ALTER TABLE leads
 ADD COLUMN builder_id UUID,
 ADD CONSTRAINT fk_leads_builder
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE;
+
+ALTER TABLE contractor ADD COLUMN service_id UUID;
+
+UPDATE contractor
+SET service_id = (
+  SELECT service_id FROM service WHERE service = 'Color Painting' LIMIT 1
+);
+
+ALTER TABLE contractor ALTER COLUMN service_id SET NOT NULL;
+
+ALTER TABLE contractor
+ADD CONSTRAINT fk_contractor_service
+FOREIGN KEY (service_id) REFERENCES service(service_id)
+ON DELETE CASCADE;
+

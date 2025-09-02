@@ -4,7 +4,7 @@ const { keysToCamelCase } = require("../utils/common");
 const { successResponse } = require("../helper/response");
 
 exports.createContractor = async (req, res) => {
-  const { name, email, phone, address } = req.body || {};
+  const { name, email, phone, address, service } = req.body || {};
   const builderId = req.user.builder_id;
   const lowerCaseEmail = email.toLowerCase();
 
@@ -34,8 +34,15 @@ exports.createContractor = async (req, res) => {
       return errorResponse(res, 409, "Contractor with this email already exists for this builder.");
     }
 
-    const contractorQuery = `INSERT INTO contractor (name, email, builder_id, phone, address) VALUES ($1, $2, $3, $4, $5) RETURNING *;`;
-    const contractorResult = await client.query(contractorQuery, [name, lowerCaseEmail, builderId, phone, address]);
+    const serviceQuery = `SELECT * FROM service WHERE service = $1;`;
+    const serviceResult = await client.query(serviceQuery, [service]);
+
+    if (serviceResult.rows.length === 0) {
+      return errorResponse(res, 404, "Service not found with the provided name.");
+    }
+    
+    const contractorQuery = `INSERT INTO contractor (name, email, builder_id, phone, address, service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
+    const contractorResult = await client.query(contractorQuery, [name, lowerCaseEmail, builderId, phone, address, serviceResult.rows[0].service_id]);
     
     const createdContractor = contractorResult.rows[0];
     return successResponse(
@@ -130,6 +137,24 @@ exports.updateContractor = async (req, res) => {
     if (checkBuilderResult.rowCount === 0) {
       return errorResponse(res, 404, "Contractor not found.");
     }
+
+    if (updates.service) {
+      const serviceQuery = `
+        SELECT service_id 
+        FROM service 
+        WHERE service = $1 AND builder_id = $2
+        LIMIT 1;
+      `;
+      const serviceResult = await client.query(serviceQuery, [updates.service, builderId]);
+
+      if (serviceResult.rowCount === 0) {
+        return errorResponse(res, 400, `Service '${updates.service}' not found.`);
+      }
+
+      updates.service_id = serviceResult.rows[0].service_id;
+      delete updates.service;
+    }
+
     const setClauses = [];
     const values = [];
     let idx = 1;

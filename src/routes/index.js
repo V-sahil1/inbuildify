@@ -2,6 +2,7 @@ const authRoutes = require("./auth.routes");
 const userRoutes = require("./user.routes");
 const builderRoutes = require("./builder.routes");
 const contractorRoutes = require("./contractor.routes");
+const serviceRoutes = require("./service.routes.js");
 const customerRoutes = require("./customer.routes");
 const leadRoutes = require("./leads.routes");
 const opportunitiesRoutes = require("./opportunities.routes");
@@ -23,6 +24,7 @@ module.exports = function (app) {
   app.use("/user", userRoutes);
   app.use("/builder", builderRoutes);
   app.use("/contractor", contractorRoutes);
+  app.use("/service", serviceRoutes);
   app.use("/customer", customerRoutes);
   app.use("/leads", leadRoutes);
   app.use("/opportunities", opportunitiesRoutes);

@@ -87,6 +87,10 @@ const createCategoryItemSchema = Joi.object({
   "cost.included.optionForbidden": "cost_option is not allowed when cost_type is INCLUDED",
 });
 
+const updateCategoryItemSchema = createCategoryItemSchema.keys({
+  category_id: Joi.forbidden(),
+});
+
 const getCategoryItemsByCategoryIdSchema = Joi.object({
   range: Joi.string().optional().allow(null),
   dwellingType: Joi.string().optional().allow(null),
@@ -98,4 +102,5 @@ const getCategoryItemsByCategoryIdSchema = Joi.object({
 module.exports = {
   createCategoryItemSchema,
   getCategoryItemsByCategoryIdSchema,
+  updateCategoryItemSchema,
 };

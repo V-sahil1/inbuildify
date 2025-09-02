@@ -284,3 +284,160 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
     client.release();
   }
 };
+
+exports.updateCategoryItem = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const { category_item_id } = req.params;
+
+    if ("category_id" in req.body) {
+      return errorResponse(res, 400, "Updating category_id is not allowed.");
+    }
+
+    const {
+      description,
+      short_description,
+      cost_type,
+      cost,
+      cost_type_text,
+      cost_option,
+      include_by_default,
+      show_in_hl_package,
+      package_only,
+      uom,
+      sort_order,
+      range,
+      dwelling,
+      status,
+      conditions,
+    } = req.body;
+
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT category_id FROM category_items WHERE category_item_id = $1 AND builder_id = $2`,
+      [category_item_id, builderId]
+    );
+    if (itemRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Category item not found.");
+    }
+
+    let rangeId = null;
+    if (range) {
+      const rangeRes = await client.query(`SELECT range_id FROM range WHERE name = $1`, [range]);
+      if (rangeRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, `Range '${range}' not found.`);
+      }
+      rangeId = rangeRes.rows[0].range_id;
+    }
+
+    let dwellingId = null;
+    if (dwelling) {
+      const dwRes = await client.query(
+        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1`,
+        [dwelling]
+      );
+      if (dwRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, `Dwelling type '${dwelling}' not found.`);
+      }
+      dwellingId = dwRes.rows[0].dwelling_type_id;
+    }
+
+    const updateFields = [];
+    const updateValues = [];
+    let idx = 1;
+
+    const addField = (column, value) => {
+      if (value !== undefined) {
+        updateFields.push(`${column} = $${idx++}`);
+        updateValues.push(value);
+      }
+    };
+
+    addField("description", description);
+    addField("short_description", short_description);
+    addField("cost_type", cost_type);
+    addField("cost", cost);
+    addField("cost_type_text", cost_type_text);
+    addField("cost_option", cost_option);
+    addField("include_by_default", include_by_default);
+    addField("show_in_hl_package", show_in_hl_package);
+    addField("package_only", package_only);
+    addField("uom", uom);
+    addField("sort_order", sort_order);
+    addField("range_id", rangeId);
+    addField("dwelling_type_id", dwellingId);
+    addField("status", status);
+    addField("updated_at", new Date());
+
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE category_items
+        SET ${updateFields.join(", ")}
+        WHERE category_item_id = $${idx++} AND builder_id = $${idx++}
+        RETURNING *;
+      `;
+      updateValues.push(category_item_id, builderId);
+
+      await client.query(updateQuery, updateValues);
+    }
+
+    if (conditions) {
+      await client.query(
+        `DELETE FROM category_items_condition WHERE category_item_id = $1 AND builder_id = $2`,
+        [category_item_id, builderId]
+      );
+
+      if (conditions.length > 0) {
+        const condNames = conditions.map(c => c.name);
+
+        const condRes = await client.query(
+          `SELECT condition_id, name FROM conditions WHERE name = ANY($1::text[])`,
+          [condNames]
+        );
+
+        if (condRes.rowCount !== condNames.length) {
+          const found = condRes.rows.map(r => r.name);
+          const missing = condNames.filter(c => !found.includes(c));
+          await client.query("ROLLBACK");
+          return errorResponse(res, 400, `Invalid conditions: ${missing.join(", ")}`);
+        }
+
+        const condMap = {};
+        condRes.rows.forEach(r => { condMap[r.name] = r.condition_id; });
+
+        const insertValues = [];
+        const params = [];
+        let p = 1;
+
+        for (const cond of conditions) {
+          insertValues.push(`($${p++}, $${p++}, $${p++}, $${p++}, $${p++})`);
+          params.push(builderId, category_item_id, condMap[cond.name], cond.range_start, cond.range_end);
+        }
+
+        await client.query(
+          `INSERT INTO category_items_condition
+           (builder_id, category_item_id, condition_id, range_start, range_end)
+           VALUES ${insertValues.join(", ")}`,
+          params
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return successResponse(res, {}, "Category item updated successfully.");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating category item:", err);
+    return errorResponse(res, err?.statusCode || 400, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

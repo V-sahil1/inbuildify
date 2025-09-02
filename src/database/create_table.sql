@@ -51,10 +51,22 @@ CREATE TABLE contractor (
   builder_id UUID NOT NULL,
   phone VARCHAR(15),
   address TEXT,
+  service_id UUID NOT NULL,
   is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (service_id) REFERENCES service(service_id) ON DELETE CASCADE
+);
+
+CREATE TABLE service (
+  service_id UUID DEFAULT uuid_generate_v4() NOT NULL,
+  service VARCHAR(100) NOT NULL,
+  builder_id UUID DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT service_pkey PRIMARY KEY (service_id),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE SET NULL
 );
 
 CREATE TABLE customer (
