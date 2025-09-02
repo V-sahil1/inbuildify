@@ -9,13 +9,19 @@ const {
 } = require("../controllers/builder.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const { createUpload, handleMulterError } = require("../utils/s3Upload");
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const { REQUEST_SOURCE } = require("../config/constants");
+const { updateBuilderSchema } = require("../validations/builder.validation");
 
 router.use(authMiddleware)
+router.use(roleMiddleware)
+const upload = createUpload("builder-logo");
 
-router.post("/", roleMiddleware, createBuilder);
-router.get("/", roleMiddleware, getBuilders);
-router.get("/:id", roleMiddleware, getBuilderById);
-router.put("/:id", roleMiddleware, updateBuilder);
-router.delete("/:id", roleMiddleware, deleteBuilder);
+router.post("/", createBuilder);
+router.get("/", getBuilders);
+router.get("/:id", getBuilderById);
+router.put("/", upload.single("image"), handleMulterError, validateRequest(updateBuilderSchema, REQUEST_SOURCE.FORM_DATA), updateBuilder);
+router.delete("/:id", deleteBuilder);
 
 module.exports = router;

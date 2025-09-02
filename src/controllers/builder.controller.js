@@ -1,4 +1,7 @@
-const { errorResponse } = require('../helper/response');
+const getPool = require("../config/database");
+const { errorResponse, successResponse } = require("../helper/response");
+const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createBuilder = async (req, res, next) => {
   try {
@@ -48,21 +51,87 @@ exports.getBuilderById = async (req, res, next) => {
 };
 
 exports.updateBuilder = async (req, res, next) => {
+  const pool = getPool();
+  const client = await pool.connect();
   try {
-    const { id } = req.params;
-    const { name, email } = req.body;
-    const [affectedRows] = await Builder.update({ name, email }, { where: { id } });
-    if (affectedRows === 0) {
-      return errorResponse(res, 404, "Builder not found");
+    const { builder_id } = req.user;
+    const { name, phone, slogan, firm_name, abn_number, license_number } = req.body;
+    const logo = req.file?.location || null;
+
+    const builderQuery = `SELECT * FROM builder WHERE builder_id = $1;`;
+    const builderResult = await client.query(builderQuery, [builder_id]);
+
+    if (builderResult.rows.length === 0) {
+      return errorResponse(res, 404, "Builder not found.");
     }
-    successResponse(res, {
+
+    const oldLogo = builderResult?.rows?.[0]?.logo;
+
+    let updateFields = [];
+    let values = [];
+    let idx = 1;
+
+    if (name !== undefined) {
+      updateFields.push(`name = $${idx++}`);
+      values.push(name);
+    }
+    if (phone !== undefined) {
+      updateFields.push(`phone_number = $${idx++}`);
+      values.push(phone);
+    }
+    if (slogan !== undefined) {
+      updateFields.push(`slogan = $${idx++}`);
+      values.push(slogan);
+    }
+    if (firm_name !== undefined) {
+      updateFields.push(`firm_name = $${idx++}`);
+      values.push(firm_name);
+    }
+    if (abn_number !== undefined) {
+      updateFields.push(`abn_number = $${idx++}`);
+      values.push(abn_number);
+    }
+    if (license_number !== undefined) {
+      updateFields.push(`license_number = $${idx++}`);
+      values.push(license_number);
+    }
+    if (logo) {
+      updateFields.push(`logo = $${idx++}`);
+      values.push(logo);
+    }
+
+    if (updateFields.length === 0) {
+      return errorResponse(res, 400, "No fields provided to update.");
+    }
+
+    values.push(builder_id);
+    const updateQuery = `
+      UPDATE builder 
+      SET ${updateFields.join(", ")} 
+      WHERE builder_id = $${idx} 
+      RETURNING *;
+    `;
+
+    const updateResult = await client.query(updateQuery, values);
+
+    if (updateResult.rows.length === 0) {
+      return errorResponse(res, 500, "Failed to update builder.");
+    }
+
+    if (logo && oldLogo && oldLogo !== logo) {
+      await deleteFromS3(oldLogo);
+    }
+
+    return successResponse(res, {
       statusCode: 200,
       message: "Builder updated successfully",
-      data: null,
-      requestId: req.requestId
+      data: keysToCamelCase(updateResult.rows[0])
     });
   } catch (err) {
-    errorResponse(res, 500, err.message);
+    console.error("Update builder error:", err);
+    errorResponse(res, err?.statusCode || 400, err?.message || "Failed to update builder.");
+  } finally {
+    client.release();
   }
 };
 
@@ -77,9 +146,8 @@ exports.deleteBuilder = async (req, res, next) => {
       statusCode: 200,
       message: "Builder deleted successfully",
       data: null,
-      requestId: req.requestId
     });
   } catch (err) {
-    errorResponse(res, 500, err.message);
+    errorResponse(res, err?.statusCode || 500, err?.message || "Failed to delete builder.");
   }
 };

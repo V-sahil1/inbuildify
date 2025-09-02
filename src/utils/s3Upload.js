@@ -3,6 +3,7 @@ const multerS3 = require('multer-s3');
 const { S3Client } = require('@aws-sdk/client-s3');
 const path = require('path');
 const { allowedFileData } = require('./common');
+const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -52,6 +53,27 @@ const createUpload = (folderName = "uploads") =>
     },
   });
 
+  const deleteFromS3 = async (fileUrl) => {
+    console.log("🚀 ~ s3Upload.js:56 ~ deleteFromS3 ~ fileUrl:", fileUrl);
+    if (!fileUrl) return;
+
+    try {
+      const bucketName = process.env.S3_BUCKET_NAME;
+      const url = new URL(fileUrl);
+      const key = decodeURIComponent(url.pathname.substring(1));
+
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+        })
+      );
+      console.log(`Deleted old file from S3: ${key}`);
+    } catch (err) {
+      console.error("Error deleting old file from S3:", err.message);
+    }
+  };
+
   const handleMulterError = (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
       if (error.code === "LIMIT_FILE_SIZE") {
@@ -83,4 +105,4 @@ const createUpload = (folderName = "uploads") =>
     next(error);
   };
 
-module.exports = { createUpload, handleMulterError, s3Client };
+module.exports = { createUpload, deleteFromS3, handleMulterError, s3Client };

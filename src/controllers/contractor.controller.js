@@ -61,8 +61,6 @@ exports.createContractor = async (req, res) => {
 
 exports.getContractors = async (req, res) => {
   const builderId = req.user.builder_id;
-  console.log("🚀 ~ exports.getContractors= ~ builderId:", builderId)
-
   const pool = getPool();
   const client = await pool.connect();
 
