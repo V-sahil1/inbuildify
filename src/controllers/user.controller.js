@@ -104,7 +104,7 @@ exports.getInvitedUser = async (req, res) => {
     );
 
     if (userResult?.rows?.length === 0) {
-      return errorResponse(res, 404, "User not found.");
+      return successResponse(res, [], "Invited Users get successfully.");
     }
 
     const totalResult = await client.query(
