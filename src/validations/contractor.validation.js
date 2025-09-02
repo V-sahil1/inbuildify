@@ -49,7 +49,8 @@ const createContractorSchema = Joi.object({
   name: nameRule.required(),
   email: emailRule.required(),
   phone: phoneRule.required(),
-  address: addressRule.required()
+  address: addressRule.required(),
+  service: Joi.string().required(),
 });
 
 // Get contractor by ID validation (params)
@@ -61,7 +62,8 @@ const getContractorByIdSchema = Joi.object({
 const updateContractorSchema = Joi.object({
   name: nameRule.optional(),
   phone: phoneRule.optional(),
-  address: addressRule.optional()
+  address: addressRule.optional(),
+  service: Joi.string().optional(),
 }).min(1).messages({
   'object.min': 'At least one field is required to update'
 });

@@ -142,7 +142,7 @@ exports.updateContractor = async (req, res) => {
       const serviceQuery = `
         SELECT service_id 
         FROM service 
-        WHERE service = $1 AND builder_id = $2
+        WHERE service = $1 AND (builder_id = $2 OR builder_id IS NULL)
         LIMIT 1;
       `;
       const serviceResult = await client.query(serviceQuery, [updates.service, builderId]);
