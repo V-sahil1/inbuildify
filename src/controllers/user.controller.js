@@ -53,6 +53,7 @@ exports.getProfile = async (req, res) => {
     }
 
     const userData = userResult.rows[0];
+    console.log("🚀 ~ user.controller.js:56 ~ userData:", userData);
 
     return successResponse(
       res,
