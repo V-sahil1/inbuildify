@@ -45,7 +45,7 @@ exports.getProfile = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT u.name, u.email, u.role::TEXT[], u.builder_id, u.users_id, u.is_verified, u.root_user, u.created_at, u.updated_at, b.name as builder_name, b.logo, b.slogen, b.firm_name FROM users u LEFT JOIN builder b ON u.builder_id = b.builder_id WHERE u.users_id = $1;`;
+    const userQuery = `SELECT u.name, u.email, u.role::TEXT[], u.builder_id, u.users_id, u.is_verified, u.root_user, u.created_at, u.updated_at, b.name as builder_name, b.logo, b.slogan, b.firm_name, b.abn_number, b.license_number, b.phone_number FROM users u LEFT JOIN builder b ON u.builder_id = b.builder_id WHERE u.users_id = $1;`;
     const userResult = await client.query(userQuery, [userId]);
 
     if (userResult.rowCount === 0) {
@@ -63,9 +63,12 @@ exports.getProfile = async (req, res) => {
         builderId: userData.builder_id,
         builderName: userData.builder_name,
         logo: userData.logo,
-        slogen: userData.slogen,
+        slogan: userData.slogan,
         firmName: userData.firm_name,
         isVerified: userData.is_verified,
+        abnNumber: userData.abn_number,
+        licenseNumber: userData.license_number,
+        phoneNumber: userData.phone_number,
         rootUser: userData.root_user,
         createdAt: userData.created_at,
         updatedAt: userData.updated_at,
