@@ -99,8 +99,16 @@ const getCategoryItemsByCategoryIdSchema = Joi.object({
     .default("ACTIVE"),
 });
 
+const deleteCategoryItemSchema = Joi.object({
+  category_item_id: Joi.string().uuid().required().messages({
+    "string.guid": "Category item ID must be a valid UUID",
+    "any.required": "Category item ID is required",
+  }),
+});
+
 module.exports = {
   createCategoryItemSchema,
   getCategoryItemsByCategoryIdSchema,
   updateCategoryItemSchema,
+  deleteCategoryItemSchema,
 };

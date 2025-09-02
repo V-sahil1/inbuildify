@@ -458,3 +458,51 @@ exports.updateCategoryItem = async (req, res) => {
     client.release();
   }
 };
+
+exports.deleteCategoryItem = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const { category_item_id } = req.params;
+
+    await client.query("BEGIN");
+
+    const itemRes = await client.query(
+      `SELECT * FROM category_items WHERE category_item_id = $1 AND builder_id = $2`,
+      [category_item_id, builderId]
+    );
+
+    if (itemRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Category item not found.");
+    }
+
+    const item = itemRes.rows[0];
+
+    await client.query(
+      `DELETE FROM category_items_condition WHERE category_item_id = $1 AND builder_id = $2`,
+      [category_item_id, builderId]
+    );
+
+    await client.query(
+      `DELETE FROM category_items WHERE category_item_id = $1 AND builder_id = $2`,
+      [category_item_id, builderId]
+    );
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(item),
+      "Category item deleted successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting category item:", err);
+    return errorResponse(res, err?.statusCode || 400, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
