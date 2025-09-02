@@ -376,6 +376,7 @@ exports.updateCategoryItem = async (req, res) => {
     addField("status", status);
     addField("updated_at", new Date());
 
+    let updatedItem = null;
     if (updateFields.length > 0) {
       const updateQuery = `
         UPDATE category_items
@@ -385,7 +386,15 @@ exports.updateCategoryItem = async (req, res) => {
       `;
       updateValues.push(category_item_id, builderId);
 
-      await client.query(updateQuery, updateValues);
+      const updatedRes = await client.query(updateQuery, updateValues);
+      updatedItem = updatedRes.rows[0];
+    } else {
+      // If no fields to update, just fetch existing
+      const fetchRes = await client.query(
+        `SELECT * FROM category_items WHERE category_item_id = $1 AND builder_id = $2`,
+        [category_item_id, builderId]
+      );
+      updatedItem = fetchRes.rows[0];
     }
 
     if (conditions) {
@@ -430,9 +439,17 @@ exports.updateCategoryItem = async (req, res) => {
       }
     }
 
+    const condFinal = await client.query(
+      `SELECT c.name, cic.range_start, cic.range_end
+       FROM category_items_condition cic
+       JOIN conditions c ON c.condition_id = cic.condition_id
+       WHERE cic.category_item_id = $1 AND cic.builder_id = $2`,
+      [category_item_id, builderId]
+    );
+    updatedItem.conditions = condFinal.rows;
     await client.query("COMMIT");
 
-    return successResponse(res, {}, "Category item updated successfully.");
+    return successResponse(res, updatedItem, "Category item updated successfully.");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error updating category item:", err);
