@@ -48,12 +48,13 @@ exports.getDashboardData = async (req, res) => {
         ), '[]'
         ) AS users_data,
 
-        (SELECT COUNT(*) FROM leads) AS lead_count,
+        (SELECT COUNT(*) FROM leads WHERE builder_id = $1) AS lead_count,
         COALESCE(
         (SELECT json_agg(l) 
         FROM (
             SELECT lead_id, email, created_at
             FROM leads 
+            WHERE builder_id = $1
             ORDER BY created_at DESC
             LIMIT 3
         ) l

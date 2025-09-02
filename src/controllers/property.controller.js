@@ -31,8 +31,8 @@ exports.createProperty = async (req, res) => {
     } = req.body;
 
     const leadCheck = await client.query(
-      `SELECT 1 FROM leads WHERE lead_id = $1`,
-      [lead_id]
+      `SELECT 1 FROM leads WHERE lead_id = $1 AND builder_id = $2`,
+      [lead_id, builderId]
     );
 
     if (leadCheck.rowCount === 0) {

@@ -11,18 +11,18 @@ exports.createOpportunity = async (req, res) => {
 
     await client.query('BEGIN');
 
-    const checkQuery = `SELECT * FROM leads WHERE lead_id = $1 AND status = 'NEW';`;
+    const checkQuery = `SELECT * FROM leads WHERE lead_id = $1 AND status = 'NEW' AND builder_id = $2;`;
     
-    const checkResult = await client.query(checkQuery, [lead_id]);
+    const checkResult = await client.query(checkQuery, [lead_id, req.user.builder_id]);
     
     if (checkResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return errorResponse(res, 404, 'Lead not found or already converted to opportunity.');
     }
 
-    const updateQuery = `UPDATE leads SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE lead_id = $2 RETURNING *;`;
+    const updateQuery = `UPDATE leads SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE lead_id = $2 AND builder_id = $3 RETURNING *;`;
 
-    const updateResult = await client.query(updateQuery, ['IN_PROGRESS', lead_id]);
+    const updateResult = await client.query(updateQuery, ['IN_PROGRESS', lead_id, req.user.builder_id]);
     
     await client.query('COMMIT');
     

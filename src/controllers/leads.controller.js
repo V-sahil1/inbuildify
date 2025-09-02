@@ -2,18 +2,20 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 
 exports.createLead = async (req, res) => {
-  const { name, email, phone, builderId, leadSource } = req.body;
+  const { name, email, phone, leadSource } = req.body;
+  const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const query = `
-      INSERT INTO leads (name, email, phone, lead_source)
-      VALUES ($1, $2, $3, $4)
-      RETURNING lead_id, name, email, phone, status, lead_source, created_at, updated_at;
+      INSERT INTO leads (builder_id, name, email, phone, lead_source)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING lead_id, builder_id, name, email, phone, status, lead_source, created_at, updated_at;
     `;
 
     const result = await client.query(query, [
+      builderId,
       name,
       email.toLowerCase(),
       phone || null,
@@ -31,19 +33,20 @@ exports.createLead = async (req, res) => {
 
 exports.getLeads = async (req, res) => {
   const { limit = 25, offset = 0 } = req.query;
-
+  const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const query = `
-      SELECT lead_id, name, email, phone, status, lead_source, created_at, updated_at
+      SELECT lead_id, builder_id, name, email, phone, status, lead_source, created_at, updated_at
       FROM leads
+      WHERE builder_id = $1
       ORDER BY created_at DESC
-      LIMIT $1 OFFSET $2;
+      LIMIT $2 OFFSET $3;
     `;
 
-    const result = await client.query(query, [limit, offset]);
+    const result = await client.query(query, [builderId, limit, offset]);
 
     return successResponse(res, result.rows, "Leads fetched successfully.");
   } catch (error) {
@@ -56,17 +59,17 @@ exports.getLeads = async (req, res) => {
 
 exports.getLeadById = async (req, res) => {
   const { id } = req.params;
-
+  const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const leadQuery = `
-      SELECT lead_id, name, email, phone, status, lead_source, notes, created_at, updated_at
+      SELECT lead_id, builder_id, name, email, phone, status, lead_source, notes, created_at, updated_at
       FROM leads
-      WHERE lead_id = $1;
+      WHERE lead_id = $1 AND builder_id = $2;
     `;
-    const leadResult = await client.query(leadQuery, [id]);
+    const leadResult = await client.query(leadQuery, [id, builderId]);
 
     if (leadResult.rowCount === 0) {
       return errorResponse(res, 404, "Lead not found.");
@@ -81,9 +84,9 @@ exports.getLeadById = async (req, res) => {
              total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
              created_at, updated_at
       FROM property
-      WHERE lead_id = $1;
+      WHERE lead_id = $1 AND builder_id = $2;
     `;
-    const propertyResult = await client.query(propertyQuery, [id]);
+    const propertyResult = await client.query(propertyQuery, [id, builderId]);
 
     const responsePayload = {
       contact: lead,
@@ -101,6 +104,7 @@ exports.getLeadById = async (req, res) => {
 
 exports.updateLead = async (req, res) => {
   const { lead_id } = req.params;
+  const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
 
@@ -108,8 +112,8 @@ exports.updateLead = async (req, res) => {
     const { name, phone, leadSource } = req.body;
 
     const fields = [];
-    const values = [lead_id];
-    let index = 2;
+    const values = [lead_id, builderId];
+    let index = 3;
 
     if (name !== undefined) {
       fields.push(`name = $${index++}`);
@@ -131,7 +135,7 @@ exports.updateLead = async (req, res) => {
     const query = `
       UPDATE leads
       SET ${fields.join(", ")}
-      WHERE lead_id = $1
+      WHERE lead_id = $1 AND builder_id = $2
       RETURNING lead_id, name, phone, status, lead_source, created_at, updated_at;
     `;
 

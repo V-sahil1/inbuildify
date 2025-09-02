@@ -7,7 +7,7 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { createLeadSchema, getLeadByIdSchema, updateLeadSchema } = require("../validations/leads.validation");
 const { REQUEST_SOURCE } = require("../config/constants");
 
-router.post("/", validateRequest(createLeadSchema), createLead);
+router.post("/", authMiddleware, roleMiddleware, validateRequest(createLeadSchema), createLead);
 router.get("/", authMiddleware, roleMiddleware, getLeads);
 router.get("/:id", validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS), authMiddleware, roleMiddleware, getLeadById);
 router.post("/:lead_id", validateRequest(updateLeadSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(updateLeadSchema.body, REQUEST_SOURCE.BODY), authMiddleware, roleMiddleware, updateLead);

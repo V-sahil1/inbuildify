@@ -37,16 +37,24 @@ const updateBuilderSchema = Joi.object({
     'string.empty': 'Firm name is required',
     'any.required': 'Firm name is required'
   }),
-  abn_number: Joi.string().optional().messages({
-    'string.base': 'ABN number must be a string',
-    'string.empty': 'ABN number is required',
-    'any.required': 'ABN number is required'
-  }),
-  license_number: Joi.string().optional().messages({
-    'string.base': 'License number must be a string',
-    'string.empty': 'License number is required',
-    'any.required': 'License number is required'
-  }),
+  abn_number: Joi.string()
+    .pattern(/^\d{11}$/)
+    .optional()
+    .messages({
+      'string.base': 'ABN number must be a string',
+      'string.empty': 'ABN number is required',
+      'any.required': 'ABN number is required',
+      'string.pattern.base': 'ABN number must be exactly 11 digits with no spaces or symbols'
+    }),
+  license_number: Joi.string()
+    .pattern(/^[A-Za-z0-9\-]{5,20}$/)
+    .optional()
+    .messages({
+      'string.base': 'License number must be a string',
+      'string.empty': 'License number is required',
+      'any.required': 'License number is required',
+      'string.pattern.base': 'License number must be alphanumeric (letters, numbers, -) and 5–20 characters long'
+    }),
   image: imageRule.optional(),
 }).min(1).messages({
   'object.min': 'At least one field is required to update'

@@ -2,6 +2,48 @@ const getPool = require("../config/database");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+function validateReferences(row, res, errorResponse) {
+  switch (true) {
+    case row.lead_exists == 0:
+      return errorResponse(
+        res,
+        400,
+        "Lead does not exist, or its status is not IN_PROGRESS/COMPLETED."
+      );
+
+    case row.property_exists == 0:
+      return errorResponse(
+        res,
+        400,
+        "Property does not exist, or it does not belong to this builder/lead."
+      );
+
+    case row.floor_plan_exists == 0:
+      return errorResponse(
+        res,
+        400,
+        "Floor plan does not exist, or it does not match the given range/dwelling type."
+      );
+
+    case row.facade_exists == 0:
+      return errorResponse(
+        res,
+        400,
+        "Facade does not exist, or it does not match the given dwelling type."
+      );
+
+    case row.package_exists == 0:
+      return errorResponse(
+        res,
+        400,
+        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE."
+      );
+
+    default:
+      return;
+  }
+}
+
 exports.createQuotation = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -47,7 +89,7 @@ exports.createQuotation = async (req, res) => {
 
     const validationQuery = `
       SELECT 
-        (SELECT COUNT(*) FROM leads WHERE lead_id = $2 AND status IN ('IN_PROGRESS', 'COMPLETED')) as lead_exists,
+        (SELECT COUNT(*) FROM leads WHERE builder_id = $1 AND lead_id = $2 AND status IN ('IN_PROGRESS', 'COMPLETED')) as lead_exists,
         (SELECT COUNT(*) FROM property WHERE property_id = $3 AND builder_id = $1 AND lead_id = $2) as property_exists,
         (SELECT COUNT(*) FROM floor_plan WHERE floor_plan_id = $4 AND builder_id = $1 AND range_id = $7 AND dwelling_type_id = $8) as floor_plan_exists,
         (SELECT COUNT(*) FROM facade WHERE facade_id = $5 AND builder_id = $1 AND dwelling_type_id = $8) as facade_exists,
@@ -66,19 +108,21 @@ exports.createQuotation = async (req, res) => {
     const row = validationResult.rows[0];
     console.log("🚀 ~ quotation.controller.js:67 ~ row:", row);
 
-    if (
-      row.lead_exists == 0 ||
-      row.property_exists == 0 ||
-      row.floor_plan_exists == 0 ||
-      row.facade_exists == 0 ||
-      row.package_exists == 0
-    ) {
-      return errorResponse(
-        res,
-        400,
-        "Invalid reference IDs or IDs do not belong to builder."
-      );
-    }
+    const error = validateReferences(row, res, errorResponse);
+    if (error) return;
+    // if (
+    //   row.lead_exists == 0 ||
+    //   row.property_exists == 0 ||
+    //   row.floor_plan_exists == 0 ||
+    //   row.facade_exists == 0 ||
+    //   row.package_exists == 0
+    // ) {
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "Invalid reference IDs or IDs do not belong to builder."
+    //   );
+    // }
 
     if (!Array.isArray(items) || items.length === 0) {
       return errorResponse(
