@@ -12,7 +12,6 @@ exports.createContractor = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Check if builder exists
     const builderQuery = `SELECT  * FROM builder WHERE builder_id = $1;`;
     const builderResult = await client.query(builderQuery, [builderId]);
 
@@ -20,7 +19,6 @@ exports.createContractor = async (req, res) => {
       return errorResponse(res, 404, "Builder not found with the provided ID.");
     }
 
-    // Check if contractor already exists with the same email and builder
     const existingContractorQuery = `
       SELECT contractor_id, email FROM contractor 
       WHERE LOWER(email) = $1 AND builder_id = $2;
@@ -34,15 +32,20 @@ exports.createContractor = async (req, res) => {
       return errorResponse(res, 409, "Contractor with this email already exists for this builder.");
     }
 
-    const serviceQuery = `SELECT * FROM service WHERE service = $1;`;
-    const serviceResult = await client.query(serviceQuery, [service]);
+    let serviceId;
+    const serviceQuery = `SELECT * FROM service WHERE service = $1 AND (builder_id = $2 OR builder_id IS NULL);`;
+    const serviceResult = await client.query(serviceQuery, [service, builderId]);
 
     if (serviceResult.rows.length === 0) {
-      return errorResponse(res, 404, "Service not found with the provided name.");
+      const serviceCreateQuery = `INSERT INTO service (service, builder_id) VALUES ($1, $2) RETURNING *;`;
+      const serviceCreateResult = await client.query(serviceCreateQuery, [service, builderId]);
+      serviceId = serviceCreateResult.rows[0].service_id;
+    } else {
+      serviceId = serviceResult.rows[0].service_id;
     }
     
     const contractorQuery = `INSERT INTO contractor (name, email, builder_id, phone, address, service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
-    const contractorResult = await client.query(contractorQuery, [name, lowerCaseEmail, builderId, phone, address, serviceResult.rows[0].service_id]);
+    const contractorResult = await client.query(contractorQuery, [name, lowerCaseEmail, builderId, phone, address, serviceId]);
     
     const createdContractor = contractorResult.rows[0];
     return successResponse(
@@ -55,8 +58,7 @@ exports.createContractor = async (req, res) => {
   } catch (error) {
     console.error('Create contractor error:', error);
 
-    // Handle specific database errors
-    if (error.code === '23505') { // Unique constraint violation
+    if (error.code === '23505') {
       return errorResponse(res, 409, "Contractor with this email already exists.");
     }
     
