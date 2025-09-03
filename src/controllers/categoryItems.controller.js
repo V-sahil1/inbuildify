@@ -158,7 +158,12 @@ exports.createCategoryItem = async (req, res) => {
 
     await client.query(`COMMIT`);
 
-    return successResponse(res, keysToCamelCase(itemResult.rows[0]), "Category item created successfully with conditions.");
+    const item = {
+      ...itemResult.rows[0],
+      range_name: range,
+      dwelling_type_name: dwelling,
+    };
+    return successResponse(res, keysToCamelCase(item), "Category item created successfully with conditions.");
   } catch (err) {
     await client.query(`ROLLBACK`);
     console.error("Error creating category item:", err);
@@ -447,9 +452,12 @@ exports.updateCategoryItem = async (req, res) => {
       [category_item_id, builderId]
     );
     updatedItem.conditions = condFinal.rows;
+    range ? updatedItem.range_name = range : updatedItem.range_name = null;
+    dwelling ? updatedItem.dwelling_type_name = dwelling : updatedItem.dwelling_type_name = null;
+
     await client.query("COMMIT");
 
-    return successResponse(res, updatedItem, "Category item updated successfully.");
+    return successResponse(res, keysToCamelCase(updatedItem), "Category item updated successfully.");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error updating category item:", err);
