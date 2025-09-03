@@ -34,3 +34,7 @@ ADD CONSTRAINT fk_contractor_service
 FOREIGN KEY (service_id) REFERENCES service(service_id)
 ON DELETE CASCADE;
 
+CREATE TYPE lead_decision_enum AS ENUM ('WON', 'LOST');
+
+ALTER TABLE leads 
+ADD COLUMN decision lead_decision_enum DEFAULT NULL;

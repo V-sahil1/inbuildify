@@ -138,19 +138,6 @@ exports.createQuotation = async (req, res) => {
 
     const error = validateReferences(row, res, errorResponse);
     if (error) return;
-    // if (
-    //   row.lead_exists == 0 ||
-    //   row.property_exists == 0 ||
-    //   row.floor_plan_exists == 0 ||
-    //   row.facade_exists == 0 ||
-    //   row.package_exists == 0
-    // ) {
-    //   return errorResponse(
-    //     res,
-    //     400,
-    //     "Invalid reference IDs or IDs do not belong to builder."
-    //   );
-    // }
 
     if (!Array.isArray(items) || items.length === 0) {
       return errorResponse(

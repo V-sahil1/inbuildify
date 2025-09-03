@@ -48,8 +48,8 @@ exports.createJob = async (req, res) => {
     const leadStatus = status === "WON" ? "JOB" : "CANCELLED";
 
     await client.query(
-      `UPDATE leads SET status = $1, message = $2, updated_at = NOW() WHERE lead_id = $3 AND builder_id = $4`,
-      [leadStatus, message, lead_id, builderId]
+      `UPDATE leads SET status = $1, message = $2, decision = $3, updated_at = NOW() WHERE lead_id = $4 AND builder_id = $5`,
+      [leadStatus, message, status, lead_id, builderId]
     );
 
     await client.query("COMMIT");

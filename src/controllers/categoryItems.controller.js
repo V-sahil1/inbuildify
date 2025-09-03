@@ -162,6 +162,7 @@ exports.createCategoryItem = async (req, res) => {
       ...itemResult.rows[0],
       range_name: range,
       dwelling_type_name: dwelling,
+      conditions,
     };
     return successResponse(res, keysToCamelCase(item), "Category item created successfully with conditions.");
   } catch (err) {
