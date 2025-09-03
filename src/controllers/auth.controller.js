@@ -14,15 +14,13 @@ const {
 } = require("../utils/common");
 
 exports.registerUser = async (req, res) => {
-  // Data is already validated by Joi middleware, so we can trust it's clean
-  const { name, email, password, role = "user" } = req.body;
+  const { name, email, password, role = "super_admin" } = req.body;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    // Check if user already exists
     const existingUserQuery = `
       SELECT u.is_verified, u.expires_at, b.email 
       FROM users u 
@@ -40,7 +38,6 @@ exports.registerUser = async (req, res) => {
         return errorResponse(res, 409, "User already exists and is verified.");
       }
 
-      // User exists but not verified, send new OTP
       const otp = generateOtp();
       const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -65,7 +62,6 @@ exports.registerUser = async (req, res) => {
       }
     }
 
-    // Create new user
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -78,14 +74,12 @@ exports.registerUser = async (req, res) => {
     await client.query("BEGIN");
 
     try {
-      // Insert into builder table
       const builderResult = await client.query(
         `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id;`,
         [name, lowerCaseEmail]
       );
       const builderId = builderResult.rows[0].builder_id;
 
-      // Insert into users table
       await client.query(
         `INSERT INTO users (
           role, builder_id, name, email, password, 
@@ -105,7 +99,7 @@ exports.registerUser = async (req, res) => {
 
       await client.query("COMMIT");
 
-      return successResponse(res, null, "Users fetched successfully.");
+      return successResponse(res, null, "User created successfully.");
     } catch (insertError) {
       await client.query("ROLLBACK");
       throw insertError;
@@ -159,10 +153,11 @@ exports.loginUser = async (req, res) => {
           [otp, expiresAt, lowerCaseEmail]
         );
 
-        return successResponse(
+        return errorResponse(
           res,
-          { link: `/verify-email?email=${lowerCaseEmail}` },
-          "Please verify your email before logging in. A new OTP has been sent."
+          400,
+          "Please verify your email before logging in. A new OTP has been sent.",
+          `/verify-email?email=${lowerCaseEmail}`
         );
       } else {
         return errorResponse(res, 500, "Failed to send OTP email.");

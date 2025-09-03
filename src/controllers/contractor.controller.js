@@ -47,14 +47,15 @@ exports.createContractor = async (req, res) => {
     const contractorQuery = `INSERT INTO contractor (name, email, builder_id, phone, address, service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
     const contractorResult = await client.query(contractorQuery, [name, lowerCaseEmail, builderId, phone, address, serviceId]);
     
-    const createdContractor = contractorResult.rows[0];
+    const createdContractor = {
+      ...contractorResult.rows[0],
+      service
+    };
     return successResponse(
       res,
       keysToCamelCase(createdContractor),
       "Contractor created successfully."
     );
-
-
   } catch (error) {
     console.error('Create contractor error:', error);
 
@@ -75,8 +76,9 @@ exports.getContractors = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM contractor 
-      WHERE builder_id = $1 AND is_deleted = false;
+      SELECT c.*, s.service FROM contractor c
+      LEFT JOIN service s ON c.service_id = s.service_id
+      WHERE c.builder_id = $1 AND c.is_deleted = false;
     `;
     const result = await client.query(query, [builderId]);
 
@@ -102,8 +104,9 @@ exports.getContractorById = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM contractor 
-      WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;
+      SELECT c.*, s.service FROM contractor c
+      LEFT JOIN service s ON c.service_id = s.service_id
+      WHERE c.contractor_id = $1 AND c.builder_id = $2 AND c.is_deleted = false;
     `;
     const result = await client.query(query, [id, builderId]);
 
@@ -181,6 +184,10 @@ exports.updateContractor = async (req, res) => {
     if (updateResult.rowCount === 0) {
       return errorResponse(res, 404, "Contractor not found.");
     }
+
+    const serviceResult = await client.query(`SELECT service FROM service WHERE service_id = $1 LIMIT 1;`, [updateResult.rows[0].service_id]);
+    const serviceName = serviceResult.rowCount > 0 ? serviceResult.rows[0].service : null;
+    updateResult.rows[0].service = serviceName;
 
     return successResponse(
       res,

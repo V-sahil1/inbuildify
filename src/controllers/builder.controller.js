@@ -71,10 +71,6 @@ exports.updateBuilder = async (req, res, next) => {
     let values = [];
     let idx = 1;
 
-    if (name !== undefined) {
-      updateFields.push(`name = $${idx++}`);
-      values.push(name);
-    }
     if (phone !== undefined) {
       updateFields.push(`phone_number = $${idx++}`);
       values.push(phone);
@@ -112,10 +108,20 @@ exports.updateBuilder = async (req, res, next) => {
       RETURNING *;
     `;
 
-    const updateResult = await client.query(updateQuery, values);
+    let updateResult = await client.query(updateQuery, values);
 
     if (updateResult.rows.length === 0) {
       return errorResponse(res, 500, "Failed to update builder.");
+    }
+
+    if (name !== undefined) {
+      const userQuery = `UPDATE users SET name = $1 WHERE builder_id = $2 RETURNING name;`;
+      const userResult = await client.query(userQuery, [name, builder_id]);
+      updateResult.rows[0].name = userResult.rows[0].name;
+    } else {
+      const existsNameQuery = `SELECT name FROM users WHERE builder_id = $1;`;
+      const existsNameResult = await client.query(existsNameQuery, [builder_id]);
+      updateResult.rows[0].name = existsNameResult.rows[0].name;
     }
 
     if (logo && oldLogo && oldLogo !== logo) {
