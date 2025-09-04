@@ -288,7 +288,7 @@ CREATE TABLE packages (
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
 CREATE TYPE property_title_status AS ENUM ('ESTIMATED', 'ACTUAL');
