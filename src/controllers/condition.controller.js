@@ -15,6 +15,8 @@ exports.getConditions = async (req, res) => {
     );
   } catch (err) {
     console.error("Error fetching conditions:", err);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, err?.statusCode || 400, err.message || "Internal Server Error");
+  } finally {
+    client.release();
   }
 };
