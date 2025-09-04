@@ -38,3 +38,25 @@ CREATE TYPE lead_decision_enum AS ENUM ('WON', 'LOST');
 
 ALTER TABLE leads 
 ADD COLUMN decision lead_decision_enum DEFAULT NULL;
+
+ALTER TABLE floor_plan
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE facade
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE range
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE dwelling_type
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE range
+ADD COLUMN builder_id UUID,
+ADD CONSTRAINT fk_range_builder
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE;
+
+ALTER TABLE dwelling_type
+ADD COLUMN builder_id UUID,
+ADD CONSTRAINT fk_dwelling_type_builder
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE;

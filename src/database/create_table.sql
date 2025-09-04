@@ -1,5 +1,22 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE TABLE country (
+  country_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE state (
+  state_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  country_id UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT fk_country FOREIGN KEY (country_id) REFERENCES country(country_id) ON DELETE CASCADE,
+  CONSTRAINT unique_state_per_country UNIQUE (country_id, name)
+);
+
 CREATE TABLE builder (
   builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -114,31 +131,61 @@ CREATE TYPE lead_decision_enum AS ENUM ('WON', 'LOST');
 CREATE TABLE leads (
   lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(150) NOT NULL,
-  phone VARCHAR(20),
   status lead_status_enum DEFAULT 'NEW' NOT NULL,
   lead_source lead_source_enum NOT NULL DEFAULT 'OTHER',
   notes TEXT,
   message TEXT,
   decision lead_decision_enum DEFAULT NULL,
+  assignee_id UUID NOT NULL,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (assignee_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+CREATE TABLE leads_contact (
+  leads_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) DEFAULT NULL,
+  phone VARCHAR(20) DEFAULT NULL,
+  secondry_phone VARCHAR(20),
+  address1 TEXT,
+  address2 TEXT,
+  city VARCHAR(100),
+  zip VARCHAR(20),
+  country_id UUID NOT NULL,
+  state_id UUID NOT NULL,
+  lead_id UUID NOT NULL,
+  is_primary BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (country_id) REFERENCES country(country_id) ON DELETE CASCADE,
+  FOREIGN KEY (state_id) REFERENCES state(state_id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE
+);
+
+CREATE TABLE range (
+  range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
-CREATE TABLE range (
-  range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name VARCHAR(50) NOT NULL UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE dwelling_type (
   dwelling_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
   name VARCHAR(50) NOT NULL UNIQUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
 CREATE TABLE floor_plan (
@@ -158,6 +205,7 @@ CREATE TABLE floor_plan (
   porch INTEGER DEFAULT 0,
   alfresco INTEGER DEFAULT 0,
   total_sqft DECIMAL(10,2) DEFAULT 0,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
   CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
@@ -173,6 +221,7 @@ CREATE TABLE facade (
   dwelling_type_id UUID NOT NULL,
   standard BOOLEAN DEFAULT FALSE,
   upgrade BOOLEAN DEFAULT FALSE,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
@@ -306,4 +355,3 @@ CREATE TABLE job (
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   FOREIGN KEY (quotation_id) REFERENCES quotation(quotation_id) ON DELETE CASCADE
 );
-  
