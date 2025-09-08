@@ -1,6 +1,5 @@
 const Joi = require("joi");
 
-// Reusable rules
 const nameRule = Joi.string().min(2).max(100).trim().required().messages({
   "string.base": "Name must be a string",
   "string.empty": "Name is required",
@@ -9,73 +8,46 @@ const nameRule = Joi.string().min(2).max(100).trim().required().messages({
   "any.required": "Name is required",
 });
 
-const emailRule = Joi.string().email().lowercase().trim().max(150).required().messages({
-  "string.base": "Email must be a string",
-  "string.empty": "Email is required",
+const emailRule = Joi.string().email().lowercase().trim().max(150).optional().allow(null, "").messages({
   "string.email": "Please provide a valid email address",
   "string.max": "Email must not exceed 150 characters",
-  "any.required": "Email is required",
 });
 
 const phoneRule = Joi.string()
   .pattern(/^[0-9]{10,15}$/)
   .optional()
-  .allow("")
+  .allow(null, "")
   .messages({
-    "string.base": "Phone must be a string",
-    "string.pattern.base": "Phone must contain only digits and be 10-15 characters long",
+    "string.pattern.base": "Phone must contain only digits and be 10–15 characters long",
   });
 
-const builderIdRule = Joi.string().uuid().optional().allow(null).messages({
-  "string.base": "Builder ID must be a string",
-  "string.guid": "Builder ID must be a valid UUID",
-});
-
-const leadSourceRule = Joi.string()
-  .valid(
-    "ADMIN_PANEL",
-    "WEBSITE",
-    "INSTAGRAM",
-    "FACEBOOK",
-    "YOUTUBE",
-    "LINKEDIN",
-    "TWITTER",
-    "TIKTOK",
-    "WHATSAPP",
-    "EMAIL_CAMPAIGN",
-    "GOOGLE_ADS",
-    "FACEBOOK_ADS",
-    "INSTAGRAM_ADS",
-    "YOUTUBE_ADS",
-    "LINKEDIN_ADS",
-    "REFERRAL",
-    "PHONE_CALL",
-    "TRADE_SHOW",
-    "PARTNER",
-    "OTHER"
-  )
-  .default("OTHER")
-  .messages({
-    "string.base": "Lead source must be a string",
-    "any.only":
-      "Lead source must be one of: ADMIN_PANEL, WEBSITE, INSTAGRAM, FACEBOOK, YOUTUBE, LINKEDIN, TWITTER, TIKTOK, WHATSAPP, EMAIL_CAMPAIGN, GOOGLE_ADS, FACEBOOK_ADS, INSTAGRAM_ADS, YOUTUBE_ADS, LINKEDIN_ADS, REFERRAL, PHONE_CALL, TRADE_SHOW, PARTNER, OTHER",
-  });
-
-// Schemas
 const createLeadSchema = Joi.object({
-  name: nameRule,
-  email: emailRule,
-  phone: phoneRule,
-  builderId: builderIdRule,
-  leadSource: leadSourceRule,
+  lead_source: Joi.string().required().messages({
+    "string.base": "Lead source must be a string",
+    "any.required": "Lead source is required"
+  }),
+  notes: Joi.string().max(1000).optional().allow(null, ""),
+  contact: Joi.object({
+    name: nameRule,
+    email: emailRule,
+    phone: phoneRule,
+    secondary_phone: phoneRule.optional(),
+    address1: Joi.string().max(255).optional().allow(null, ""),
+    address2: Joi.string().max(255).optional().allow(null, ""),
+    city: Joi.string().max(100).optional().allow(null, ""),
+    zip: Joi.string().max(20).optional().allow(null, ""),
+    country: Joi.string().max(100).optional().allow(null, ""),
+    state: Joi.string().max(100).optional().allow(null, "")
+  }).required().messages({
+    "object.base": "Contact must be an object",
+    "any.required": "Contact is required"
+  })
 });
 
 const getLeadByIdSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.base": "Lead ID must be a string",
-    "string.empty": "Lead ID is required",
+  lead_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
-    "any.required": "Lead ID is required",
+    "any.required": "Lead ID is required"
   }),
 });
 
@@ -83,24 +55,19 @@ const updateLeadSchema = {
   params: Joi.object({
     lead_id: Joi.string().uuid().required().messages({
       "string.guid": "Lead ID must be a valid UUID",
-      "any.required": "Lead ID is required",
+      "any.required": "Lead ID is required"
     }),
   }),
   body: Joi.object({
-    name: Joi.string().min(2).max(255).messages({
-      "string.base": "Name must be a string",
-      "string.min": "Name must be at least 2 characters long",
-      "string.max": "Name must not exceed 255 characters",
+    lead_source: Joi.string().optional().messages({
+      "string.base": "Lead source must be a string"
     }),
-    phone: Joi.string()
-      .pattern(/^\+?[0-9]{7,15}$/)
-      .messages({
-        "string.pattern.base":
-          "Phone must be a valid number with 7-15 digits (optional leading +)",
-      }),
-    leadSource: leadSourceRule,
+    notes: Joi.string().max(1000).optional().allow(null, ""),
+    assignee_id: Joi.string().uuid().optional().messages({
+      "string.guid": "Assignee ID must be a valid UUID"
+    }),
   }).min(1).messages({
-    "object.min": "At least one field (name, phone, or leadSource) must be provided",
+    "object.min": "At least one field (lead_source, notes, assignee_id) must be provided"
   }),
 };
 

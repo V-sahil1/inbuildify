@@ -46,14 +46,16 @@ router.get(
 );
 
 router.put(
-  "/:id",
+  "/:facade_id",
+  upload.single("image"),
+  handleMulterError,
   validateRequest(updateFacadeParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateFacadeSchema),
+  validateRequest(updateFacadeSchema, REQUEST_SOURCE.FORM_DATA),
   updateFacade
 );
 
 router.delete(
-  "/:id",
+  "/:facade_id",
   validateRequest(deleteFacadeSchema, REQUEST_SOURCE.PARAMS),
   deleteFacade
 );

@@ -61,6 +61,17 @@ CREATE TABLE users_token (
   FOREIGN KEY (user_id) REFERENCES users(users_id) ON DELETE CASCADE
 );
 
+CREATE TABLE service (
+  service_id UUID DEFAULT uuid_generate_v4() NOT NULL,
+  service VARCHAR(100) NOT NULL,
+  builder_id UUID DEFAULT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT service_pkey PRIMARY KEY (service_id),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE SET NULL
+);
+
 CREATE TABLE contractor (
   contractor_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -74,16 +85,6 @@ CREATE TABLE contractor (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   FOREIGN KEY (service_id) REFERENCES service(service_id) ON DELETE CASCADE
-);
-
-CREATE TABLE service (
-  service_id UUID DEFAULT uuid_generate_v4() NOT NULL,
-  service VARCHAR(100) NOT NULL,
-  builder_id UUID DEFAULT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT service_pkey PRIMARY KEY (service_id),
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE SET NULL
 );
 
 CREATE TABLE customer (
@@ -124,49 +125,66 @@ CREATE TABLE status_logs (
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TYPE lead_source_enum AS ENUM ('ADMIN_PANEL', 'WEBSITE', 'INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'LINKEDIN', 'TWITTER', 'TIKTOK', 'WHATSAPP', 'EMAIL_CAMPAIGN', 'GOOGLE_ADS', 'FACEBOOK_ADS', 'INSTAGRAM_ADS', 'YOUTUBE_ADS', 'LINKEDIN_ADS', 'REFERRAL', 'PHONE_CALL', 'TRADE_SHOW', 'PARTNER', 'OTHER');
 CREATE TYPE lead_status_enum AS ENUM ('NEW', 'IN_PROGRESS', 'JOB', 'CONSTRUCTION', 'COMPLETED', 'CANCELLED');
 CREATE TYPE lead_decision_enum AS ENUM ('WON', 'LOST');
 
+CREATE TABLE lead_source (
+  lead_source_id UUID DEFAULT uuid_generate_v4() NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  builder_id UUID DEFAULT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT lead_source_pkey PRIMARY KEY (lead_source_id),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE SET NULL
+);
+
 CREATE TABLE leads (
   lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  slug_id VARCHAR(255) NOT NULL DEFAULT 'DDL0000',
   builder_id UUID NOT NULL,
+  lead_contact_id UUID DEFAULT NULL,
   status lead_status_enum DEFAULT 'NEW' NOT NULL,
-  lead_source lead_source_enum NOT NULL DEFAULT 'OTHER',
+  lead_source_id UUID NOT NULL,
   notes TEXT,
   message TEXT,
   decision lead_decision_enum DEFAULT NULL,
   assignee_id UUID NOT NULL,
   created_by_id UUID NOT NULL,
   updated_by_id UUID NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   FOREIGN KEY (assignee_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (lead_source_id) REFERENCES lead_source(lead_source_id) ON DELETE SET NULL
   FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
 );
 
 CREATE TABLE leads_contact (
   leads_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_id UUID NOT NULL,
+  country_id UUID DEFAULT NULL,
+  state_id UUID DEFAULT NULL,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) DEFAULT NULL,
   phone VARCHAR(20) DEFAULT NULL,
-  secondry_phone VARCHAR(20),
+  secondary_phone VARCHAR(20),
   address1 TEXT,
   address2 TEXT,
   city VARCHAR(100),
   zip VARCHAR(20),
-  country_id UUID NOT NULL,
-  state_id UUID NOT NULL,
-  lead_id UUID NOT NULL,
-  is_primary BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE,
   FOREIGN KEY (country_id) REFERENCES country(country_id) ON DELETE CASCADE,
-  FOREIGN KEY (state_id) REFERENCES state(state_id) ON DELETE CASCADE,
-  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE
+  FOREIGN KEY (state_id) REFERENCES state(state_id) ON DELETE CASCADE
 );
+
+ALTER TABLE leads
+  ADD CONSTRAINT fk_lead_contact FOREIGN KEY (lead_contact_id)
+  REFERENCES leads_contact(leads_contact_id) ON DELETE SET NULL;
 
 CREATE TABLE range (
   range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -221,6 +239,7 @@ CREATE TABLE facade (
   dwelling_type_id UUID NOT NULL,
   standard BOOLEAN DEFAULT FALSE,
   upgrade BOOLEAN DEFAULT FALSE,
+  cost NUMERIC(12,2) DEFAULT 0,
   is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -325,6 +344,7 @@ CREATE TABLE property (
 
 CREATE TABLE quotation (
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  slug_id VARCHAR(255) NOT NULL DEFAULT 'DDQ0000',
   builder_id UUID NOT NULL,
   lead_id UUID NOT NULL,
   property_id UUID NOT NULL,
@@ -333,7 +353,9 @@ CREATE TABLE quotation (
   package_id UUID NOT NULL,
   range_id UUID NOT NULL,
   dwelling_type_id UUID NOT NULL,
-  items JSONB NOT NULL DEFAULT '[]',
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
@@ -343,15 +365,46 @@ CREATE TABLE quotation (
   FOREIGN KEY (facade_id) REFERENCES facade(facade_id) ON DELETE CASCADE,
   FOREIGN KEY (package_id) REFERENCES packages(package_id) ON DELETE CASCADE,
   FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
-  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
-CREATE TABLE job (
-  job_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  builder_id UUID NOT NULL,
+CREATE TABLE quotation_versions (
+  quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_id UUID NOT NULL,
+  version_number INT NOT NULL,
+  notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
-  FOREIGN KEY (quotation_id) REFERENCES quotation(quotation_id) ON DELETE CASCADE
+  FOREIGN KEY (quotation_id) REFERENCES quotation(quotation_id) ON DELETE CASCADE,
+  UNIQUE (quotation_id, version_number)
+);
+
+CREATE TABLE quotation_version_items (
+  quotation_version_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID NOT NULL,
+  notes TEXT,
+  category_id UUID NOT NULL,
+  caterogy_name VARCHAR(100) NOT NULL,
+  category_description TEXT NOT NULL,
+  category_item_id UUID DEFAULT NULL,
+  category_item_description TEXT DEFAULT NULL,
+  category_item_short_description VARCHAR(500) DEFAULT NULL,
+  category_item_cost_type cost_type DEFAULT NULL,
+  category_item_cost NUMERIC(12,2) DEFAULT NULL,
+  category_item_cost_type_text VARCHAR(255) DEFAULT NULL,
+  category_item_cost_option cost_option DEFAULT NULL,
+  category_item_include_by_default BOOLEAN DEFAULT NULL,
+  category_item_show_in_hl_package BOOLEAN DEFAULT NULL,
+  category_item_package_only BOOLEAN DEFAULT NULL,
+  category_item_uom VARCHAR(50) DEFAULT NULL,
+  category_item_sort_order INT DEFAULT NULL,
+  category_item_range_id UUID DEFAULT NULL,
+  category_item_dwelling_type_id UUID DEFAULT NULL,
+  category_item_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  category_item_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE CASCADE,
 );

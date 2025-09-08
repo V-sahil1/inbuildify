@@ -24,14 +24,12 @@ const imageRule = Joi.alternatives().try(
   }).unknown(true) // allow extra multer fields
 ).optional();
 
-const rangeRule = Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY').messages({
+const rangeRule = Joi.string().messages({
   'string.base': 'Range must be a string',
-  'any.only': 'Range must be one of: NONE, PREMIUM, DELUXE, LUXURY'
 });
 
-const dwellingTypeRule = Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE').messages({
+const dwellingTypeRule = Joi.string().messages({
   'string.base': 'Dwelling type must be a string',
-  'any.only': 'Dwelling type must be one of: SINGLE_STOREY, DOUBLE_STOREY, RENOVATION, TOWN_HOUSE'
 });
 
 const integerRule = (fieldName) => Joi.number().integer().min(0).messages({
@@ -86,13 +84,13 @@ const createFloorPlanSchema = Joi.object({
 
 // Get floor plan by ID validation (params)
 const getFloorPlanByIdSchema = Joi.object({
-  id: floorPlanIdRule.required()
+  floor_plan_id: floorPlanIdRule.required()
 });
 
 // Get floor plans with filters validation (query)
 const getFloorPlansSchema = Joi.object({
-  range: Joi.string().valid('NONE', 'PREMIUM', 'DELUXE', 'LUXURY', 'all').optional(),
-  dwelling_type: Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE', 'all').optional(),
+  range: Joi.string().optional(),
+  dwelling_type: Joi.string().optional(),
   page: pageRule,
   limit: limitRule
 });
@@ -119,12 +117,12 @@ const updateFloorPlanSchema = Joi.object({
 
 // Update floor plan params validation
 const updateFloorPlanParamsSchema = Joi.object({
-  id: floorPlanIdRule.required()
+  floor_plan_id: floorPlanIdRule.required()
 });
 
 // Delete floor plan validation (params)
 const deleteFloorPlanSchema = Joi.object({
-  id: floorPlanIdRule.required()
+  floor_plan_id: floorPlanIdRule.required()
 });
 
 module.exports = {

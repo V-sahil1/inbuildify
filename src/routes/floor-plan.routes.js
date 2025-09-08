@@ -34,20 +34,22 @@ router.get("/", validateRequest(getFloorPlansSchema, REQUEST_SOURCE.QUERY), getF
 router.get("/filters", getFloorPlanFilters);
 
 router.get(
-  "/:id",
+  "/:floor_plan_id",
   validateRequest(getFloorPlanByIdSchema, REQUEST_SOURCE.PARAMS),
   getFloorPlanById
 );
 
 router.put(
-  "/:id",
+  "/:floor_plan_id",
+  upload.single("image"),
+  handleMulterError,
   validateRequest(updateFloorPlanParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateFloorPlanSchema),
+  validateRequest(updateFloorPlanSchema, REQUEST_SOURCE.FORM_DATA),
   updateFloorPlan
 );
 
 router.delete(
-  "/:id",
+  "/:floor_plan_id",
   validateRequest(deleteFloorPlanSchema, REQUEST_SOURCE.PARAMS),
   deleteFloorPlan
 );

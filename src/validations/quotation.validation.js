@@ -29,6 +29,9 @@ const createQuotationSchema = Joi.object({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
   }),
+  notes: Joi.string().optional().max(1000).messages({
+    "string.max": "Notes must not exceed 1000 characters",
+  }),
   items: Joi.array()
     .items(
       Joi.object({

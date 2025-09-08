@@ -22,41 +22,35 @@ exports.getDashboardData = async (req, res) => {
         ), '[]'
         ) AS contractor_data,
 
-        (SELECT COUNT(*) FROM customer WHERE builder_id = $1 AND is_deleted = false) AS customer_count,
-        COALESCE(
-        (SELECT json_agg(cu) 
-        FROM (
-            SELECT customer_id, name, email, created_at
-            FROM customer 
-            WHERE builder_id = $1 AND is_deleted = false
-            ORDER BY created_at DESC
-            LIMIT 3
-        ) cu
-        ), '[]'
-        ) AS customer_data,
-
         (SELECT COUNT(*) FROM users WHERE builder_id = $1 AND is_deleted = false) AS users_count,
         COALESCE(
         (SELECT json_agg(u) 
         FROM (
             SELECT users_id, name, email, created_at
             FROM users 
-            WHERE builder_id = $1 AND is_deleted = false
+            WHERE builder_id = $1 AND is_deleted = false AND is_verified = true
             ORDER BY created_at DESC
             LIMIT 3
         ) u
         ), '[]'
         ) AS users_data,
 
-        (SELECT COUNT(*) FROM leads WHERE builder_id = $1) AS lead_count,
+        (SELECT COUNT(*) FROM leads WHERE builder_id = $1 AND is_deleted = false) AS lead_count,
         COALESCE(
         (SELECT json_agg(l) 
         FROM (
-            SELECT lead_id, email, created_at
-            FROM leads 
-            WHERE builder_id = $1
-            ORDER BY created_at DESC
-            LIMIT 3
+            SELECT 
+            ld.lead_id,
+            lc.name,
+            lc.email,
+            ld.created_at
+            FROM leads ld
+              LEFT JOIN leads_contact lc 
+                  ON ld.lead_contact_id = lc.leads_contact_id
+              WHERE ld.builder_id = $1 
+                AND ld.is_deleted = false
+              ORDER BY ld.created_at DESC
+              LIMIT 3
         ) l
         ), '[]'
         ) AS lead_data;
@@ -65,8 +59,6 @@ exports.getDashboardData = async (req, res) => {
     const {
       contractor_count,
       contractor_data,
-      customer_count,
-      customer_data,
       users_count,
       users_data,
       lead_count,
@@ -77,8 +69,6 @@ exports.getDashboardData = async (req, res) => {
       keysToCamelCase({
         contractor_count,
         contractor_data,
-        customer_count,
-        customer_data,
         users_count,
         users_data,
         lead_count,

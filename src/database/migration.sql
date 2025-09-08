@@ -60,3 +60,47 @@ ALTER TABLE dwelling_type
 ADD COLUMN builder_id UUID,
 ADD CONSTRAINT fk_dwelling_type_builder
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE;
+
+ALTER TABLE facade
+ADD COLUMN cost NUMERIC(12,2) DEFAULT 0;
+
+ALTER TABLE quotation
+ADD COLUMN slug_id VARCHAR(255) NOT NULL DEFAULT 'DDQ0000';
+
+ALTER TABLE leads
+ADD COLUMN slug_id VARCHAR(255) NOT NULL DEFAULT 'DDL0000';
+
+ALTER TABLE service
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+INSERT INTO lead_source (name) VALUES 
+('ADMIN_PANEL'),
+('WEBSITE'),
+('INSTAGRAM'),
+('FACEBOOK'),
+('YOUTUBE'),
+('LINKEDIN'),
+('TWITTER'),
+('TIKTOK'),
+('WHATSAPP'),
+('EMAIL_CAMPAIGN'),
+('GOOGLE_ADS'),
+('FACEBOOK_ADS'),
+('INSTAGRAM_ADS'),
+('YOUTUBE_ADS'),
+('LINKEDIN_ADS'),
+('REFERRAL'),
+('PHONE_CALL'),
+('TRADE_SHOW'),
+('PARTNER'),
+('OTHER');
+
+ALTER TABLE lead_source
+ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE leads
+DROP COLUMN lead_source_id;
+
+ALTER TABLE leads
+ADD COLUMN lead_source_id UUID NULL,
+ADD CONSTRAINT fk_leads_lead_source FOREIGN KEY (lead_source_id) REFERENCES lead_source (lead_source_id) ON DELETE SET NULL;

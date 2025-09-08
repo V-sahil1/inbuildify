@@ -15,9 +15,8 @@ const imageRule = Joi.string().uri().max(500).trim().messages({
   'string.max': 'Image URL must not exceed 500 characters'
 });
 
-const dwellingTypeRule = Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE').messages({
-  'string.base': 'Dwelling type must be a string',
-  'any.only': 'Dwelling type must be one of: SINGLE_STOREY, DOUBLE_STOREY, RENOVATION, TOWN_HOUSE'
+const dwellingTypeRule = Joi.string().messages({
+  'string.base': 'Dwelling type must be a string'
 });
 
 const booleanRule = (fieldName) => Joi.boolean().messages({
@@ -54,19 +53,21 @@ const createFacadeSchema = Joi.object({
   image: imageRule.optional(),
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
-  upgrade: booleanRule('Upgrade').optional()
+  upgrade: booleanRule('Upgrade').optional(),
+  cost: Joi.number().optional(),
 });
 
 // Get facade by ID validation (params)
 const getFacadeByIdSchema = Joi.object({
-  id: facadeIdRule.required()
+  facade_id: facadeIdRule.required()
 });
 
 // Get facades with filters validation (query)
 const getFacadesSchema = Joi.object({
-  dwelling_type: Joi.string().valid('SINGLE_STOREY', 'DOUBLE_STOREY', 'RENOVATION', 'TOWN_HOUSE', 'all').optional(),
+  dwelling_type: Joi.string().optional(),
   standard: booleanFilterRule.optional(),
   upgrade: booleanFilterRule.optional(),
+  cost: Joi.number().optional(),
   page: pageRule,
   limit: limitRule
 });
@@ -77,6 +78,7 @@ const updateFacadeSchema = Joi.object({
   image: imageRule.optional(),
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
+  cost: Joi.number().optional(),
   upgrade: booleanRule('Upgrade').optional()
 }).min(1).messages({
   'object.min': 'At least one field is required to update'
@@ -84,12 +86,12 @@ const updateFacadeSchema = Joi.object({
 
 // Update facade params validation
 const updateFacadeParamsSchema = Joi.object({
-  id: facadeIdRule.required()
+  facade_id: facadeIdRule.required()
 });
 
 // Delete facade validation (params)
 const deleteFacadeSchema = Joi.object({
-  id: facadeIdRule.required()
+  facade_id: facadeIdRule.required()
 });
 
 module.exports = {

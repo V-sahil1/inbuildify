@@ -54,7 +54,6 @@ const createUpload = (folderName = "uploads") =>
   });
 
   const deleteFromS3 = async (fileUrl) => {
-    console.log("🚀 ~ s3Upload.js:56 ~ deleteFromS3 ~ fileUrl:", fileUrl);
     if (!fileUrl) return;
 
     try {

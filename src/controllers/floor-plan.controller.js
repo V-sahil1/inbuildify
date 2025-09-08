@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createFloorPlan = async (req, res) => {
   const {
@@ -36,11 +37,12 @@ exports.createFloorPlan = async (req, res) => {
     // Check if floor plan with same name already exists for this builder
     const existingFloorPlanQuery = `
       SELECT floor_plan_id, name FROM floor_plan 
-      WHERE LOWER(name) = $1 AND builder_id = $2;
+      WHERE LOWER(name) = $1 AND builder_id = $2 AND is_deleted = $3;
     `;
     const existingFloorPlanResult = await client.query(existingFloorPlanQuery, [
       name.toLowerCase(),
-      builderId
+      builderId,
+      false
     ]);
 
     if (existingFloorPlanResult.rows.length > 0) {
@@ -49,9 +51,9 @@ exports.createFloorPlan = async (req, res) => {
 
     const rangeQuery = `
       SELECT range_id, name FROM range 
-      WHERE name = $1;
+      WHERE name = $1 AND is_deleted = $2;
     `;
-    const rangeResult = await client.query(rangeQuery, [range]);
+    const rangeResult = await client.query(rangeQuery, [range, false]);
 
     if (rangeResult.rows.length === 0) {
       return errorResponse(res, 404, "Invalid range.");
@@ -59,9 +61,9 @@ exports.createFloorPlan = async (req, res) => {
     
     const dwellingTypeQuery = `
       SELECT dwelling_type_id, name FROM dwelling_type 
-      WHERE name = $1;
+      WHERE name = $1 AND is_deleted = $2;
     `;
-    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type]);
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type, false]);
 
     if (dwellingTypeResult.rows.length === 0) {
       return errorResponse(res, 404, "Invalid dwelling type.");
@@ -70,8 +72,8 @@ exports.createFloorPlan = async (req, res) => {
     const floorPlanQuery = `
       INSERT INTO floor_plan (
         builder_id, name, image, range_id, dwelling_type_id, beds, bath, car_park,
-        width_meter, depth_meter, dwelling, garage, porch, alfresco, total_sqft
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+        width_meter, depth_meter, dwelling, garage, porch, alfresco, total_sqft, is_deleted
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
       RETURNING *;
     `;
     
@@ -90,7 +92,8 @@ exports.createFloorPlan = async (req, res) => {
       garage || 0,
       porch || 0,
       alfresco || 0,
-      total_sqft || 0
+      total_sqft || 0,
+      false
     ]);
     
     const createdFloorPlan = {...floorPlanResult.rows[0], range_name: rangeResult.rows[0].name, dwelling_type_name: dwellingTypeResult.rows[0].name};
@@ -120,8 +123,8 @@ exports.getFloorPlans = async (req, res) => {
 
     if (range && range !== 'all') {
       const rangeResult = await client.query(
-        'SELECT range_id, name FROM range WHERE name = $1',
-        [range]
+        'SELECT range_id, name FROM range WHERE name = $1 AND is_deleted = $2',
+        [range, false]
       );
       if (rangeResult.rows.length === 0) {
         return errorResponse(res, 400, 'Invalid range value');
@@ -131,8 +134,8 @@ exports.getFloorPlans = async (req, res) => {
 
     if (dwelling_type && dwelling_type !== 'all') {
       const dwellingTypeResult = await client.query(
-        'SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1',
-        [dwelling_type]
+        'SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1 AND is_deleted = $2',
+        [dwelling_type, false]
       );
       if (dwellingTypeResult.rows.length === 0) {
         return errorResponse(res, 400, 'Invalid dwelling type value');
@@ -148,7 +151,7 @@ exports.getFloorPlans = async (req, res) => {
       FROM floor_plan fp
       JOIN range r ON fp.range_id = r.range_id
       JOIN dwelling_type dt ON fp.dwelling_type_id = dt.dwelling_type_id
-      WHERE fp.builder_id = $1
+      WHERE fp.builder_id = $1 AND fp.is_deleted = false
     `;
 
     const queryParams = [builderId];
@@ -175,7 +178,7 @@ exports.getFloorPlans = async (req, res) => {
     let countQuery = `
       SELECT COUNT(*) as total
       FROM floor_plan fp
-      WHERE fp.builder_id = $1
+      WHERE fp.builder_id = $1 AND fp.is_deleted = false
     `;
     const countParams = [builderId];
     let countParamIndex = 2;
@@ -225,7 +228,7 @@ exports.getFloorPlanById = async (req, res) => {
   try {
     const query = `
       SELECT * FROM floor_plan 
-      WHERE id = $1 AND builder_id = $2;
+      WHERE id = $1 AND builder_id = $2 AND is_deleted = false;
     `;
     const result = await client.query(query, [id, builderId]);
 
@@ -247,38 +250,41 @@ exports.getFloorPlanById = async (req, res) => {
 };
 
 exports.updateFloorPlan = async (req, res) => {
-  const { id } = req.params;
+  const { floor_plan_id } = req.params;
   const builderId = req.user.builder_id;
   const updates = req.body;
+  const image = req.file?.location;
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    // Check if floor plan exists and belongs to the builder
+    await client.query("BEGIN");
+
     const checkFloorPlanQuery = `
       SELECT * FROM floor_plan 
-      WHERE id = $1 AND builder_id = $2;
+      WHERE floor_plan_id = $1 AND builder_id = $2 AND is_deleted = false;
     `;
-    const checkFloorPlanResult = await client.query(checkFloorPlanQuery, [id, builderId]);
-    
+    const checkFloorPlanResult = await client.query(checkFloorPlanQuery, [floor_plan_id, builderId]);
+
     if (checkFloorPlanResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Floor plan not found.");
     }
 
-    // If updating name, check for duplicates
     if (updates.name) {
       const existingNameQuery = `
-        SELECT id FROM floor_plan 
-        WHERE LOWER(name) = $1 AND builder_id = $2 AND id != $3;
+        SELECT floor_plan_id FROM floor_plan 
+        WHERE LOWER(name) = $1 AND builder_id = $2 AND floor_plan_id != $3 AND is_deleted = false;
       `;
       const existingNameResult = await client.query(existingNameQuery, [
         updates.name.toLowerCase(),
         builderId,
-        id
+        floor_plan_id
       ]);
 
       if (existingNameResult.rows.length > 0) {
+        await client.query("ROLLBACK");
         return errorResponse(res, 409, "Floor plan with this name already exists for this builder.");
       }
     }
@@ -288,39 +294,88 @@ exports.updateFloorPlan = async (req, res) => {
     let idx = 1;
 
     for (const [key, value] of Object.entries(updates)) {
+      if (["image", "range", "dwelling_type"].includes(key)) {
+        continue;
+      }
       setClauses.push(`${key} = $${idx}`);
       values.push(value);
       idx++;
     }
 
-    values.push(id, builderId);
+    if (updates.range) {
+      const rangeQuery = `SELECT range_id FROM range WHERE name = $1 AND is_deleted = $2;`;
+      const rangeResult = await client.query(rangeQuery, [updates.range, false]);
+
+      if (rangeResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Invalid range.");
+      }
+
+      setClauses.push(`range_id = $${idx}`);
+      values.push(rangeResult.rows[0].range_id);
+      idx++;
+    }
+
+    if (updates.dwelling_type) {
+      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND is_deleted = $2;`;
+      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, false]);
+
+      if (dwellingTypeResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Invalid dwelling type.");
+      }
+
+      setClauses.push(`dwelling_type_id = $${idx}`);
+      values.push(dwellingTypeResult.rows[0].dwelling_type_id);
+      idx++;
+    }
+
+    let updatedImage;
+    if (image !== undefined) {
+      await deleteFromS3(checkFloorPlanResult.rows[0].image);
+      await client.query(`UPDATE floor_plan SET image = $1, updated_at = NOW() WHERE floor_plan_id = $2 AND builder_id = $3`, [image, floor_plan_id, builderId]);
+      updatedImage = image;
+    } else {
+      const oldImges = await client.query(`SELECT image FROM floor_plan WHERE floor_plan_id = $1 AND builder_id = $2`, [floor_plan_id, builderId]);
+      updatedImage = oldImges.rows[0].image;
+    }
+
+    values.push(floor_plan_id, builderId);
 
     const updateQuery = `
       UPDATE floor_plan 
       SET ${setClauses.join(", ")}, updated_at = NOW()
-      WHERE id = $${idx} AND builder_id = $${idx + 1}
+      WHERE floor_plan_id = $${idx} AND builder_id = $${idx + 1} AND is_deleted = false
       RETURNING *;
     `;
 
     const updateResult = await client.query(updateQuery, values);
 
     if (updateResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Floor plan not found.");
     }
 
+    await client.query("COMMIT");
+
+    const finalUpdatedData = {
+      ...updateResult.rows[0],
+      image: updatedImage
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      keysToCamelCase(finalUpdatedData),
       "Floor plan updated successfully."
     );
-
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error updating floor plan:", error);
-    
-    if (error.code === '23505') { // Unique constraint violation
+
+    if (error.code === "23505") {
       return errorResponse(res, 409, "Floor plan with this name already exists.");
     }
-    
+
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -328,33 +383,44 @@ exports.updateFloorPlan = async (req, res) => {
 };
 
 exports.deleteFloorPlan = async (req, res) => {
-  const { id } = req.params;
+  const { floor_plan_id } = req.params;
   const builderId = req.user.builder_id;
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    // Check if floor plan exists and belongs to the builder
+    await client.query("BEGIN");
+
     const checkFloorPlanQuery = `
       SELECT * FROM floor_plan 
-      WHERE id = $1 AND builder_id = $2;
+      WHERE floor_plan_id = $1 AND builder_id = $2 AND is_deleted = false;
     `;
-    const checkFloorPlanResult = await client.query(checkFloorPlanQuery, [id, builderId]);
-    
+    const checkFloorPlanResult = await client.query(checkFloorPlanQuery, [floor_plan_id, builderId]);
+
     if (checkFloorPlanResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Floor plan not found.");
     }
 
-    const deleteQuery = `DELETE FROM floor_plan WHERE id = $1 AND builder_id = $2;`;
-    const deleteResult = await client.query(deleteQuery, [id, builderId]);
+    const deleteQuery = `
+      UPDATE floor_plan 
+      SET is_deleted = true, updated_at = NOW()
+      WHERE floor_plan_id = $1 AND builder_id = $2 AND is_deleted = false
+      RETURNING *;
+    `;
+    const deleteResult = await client.query(deleteQuery, [floor_plan_id, builderId]);
 
     if (deleteResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Floor plan not found.");
     }
+
+    await client.query("COMMIT");
 
     return successResponse(res, {}, "Floor plan deleted successfully.");
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting floor plan:", error);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
@@ -373,7 +439,7 @@ exports.getFloorPlanFilters = async (req, res) => {
       SELECT DISTINCT r.name
       FROM floor_plan fp
       JOIN range r ON fp.range_id = r.range_id
-      WHERE fp.builder_id = $1 AND r.name IS NOT NULL
+      WHERE fp.builder_id = $1 AND r.name IS NOT NULL AND fp.is_deleted = false
       ORDER BY r.name;
     `;
 
@@ -381,7 +447,7 @@ exports.getFloorPlanFilters = async (req, res) => {
       SELECT DISTINCT dt.name
       FROM floor_plan fp
       JOIN dwelling_type dt ON fp.dwelling_type_id = dt.dwelling_type_id
-      WHERE fp.builder_id = $1 AND dt.name IS NOT NULL
+      WHERE fp.builder_id = $1 AND dt.name IS NOT NULL AND fp.is_deleted = false
       ORDER BY dt.name;
     `;
 
