@@ -102,7 +102,6 @@ exports.createQuotation = async (req, res) => {
     const rangeQuery = `SELECT range_id FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`;
     const rangeResult = await client.query(rangeQuery, [range, builderId]);
     const rangeId = rangeResult.rows[0]?.range_id;
-    console.log("🚀 ~ quotation.controller.js:105 ~ rangeId:", rangeId);
     if (!rangeId) {
       await client.query("ROLLBACK");
       return errorResponse(
@@ -118,7 +117,6 @@ exports.createQuotation = async (req, res) => {
       builderId,
     ]);
     const dwellingTypeId = dwellingTypeResult.rows[0]?.dwelling_type_id;
-    console.log("🚀 ~ quotation.controller.js:116 ~ dwellingTypeId:", dwellingTypeId);
     if (!dwellingTypeId) {
       await client.query("ROLLBACK");
       return errorResponse(
@@ -179,7 +177,7 @@ exports.createQuotation = async (req, res) => {
     const slugId = generateCode(req.user.name, "quotation");
     const insertQuotationQuery = `
       INSERT INTO quotation (
-        slugId, builder_id, lead_id, property_id, floor_plan_id, facade_id, package_id, range_id, dwelling_type_id, created_by_id, updated_by_id
+        slug_id, builder_id, lead_id, property_id, floor_plan_id, facade_id, package_id, range_id, dwelling_type_id, created_by_id, updated_by_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *;
     `;
