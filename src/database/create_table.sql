@@ -157,9 +157,9 @@ CREATE TABLE leads (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   FOREIGN KEY (assignee_id) REFERENCES users(users_id) ON DELETE SET NULL,
-  FOREIGN KEY (lead_source_id) REFERENCES lead_source(lead_source_id) ON DELETE SET NULL
+  FOREIGN KEY (lead_source_id) REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
   FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TABLE leads_contact (
