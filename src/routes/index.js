@@ -1,13 +1,13 @@
 const countryRoutes = require("./country.routes");
-const stateRoutes = require("./state.routes.js");
+const stateRoutes = require("./state.routes");
 const authRoutes = require("./auth.routes");
 const userRoutes = require("./user.routes");
 const builderRoutes = require("./builder.routes");
 const contractorRoutes = require("./contractor.routes");
-const serviceRoutes = require("./service.routes.js");
-const leadSourceRoutes = require("./lead-source.routes.js");
+const serviceRoutes = require("./service.routes");
+const leadSourceRoutes = require("./lead-source.routes");
 const leadRoutes = require("./leads.routes");
-const leadsContactRoutes = require("./leads-contact.routes.js");
+const leadsContactRoutes = require("./leads-contact.routes");
 const opportunitiesRoutes = require("./opportunities.routes");
 const categoryRoutes = require("./category.routes");
 const rangeRoutes = require("./range.routes");
@@ -20,7 +20,7 @@ const packageRoutes = require("./package.routes");
 const propertyRoutes = require("./property.routes");
 const dashboardRoutes = require("./dashboard.routes");
 const quotationRoutes = require("./quotation.routes");
-const jobRoutes = require("./job.routes.js");
+const jobRoutes = require("./job.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
