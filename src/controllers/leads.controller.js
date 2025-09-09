@@ -18,7 +18,7 @@ exports.createLead = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const leadSourceQuery = `SELECT lead_source_id FROM lead_source WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`;
+    const leadSourceQuery = `SELECT lead_source_id, name FROM lead_source WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`;
     const leadSourceResult = await client.query(leadSourceQuery, [lead_source, builderId]);
     if (leadSourceResult.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -97,7 +97,7 @@ exports.createLead = async (req, res) => {
     await client.query(`UPDATE leads SET lead_contact_id = $1 WHERE lead_id = $2 AND builder_id = $3;`, [contactDetails.leads_contact_id, lead.lead_id, builderId]);
     await client.query("COMMIT");
 
-    return successResponse(res, keysToCamelCase({ ...lead, ...contactDetails }), "Lead created successfully.");
+    return successResponse(res, keysToCamelCase({ ...lead, lead_source: leadSourceResult.rows[0].name, ...contactDetails }), "Lead created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create lead error:", error);
