@@ -18,7 +18,7 @@ const phoneRule = Joi.string()
   .optional()
   .allow(null, "")
   .messages({
-    "string.pattern.base": "Phone must contain only digits and be 10–15 characters long",
+    "string.pattern.base": "Phone must contain only digits and be 10-15 characters long",
   });
 
 const createLeadSchema = Joi.object({

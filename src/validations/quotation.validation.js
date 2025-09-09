@@ -79,6 +79,35 @@ const createQuotationSchema = Joi.object({
     }),
 });
 
+const createQuotationVersionSchema = Joi.object({
+  notes: Joi.string().optional().max(1000).messages({
+    "string.max": "Notes must not exceed 1000 characters",
+  }),
+  items: Joi.array()
+    .items(
+      Joi.object({
+        itemId: Joi.string().uuid().required(),
+        quantity: Joi.number().integer().min(1).required(),
+        price: Joi.number().precision(2).required(),
+        total: Joi.number()
+          .precision(2)
+          .required()
+          .custom((value, helpers) => {
+            const { quantity, price } = helpers.state.ancestors[0];
+            const expected = +(quantity * price).toFixed(2);
+            if (value !== expected) {
+              return helpers.error("any.invalid", {
+                message: `Total (${value}) must equal quantity (${quantity}) * price (${price}) = ${expected}`,
+              });
+            }
+            return value;
+          }),
+      })
+    )
+    .min(1)
+    .required(),
+});
+
 const getQuotationSchema = Joi.object({
   quotation_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation ID must be a valid UUID",
@@ -107,4 +136,5 @@ module.exports = {
   createQuotationSchema,
   getQuotationSchema,
   getQuotationsSchema,
+  createQuotationVersionSchema,
 };

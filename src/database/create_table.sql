@@ -303,7 +303,7 @@ CREATE TABLE packages (
   package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   builder_id UUID NOT NULL,
-  category_items_id UUID[] NOT NULL,
+  category_item_ids UUID[] NOT NULL,
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -393,6 +393,7 @@ CREATE TABLE quotation_version_items (
   category_item_short_description VARCHAR(500) DEFAULT NULL,
   category_item_cost_type cost_type DEFAULT NULL,
   category_item_cost NUMERIC(12,2) DEFAULT NULL,
+  category_item_quantity INT DEFAULT NULL,
   category_item_cost_type_text VARCHAR(255) DEFAULT NULL,
   category_item_cost_option cost_option DEFAULT NULL,
   category_item_include_by_default BOOLEAN DEFAULT NULL,
@@ -407,4 +408,91 @@ CREATE TABLE quotation_version_items (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE CASCADE
+);
+
+CREATE TYPE action_type_enum AS ENUM ('NOTES', 'SMS', 'APPOINTMENT', 'TASK');
+CREATE TYPE task_priority_enum AS ENUM ('HIGH', 'LOW', 'MEDIUM');
+
+CREATE TABLE actions (
+  action_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  type action_type_enum NOT NULL,
+  builder_id UUID NOT NULL,
+  lead_id UUID NOT NULL,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+CREATE TABLE tags (
+  tag_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT unique_builder_tag UNIQUE (builder_id, name),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE task (
+  task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  action_id UUID NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  due_date DATE NOT NULL,
+  time TIME,
+  priority task_priority_enum NOT NULL DEFAULT 'MEDIUM',
+  description VARCHAR(500),
+  attachment TEXT,
+  assignee UUID DEFAULT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (assignee) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (action_id) REFERENCES actions(action_id) ON DELETE CASCADE
+);
+
+CREATE TABLE notes (
+  notes_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  action_id UUID NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  tags UUID[] DEFAULT '{}',
+  attachment TEXT,
+  task_id UUID DEFAULT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (action_id) REFERENCES actions(action_id) ON DELETE CASCADE,
+  FOREIGN KEY (task_id) REFERENCES task(task_id) ON DELETE SET NULL
+);
+
+CREATE TABLE sms (
+  sms_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  action_id UUID NOT NULL,
+  recipient UUID[] NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (action_id) REFERENCES actions(action_id) ON DELETE CASCADE
+);
+
+CREATE TABLE appointment (
+  appointment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  action_id UUID NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  location VARCHAR(200),
+  select_users UUID[] DEFAULT '{}',
+  notes VARCHAR(500),
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (action_id) REFERENCES actions(action_id) ON DELETE CASCADE
 );

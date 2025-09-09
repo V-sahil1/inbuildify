@@ -104,3 +104,6 @@ DROP COLUMN lead_source_id;
 ALTER TABLE leads
 ADD COLUMN lead_source_id UUID NULL,
 ADD CONSTRAINT fk_leads_lead_source FOREIGN KEY (lead_source_id) REFERENCES lead_source (lead_source_id) ON DELETE SET NULL;
+
+ALTER TABLE quotation_version_items
+ADD COLUMN category_item_quantity INT DEFAULT NULL;

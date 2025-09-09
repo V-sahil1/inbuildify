@@ -253,7 +253,7 @@ exports.createQuotation = async (req, res) => {
         return errorResponse(res, 400, `Invalid category item: ${item.itemId}`);
       }
 
-      const baseIndex = i * 19;
+      const baseIndex = i * 20;
       placeholders.push(`(
         $${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${
         baseIndex + 4
@@ -267,7 +267,9 @@ exports.createQuotation = async (req, res) => {
         $${baseIndex + 13}, $${baseIndex + 14}, $${baseIndex + 15}, $${
         baseIndex + 16
       }, 
-        $${baseIndex + 17}, $${baseIndex + 18}, $${baseIndex + 19}, NOW(), NOW()
+        $${baseIndex + 17}, $${baseIndex + 18}, $${baseIndex + 19}, $${
+        baseIndex + 20
+      }, NOW(), NOW()
       )`);
 
       values.push(
@@ -280,6 +282,7 @@ exports.createQuotation = async (req, res) => {
         d.category_item_description,
         d.category_item_short_description,
         d.cost_type,
+        item.quantity ?? d.category_item_quantity,
         item.price ?? d.category_item_cost,
         d.cost_type_text,
         d.cost_option,
@@ -304,6 +307,7 @@ exports.createQuotation = async (req, res) => {
         category_item_description,
         category_item_short_description,
         category_item_cost_type,
+        category_item_quantity,
         category_item_cost,
         category_item_cost_type_text,
         category_item_cost_option,
@@ -347,6 +351,135 @@ exports.createQuotation = async (req, res) => {
   }
 };
 
+exports.createQuotationVersion = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  const { quotation_id } = req.params;
+  const { notes, items } = req.body;
+  const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
+
+  try {
+    await client.query("BEGIN");
+
+    const quotationRes = await client.query(
+      `SELECT quotation_id FROM quotation WHERE quotation_id = $1 AND builder_id = $2`,
+      [quotation_id, builderId]
+    );
+    if (quotationRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Quotation not found.");
+    }
+
+    const versionRes = await client.query(
+      `SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version
+       FROM quotation_versions WHERE quotation_id = $1`,
+      [quotation_id]
+    );
+    const versionNumber = versionRes.rows[0].next_version;
+
+    const insertVersion = `
+      INSERT INTO quotation_versions (quotation_id, version_number, notes)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const newVersionRes = await client.query(insertVersion, [
+      quotation_id,
+      versionNumber,
+      notes || null,
+    ]);
+    const newVersion = newVersionRes.rows[0];
+
+    const itemIds = items.map((i) => i.itemId);
+    const itemDetailsResult = await client.query(
+      `SELECT ci.*, c.name as category_name, c.description as category_description
+       FROM category_items ci
+       JOIN categories c ON c.category_id = ci.category_id
+       WHERE ci.category_item_id = ANY($1)`,
+      [itemIds]
+    );
+    const detailsMap = new Map(
+      itemDetailsResult.rows.map((r) => [r.category_item_id, r])
+    );
+
+    const values = [];
+    const placeholders = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const d = detailsMap.get(item.itemId);
+      if (!d) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, `Invalid category item: ${item.itemId}`);
+      }
+
+      const base = i * 20;
+      placeholders.push(`(
+        $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5},
+        $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10},
+        $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${
+        base + 15
+      },
+        $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${
+        base + 20
+      }, NOW(), NOW()
+      )`);
+
+      values.push(
+        newVersion.quotation_version_id,
+        notes || null,
+        d.category_id,
+        d.category_name,
+        d.category_description,
+        d.category_item_id,
+        d.description,
+        d.short_description,
+        d.cost_type,
+        item.quantity,
+        item.price,
+        d.cost_type_text,
+        d.cost_option,
+        d.include_by_default,
+        d.show_in_hl_package,
+        d.package_only,
+        d.uom,
+        d.sort_order,
+        d.range_id,
+        d.dwelling_type_id
+      );
+    }
+
+    const insertItems = `
+      INSERT INTO quotation_version_items (
+        quotation_version_id, notes, category_id, caterogy_name, category_description,
+        category_item_id, category_item_description, category_item_short_description,
+        category_item_cost_type, category_item_quantity, category_item_cost,
+        category_item_cost_type_text, category_item_cost_option,
+        category_item_include_by_default, category_item_show_in_hl_package,
+        category_item_package_only, category_item_uom, category_item_sort_order,
+        category_item_range_id, category_item_dwelling_type_id, created_at, updated_at
+      )
+      VALUES ${placeholders.join(", ")}
+    `;
+    await client.query(insertItems, values);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(newVersion),
+      "Quotation version created successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Create quotation version error:", err);
+    return errorResponse(res, 500, "Failed to create quotation version.");
+  } finally {
+    client.release();
+  }
+};
+
 exports.getQuotationById = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -360,15 +493,27 @@ exports.getQuotationById = async (req, res) => {
           q.slug_id, q.quotation_id, q.created_at, q.updated_at,
           b.builder_id, b.name as builder_name,
           l.lead_id, l.status as lead_status,
-          p.property_id, p.address1 as property_address,
-          f.floor_plan_id, f.name as floor_plan_name,
-          fa.facade_id, fa.name as facade_name,
-          pk.package_id, pk.name as package_name, pk.amount as package_amount,
+          lc.leads_contact_id as lead_contact_id, lc.name as lead_contact_name,
+          p.property_id, p.builder_id AS property_builder_id, p.address1 as property_address, p.address2 as property_address2, p.lead_id AS property_lead_id,
+          p.country, p.state_region, p.city_suburb, p.zip_postal_code,
+          p.estate_name, p.title_status, p.title_date, p.compaction_report, p.land_type,
+          p.width_m, p.depth_m, p.total_size_m2, p.site_fall_mm, p.land_fill_mm,
+          p.bush_fire, p.corner_block, p.created_at AS property_created_at, p.updated_at AS property_updated_at,
+          f.floor_plan_id, f.builder_id AS floor_plan_builder_id, f.name AS floor_plan_name,
+          f.image AS floor_plan_image, f.range_id, f.dwelling_type_id AS floor_plan_dwelling_type_id,
+          f.beds, f.bath, f.car_park, f.width_meter, f.depth_meter,
+          f.dwelling, f.garage, f.porch, f.alfresco, f.total_sqft, f.created_at AS floor_plan_created_at, f.updated_at AS floor_plan_updated_at,
+          fa.facade_id, fa.builder_id AS facade_builder_id, fa.name AS facade_name,
+          fa.image AS facade_image, fa.dwelling_type_id AS facade_dwelling_type_id,
+          fa.standard, fa.upgrade, fa.cost, fa.is_deleted AS facade_is_deleted,
+          fa.created_at AS facade_created_at, fa.updated_at AS facade_updated_at,
+          pk.package_id, pk.name AS package_name, pk.builder_id AS package_builder_id,
+          pk.category_item_ids, pk.amount as package_amount, pk.created_at AS package_created_at, pk.updated_at AS package_updated_at,
           r.range_id, r.name as range_name,
           dt.dwelling_type_id, dt.name as dwelling_type_name
         FROM quotation q
         JOIN builder b ON q.builder_id = b.builder_id
-        JOIN leads l ON q.lead_id = l.lead_id
+        JOIN leads l ON q.lead_id = l.lead_id LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
         JOIN property p ON q.property_id = p.property_id
         JOIN floor_plan f ON q.floor_plan_id = f.floor_plan_id
         JOIN facade fa ON q.facade_id = fa.facade_id
@@ -377,7 +522,7 @@ exports.getQuotationById = async (req, res) => {
         JOIN dwelling_type dt ON q.dwelling_type_id = dt.dwelling_type_id
         WHERE q.quotation_id = $1 AND q.builder_id = $2;
       `;
-
+    // property, plan, facade, package
     const result = await client.query(query, [quotation_id, builderId]);
 
     if (result.rows.length === 0) {
@@ -398,6 +543,7 @@ exports.getQuotationById = async (req, res) => {
         qvi.quotation_version_item_id, qvi.notes as item_notes,
         qvi.category_id, qvi.caterogy_name, qvi.category_description,
         qvi.category_item_id, qvi.category_item_description, qvi.category_item_short_description,
+        qvi.category_item_quantity,
         qvi.category_item_cost_type, qvi.category_item_cost, qvi.category_item_cost_type_text,
         qvi.category_item_cost_option, qvi.category_item_include_by_default,
         qvi.category_item_show_in_hl_package, qvi.category_item_package_only,
@@ -431,6 +577,7 @@ exports.getQuotationById = async (req, res) => {
           categoryItemId: row.category_item_id,
           categoryItemDescription: row.category_item_description,
           categoryItemShortDescription: row.category_item_short_description,
+          categoryItemQuantity: row.category_item_quantity,
           categoryItemCostType: row.category_item_cost_type,
           categoryItemCost: row.category_item_cost,
           categoryItemCostTypeText: row.category_item_cost_type_text,
@@ -463,23 +610,78 @@ exports.getQuotationById = async (req, res) => {
       lead: {
         leadId: row.leadId,
         status: row.leadStatus,
+        leadContact: {
+          leadContactId: row.leadContactId,
+          name: row.leadContactName,
+        },
       },
       property: {
         propertyId: row.propertyId,
-        address: row.propertyAddress,
+        builderId: row.propertyBuilderId,
+        address1: row.propertyAddress,
+        address2: row.propertyAddress2,
+        leadId: row.propertyLeadId,
+        country: row.country,
+        stateRegion: row.stateRegion,
+        citySuburb: row.citySuburb,
+        zipPostalCode: row.zipPostalCode,
+        estateName: row.estateName,
+        titleStatus: row.titleStatus,
+        titleDate: row.titleDate,
+        compactionReport: row.compactionReport,
+        landType: row.landType,
+        widthM: row.widthM,
+        depthM: row.depthM,
+        totalSizeM2: row.totalSizeM2,
+        siteFallMm: row.siteFallMm,
+        landFillMm: row.landFillMm,
+        bushFire: row.bushFire,
+        cornerBlock: row.cornerBlock,
+        createdAt: row.propertyCreatedAt,
+        updatedAt: row.propertyUpdatedAt,
       },
       floorPlan: {
         floorPlanId: row.floorPlanId,
+        builderId: row.floorPlanBuilderId,
         name: row.floorPlanName,
+        image: row.floorPlanImage,
+        rangeId: row.rangeId,
+        dwellingTypeId: row.floorPlanDwellingTypeId,
+        beds: row.beds,
+        bath: row.bath,
+        carPark: row.carPark,
+        widthMeter: row.widthMeter,
+        depthMeter: row.depthMeter,
+        dwelling: row.dwelling,
+        garage: row.garage,
+        porch: row.porch,
+        alfresco: row.alfresco,
+        totalSqft: row.total_sqft,
+        createdAt: row.floorPlanCreatedAt,
+        updatedAt: row.floorPlanUpdatedAt,
       },
       facade: {
         facadeId: row.facadeId,
+        builderId: row.facadeBuilderId,
         name: row.facadeName,
+        image: row.facadeImage,
+        dwellingTypeId: row.facadeDwellingTypeId,
+        standard: row.standard,
+        upgrade: row.upgrade,
+        cost: row.cost,
+        isDeleted: row.facadeIsDeleted,
+        createdAt: row.facadeCreatedAt,
+        updatedAt: row.facadeUpdatedAt,
       },
       package: {
         packageId: row.packageId,
         name: row.packageName,
+        builderId: row.packageBuilderId,
         amount: row.packageAmount,
+        packageAmount: row.packageAmount,
+        categoryItemIds: row.categoryItemIds,
+        createdAt: row.packageCreatedAt,
+        updatedAt: row.packageUpdatedAt,
       },
       range: {
         rangeId: row.rangeId,
@@ -501,7 +703,7 @@ exports.getQuotationById = async (req, res) => {
     console.error(error);
     return errorResponse(
       res,
-      error?.code || 400,
+      error?.statusCode || 400,
       error?.message || "Internal Server Error"
     );
   } finally {

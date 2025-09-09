@@ -30,15 +30,9 @@ const getPackageByIdSchema = Joi.object({
   }),
 });
 
-const getPackageItemsSchema = Joi.object({
-  range: Joi.string().required().messages({
-    "string.base": "Range must be a string",
-    "any.required": "Range is required",
-  }),
-  dwelling_type: Joi.string().required().messages({
-    "string.base": "Dwelling type must be a string",
-    "any.required": "Dwelling type is required",
-  }),
+const getAllPackagesSchema = Joi.object({
+  range: Joi.string().optional().allow(null),
+  dwelling_type: Joi.string().optional().allow(null),
 });
 
 const updatePackageSchema = Joi.object({
@@ -67,7 +61,7 @@ const deletePackageSchema = Joi.object({
 module.exports = {
   createPackageSchema,
   getPackageByIdSchema,
-  getPackageItemsSchema,
+  getAllPackagesSchema,
   updatePackageSchema,
   deletePackageSchema
 };

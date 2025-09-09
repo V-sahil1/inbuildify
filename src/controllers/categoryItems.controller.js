@@ -37,7 +37,7 @@ exports.createCategoryItem = async (req, res) => {
 
     let rangeId = null;
     if (range) {
-      const rangeRes = await client.query(`SELECT range_id FROM range WHERE name = $1`, [range]);
+      const rangeRes = await client.query(`SELECT range_id FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`, [range, builderId]);
       if (rangeRes.rows.length === 0) {
         await client.query(`ROLLBACK`);
         return errorResponse(res, 404, `Range '${range}' not found.`);
@@ -47,7 +47,7 @@ exports.createCategoryItem = async (req, res) => {
 
     let dwellingId = null;
     if (dwelling) {
-      const dwellingRes = await client.query(`SELECT dwelling_type_id FROM dwelling_type WHERE name = $1`, [dwelling]);
+      const dwellingRes = await client.query(`SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`, [dwelling, builderId]);
       if (dwellingRes.rows.length === 0) {
         await client.query(`ROLLBACK`);
         return errorResponse(res, 404, `Dwelling type '${dwelling}' not found.`);
@@ -197,8 +197,8 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
 
     if (range) {
       const rangeResult = await client.query(
-        `SELECT range_id FROM range WHERE name = $1`,
-        [range]
+        `SELECT range_id FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+        [range, builderId]
       );
       if (rangeResult.rowCount === 0) {
         return errorResponse(res, 404, `Range '${range}' not found.`);
@@ -208,8 +208,8 @@ exports.getCategoryItemsByCategoryId = async (req, res) => {
 
     if (dwellingType) {
       const dwellingResult = await client.query(
-        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1`,
-        [dwellingType]
+        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+        [dwellingType, builderId]
       );
       if (dwellingResult.rowCount === 0) {
         return errorResponse(res, 404, `Dwelling type '${dwellingType}' not found.`);
@@ -334,7 +334,7 @@ exports.updateCategoryItem = async (req, res) => {
 
     let rangeId = null;
     if (range) {
-      const rangeRes = await client.query(`SELECT range_id FROM range WHERE name = $1`, [range]);
+      const rangeRes = await client.query(`SELECT range_id FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`, [range, builderId]);
       if (rangeRes.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 404, `Range '${range}' not found.`);
@@ -345,8 +345,8 @@ exports.updateCategoryItem = async (req, res) => {
     let dwellingId = null;
     if (dwelling) {
       const dwRes = await client.query(
-        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1`,
-        [dwelling]
+        `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+        [dwelling, builderId]
       );
       if (dwRes.rowCount === 0) {
         await client.query("ROLLBACK");

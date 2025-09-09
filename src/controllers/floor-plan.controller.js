@@ -123,8 +123,8 @@ exports.getFloorPlans = async (req, res) => {
 
     if (range && range !== 'all') {
       const rangeResult = await client.query(
-        'SELECT range_id, name FROM range WHERE name = $1 AND is_deleted = $2',
-        [range, false]
+        'SELECT range_id, name FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3',
+        [range, builderId, false]
       );
       if (rangeResult.rows.length === 0) {
         return errorResponse(res, 400, 'Invalid range value');
@@ -134,8 +134,8 @@ exports.getFloorPlans = async (req, res) => {
 
     if (dwelling_type && dwelling_type !== 'all') {
       const dwellingTypeResult = await client.query(
-        'SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1 AND is_deleted = $2',
-        [dwelling_type, false]
+        'SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3',
+        [dwelling_type, builderId, false]
       );
       if (dwellingTypeResult.rows.length === 0) {
         return errorResponse(res, 400, 'Invalid dwelling type value');
@@ -303,8 +303,8 @@ exports.updateFloorPlan = async (req, res) => {
     }
 
     if (updates.range) {
-      const rangeQuery = `SELECT range_id FROM range WHERE name = $1 AND is_deleted = $2;`;
-      const rangeResult = await client.query(rangeQuery, [updates.range, false]);
+      const rangeQuery = `SELECT range_id FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;`;
+      const rangeResult = await client.query(rangeQuery, [updates.range, builderId, false]);
 
       if (rangeResult.rows.length === 0) {
         await client.query("ROLLBACK");
@@ -317,8 +317,8 @@ exports.updateFloorPlan = async (req, res) => {
     }
 
     if (updates.dwelling_type) {
-      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND is_deleted = $2;`;
-      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, false]);
+      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;`;
+      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, builderId, false]);
 
       if (dwellingTypeResult.rows.length === 0) {
         await client.query("ROLLBACK");

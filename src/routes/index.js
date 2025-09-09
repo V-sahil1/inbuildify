@@ -21,6 +21,7 @@ const propertyRoutes = require("./property.routes");
 const dashboardRoutes = require("./dashboard.routes");
 const quotationRoutes = require("./quotation.routes");
 const jobRoutes = require("./job.routes");
+const actionsRoutes = require("./actions.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -46,4 +47,5 @@ module.exports = function (app) {
   app.use("/dashboard", dashboardRoutes);
   app.use("/quotation", quotationRoutes);
   app.use("/job", jobRoutes);
+  app.use("/actions", actionsRoutes);
 };

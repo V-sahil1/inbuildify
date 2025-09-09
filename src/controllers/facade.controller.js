@@ -41,8 +41,8 @@ exports.createFacade = async (req, res) => {
       return errorResponse(res, 409, "Facade with this name already exists for this builder.");
     }
 
-    const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND is_deleted = $2;`;
-    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type, false]);
+    const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;`;
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type, builderId, false]);
 
     if (dwellingTypeResult.rows.length === 0) {
       return errorResponse(res, 404, "Invalid dwelling type.");
@@ -98,8 +98,8 @@ exports.getFacades = async (req, res) => {
 
     if (dwelling_type && dwelling_type !== 'all') {
       const dtResult = await client.query(
-        'SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND is_deleted = $2',
-        [dwelling_type, false]
+        'SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3',
+        [dwelling_type, builderId, false]
       );
       if (dtResult.rows.length === 0) {
         return errorResponse(res, 400, 'Invalid dwelling type');
@@ -281,8 +281,8 @@ exports.updateFacade = async (req, res) => {
     values.push(facade_id, builderId);
 
     if (updates.dwelling_type) {
-      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND is_deleted = $2;`;
-      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, false]);
+      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;`;
+      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, builderId, false]);
 
       if (dwellingTypeResult.rows.length === 0) {
         await client.query("ROLLBACK");
