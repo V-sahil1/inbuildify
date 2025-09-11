@@ -108,15 +108,28 @@ exports.createAction = async (req, res) => {
     }
 
     if (type === "TASK") {
+      if (assignee) {
+        const assigneeRes = await client.query(
+          `SELECT user_id FROM users WHERE user_id = $1 AND builder_id = $2 AND verified = true AND is_deleted = false`,
+          [assignee, builderId]
+        );
+        if (assigneeRes.rowCount === 0) {
+          return errorResponse(res, 404, "Assignee not found or not verified.");
+        }
+      }
+
       const taskRes = await client.query(
-        `INSERT INTO task (action_id, name, due_date, priority, description)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        `INSERT INTO task (action_id, name, due_date, priority, description, time, assignee, attachment)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [
           action.action_id,
           task.name,
           task.due_date,
           task.priority,
           task.description || null,
+          task.time || null,
+          task.assignee || null,
+          attachment || null,
         ]
       );
       details = taskRes.rows[0];
@@ -154,7 +167,7 @@ exports.getAction = async (req, res) => {
 
     const actionResult = await client.query(actionQuery, queryParams);
     if (actionResult.rows.length === 0) {
-      return errorResponse(res, 404, []);
+      return errorResponse(res, 200, []);
     }
 
     const actions = keysToCamelCase(actionResult.rows);

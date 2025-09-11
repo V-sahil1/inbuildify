@@ -25,6 +25,8 @@ const createActionSchema = {
       name: Joi.string().max(200).required(),
       due_date: Joi.date().required(),
       priority: Joi.string().valid("HIGH", "LOW", "MEDIUM").required(),
+      time: Joi.string().optional(),
+      assignee: Joi.string().uuid().optional(),
       description: Joi.string().optional(),
     }).when("createFollowUpTask", {
       is: true,
@@ -32,7 +34,12 @@ const createActionSchema = {
       otherwise: Joi.optional(),
     }),
 
-    recipient: Joi.array().items(Joi.string().uuid()),
+    recipient: Joi.array().items(Joi.string().uuid()).messages({
+      "array.base": "Recipient must be an array of UUIDs",
+      "array.min": "At least one recipient is required",
+      "array.unique": "Recipient must be unique",
+      "any.required": "Recipient is required",
+    }).optional().allow(null),
 
     title: Joi.string().max(200),
     date: Joi.date(),
