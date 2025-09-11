@@ -12,7 +12,11 @@ const createActionSchema = {
 
     message: Joi.string().max(500),
     tags: Joi.array().items(Joi.string()),
-    attachment: Joi.string().optional(),
+    attachment: Joi.string().uri().max(500).trim().messages({
+      'string.base': 'Image must be a string',
+      'string.uri': 'Image must be a valid URL',
+      'string.max': 'Image URL must not exceed 500 characters'
+    }).optional(),
 
     sendToCustomer: Joi.boolean().default(false),
     createFollowUpTask: Joi.boolean().default(false),

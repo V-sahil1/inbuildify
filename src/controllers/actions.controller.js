@@ -5,11 +5,11 @@ const { keysToCamelCase } = require("../utils/common");
 exports.createAction = async (req, res) => {
   const { lead_id } = req.params;
   const builderId = req.user.builder_id;
+  const attachment = req.file?.location;
   const {
     type,
     message,
     tags,
-    attachment,
     sendToCustomer,
     createFollowUpTask,
     task,
@@ -38,7 +38,7 @@ exports.createAction = async (req, res) => {
     const insertAction = `
       INSERT INTO actions (type, builder_id, lead_id, created_by_id, updated_by_id)
       VALUES ($1, $2, $3, $4, $4)
-      RETURNING action_id
+      RETURNING *
     `;
     const result = await client.query(insertAction, [
       type,
@@ -46,7 +46,7 @@ exports.createAction = async (req, res) => {
       lead_id,
       req.user.user_id,
     ]);
-    const actionId = result.rows[0].action_id;
+    const action = result.rows[0];
 
     let tagIds = [];
     if (tags && tags.length > 0) {
@@ -62,15 +62,16 @@ exports.createAction = async (req, res) => {
       }
     }
 
+    let details = null;
     if (type === "NOTES") {
       let taskId = null;
 
       if (createFollowUpTask && task) {
         const taskRes = await client.query(
           `INSERT INTO task (action_id, name, due_date, priority, description)
-           VALUES ($1, $2, $3, $4, $5) RETURNING task_id`,
+           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
           [
-            actionId,
+            action.action_id,
             task.name,
             task.due_date,
             task.priority,
@@ -80,46 +81,50 @@ exports.createAction = async (req, res) => {
         taskId = taskRes.rows[0].task_id;
       }
 
-      await client.query(
+      const notesRes = await client.query(
         `INSERT INTO notes (action_id, message, tags, attachment, task_id)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [actionId, message, tagIds, attachment || null, taskId]
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [action.action_id, message, tagIds, attachment || null, taskId]
       );
+      details = notesRes.rows[0];
     }
 
     if (type === "SMS") {
-      await client.query(
+      const smsRes = await client.query(
         `INSERT INTO sms (action_id, recipient, message)
-         VALUES ($1, $2, $3)`,
-        [actionId, recipient, message]
+         VALUES ($1, $2, $3) RETURNING *`,
+        [action.action_id, recipient, message]
       );
+      details = smsRes.rows[0];
     }
 
     if (type === "APPOINTMENT") {
-      await client.query(
+      const appointmentRes = await client.query(
         `INSERT INTO appointment (action_id, title, date, start_time, end_time)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [actionId, title, date, start_time, end_time]
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [action.action_id, title, date, start_time, end_time]
       );
+      details = appointmentRes.rows[0];
     }
 
     if (type === "TASK") {
-      await client.query(
+      const taskRes = await client.query(
         `INSERT INTO task (action_id, name, due_date, priority, description)
-         VALUES ($1, $2, $3, $4, $5)`,
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
         [
-          actionId,
+          action.action_id,
           task.name,
           task.due_date,
           task.priority,
           task.description || null,
         ]
       );
+      details = taskRes.rows[0];
     }
 
     await client.query("COMMIT");
 
-    return successResponse(res, { actionId }, "Action created successfully.");
+    return successResponse(res, keysToCamelCase({ ...action, details, sendToCustomer, createFollowUpTask }), "Action created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create action error:", error);
