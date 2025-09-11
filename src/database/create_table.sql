@@ -348,11 +348,6 @@ CREATE TABLE quotation (
   builder_id UUID NOT NULL,
   lead_id UUID NOT NULL,
   property_id UUID NOT NULL,
-  floor_plan_id UUID NOT NULL,
-  facade_id UUID NOT NULL,
-  package_id UUID NOT NULL,
-  range_id UUID NOT NULL,
-  dwelling_type_id UUID NOT NULL,
   created_by_id UUID NOT NULL,
   updated_by_id UUID NOT NULL,
   is_deleted BOOLEAN DEFAULT FALSE,
@@ -361,11 +356,6 @@ CREATE TABLE quotation (
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE CASCADE,
   FOREIGN KEY (property_id) REFERENCES property(property_id) ON DELETE CASCADE,
-  FOREIGN KEY (floor_plan_id) REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
-  FOREIGN KEY (facade_id) REFERENCES facade(facade_id) ON DELETE CASCADE,
-  FOREIGN KEY (package_id) REFERENCES packages(package_id) ON DELETE CASCADE,
-  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
-  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE,
   FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
@@ -373,11 +363,21 @@ CREATE TABLE quotation (
 CREATE TABLE quotation_versions (
   quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_id UUID NOT NULL,
+  floor_plan_id UUID NOT NULL,
+  facade_id UUID NOT NULL,
+  package_id UUID NOT NULL,
+  range_id UUID NOT NULL,
+  dwelling_type_id UUID NOT NULL,
   version_number INT NOT NULL,
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (quotation_id) REFERENCES quotation(quotation_id) ON DELETE CASCADE,
+  FOREIGN KEY (floor_plan_id) REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
+  FOREIGN KEY (facade_id) REFERENCES facade(facade_id) ON DELETE CASCADE,
+  FOREIGN KEY (package_id) REFERENCES packages(package_id) ON DELETE CASCADE,
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE,
   UNIQUE (quotation_id, version_number)
 );
 

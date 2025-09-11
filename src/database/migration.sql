@@ -107,3 +107,36 @@ ADD CONSTRAINT fk_leads_lead_source FOREIGN KEY (lead_source_id) REFERENCES lead
 
 ALTER TABLE quotation_version_items
 ADD COLUMN category_item_quantity INT DEFAULT NULL;
+
+ALTER TABLE quotation_versions 
+ADD COLUMN floor_plan_id UUID,
+ADD COLUMN facade_id UUID,
+ADD COLUMN package_id UUID,
+ADD COLUMN range_id UUID,
+ADD COLUMN dwelling_type_id UUID;
+
+ALTER TABLE quotation_versions 
+ADD CONSTRAINT fk_quotation_versions_floor_plan 
+  FOREIGN KEY (floor_plan_id) REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
+ADD CONSTRAINT fk_quotation_versions_facade 
+  FOREIGN KEY (facade_id) REFERENCES facade(facade_id) ON DELETE CASCADE,
+ADD CONSTRAINT fk_quotation_versions_package 
+  FOREIGN KEY (package_id) REFERENCES packages(package_id) ON DELETE CASCADE,
+ADD CONSTRAINT fk_quotation_versions_range 
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
+ADD CONSTRAINT fk_quotation_versions_dwelling_type 
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE;
+
+ALTER TABLE quotation
+DROP CONSTRAINT quotation_floor_plan_id_fkey,
+DROP CONSTRAINT quotation_facade_id_fkey,
+DROP CONSTRAINT quotation_package_id_fkey,
+DROP CONSTRAINT quotation_range_id_fkey,
+DROP CONSTRAINT quotation_dwelling_type_id_fkey;
+
+ALTER TABLE quotation 
+DROP COLUMN floor_plan_id,
+DROP COLUMN facade_id,
+DROP COLUMN package_id,
+DROP COLUMN range_id,
+DROP COLUMN dwelling_type_id;

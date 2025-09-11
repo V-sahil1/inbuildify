@@ -149,7 +149,7 @@ exports.getAction = async (req, res) => {
 
     const actionResult = await client.query(actionQuery, queryParams);
     if (actionResult.rows.length === 0) {
-      return errorResponse(res, 404, "No actions found.");
+      return errorResponse(res, 404, []);
     }
 
     const actions = keysToCamelCase(actionResult.rows);

@@ -27,7 +27,7 @@ router.post("/", validateRequest(createPackageSchema), createPackage);
 router.post("/:package_id", validateRequest(updatePackageSchema), updatePackage);
 router.get("/:package_id", validateRequest(getPackageByIdSchema, REQUEST_SOURCE.PARAMS), getPackageById);
 router.get("/", validateRequest(getAllPackagesSchema, REQUEST_SOURCE.QUERY), getAllPackages);
-router.get("/category/items", getPackageItems);
+router.get("/category/items", validateRequest(getAllPackagesSchema, REQUEST_SOURCE.QUERY), getPackageItems);
 router.delete("/:package_id", validateRequest(deletePackageSchema, REQUEST_SOURCE.PARAMS), deletePackage);
 
 module.exports = router;

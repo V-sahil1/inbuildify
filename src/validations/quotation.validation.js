@@ -80,6 +80,26 @@ const createQuotationSchema = Joi.object({
 });
 
 const createQuotationVersionSchema = Joi.object({
+  range: Joi.string().required().messages({
+    "string.base": "Range must be a string",
+    "any.required": "Range is required",
+  }),
+  dwellingType: Joi.string().required().messages({
+    "string.base": "Dwelling type must be a string",
+    "any.required": "Dwelling type is required",
+  }),
+  floorPlanId: Joi.string().uuid().required().messages({
+    "string.guid": "Floor Plan ID must be a valid UUID",
+    "any.required": "Floor Plan ID is required",
+  }),
+  facadeId: Joi.string().uuid().required().messages({
+    "string.guid": "Facade ID must be a valid UUID",
+    "any.required": "Facade ID is required",
+  }),
+  packageId: Joi.string().uuid().required().messages({
+    "string.guid": "Package ID must be a valid UUID",
+    "any.required": "Package ID is required",
+  }),
   notes: Joi.string().optional().max(1000).messages({
     "string.max": "Notes must not exceed 1000 characters",
   }),

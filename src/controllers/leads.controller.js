@@ -256,8 +256,14 @@ exports.updateLead = async (req, res) => {
     let index = 3;
 
     if (lead_source !== undefined) {
-      leadFields.push(`lead_source = $${index++}`);
-      leadValues.push(lead_source);
+      const leadSourceQuery = `SELECT lead_source_id, name FROM lead_source WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`;
+      const leadSourceResult = await client.query(leadSourceQuery, [lead_source, builderId]);
+      if (leadSourceResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Lead source not found.");
+      }
+      leadFields.push(`lead_source_id = $${index++}`);
+      leadValues.push(leadSourceResult.rows[0].lead_source_id);
     }
     if (notes !== undefined) {
       leadFields.push(`notes = $${index++}`);
@@ -287,7 +293,7 @@ exports.updateLead = async (req, res) => {
     const leadQuery = `
       UPDATE leads
       SET ${leadFields.join(", ")}
-      WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false
+      WHERE lead_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false
       RETURNING slug_id, lead_id, builder_id, lead_contact_id, status, lead_source_id,
                 notes, message, decision, assignee_id, created_by_id,
                 updated_by_id, created_at, updated_at;
@@ -300,11 +306,13 @@ exports.updateLead = async (req, res) => {
       return errorResponse(res, 404, "Lead not found.");
     }
 
+    const latestLeadSource = await client.query(`SELECT name FROM lead_source WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`, [leadResult.rows[0].lead_source_id, builderId]);
+    
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(leadResult.rows[0]),
+      keysToCamelCase({ ...leadResult.rows[0], lead_source: latestLeadSource.rows[0].name }),
       "Lead updated successfully."
     );
   } catch (error) {

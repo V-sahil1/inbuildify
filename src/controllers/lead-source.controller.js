@@ -126,7 +126,7 @@ exports.updateLeadSource = async (req, res) => {
   try {
     const checkLeadSourceQuery = `
       SELECT * FROM lead_source 
-      WHERE lead_source_id = $1 AND builder_id = $2 AND is_deleted = false;
+      WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;
     `;
     const checkLeadSourceResult = await client.query(checkLeadSourceQuery, [
       lead_source_id,

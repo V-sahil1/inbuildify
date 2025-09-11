@@ -218,17 +218,63 @@ exports.getPackageItems = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
+    const { range, dwelling_type } = req.query;
+
+    let rangeId = null;
+    let dwellingTypeId = null;
+
+    if (range) {
+      const rangeRes = await client.query(
+        `SELECT range_id 
+         FROM range 
+         WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+        [range, builderId]
+      );
+      rangeId = rangeRes.rows[0]?.range_id;
+      if (!rangeId) {
+        return errorResponse(res, 400, "Invalid range provided.");
+      }
+    }
+
+    if (dwelling_type) {
+      const typeRes = await client.query(
+        `SELECT dwelling_type_id 
+         FROM dwelling_type 
+         WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+        [dwelling_type, builderId]
+      );
+      dwellingTypeId = typeRes.rows[0]?.dwelling_type_id;
+      if (!dwellingTypeId) {
+        return errorResponse(res, 400, "Invalid dwelling type provided.");
+      }
+    }
+
+    const conditions = [
+      `ci.builder_id = $1`,
+      `ci.status = 'ACTIVE'`,
+      `ci.package_only = TRUE`
+    ];
+
+    const params = [builderId];
+    let paramIndex = params.length + 1;
+
+    if (rangeId) {
+      conditions.push(`ci.range_id = $${paramIndex++}`);
+      params.push(rangeId);
+    }
+    if (dwellingTypeId) {
+      conditions.push(`ci.dwelling_type_id = $${paramIndex++}`);
+      params.push(dwellingTypeId);
+    }
 
     const query = `
-        SELECT ci.*
-        FROM category_items ci
-        WHERE ci.builder_id = $1
-          AND ci.status = 'ACTIVE'
-          AND ci.package_only = 'TRUE'
-        ORDER BY ci.sort_order ASC;
-      `;
+      SELECT ci.*
+      FROM category_items ci
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY ci.sort_order ASC;
+    `;
 
-    const result = await client.query(query, [builderId]);
+    const result = await client.query(query, params);
 
     return successResponse(
       res,

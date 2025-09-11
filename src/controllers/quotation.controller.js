@@ -177,8 +177,8 @@ exports.createQuotation = async (req, res) => {
     const slugId = generateCode(req.user.name, "quotation");
     const insertQuotationQuery = `
       INSERT INTO quotation (
-        slug_id, builder_id, lead_id, property_id, floor_plan_id, facade_id, package_id, range_id, dwelling_type_id, created_by_id, updated_by_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        slug_id, builder_id, lead_id, property_id, created_by_id, updated_by_id
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const quotationResult = await client.query(insertQuotationQuery, [
@@ -186,25 +186,25 @@ exports.createQuotation = async (req, res) => {
       builderId,
       leadId,
       propertyId,
-      floorPlanId,
-      facadeId,
-      packageId,
-      rangeId,
-      dwellingTypeId,
       userId,
       userId,
     ]);
     const quotation = quotationResult.rows[0];
 
     const insertVersionQuery = `
-      INSERT INTO quotation_versions (quotation_id, version_number, notes)
-      VALUES ($1, $2, $3)
+      INSERT INTO quotation_versions (quotation_id, version_number, notes, floor_plan_id, facade_id, package_id, range_id, dwelling_type_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const versionResult = await client.query(insertVersionQuery, [
       quotation.quotation_id,
       1,
       notes || null,
+      floorPlanId,
+      facadeId,
+      packageId,
+      rangeId,
+      dwellingTypeId,
     ]);
     const version = versionResult.rows[0];
 
@@ -356,9 +356,8 @@ exports.createQuotationVersion = async (req, res) => {
   const client = await pool.connect();
 
   const { quotation_id } = req.params;
-  const { notes, items } = req.body;
+  const { notes, items, range, dwellingType, floorPlanId, facadeId, packageId, } = req.body;
   const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
 
   try {
     await client.query("BEGIN");
@@ -372,6 +371,60 @@ exports.createQuotationVersion = async (req, res) => {
       return errorResponse(res, 404, "Quotation not found.");
     }
 
+    const rangeQuery = `
+      SELECT range_id FROM range 
+      WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;
+    `;
+    const rangeResult = await client.query(rangeQuery, [range, builderId]);
+    const rangeId = rangeResult.rows[0]?.range_id;
+    if (!rangeId) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Invalid range provided.");
+    }
+
+    const dwellingTypeQuery = `
+      SELECT dwelling_type_id FROM dwelling_type 
+      WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;
+    `;
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [
+      dwellingType,
+      builderId,
+    ]);
+    const dwellingTypeId = dwellingTypeResult.rows[0]?.dwelling_type_id;
+    if (!dwellingTypeId) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Invalid dwelling type provided.");
+    }
+
+    const validationQuery = `
+      SELECT 
+        (SELECT COUNT(*) FROM floor_plan WHERE floor_plan_id = $1 AND builder_id = $4 AND range_id = $5 AND dwelling_type_id = $6) as floor_plan_exists,
+        (SELECT COUNT(*) FROM facade WHERE facade_id = $2 AND builder_id = $4 AND dwelling_type_id = $6) as facade_exists,
+        (SELECT COUNT(*) FROM packages p LEFT JOIN category_items ci ON ci.category_item_id = ANY(p.category_item_ids) WHERE p.package_id = $3 AND p.builder_id = $4 AND ci.range_id = $5 AND ci.dwelling_type_id = $6 AND ci.status = 'ACTIVE') as package_exists;
+    `;
+    const validationResult = await client.query(validationQuery, [
+      floorPlanId,
+      facadeId,
+      packageId,
+      builderId,
+      rangeId,
+      dwellingTypeId,
+    ]);
+
+    const vRow = validationResult.rows[0];
+    if (parseInt(vRow.floor_plan_exists, 10) === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Floor plan does not exist, or it does not match the given range/dwelling type.");
+    }
+    if (parseInt(vRow.facade_exists, 10) === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Facade does not exist, or it does not match the given dwelling type.");
+    }
+    if (parseInt(vRow.package_exists, 10) === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE.");
+    }
+
     const versionRes = await client.query(
       `SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version
        FROM quotation_versions WHERE quotation_id = $1`,
@@ -380,14 +433,19 @@ exports.createQuotationVersion = async (req, res) => {
     const versionNumber = versionRes.rows[0].next_version;
 
     const insertVersion = `
-      INSERT INTO quotation_versions (quotation_id, version_number, notes)
-      VALUES ($1, $2, $3)
+      INSERT INTO quotation_versions (quotation_id, version_number, notes, floor_plan_id, facade_id, package_id, range_id, dwelling_type_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const newVersionRes = await client.query(insertVersion, [
       quotation_id,
       versionNumber,
       notes || null,
+      floorPlanId,
+      facadeId,
+      packageId,
+      rangeId,
+      dwellingTypeId,
     ]);
     const newVersion = newVersionRes.rows[0];
 
@@ -512,14 +570,15 @@ exports.getQuotationById = async (req, res) => {
           r.range_id, r.name as range_name,
           dt.dwelling_type_id, dt.name as dwelling_type_name
         FROM quotation q
+        JOIN quotation_versions qv ON q.quotation_id = qv.quotation_id
         JOIN builder b ON q.builder_id = b.builder_id
         JOIN leads l ON q.lead_id = l.lead_id LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
         JOIN property p ON q.property_id = p.property_id
-        JOIN floor_plan f ON q.floor_plan_id = f.floor_plan_id
-        JOIN facade fa ON q.facade_id = fa.facade_id
-        JOIN packages pk ON q.package_id = pk.package_id
-        JOIN range r ON q.range_id = r.range_id
-        JOIN dwelling_type dt ON q.dwelling_type_id = dt.dwelling_type_id
+        JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
+        JOIN facade fa ON qv.facade_id = fa.facade_id
+        JOIN packages pk ON qv.package_id = pk.package_id
+        JOIN range r ON qv.range_id = r.range_id
+        JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
         WHERE q.quotation_id = $1 AND q.builder_id = $2;
       `;
     // property, plan, facade, package
@@ -729,19 +788,20 @@ exports.getQuotations = async (req, res) => {
         l.lead_id, l.status as lead_status,
         p.property_id, p.address1 as property_address,
         f.floor_plan_id, f.name as floor_plan_name,
-        fa.facade_id, fa.name as facade_name,
+        fa.facade_id, fa.cost as facade_cost, fa.name as facade_name,
         pk.package_id, pk.name as package_name, pk.amount as package_amount,
         r.range_id, r.name as range_name,
         dt.dwelling_type_id, dt.name as dwelling_type_name
       FROM quotation q
+      JOIN quotation_versions qv ON q.quotation_id = qv.quotation_id
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id
       JOIN property p ON q.property_id = p.property_id
-      JOIN floor_plan f ON q.floor_plan_id = f.floor_plan_id
-      JOIN facade fa ON q.facade_id = fa.facade_id
-      JOIN packages pk ON q.package_id = pk.package_id
-      JOIN range r ON q.range_id = r.range_id
-      JOIN dwelling_type dt ON q.dwelling_type_id = dt.dwelling_type_id
+      JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
+      JOIN facade fa ON qv.facade_id = fa.facade_id
+      JOIN packages pk ON qv.package_id = pk.package_id
+      JOIN range r ON qv.range_id = r.range_id
+      JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
       WHERE q.builder_id = $1 AND q.lead_id = $2
       ORDER BY q.created_at DESC
       LIMIT $3 OFFSET $4;
@@ -762,6 +822,11 @@ exports.getQuotations = async (req, res) => {
           qv.quotation_id,
           qv.version_number,
           qv.notes,
+          qv.floor_plan_id,
+          qv.facade_id,
+          qv.package_id,
+          qv.range_id,
+          qv.dwelling_type_id,
           qv.created_at,
           qv.updated_at,
           COALESCE(SUM(qvi.category_item_cost), 0) as total_amount
@@ -781,6 +846,11 @@ exports.getQuotations = async (req, res) => {
           quotationVersionId: row.quotation_version_id,
           versionNumber: row.version_number,
           notes: row.notes,
+          floorPlanId: row.floor_plan_id,
+          facadeId: row.facade_id,
+          packageId: row.package_id,
+          rangeId: row.range_id,
+          dwellingTypeId: row.dwelling_type_id,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           totalAmount: Number(row.total_amount),
@@ -791,9 +861,8 @@ exports.getQuotations = async (req, res) => {
 
     const quotations = quotationsResult.rows.map((row) => {
       const versions = versionsByQuotation[row.quotation_id] || [];
-      const latestVersionTotal =
-        versions.length > 0 ? versions[versions.length - 1].totalAmount : 0;
-      const totalAmount = latestVersionTotal + Number(row.package_amount || 0);
+      const latestVersionTotal = versions.length > 0 ? versions[versions.length - 1].totalAmount : 0;
+      const totalAmount = latestVersionTotal + Number(row.package_amount || 0) + Number(row.facade_cost || 0);
 
       return {
         ...row,
