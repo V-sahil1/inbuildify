@@ -45,6 +45,14 @@ const createActionSchema = {
     date: Joi.date(),
     start_time: Joi.string(),
     end_time: Joi.string(),
+    location: Joi.string().max(200),
+    select_users: Joi.array().items(Joi.string().uuid()).messages({
+      "array.base": "Select users must be an array of UUIDs",
+      "array.min": "At least one select user is required",
+      "array.unique": "Select users must be unique",
+      "any.required": "Select users is required",
+    }).optional().allow(null),
+    notes: Joi.string().max(500),
   }),
 };
 

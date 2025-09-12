@@ -551,7 +551,8 @@ exports.getQuotationById = async (req, res) => {
           q.slug_id, q.quotation_id, q.created_at, q.updated_at,
           b.builder_id, b.name as builder_name,
           l.lead_id, l.status as lead_status,
-          lc.leads_contact_id as lead_contact_id, lc.name as lead_contact_name,
+          lc.leads_contact_id as lead_contact_id, lc.name as lead_contact_name, lc.email as lead_contact_email, lc.phone as lead_contact_phone,
+          lc.secondary_phone as lead_contact_secondary_phone, lc.address1 as lead_contact_address1, lc.address2 as lead_contact_address2, lc.city as lead_contact_city, lc.zip as lead_contact_zip,
           p.property_id, p.builder_id AS property_builder_id, p.address1 as property_address, p.address2 as property_address2, p.lead_id AS property_lead_id,
           p.country, p.state_region, p.city_suburb, p.zip_postal_code,
           p.estate_name, p.title_status, p.title_date, p.compaction_report, p.land_type,
@@ -672,6 +673,13 @@ exports.getQuotationById = async (req, res) => {
         leadContact: {
           leadContactId: row.leadContactId,
           name: row.leadContactName,
+          email: row.leadContactEmail,
+          phone: row.leadContactPhone,
+          secondaryPhone: row.leadContactSecondaryPhone,
+          address1: row.leadContactAddress1,
+          address2: row.leadContactAddress2,
+          city: row.leadContactCity,
+          zip: row.leadContactZip,
         },
       },
       property: {

@@ -18,6 +18,9 @@ exports.createAction = async (req, res) => {
     date,
     start_time,
     end_time,
+    location,
+    select_users,
+    notes,
   } = req.body;
 
   const pool = getPool();
@@ -90,19 +93,69 @@ exports.createAction = async (req, res) => {
     }
 
     if (type === "SMS") {
+      const recipients = Array.isArray(recipient) ? recipient : [recipient];
+
+      const contactCheckQuery = `
+        SELECT leads_contact_id, name
+        FROM leads_contact
+        WHERE leads_contact_id = ANY($1::uuid[])
+          AND lead_id = $2
+      `;
+      const contactCheckRes = await client.query(contactCheckQuery, [
+        recipients,
+        lead_id,
+      ]);
+
+      const foundIds = contactCheckRes.rows.map((r) => r.leads_contact_id);
+      const missing = recipients.filter((id) => !foundIds.includes(id));
+
+      if (missing.length > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          404,
+          `Recipients not found: ${missing.join(", ")}`
+        );
+      }
+
       const smsRes = await client.query(
         `INSERT INTO sms (action_id, recipient, message)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [action.action_id, recipient, message]
+         VALUES ($1, $2::uuid[], $3) RETURNING *`,
+        [action.action_id, recipients, message]
       );
-      details = smsRes.rows[0];
+      
+      details = {
+        smsId: smsRes.rows[0].sms_id,
+        actionId: smsRes.rows[0].action_id,
+        recipient: recipients.map((id) => {
+          const contact = contactCheckRes.rows.find((c) => c.leads_contact_id === id);
+          return {
+            id,
+            name: contact ? contact.name : null,
+          };
+        }),
+        message: smsRes.rows[0].message,
+        isDeleted: smsRes.rows[0].is_deleted,
+        createdAt: smsRes.rows[0].created_at,
+        updatedAt: smsRes.rows[0].updated_at,
+      };      
     }
 
     if (type === "APPOINTMENT") {
+      if (select_users && select_users.length > 0) {
+        const selectUsersRes = await client.query(
+          `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
+          [select_users, builderId]
+        );
+        if (selectUsersRes.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return errorResponse(res, 404, "Select users not found or not verified.");
+        }
+      }
       const appointmentRes = await client.query(
-        `INSERT INTO appointment (action_id, title, date, start_time, end_time)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [action.action_id, title, date, start_time, end_time]
+        `INSERT INTO appointment (action_id, title, date, start_time, end_time, location, select_users, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [action.action_id, title, date, start_time, end_time, location, select_users, notes]
       );
       details = appointmentRes.rows[0];
     }
@@ -110,10 +163,11 @@ exports.createAction = async (req, res) => {
     if (type === "TASK") {
       if (assignee) {
         const assigneeRes = await client.query(
-          `SELECT user_id FROM users WHERE user_id = $1 AND builder_id = $2 AND verified = true AND is_deleted = false`,
+          `SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
           [assignee, builderId]
         );
         if (assigneeRes.rowCount === 0) {
+          await client.query("ROLLBACK");
           return errorResponse(res, 404, "Assignee not found or not verified.");
         }
       }
