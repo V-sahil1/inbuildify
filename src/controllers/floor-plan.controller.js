@@ -49,21 +49,17 @@ exports.createFloorPlan = async (req, res) => {
       return errorResponse(res, 409, "Floor plan with this name already exists for this builder.");
     }
 
-    const rangeQuery = `
-      SELECT range_id, name FROM range 
-      WHERE name = $1 AND is_deleted = $2;
+    const rangeQuery = `SELECT range_id, name FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;
     `;
-    const rangeResult = await client.query(rangeQuery, [range, false]);
+    const rangeResult = await client.query(rangeQuery, [range, builderId, false]);
 
     if (rangeResult.rows.length === 0) {
       return errorResponse(res, 404, "Invalid range.");
     }
     
-    const dwellingTypeQuery = `
-      SELECT dwelling_type_id, name FROM dwelling_type 
-      WHERE name = $1 AND is_deleted = $2;
+    const dwellingTypeQuery = `SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;
     `;
-    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type, false]);
+    const dwellingTypeResult = await client.query(dwellingTypeQuery, [dwelling_type, builderId, false]);
 
     if (dwellingTypeResult.rows.length === 0) {
       return errorResponse(res, 404, "Invalid dwelling type.");

@@ -161,10 +161,10 @@ exports.createAction = async (req, res) => {
     }
 
     if (type === "TASK") {
-      if (assignee) {
+      if (task.assignee) {
         const assigneeRes = await client.query(
           `SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
-          [assignee, builderId]
+          [task.assignee, builderId]
         );
         if (assigneeRes.rowCount === 0) {
           await client.query("ROLLBACK");
