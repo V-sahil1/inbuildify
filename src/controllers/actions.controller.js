@@ -209,15 +209,15 @@ exports.getAction = async (req, res) => {
   const leadId = req.params.lead_id;
 
   try {
-    let actionQuery = `SELECT * FROM actions WHERE lead_id = $1 AND builder_id = $2`;
+    let actionQuery = `SELECT a.*, u1.name as created_by_name, u2.name as updated_by_name FROM actions a LEFT JOIN users u1 ON a.created_by_id = u1.users_id LEFT JOIN users u2 ON a.updated_by_id = u2.users_id WHERE a.lead_id = $1 AND a.builder_id = $2`;
     const queryParams = [leadId, builderId];
 
     if (filter !== "all") {
-      actionQuery += ` AND type = $3`;
+      actionQuery += ` AND a.type = $3`;
       queryParams.push(filter.toUpperCase());
     }
 
-    actionQuery += ` ORDER BY created_at DESC`;
+    actionQuery += ` ORDER BY a.created_at DESC`;
 
     const actionResult = await client.query(actionQuery, queryParams);
     if (actionResult.rows.length === 0) {
