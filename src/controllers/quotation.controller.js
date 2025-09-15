@@ -356,7 +356,15 @@ exports.createQuotationVersion = async (req, res) => {
   const client = await pool.connect();
 
   const { quotation_id } = req.params;
-  const { notes, items, range, dwellingType, floorPlanId, facadeId, packageId, } = req.body;
+  const {
+    notes,
+    items,
+    range,
+    dwellingType,
+    floorPlanId,
+    facadeId,
+    packageId,
+  } = req.body;
   const builderId = req.user.builder_id;
 
   try {
@@ -414,15 +422,27 @@ exports.createQuotationVersion = async (req, res) => {
     const vRow = validationResult.rows[0];
     if (parseInt(vRow.floor_plan_exists, 10) === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Floor plan does not exist, or it does not match the given range/dwelling type.");
+      return errorResponse(
+        res,
+        400,
+        "Floor plan does not exist, or it does not match the given range/dwelling type."
+      );
     }
     if (parseInt(vRow.facade_exists, 10) === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Facade does not exist, or it does not match the given dwelling type.");
+      return errorResponse(
+        res,
+        400,
+        "Facade does not exist, or it does not match the given dwelling type."
+      );
     }
     if (parseInt(vRow.package_exists, 10) === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE.");
+      return errorResponse(
+        res,
+        400,
+        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE."
+      );
     }
 
     const versionRes = await client.query(
@@ -538,6 +558,245 @@ exports.createQuotationVersion = async (req, res) => {
   }
 };
 
+exports.getQuotationVersionById = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  const { quotation_version_id } = req.params;
+  const builderId = req.user.builder_id;
+
+  try {
+    const query = `
+      SELECT 
+        q.slug_id, q.quotation_id, q.created_at, q.updated_at,
+
+        b.builder_id, b.name as builder_name,
+
+        l.lead_id, l.status as lead_status,
+
+        lc.leads_contact_id as leads_contact_id, lc.name as lead_contact_name, lc.email as lead_contact_email, lc.phone as lead_contact_phone,
+        lc.secondary_phone as lead_contact_secondary_phone, lc.address1 as lead_contact_address1, lc.address2 as lead_contact_address2,
+        lc.city as lead_contact_city, lc.zip as lead_contact_zip, co.name as lead_contact_country_name, s.name as lead_contact_state_name,
+
+        p.property_id, p.builder_id AS property_builder_id, p.address1 as property_address, p.address2 as property_address2, p.lead_id AS property_lead_id,
+        p.country, p.state_region, p.city_suburb, p.zip_postal_code,
+        p.estate_name, p.title_status, p.title_date, p.compaction_report, p.land_type,
+        p.width_m, p.depth_m, p.total_size_m2, p.site_fall_mm, p.land_fill_mm,
+        p.bush_fire, p.corner_block, p.created_at AS property_created_at, p.updated_at AS property_updated_at,
+
+        f.floor_plan_id, f.builder_id AS floor_plan_builder_id, f.name AS floor_plan_name,
+        f.image AS floor_plan_image, f.range_id, f.dwelling_type_id AS floor_plan_dwelling_type_id,
+        f.beds, f.bath, f.car_park, f.width_meter, f.depth_meter,
+        f.dwelling, f.garage, f.porch, f.alfresco, f.total_sqft, f.created_at AS floor_plan_created_at, f.updated_at AS floor_plan_updated_at,
+
+        fa.facade_id, fa.builder_id AS facade_builder_id, fa.name AS facade_name,
+        fa.image AS facade_image, fa.dwelling_type_id AS facade_dwelling_type_id,
+        fa.standard, fa.upgrade, fa.cost, fa.is_deleted AS facade_is_deleted,
+        fa.created_at AS facade_created_at, fa.updated_at AS facade_updated_at,
+
+        pk.package_id, pk.name AS package_name, pk.builder_id AS package_builder_id,
+        pk.category_item_ids, pk.amount as package_amount, pk.created_at AS package_created_at, pk.updated_at AS package_updated_at,
+
+        r.range_id, r.name as range_name,
+
+        dt.dwelling_type_id, dt.name as dwelling_type_name,
+
+        qv.quotation_version_id, qv.version_number, qv.notes as version_notes,
+        qv.created_at as version_created_at, qv.updated_at as version_updated_at
+
+      FROM quotation_versions qv
+      JOIN quotation q ON qv.quotation_id = q.quotation_id
+      JOIN builder b ON q.builder_id = b.builder_id
+      JOIN leads l ON q.lead_id = l.lead_id 
+      LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
+      LEFT JOIN country co ON lc.country_id = co.country_id
+      LEFT JOIN state s ON lc.state_id = s.state_id
+      JOIN property p ON q.property_id = p.property_id
+      JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
+      JOIN facade fa ON qv.facade_id = fa.facade_id
+      JOIN packages pk ON qv.package_id = pk.package_id
+      JOIN range r ON qv.range_id = r.range_id
+      JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+      WHERE qv.quotation_version_id = $1 AND q.builder_id = $2;
+    `;
+
+    const result = await client.query(query, [quotation_version_id, builderId]);
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, "Quotation version not found.");
+    }
+
+    const row = keysToCamelCase(result.rows[0]);
+
+    const itemsQuery = `
+      SELECT 
+        qvi.quotation_version_item_id, qvi.notes as item_notes,
+        qvi.category_id, qvi.caterogy_name, qvi.category_description,
+        qvi.category_item_id, qvi.category_item_description, qvi.category_item_short_description,
+        qvi.category_item_quantity,
+        qvi.category_item_cost_type, qvi.category_item_cost, qvi.category_item_cost_type_text,
+        qvi.category_item_cost_option, qvi.category_item_include_by_default,
+        qvi.category_item_show_in_hl_package, qvi.category_item_package_only,
+        qvi.category_item_uom, qvi.category_item_sort_order,
+        qvi.category_item_range_id, qvi.category_item_dwelling_type_id,
+        qvi.category_item_created_at, qvi.category_item_updated_at,
+        qvi.created_at as item_created_at, qvi.updated_at as item_updated_at
+      FROM quotation_version_items qvi
+      WHERE qvi.quotation_version_id = $1
+      ORDER BY qvi.created_at ASC;
+    `;
+    const itemsResult = await client.query(itemsQuery, [quotation_version_id]);
+
+    const items = itemsResult.rows.map((r) => keysToCamelCase({
+      quotationVersionItemId: r.quotation_version_item_id,
+      notes: r.item_notes,
+      categoryId: r.category_id,
+      caterogyName: r.caterogy_name,
+      categoryDescription: r.category_description,
+      categoryItemId: r.category_item_id,
+      categoryItemDescription: r.category_item_description,
+      categoryItemShortDescription: r.category_item_short_description,
+      categoryItemQuantity: r.category_item_quantity,
+      categoryItemCostType: r.category_item_cost_type,
+      categoryItemCost: r.category_item_cost,
+      categoryItemCostTypeText: r.category_item_cost_type_text,
+      categoryItemCostOption: r.category_item_cost_option,
+      categoryItemIncludeByDefault: r.category_item_include_by_default,
+      categoryItemShowInHlPackage: r.category_item_show_in_hl_package,
+      categoryItemPackageOnly: r.category_item_package_only,
+      categoryItemUom: r.category_item_uom,
+      categoryItemSortOrder: r.category_item_sort_order,
+      categoryItemRangeId: r.category_item_range_id,
+      categoryItemDwellingTypeId: r.category_item_dwelling_type_id,
+      categoryItemCreatedAt: r.category_item_created_at,
+      categoryItemUpdatedAt: r.category_item_updated_at,
+      createdAt: r.item_created_at,
+      updatedAt: r.item_updated_at,
+    }));
+
+    const responseData = {
+      slugId: row.slugId,
+      quotationId: row.quotationId,
+      quotationVersionId: row.quotationVersionId,
+      versionNumber: row.versionNumber,
+      versionNotes: row.versionNotes,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      versionCreatedAt: row.versionCreatedAt,
+      versionUpdatedAt: row.versionUpdatedAt,
+      builder: {
+        builderId: row.builderId,
+        name: row.builderName,
+      },
+      lead: {
+        leadId: row.leadId,
+        status: row.leadStatus,
+        leadContact: {
+          leadsContactId: row.leadsContactId,
+          name: row.leadContactName,
+          email: row.leadContactEmail,
+          phone: row.leadContactPhone,
+          secondaryPhone: row.leadContactSecondaryPhone,
+          address1: row.leadContactAddress1,
+          address2: row.leadContactAddress2,
+          city: row.leadContactCity,
+          zip: row.leadContactZip,
+          countryName: row.leadContactCountryName,
+          stateName: row.leadContactStateName,
+        },
+      },
+      property: {
+        propertyId: row.propertyId,
+        builderId: row.propertyBuilderId,
+        address1: row.propertyAddress,
+        address2: row.propertyAddress2,
+        leadId: row.propertyLeadId,
+        country: row.country,
+        stateRegion: row.stateRegion,
+        citySuburb: row.citySuburb,
+        zipPostalCode: row.zipPostalCode,
+        estateName: row.estateName,
+        titleStatus: row.titleStatus,
+        titleDate: row.titleDate,
+        compactionReport: row.compactionReport,
+        landType: row.landType,
+        widthM: row.widthM,
+        depthM: row.depthM,
+        totalSizeM2: row.totalSizeM2,
+        siteFallMm: row.siteFallMm,
+        landFillMm: row.landFillMm,
+        bushFire: row.bushFire,
+        cornerBlock: row.cornerBlock,
+        createdAt: row.propertyCreatedAt,
+        updatedAt: row.propertyUpdatedAt,
+      },
+      floorPlan: {
+        floorPlanId: row.floorPlanId,
+        builderId: row.floorPlanBuilderId,
+        name: row.floorPlanName,
+        image: row.floorPlanImage,
+        rangeId: row.rangeId,
+        dwellingTypeId: row.floorPlanDwellingTypeId,
+        beds: row.beds,
+        bath: row.bath,
+        carPark: row.carPark,
+        widthMeter: row.widthMeter,
+        depthMeter: row.depthMeter,
+        dwelling: row.dwelling,
+        garage: row.garage,
+        porch: row.porch,
+        alfresco: row.alfresco,
+        totalSqft: row.total_sqft,
+        createdAt: row.floorPlanCreatedAt,
+        updatedAt: row.floorPlanUpdatedAt,
+      },
+      facade: {
+        facadeId: row.facadeId,
+        builderId: row.facadeBuilderId,
+        name: row.facadeName,
+        image: row.facadeImage,
+        dwellingTypeId: row.facadeDwellingTypeId,
+        standard: row.standard,
+        upgrade: row.upgrade,
+        cost: row.cost,
+        isDeleted: row.facadeIsDeleted,
+        createdAt: row.facadeCreatedAt,
+        updatedAt: row.facadeUpdatedAt,
+      },
+      package: {
+        packageId: row.packageId,
+        name: row.packageName,
+        builderId: row.packageBuilderId,
+        amount: row.packageAmount,
+        packageAmount: row.packageAmount,
+        categoryItemIds: row.categoryItemIds,
+        createdAt: row.packageCreatedAt,
+        updatedAt: row.packageUpdatedAt,
+      },
+      range: {
+        rangeId: row.rangeId,
+        name: row.rangeName,
+      },
+      dwellingType: {
+        dwellingTypeId: row.dwellingTypeId,
+        name: row.dwellingTypeName,
+      },
+      items,
+    };
+
+    return successResponse(
+      res,
+      responseData,
+      "Quotation version fetched successfully."
+    );
+  } catch (error) {
+    console.error("Get quotation version error:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
 exports.getQuotationById = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -549,31 +808,45 @@ exports.getQuotationById = async (req, res) => {
     const query = `
         SELECT 
           q.slug_id, q.quotation_id, q.created_at, q.updated_at,
+
           b.builder_id, b.name as builder_name,
+
           l.lead_id, l.status as lead_status,
-          lc.leads_contact_id as lead_contact_id, lc.name as lead_contact_name, lc.email as lead_contact_email, lc.phone as lead_contact_phone,
-          lc.secondary_phone as lead_contact_secondary_phone, lc.address1 as lead_contact_address1, lc.address2 as lead_contact_address2, lc.city as lead_contact_city, lc.zip as lead_contact_zip,
+
+          lc.leads_contact_id as leads_contact_id, lc.name as lead_contact_name, lc.email as lead_contact_email, lc.phone as lead_contact_phone,
+          lc.secondary_phone as lead_contact_secondary_phone, lc.address1 as lead_contact_address1, lc.address2 as lead_contact_address2,
+          lc.city as lead_contact_city, lc.zip as lead_contact_zip, co.name as lead_contact_country_name, s.name as lead_contact_state_name,
+
           p.property_id, p.builder_id AS property_builder_id, p.address1 as property_address, p.address2 as property_address2, p.lead_id AS property_lead_id,
           p.country, p.state_region, p.city_suburb, p.zip_postal_code,
           p.estate_name, p.title_status, p.title_date, p.compaction_report, p.land_type,
           p.width_m, p.depth_m, p.total_size_m2, p.site_fall_mm, p.land_fill_mm,
           p.bush_fire, p.corner_block, p.created_at AS property_created_at, p.updated_at AS property_updated_at,
+
           f.floor_plan_id, f.builder_id AS floor_plan_builder_id, f.name AS floor_plan_name,
           f.image AS floor_plan_image, f.range_id, f.dwelling_type_id AS floor_plan_dwelling_type_id,
           f.beds, f.bath, f.car_park, f.width_meter, f.depth_meter,
           f.dwelling, f.garage, f.porch, f.alfresco, f.total_sqft, f.created_at AS floor_plan_created_at, f.updated_at AS floor_plan_updated_at,
+
           fa.facade_id, fa.builder_id AS facade_builder_id, fa.name AS facade_name,
           fa.image AS facade_image, fa.dwelling_type_id AS facade_dwelling_type_id,
           fa.standard, fa.upgrade, fa.cost, fa.is_deleted AS facade_is_deleted,
           fa.created_at AS facade_created_at, fa.updated_at AS facade_updated_at,
+
           pk.package_id, pk.name AS package_name, pk.builder_id AS package_builder_id,
           pk.category_item_ids, pk.amount as package_amount, pk.created_at AS package_created_at, pk.updated_at AS package_updated_at,
+
           r.range_id, r.name as range_name,
+
           dt.dwelling_type_id, dt.name as dwelling_type_name
+
         FROM quotation q
         JOIN quotation_versions qv ON q.quotation_id = qv.quotation_id
         JOIN builder b ON q.builder_id = b.builder_id
-        JOIN leads l ON q.lead_id = l.lead_id LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
+        JOIN leads l ON q.lead_id = l.lead_id 
+        LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
+        LEFT JOIN country co ON lc.country_id = co.country_id
+        LEFT JOIN state s ON lc.state_id = s.state_id
         JOIN property p ON q.property_id = p.property_id
         JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
         JOIN facade fa ON qv.facade_id = fa.facade_id
@@ -671,7 +944,7 @@ exports.getQuotationById = async (req, res) => {
         leadId: row.leadId,
         status: row.leadStatus,
         leadContact: {
-          leadContactId: row.leadContactId,
+          leadsContactId: row.leadsContactId,
           name: row.leadContactName,
           email: row.leadContactEmail,
           phone: row.leadContactPhone,
@@ -680,6 +953,8 @@ exports.getQuotationById = async (req, res) => {
           address2: row.leadContactAddress2,
           city: row.leadContactCity,
           zip: row.leadContactZip,
+          countryName: row.leadContactCountryName,
+          stateName: row.leadContactStateName,
         },
       },
       property: {
@@ -783,43 +1058,41 @@ exports.getQuotations = async (req, res) => {
   const client = await pool.connect();
 
   const builderId = req.user.builder_id;
-  const { page, limit, leadId } = req.query;
+  const { page = 1, limit = 25, leadId } = req.query;
 
   try {
     await client.query("BEGIN");
 
     const offset = (page - 1) * limit;
+
     const quotationsQuery = `
       SELECT 
-        q.slug_id, q.quotation_id, q.created_at, q.updated_at,
-        b.builder_id, b.name as builder_name,
-        l.lead_id, l.status as lead_status,
-        p.property_id, p.address1 as property_address,
-        f.floor_plan_id, f.name as floor_plan_name,
-        fa.facade_id, fa.cost as facade_cost, fa.name as facade_name,
-        pk.package_id, pk.name as package_name, pk.amount as package_amount,
-        r.range_id, r.name as range_name,
-        dt.dwelling_type_id, dt.name as dwelling_type_name
+        q.slug_id,
+        q.quotation_id,
+        q.created_at,
+        q.updated_at,
+        b.builder_id,
+        b.name as builder_name,
+        l.lead_id,
+        l.status as lead_status,
+        p.property_id,
+        p.address1 as property_address
       FROM quotation q
-      JOIN quotation_versions qv ON q.quotation_id = qv.quotation_id
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id
       JOIN property p ON q.property_id = p.property_id
-      JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
-      JOIN facade fa ON qv.facade_id = fa.facade_id
-      JOIN packages pk ON qv.package_id = pk.package_id
-      JOIN range r ON qv.range_id = r.range_id
-      JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
       WHERE q.builder_id = $1 AND q.lead_id = $2
       ORDER BY q.created_at DESC
       LIMIT $3 OFFSET $4;
     `;
+
     const quotationsResult = await client.query(quotationsQuery, [
       builderId,
       leadId,
       limit,
       offset,
     ]);
+
     const quotationIds = quotationsResult.rows.map((r) => r.quotation_id);
 
     let versionsByQuotation = {};
@@ -831,49 +1104,91 @@ exports.getQuotations = async (req, res) => {
           qv.version_number,
           qv.notes,
           qv.floor_plan_id,
-          qv.facade_id,
-          qv.package_id,
-          qv.range_id,
-          qv.dwelling_type_id,
+          f.name as floor_plan_name,
+          fa.facade_id,
+          fa.name as facade_name,
+          fa.cost as facade_cost,
+          pk.package_id,
+          pk.name as package_name,
+          pk.amount as package_amount,
+          r.range_id,
+          r.name as range_name,
+          dt.dwelling_type_id,
+          dt.name as dwelling_type_name,
           qv.created_at,
           qv.updated_at,
-          COALESCE(SUM(qvi.category_item_cost), 0) as total_amount
+          COALESCE(SUM(qvi.category_item_cost * COALESCE(qvi.category_item_quantity,1)), 0) as items_total
         FROM quotation_versions qv
         LEFT JOIN quotation_version_items qvi 
           ON qv.quotation_version_id = qvi.quotation_version_id
+        JOIN floor_plan f ON qv.floor_plan_id = f.floor_plan_id
+        JOIN facade fa ON qv.facade_id = fa.facade_id
+        JOIN packages pk ON qv.package_id = pk.package_id
+        JOIN range r ON qv.range_id = r.range_id
+        JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
         WHERE qv.quotation_id = ANY($1::uuid[])
-        GROUP BY qv.quotation_version_id
-        ORDER BY qv.version_number ASC;
+        GROUP BY 
+          qv.quotation_version_id, qv.quotation_id, qv.version_number, qv.notes,
+          qv.floor_plan_id, f.name,
+          fa.facade_id, fa.name, fa.cost,
+          pk.package_id, pk.name, pk.amount,
+          r.range_id, r.name,
+          dt.dwelling_type_id, dt.name,
+          qv.created_at, qv.updated_at
+        ORDER BY qv.version_number DESC;
       `;
 
       const versionsResult = await client.query(versionsQuery, [quotationIds]);
 
       versionsByQuotation = versionsResult.rows.reduce((acc, row) => {
         if (!acc[row.quotation_id]) acc[row.quotation_id] = [];
+
+        const totalAmount =
+          Number(row.items_total || 0) +
+          Number(row.package_amount || 0) +
+          Number(row.facade_cost || 0);
+
         acc[row.quotation_id].push({
           quotationVersionId: row.quotation_version_id,
           versionNumber: row.version_number,
           notes: row.notes,
           floorPlanId: row.floor_plan_id,
+          floorPlanName: row.floor_plan_name,
           facadeId: row.facade_id,
+          facadeName: row.facade_name,
+          facadeCost: Number(row.facade_cost || 0),
           packageId: row.package_id,
+          packageName: row.package_name,
+          packageAmount: Number(row.package_amount || 0),
           rangeId: row.range_id,
+          rangeName: row.range_name,
           dwellingTypeId: row.dwelling_type_id,
+          dwellingTypeName: row.dwelling_type_name,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-          totalAmount: Number(row.total_amount),
+          totalAmount,
         });
+
         return acc;
       }, {});
     }
 
     const quotations = quotationsResult.rows.map((row) => {
       const versions = versionsByQuotation[row.quotation_id] || [];
-      const latestVersionTotal = versions.length > 0 ? versions[versions.length - 1].totalAmount : 0;
-      const totalAmount = latestVersionTotal + Number(row.package_amount || 0) + Number(row.facade_cost || 0);
+      const latestVersion = versions.length > 0 ? versions[0] : null;
+      const totalAmount = latestVersion ? latestVersion.totalAmount : 0;
 
       return {
-        ...row,
+        slugId: row.slug_id,
+        quotationId: row.quotation_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        builderId: row.builder_id,
+        builderName: row.builder_name,
+        leadId: row.lead_id,
+        leadStatus: row.lead_status,
+        propertyId: row.property_id,
+        propertyAddress: row.property_address,
         totalAmount,
         versions,
       };
@@ -882,16 +1197,20 @@ exports.getQuotations = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) as count
       FROM quotation
-      WHERE builder_id = $1 AND lead_id = $2;
+      WHERE builder_id = $1 AND lead_id = $2 AND is_deleted = $3;
     `;
-    const countResult = await client.query(countQuery, [builderId, leadId]);
-    const count = countResult.rows[0].count;
+    const countResult = await client.query(countQuery, [
+      builderId,
+      leadId,
+      false,
+    ]);
+    const count = parseInt(countResult.rows[0].count);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase({ count, quotations }),
+      { count, quotations },
       "Quotations fetched successfully."
     );
   } catch (error) {

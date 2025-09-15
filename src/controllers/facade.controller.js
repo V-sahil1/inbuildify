@@ -96,7 +96,7 @@ exports.getFacades = async (req, res) => {
   try {
     let dwellingTypeId = null;
 
-    if (dwelling_type && dwelling_type !== 'all') {
+    if (dwelling_type) {
       const dtResult = await client.query(
         'SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3',
         [dwelling_type, builderId, false]
@@ -125,16 +125,13 @@ exports.getFacades = async (req, res) => {
       paramIndex++;
     }
 
-    if (standard && standard !== 'all') {
-      baseQuery += ` AND f.standard = $${paramIndex}`;
-      queryParams.push(standard === 'true');
-      paramIndex++;
-    }
+    const std = standard === "true";
+    const upg = upgrade === "true";
 
-    if (upgrade && upgrade !== 'all') {
-      baseQuery += ` AND f.upgrade = $${paramIndex}`;
-      queryParams.push(upgrade === 'true');
-      paramIndex++;
+    if (!(standard === "false" && upgrade === "false")) {
+      baseQuery += ` AND f.standard = $${paramIndex} AND f.upgrade = $${paramIndex + 1}`;
+      queryParams.push(std, upg);
+      paramIndex += 2;
     }
 
     const offset = (page - 1) * limit;
@@ -157,15 +154,9 @@ exports.getFacades = async (req, res) => {
       countParamIndex++;
     }
 
-    if (standard && standard !== 'all') {
-      countQuery += ` AND f.standard = $${countParamIndex}`;
-      countParams.push(standard === 'true');
-      countParamIndex++;
-    }
-
-    if (upgrade && upgrade !== 'all') {
-      countQuery += ` AND f.upgrade = $${countParamIndex}`;
-      countParams.push(upgrade === 'true');
+    if (!(standard === "false" && upgrade === "false")) {
+      countQuery += ` AND f.standard = $${countParamIndex} AND f.upgrade = $${countParamIndex + 1}`;
+      countParams.push(std, upg);
     }
 
     const countResult = await client.query(countQuery, countParams);

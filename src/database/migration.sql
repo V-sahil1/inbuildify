@@ -140,3 +140,13 @@ DROP COLUMN facade_id,
 DROP COLUMN package_id,
 DROP COLUMN range_id,
 DROP COLUMN dwelling_type_id;
+
+ALTER TABLE packages 
+ADD COLUMN range_id UUID,
+ADD COLUMN dwelling_type_id UUID;
+
+ALTER TABLE packages 
+ADD CONSTRAINT fk_packages_range 
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
+ADD CONSTRAINT fk_packages_dwelling_type 
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE;

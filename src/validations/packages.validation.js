@@ -21,6 +21,14 @@ const createPackageSchema = Joi.object({
     "number.base": "Amount must be a number",
     "number.min": "Amount must be greater than or equal to 0",
   }),
+  range: Joi.string().required().messages({
+    "string.base": "Range must be a string",
+    "any.required": "Range is required",
+  }),
+  dwelling: Joi.string().required().messages({
+    "string.base": "Dwelling type must be a string",
+    "any.required": "Dwelling type is required",
+  }),
 });
 
 const getPackageByIdSchema = Joi.object({
@@ -46,6 +54,12 @@ const updatePackageSchema = Joi.object({
   amount: Joi.number().precision(2).min(0).messages({
     "number.base": "Amount must be a number",
     "number.min": "Amount must be greater than or equal to 0",
+  }),
+  range: Joi.string().messages({
+    "string.base": "Range must be a string",
+  }),
+  dwelling: Joi.string().messages({
+    "string.base": "Dwelling type must be a string",
   }),
 }).min(1).messages({
   "object.min": "At least one field (name, categoryItemIds, amount) must be provided",

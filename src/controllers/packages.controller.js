@@ -7,7 +7,13 @@ exports.createPackage = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { name, categoryItemIds: category_item_ids, amount } = req.body;
+    const {
+      name,
+      categoryItemIds: category_item_ids,
+      amount,
+      range,
+      dwelling,
+    } = req.body;
     const builderId = req.user.builder_id;
 
     const checkQuery = `
@@ -40,9 +46,29 @@ exports.createPackage = async (req, res) => {
       );
     }
 
+    const rangeCheck = await client.query(
+      `SELECT range_id, name FROM range WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+      [range, builderId]
+    );
+    if (rangeCheck.rowCount === 0) {
+      return errorResponse(res, 400, `Range '${range}' does not exist`);
+    }
+
+    const dwellingCheck = await client.query(
+      `SELECT dwelling_type_id, name FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false`,
+      [dwelling, builderId]
+    );
+    if (dwellingCheck.rowCount === 0) {
+      return errorResponse(
+        res,
+        400,
+        `Dwelling type '${dwelling}' does not exist`
+      );
+    }
+
     const insertQuery = `
-      INSERT INTO packages (name, builder_id, category_item_ids, amount)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO packages (name, builder_id, category_item_ids, amount, range_id, dwelling_type_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const result = await client.query(insertQuery, [
@@ -50,16 +76,20 @@ exports.createPackage = async (req, res) => {
       builderId,
       category_item_ids,
       amount,
+      rangeCheck.rows[0].range_id,
+      dwellingCheck.rows[0].dwelling_type_id,
     ]);
+
+    const finalResult = {
+      ...result.rows[0],
+      range: rangeCheck.rows[0].name,
+      dwelling: dwellingCheck.rows[0].name,
+      category_item_descriptions: checkResult.rows.map((row) => row.description),
+    };
 
     return successResponse(
       res,
-      keysToCamelCase({
-        ...result.rows[0],
-        category_item_descriptions: checkResult.rows.map(
-          (row) => row.description
-        ),
-      }),
+      keysToCamelCase(finalResult),
       "Package created successfully."
     );
   } catch (err) {
@@ -80,13 +110,17 @@ exports.getPackageById = async (req, res) => {
 
     const query = `
       SELECT p.*, 
+             r.name AS range_name,
+             dt.name AS dwelling_type_name,
              ARRAY_AGG(ci.description) AS category_item_descriptions,
              ARRAY_AGG(ci.short_description) AS category_item_short_desc
       FROM packages p
       LEFT JOIN category_items ci 
         ON ci.category_item_id = ANY(p.category_item_ids)
+      LEFT JOIN range r ON p.range_id = r.range_id
+      LEFT JOIN dwelling_type dt ON p.dwelling_type_id = dt.dwelling_type_id
       WHERE p.package_id = $1 AND p.builder_id = $2
-      GROUP BY p.package_id;
+      GROUP BY p.package_id, r.name, dt.name;
     `;
 
     const result = await client.query(query, [package_id, builderId]);
@@ -146,10 +180,16 @@ exports.getAllPackages = async (req, res) => {
   try {
     let query = `
       SELECT p.*, 
+             r.name AS range_name,
+             dt.name AS dwelling_name,
              ARRAY_AGG(ci.description) AS category_item_descriptions
       FROM packages p
       LEFT JOIN category_items ci 
         ON ci.category_item_id = ANY(p.category_item_ids)
+      LEFT JOIN range r 
+        ON p.range_id = r.range_id
+      LEFT JOIN dwelling_type dt 
+        ON p.dwelling_type_id = dt.dwelling_type_id
       WHERE p.builder_id = $1
     `;
 
@@ -157,19 +197,19 @@ exports.getAllPackages = async (req, res) => {
     let paramIndex = 2;
 
     if (rangeId) {
-      query += ` AND ci.range_id = $${paramIndex}`;
+      query += ` AND p.range_id = $${paramIndex}`;
       values.push(rangeId);
       paramIndex++;
     }
 
     if (dwellingTypeId) {
-      query += ` AND ci.dwelling_type_id = $${paramIndex}`;
+      query += ` AND p.dwelling_type_id = $${paramIndex}`;
       values.push(dwellingTypeId);
       paramIndex++;
     }
 
     query += `
-      GROUP BY p.package_id
+      GROUP BY p.package_id, r.name, dt.name
       ORDER BY p.created_at DESC;
     `;
 
@@ -185,7 +225,12 @@ exports.getAllPackages = async (req, res) => {
         const desc = descriptions[i];
         const id = ids[i];
 
-        if (id !== null && id !== undefined && desc !== null && desc !== undefined) {
+        if (
+          id !== null &&
+          id !== undefined &&
+          desc !== null &&
+          desc !== undefined
+        ) {
           validPairs.push({ id, desc });
         }
       }
@@ -196,6 +241,8 @@ exports.getAllPackages = async (req, res) => {
         ...row,
         category_item_descriptions: validDescriptions,
         category_item_ids: validIds,
+        range: row.range_name || null,
+        dwelling: row.dwelling_name || null,
       };
     });
 
@@ -252,7 +299,7 @@ exports.getPackageItems = async (req, res) => {
     const conditions = [
       `ci.builder_id = $1`,
       `ci.status = 'ACTIVE'`,
-      `ci.package_only = TRUE`
+      `ci.package_only = TRUE`,
     ];
 
     const params = [builderId];
@@ -295,7 +342,13 @@ exports.updatePackage = async (req, res) => {
 
   try {
     const { package_id } = req.params;
-    const { name, categoryItemIds: category_item_ids, amount } = req.body;
+    const {
+      name,
+      categoryItemIds: category_item_ids,
+      amount,
+      range,
+      dwelling,
+    } = req.body;
     const builderId = req.user.builder_id;
 
     const packageCheck = await client.query(
@@ -343,13 +396,58 @@ exports.updatePackage = async (req, res) => {
       }
     }
 
+    let rangeId = null;
+    let rangeName = null;
+    if (range) {
+      const rangeQuery = `
+        SELECT range_id, name
+        FROM range
+        WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL)
+        LIMIT 1;
+      `;
+      const rangeResult = await client.query(rangeQuery, [range, builderId]);
+      if (rangeResult.rowCount > 0) {
+        rangeId = rangeResult.rows[0].range_id;
+        rangeName = rangeResult.rows[0].name;
+      } else {
+        return errorResponse(res, 400, `Range '${range}' does not exist`);
+      }
+    }
+
+    let dwellingId = null;
+    let dwellingName = null;
+    if (dwelling) {
+      const dwellingQuery = `
+        SELECT dwelling_type_id, name
+        FROM dwelling_type
+        WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL)
+        LIMIT 1;
+      `;
+      const dwellingResult = await client.query(dwellingQuery, [
+        dwelling,
+        builderId,
+      ]);
+      if (dwellingResult.rowCount > 0) {
+        dwellingId = dwellingResult.rows[0].dwelling_type_id;
+        dwellingName = dwellingResult.rows[0].name;
+      } else {
+        return errorResponse(
+          res,
+          400,
+          `Dwelling type '${dwelling}' does not exist`
+        );
+      }
+    }
+
     const updateQuery = `
       UPDATE packages
       SET name = COALESCE($1, name),
           category_item_ids = COALESCE($2, category_item_ids),
           amount = COALESCE($3, amount),
+          range_id = COALESCE($4, range_id),
+          dwelling_type_id = COALESCE($5, dwelling_type_id),
           updated_at = NOW()
-      WHERE package_id = $4 AND builder_id = $5
+      WHERE package_id = $6 AND builder_id = $7
       RETURNING *;
     `;
 
@@ -357,27 +455,70 @@ exports.updatePackage = async (req, res) => {
       name || null,
       category_item_ids || null,
       amount || null,
+      rangeId || null,
+      dwellingId || null,
       package_id,
       builderId,
     ]);
 
-    const categoryItemsQuery = `
-      SELECT description
-      FROM category_items
-      WHERE category_item_id = ANY($1::uuid[])
-    `;
+    const updatedPackage = result.rows[0];
 
-    const categoryItemsResult = await client.query(categoryItemsQuery, [
-      category_item_ids,
-    ]);
+    let categoryItemIds = [];
+    let categoryDescriptions = [];
+
+    if (
+      updatedPackage.category_item_ids &&
+      updatedPackage.category_item_ids.length > 0
+    ) {
+      const categoryItemsQuery = `
+        SELECT category_item_id, description
+        FROM category_items
+        WHERE category_item_id = ANY($1::uuid[])
+      `;
+      const categoryItemsResult = await client.query(categoryItemsQuery, [
+        updatedPackage.category_item_ids,
+      ]);
+      categoryItemIds = categoryItemsResult.rows.map(
+        (row) => row.category_item_id
+      );
+      categoryDescriptions = categoryItemsResult.rows.map(
+        (row) => row.description
+      );
+    }
+
+    if (!rangeName && updatedPackage.range_id) {
+      const rangeQuery = `SELECT range_id, name FROM range WHERE range_id = $1`;
+      const rangeResult = await client.query(rangeQuery, [
+        updatedPackage.range_id,
+      ]);
+      rangeId = rangeResult.rows.length > 0 ? rangeResult.rows[0].range_id : null;
+      rangeName = rangeResult.rows.length > 0 ? rangeResult.rows[0].name : null;
+    }
+
+    if (!dwellingName && updatedPackage.dwelling_type_id) {
+      const dwellingQuery = `SELECT dwelling_type_id, name FROM dwelling_type WHERE dwelling_type_id = $1`;
+      const dwellingResult = await client.query(dwellingQuery, [
+        updatedPackage.dwelling_type_id,
+      ]);
+      dwellingId = dwellingResult.rows.length > 0 ? dwellingResult.rows[0].dwelling_type_id : null;
+      dwellingName =
+        dwellingResult.rows.length > 0 ? dwellingResult.rows[0].name : null;
+    }
 
     return successResponse(
       res,
       keysToCamelCase({
-        ...result.rows[0],
-        category_item_descriptions: categoryItemsResult.rows.map(
-          (row) => row.description
-        ),
+        packageId: updatedPackage.package_id,
+        name: updatedPackage.name,
+        categoryItemIds,
+        categoryItemDescriptions: categoryDescriptions,
+        amount: updatedPackage.amount,
+        rangeId,
+        dwellingId,
+        range: rangeName,
+        dwelling: dwellingName,
+        createdAt: updatedPackage.created_at,
+        updatedAt: updatedPackage.updated_at,
       }),
       "Package updated successfully."
     );

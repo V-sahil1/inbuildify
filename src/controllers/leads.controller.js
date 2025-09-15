@@ -172,13 +172,22 @@ exports.getLeadById = async (req, res) => {
         l.notes,
         l.decision,
         l.assignee_id,
+        assignee.name AS assignee_name,
         l.created_by_id,
+        created_by.name AS created_by_name,
         l.updated_by_id,
+        updated_by.name AS updated_by_name,
         l.created_at,
         l.updated_at
       FROM leads l
       LEFT JOIN lead_source ls
         ON l.lead_source_id = ls.lead_source_id
+      LEFT JOIN users assignee
+        ON l.assignee_id = assignee.users_id
+      LEFT JOIN users created_by
+        ON l.created_by_id = created_by.users_id
+      LEFT JOIN users updated_by
+        ON l.updated_by_id = updated_by.users_id
       WHERE l.lead_id = $1 AND l.builder_id = $2 AND l.is_deleted = false;
     `;
     const leadResult = await client.query(leadQuery, [lead_id, builderId]);
@@ -308,11 +317,34 @@ exports.updateLead = async (req, res) => {
 
     const latestLeadSource = await client.query(`SELECT name FROM lead_source WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`, [leadResult.rows[0].lead_source_id, builderId]);
     
+    const usersQuery = `
+      SELECT u.users_id, u.name
+      FROM users u
+      WHERE u.users_id = ANY($1::uuid[])
+    `;
+    const userIds = [
+      leadResult.rows[0].assignee_id,
+      leadResult.rows[0].created_by_id,
+      leadResult.rows[0].updated_by_id,
+    ].filter(Boolean);
+
+    const usersResult = await client.query(usersQuery, [userIds]);
+    const usersMap = usersResult.rows.reduce((acc, row) => {
+      acc[row.users_id] = row.name;
+      return acc;
+    }, {});
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase({ ...leadResult.rows[0], lead_source: latestLeadSource.rows[0].name }),
+      keysToCamelCase({
+        ...leadResult.rows[0],
+        assignee_name: usersMap[leadResult.rows[0].assignee_id] || null,
+        created_by_name: usersMap[leadResult.rows[0].created_by_id] || null,
+        updated_by_name: usersMap[leadResult.rows[0].updated_by_id] || null,
+        lead_source: latestLeadSource.rows[0].name,
+      }),
       "Lead updated successfully."
     );
   } catch (error) {

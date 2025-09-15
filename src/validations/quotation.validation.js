@@ -135,6 +135,13 @@ const getQuotationSchema = Joi.object({
   }),
 });
 
+const getQuotationVersionSchema = Joi.object({
+  quotation_version_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation Version ID must be a valid UUID",
+    "any.required": "Quotation Version ID is required",
+  }),
+});
+
 const getQuotationsSchema = Joi.object({
   leadId: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
@@ -155,6 +162,7 @@ const getQuotationsSchema = Joi.object({
 module.exports = {
   createQuotationSchema,
   getQuotationSchema,
+  getQuotationVersionSchema,
   getQuotationsSchema,
   createQuotationVersionSchema,
 };

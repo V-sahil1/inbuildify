@@ -305,9 +305,13 @@ CREATE TABLE packages (
   builder_id UUID NOT NULL,
   category_item_ids UUID[] NOT NULL,
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  range_id UUID,
+  dwelling_type_id UUID,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE SET NULL,
+  FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL
 );
 
 CREATE TYPE property_title_status AS ENUM ('ESTIMATED', 'ACTUAL');

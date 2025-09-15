@@ -191,7 +191,7 @@ exports.createAction = async (req, res) => {
 
     await client.query("COMMIT");
 
-    return successResponse(res, keysToCamelCase({ ...action, details, sendToCustomer, createFollowUpTask }), "Action created successfully.");
+    return successResponse(res, keysToCamelCase({ ...action, [type]: keysToCamelCase(details), sendToCustomer, createFollowUpTask }), "Action created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create action error:", error);

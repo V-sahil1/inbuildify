@@ -43,8 +43,8 @@ const limitRule = Joi.number().integer().min(1).max(100).default(10).messages({
   'number.max': 'Limit must not exceed 100'
 });
 
-const booleanFilterRule = Joi.string().valid('true', 'false', 'all').messages({
-  'any.only': 'Boolean filter must be one of: true, false, all'
+const booleanFilterRule = Joi.string().valid('true', 'false').messages({
+  'any.only': 'Boolean filter must be one of: true, false'
 });
 
 // Create facade validation
