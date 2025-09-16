@@ -199,6 +199,14 @@ exports.createAction = async (req, res) => {
       [action.updated_by_id]
     );
 
+    const tagNamesRes = await client.query(
+      `SELECT t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false`,
+      [tagIds, builderId]
+    );
+
+    const tagNames = tagNamesRes.rows.map((r) => r.name);
+    details.tagNames = tagNames;
+
     await client.query("COMMIT");
 
     return successResponse(res, keysToCamelCase({ ...action, created_by_name: createByIdRes.rows[0].name, updated_by_name: updatedByIdRes.rows[0].name, [type?.toLowerCase()]: keysToCamelCase(details), sendToCustomer, createFollowUpTask }), "Action created successfully.");
