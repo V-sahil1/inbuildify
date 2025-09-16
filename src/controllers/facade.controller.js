@@ -258,44 +258,58 @@ exports.updateFacade = async (req, res) => {
 
     const setClauses = [];
     const values = [];
-    let idx = 1;
 
-    for (const [key, value] of Object.entries(updates)) {
-      if (["image", "dwelling_type"].includes(key)) {
-        continue;
+    for (const [key, rawValue] of Object.entries(updates)) {
+      if (["image", "dwelling_type"].includes(key)) continue;
+
+      let value = rawValue;
+      if (typeof value === "string") {
+        const lv = value.trim().toLowerCase();
+        if (lv === "true" || lv === "false") value = lv === "true";
       }
-      setClauses.push(`${key} = $${idx}`);
+
+      setClauses.push(`${key} = $${values.length + 1}`);
       values.push(value);
-      idx++;
     }
 
-    values.push(facade_id, builderId);
-
     if (updates.dwelling_type) {
-      const dwellingTypeQuery = `SELECT dwelling_type_id FROM dwelling_type WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;`;
-      const dwellingTypeResult = await client.query(dwellingTypeQuery, [updates.dwelling_type, builderId, false]);
+      const dwellingTypeQuery = `
+        SELECT dwelling_type_id 
+        FROM dwelling_type 
+        WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = $3;
+      `;
+      const dwellingTypeResult = await client.query(dwellingTypeQuery, [
+        updates.dwelling_type,
+        builderId,
+        false,
+      ]);
 
       if (dwellingTypeResult.rows.length === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 404, "Invalid dwelling type.");
       }
 
-      setClauses.push(`dwelling_type_id = $${idx}`);
+      setClauses.push(`dwelling_type_id = $${values.length + 1}`);
       values.push(dwellingTypeResult.rows[0].dwelling_type_id);
-      idx++;
     }
+
+    if (setClauses.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "No updatable fields provided.");
+    }
+
+    const facadePlaceholderIndex = values.length + 1;
+    const builderPlaceholderIndex = values.length + 2;
+    values.push(facade_id, builderId);
 
     const updateQuery = `
       UPDATE facade 
       SET ${setClauses.join(", ")}, updated_at = NOW()
-      WHERE facade_id = $${idx} AND builder_id = $${idx + 1}
+      WHERE facade_id = $${facadePlaceholderIndex} AND builder_id = $${builderPlaceholderIndex}
       RETURNING *;
     `;
 
-    console.log("🚀 ~ facade.controller.js:297 ~ updateQuery:", updateQuery);
-    console.log("🚀 ~ facade.controller.js:298 ~ values:", values);
     const updateResult = await client.query(updateQuery, values);
-    console.log("🚀 ~ facade.controller.js:298 ~ updateResult:", updateResult.rowCount);
 
     if (updateResult.rowCount === 0) {
       await client.query("ROLLBACK");
