@@ -75,7 +75,7 @@ CREATE TABLE service (
 CREATE TABLE contractor (
   contractor_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(100) NOT NULL,
   builder_id UUID NOT NULL,
   phone VARCHAR(15),
   address TEXT,

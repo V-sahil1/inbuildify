@@ -14,6 +14,7 @@ exports.createContractor = async (req, res) => {
   try {
     const builderQuery = `SELECT  * FROM builder WHERE builder_id = $1;`;
     const builderResult = await client.query(builderQuery, [builderId]);
+    console.log("🚀 ~ contractor.controller.js:17 ~ builderResult:", builderResult);
 
     if (builderResult.rows.length === 0) {
       return errorResponse(res, 404, "Builder not found with the provided ID.");

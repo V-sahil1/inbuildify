@@ -150,3 +150,5 @@ ADD CONSTRAINT fk_packages_range
   FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
 ADD CONSTRAINT fk_packages_dwelling_type 
   FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE;
+
+ALTER TABLE contractor DROP CONSTRAINT contractor_email_key;

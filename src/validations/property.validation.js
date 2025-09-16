@@ -2,7 +2,7 @@ const Joi = require("joi");
 
 const createPropertySchema = Joi.object({
   lead_id: Joi.string().uuid().required(),
-  country: Joi.string().valid("Australia").required(),
+  country: Joi.string().valid("australia").required(),
   address1: Joi.string().required(),
   address2: Joi.string().allow("", null),
   city_suburb: Joi.string().required(),

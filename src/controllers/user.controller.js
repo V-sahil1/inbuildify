@@ -176,9 +176,10 @@ exports.inviteUser = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const existingUserQuery = `SELECT * FROM users WHERE email = $1 AND is_deleted = $2`;
+    const existingUserQuery = `SELECT * FROM users WHERE email = $1 AND builder_id = $2 AND is_deleted = $3`;
     const existingUserResult = await client.query(existingUserQuery, [
       email,
+      user?.builder_id,
       false,
     ]);
 
