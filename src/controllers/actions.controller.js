@@ -200,12 +200,14 @@ exports.createAction = async (req, res) => {
     );
 
     const tagNamesRes = await client.query(
-      `SELECT t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false`,
+      `SELECT t.tag_id, t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false`,
       [tagIds, builderId]
     );
 
-    const tagNames = tagNamesRes.rows.map((r) => r.name);
-    details.tagNames = tagNames;
+    details.tags = tagNamesRes.rows.map((r) => ({
+      tagId: r.tag_id,
+      name: r.name,
+    }));    
 
     await client.query("COMMIT");
 
