@@ -232,7 +232,6 @@ exports.updateFacade = async (req, res) => {
       WHERE f.facade_id = $1 AND f.builder_id = $2 AND f.is_deleted = $3;
     `;
     const checkFacadeResult = await client.query(checkFacadeQuery, [facade_id, builderId, false]);
-    console.log("🚀 ~ facade.controller.js:235 ~ checkFacadeResult:", checkFacadeResult);
 
     if (checkFacadeResult.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -293,7 +292,10 @@ exports.updateFacade = async (req, res) => {
       RETURNING *;
     `;
 
+    console.log("🚀 ~ facade.controller.js:297 ~ updateQuery:", updateQuery);
+    console.log("🚀 ~ facade.controller.js:298 ~ values:", values);
     const updateResult = await client.query(updateQuery, values);
+    console.log("🚀 ~ facade.controller.js:298 ~ updateResult:", updateResult.rowCount);
 
     if (updateResult.rowCount === 0) {
       await client.query("ROLLBACK");
