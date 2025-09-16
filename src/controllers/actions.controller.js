@@ -189,9 +189,19 @@ exports.createAction = async (req, res) => {
       details = taskRes.rows[0];
     }
 
+    const createByIdRes = await client.query(
+      `SELECT name FROM users WHERE users_id = $1`,
+      [action.created_by_id]
+    );
+
+    const updatedByIdRes = await client.query(
+      `SELECT name FROM users WHERE users_id = $1`,
+      [action.updated_by_id]
+    );
+
     await client.query("COMMIT");
 
-    return successResponse(res, keysToCamelCase({ ...action, [type?.toLowerCase()]: keysToCamelCase(details), sendToCustomer, createFollowUpTask }), "Action created successfully.");
+    return successResponse(res, keysToCamelCase({ ...action, created_by_name: createByIdRes.rows[0].name, updated_by_name: updatedByIdRes.rows[0].name, [type?.toLowerCase()]: keysToCamelCase(details), sendToCustomer, createFollowUpTask }), "Action created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create action error:", error);
