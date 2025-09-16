@@ -332,11 +332,14 @@ exports.updateFacade = async (req, res) => {
       updatedImage = oldImges.rows[0].image;
     }
 
+    const updatedDwellingType = await client.query(`SELECT name FROM dwelling_type where dwelling_type_id = $1 AND is_deleted = $2;`, [updateResult.rows[0].dwelling_type_id, false]);
+
     await client.query("COMMIT");
 
     const finalUpdatedData = {
       ...updateResult.rows[0],
-      image: updatedImage
+      dwelling_type_name: updatedDwellingType.rows[0].name,
+      image: updatedImage,
     };
 
     return successResponse(
