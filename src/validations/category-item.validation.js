@@ -35,7 +35,12 @@ const createCategoryItemSchema = Joi.object({
   cost_type: Joi.string()
     .valid(...costTypes)
     .required(),
-  cost: Joi.number().precision(2).optional().allow(null),
+  cost: Joi.number().precision(2).optional().allow(null).greater(0).less(1000000).messages({
+    "number.base": "cost must be a valid number",
+    "number.unsafe": "cost value is too large, please provide a valid 0 to 1000000 number",
+    "number.greater": "cost must be greater than 0",
+    "number.less": "cost must be less than 1000000",
+  }),
   cost_type_text: Joi.string().max(255).optional().allow(null),
   cost_option: Joi.string()
     .valid(...costOptions)
@@ -62,6 +67,9 @@ const createCategoryItemSchema = Joi.object({
     if (!value.cost || Number(value.cost) <= 0) {
       return helpers.error("cost.fixed.required");
     }
+    if (Number(value.cost) > 1000000) {
+      return helpers.error("cost.fixed.tooLarge");
+    }
   } else if (value.cost_type === "VARIABLE") {
     if (!value.range && !value.dwelling) {
       return helpers.error("cost.variable.rangeOrDwelling");
@@ -81,6 +89,7 @@ const createCategoryItemSchema = Joi.object({
   return value;
 }).messages({
   "cost.fixed.required": "cost is required and must be greater than 0 when cost_type is FIXED",
+  "cost.fixed.tooLarge": "cost cannot be greater than 1000000 when cost_type is FIXED",
   "cost.variable.rangeOrDwelling": "VARIABLE cost_type requires either range or dwelling",
   "cost.variable.flagsForbidden": "VARIABLE cost_type cannot include include_by_default or package_only",
   "cost.included.textRequired": "cost_type_text is required when cost_type is INCLUDED",
