@@ -19,7 +19,7 @@ const createPackageSchema = Joi.object({
     }),
   amount: Joi.number().precision(2).greater(0).less(1000000).required().messages({
     "number.base": "Amount must be a valid number",
-    "number.unsafe": "Amount must be a valid safe number",
+    "number.unsafe": "Amount must be a in between 1 to 1000000 number",
     "number.min": "Amount must be greater than 0",
     "number.max": "Amount must be less than 1000000",
     "any.required": "Amount is required",
@@ -56,7 +56,7 @@ const updatePackageSchema = Joi.object({
     .unique(),
   amount: Joi.number().precision(2).greater(0).less(1000000).required().messages({
     "number.base": "Amount must be a valid number",
-    "number.unsafe": "Amount must be a valid safe number",
+    "number.unsafe": "Amount must be a in between 1 to 1000000 number",
     "number.min": "Amount must be greater than 0",
     "number.max": "Amount must be less than 1000000",
     "any.required": "Amount is required",
