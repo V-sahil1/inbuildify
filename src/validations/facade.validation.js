@@ -54,7 +54,20 @@ const createFacadeSchema = Joi.object({
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
   upgrade: booleanRule('Upgrade').optional(),
-  cost: Joi.number().optional(),
+  cost: Joi.string().required().pattern(/^\d+$/).custom((value, helpers) => {
+    try {
+      const num = BigInt(value);
+      if (num <= 0n) return helpers.error("number.min");
+      if (num > 1000000n) return helpers.error("number.max");
+      return Number(num); // or keep as string if safer
+    } catch {
+      return helpers.error("number.base");
+    }
+  }).messages({
+    "string.pattern.base": "Cost must be a valid number",
+    "number.min": "Cost must not be less than 0",
+    "number.max": "Cost must not exceed 1000000"
+  }),
 });
 
 // Get facade by ID validation (params)
@@ -67,7 +80,20 @@ const getFacadesSchema = Joi.object({
   dwelling_type: Joi.string().optional(),
   standard: booleanFilterRule.optional(),
   upgrade: booleanFilterRule.optional(),
-  cost: Joi.number().optional(),
+  cost: Joi.string().optional().pattern(/^\d+$/).custom((value, helpers) => {
+    try {
+      const num = BigInt(value);
+      if (num <= 0n) return helpers.error("number.min");
+      if (num > 1000000n) return helpers.error("number.max");
+      return Number(num); // or keep as string if safer
+    } catch {
+      return helpers.error("number.base");
+    }
+  }).messages({
+    "string.pattern.base": "Cost must be a valid number",
+    "number.min": "Cost must not be less than 0",
+    "number.max": "Cost must not exceed 1000000"
+  }),
   page: pageRule,
   limit: limitRule
 });
@@ -78,7 +104,20 @@ const updateFacadeSchema = Joi.object({
   image: imageRule.optional(),
   dwelling_type: dwellingTypeRule.optional(),
   standard: booleanRule('Standard').optional(),
-  cost: Joi.number().optional(),
+  cost: Joi.string().optional().pattern(/^\d+$/).custom((value, helpers) => {
+    try {
+      const num = BigInt(value);
+      if (num <= 0n) return helpers.error("number.min");
+      if (num > 1000000n) return helpers.error("number.max");
+      return Number(num); // or keep as string if safer
+    } catch {
+      return helpers.error("number.base");
+    }
+  }).messages({
+    "string.pattern.base": "Cost must be a valid number",
+    "number.min": "Cost must not be less than 0",
+    "number.max": "Cost must not exceed 1000000"
+  }),
   upgrade: booleanRule('Upgrade').optional()
 }).min(1).messages({
   'object.min': 'At least one field is required to update'

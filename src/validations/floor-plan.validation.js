@@ -80,6 +80,70 @@ const createFloorPlanSchema = Joi.object({
   porch: integerRule('Porch').optional(),
   alfresco: integerRule('Alfresco').optional(),
   total_sqft: decimalRule('Total square feet').optional()
+}).custom((obj, helpers) => {
+  const numericFields = [
+    'beds',
+    'bath',
+    'car_park',
+    'width_meter',
+    'depth_meter',
+    'dwelling',
+    'garage',
+    'porch',
+    'alfresco',
+    'total_sqft'
+  ];
+
+  const presentNumericKeys = numericFields.filter(k =>
+    Object.prototype.hasOwnProperty.call(obj, k)
+  );
+
+  if (presentNumericKeys.length === 0) {
+    return obj;
+  }
+
+  let hasPositive = false;
+
+  for (const k of presentNumericKeys) {
+    const raw = obj[k];
+
+    if (typeof raw === 'string' && raw.trim() === '-0') {
+      return helpers.error('object.negativeZeroNotAllowed', {
+        message: `${k} must not be -0`
+      });
+    }
+
+    const num = Number(raw);
+
+    if (isNaN(num)) {
+      return helpers.error('object.invalidNumber', {
+        message: `${k} must be a valid number`
+      });
+    }
+
+    if (num < 0) {
+      return helpers.error('object.negativeNotAllowed', {
+        message: `${k} must not be negative`
+      });
+    }
+
+    if (num > 0) {
+      hasPositive = true;
+    }
+  }
+
+  if (!hasPositive) {
+    return helpers.error('object.numericAtLeastOnePositive', {
+      message: 'At least one numeric field must be greater than 0'
+    });
+  }
+
+  return obj;
+}).messages({
+  'object.invalidNumber': '{{#message}}',
+  'object.negativeNotAllowed': '{{#message}}',
+  'object.negativeZeroNotAllowed': '{{#message}}',
+  'object.numericAtLeastOnePositive': '{{#message}}'
 });
 
 // Get floor plan by ID validation (params)
@@ -111,8 +175,36 @@ const updateFloorPlanSchema = Joi.object({
   porch: integerRule('Porch').optional(),
   alfresco: integerRule('Alfresco').optional(),
   total_sqft: decimalRule('Total square feet').optional()
-}).min(1).messages({
-  'object.min': 'At least one field is required to update'
+}).min(1)
+  .custom((obj, helpers) => {
+    const numericFields = [
+      'beds',
+      'bath',
+      'car_park',
+      'width_meter',
+      'depth_meter',
+      'dwelling',
+      'garage',
+      'porch',
+      'alfresco',
+      'total_sqft'
+    ];
+
+    const presentNumericKeys = numericFields.filter(k => Object.prototype.hasOwnProperty.call(obj, k));
+    if (presentNumericKeys.length === 0) {
+      return obj;
+    }
+
+    for (const k of presentNumericKeys) {
+      const v = obj[k];
+      if (typeof v === 'number' && v > 0) return obj;
+    }
+
+    return helpers.error('object.numericAtLeastOnePositive', { message: 'At least one numeric field must be greater than 0' });
+})
+.messages({
+  'object.min': 'At least one field is required to update',
+  'object.numericAtLeastOnePositive': '{{#message}}'
 });
 
 // Update floor plan params validation

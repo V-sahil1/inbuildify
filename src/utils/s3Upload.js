@@ -22,7 +22,15 @@ const fileFilter = (req, file, cb) => {
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error(`Only ${fileData.types} files are allowed!`));
+    const allowedList = fileData.types
+      .replace(/^\/|\/$/g, '')
+      .split('|')
+      .map(t => t.replace('image/', '').toUpperCase())
+      .map(t => (t === 'JPG' || t === 'JPEG' ? 'JPG/JPEG' : t))
+      .filter((v, i, arr) => arr.indexOf(v) === i)
+      .join(', ');
+    const message = `Invalid file type. Only the following are allowed: ${allowedList}.`;
+    cb(new Error(message));
   }
 };
 
@@ -92,7 +100,7 @@ const createUpload = (folderName = "uploads") =>
         });
       }
     }
-    if (error.message?.startsWith("Only")) {
+    if (error.message?.startsWith("Invalid file type")) {
       return res.status(400).json({
         success: false,
         statusCode: 400,

@@ -80,7 +80,7 @@ const createCategoryItemSchema = Joi.object({
 
   return value;
 }).messages({
-  "cost.fixed.required": "cost is required and > 0 when cost_type is FIXED",
+  "cost.fixed.required": "cost is required and must be greater than 0 when cost_type is FIXED",
   "cost.variable.rangeOrDwelling": "VARIABLE cost_type requires either range or dwelling",
   "cost.variable.flagsForbidden": "VARIABLE cost_type cannot include include_by_default or package_only",
   "cost.included.textRequired": "cost_type_text is required when cost_type is INCLUDED",

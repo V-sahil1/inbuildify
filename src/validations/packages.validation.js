@@ -17,9 +17,12 @@ const createPackageSchema = Joi.object({
       "array.unique": "Category Item IDs must be unique",
       "any.required": "Category Item IDs are required",
     }),
-  amount: Joi.number().precision(2).min(0).required().messages({
-    "number.base": "Amount must be a number",
-    "number.min": "Amount must be greater than or equal to 0",
+  amount: Joi.number().precision(2).greater(0).less(1000000).required().messages({
+    "number.base": "Amount must be a valid number",
+    "number.unsafe": "Amount must be a valid safe number",
+    "number.min": "Amount must be greater than 0",
+    "number.max": "Amount must be less than 1000000",
+    "any.required": "Amount is required",
   }),
   range: Joi.string().required().messages({
     "string.base": "Range must be a string",
@@ -51,9 +54,12 @@ const updatePackageSchema = Joi.object({
     }))
     .min(1)
     .unique(),
-  amount: Joi.number().precision(2).min(0).messages({
-    "number.base": "Amount must be a number",
-    "number.min": "Amount must be greater than or equal to 0",
+  amount: Joi.number().precision(2).greater(0).less(1000000).required().messages({
+    "number.base": "Amount must be a valid number",
+    "number.unsafe": "Amount must be a valid safe number",
+    "number.min": "Amount must be greater than 0",
+    "number.max": "Amount must be less than 1000000",
+    "any.required": "Amount is required",
   }),
   range: Joi.string().messages({
     "string.base": "Range must be a string",

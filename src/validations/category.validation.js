@@ -6,12 +6,12 @@ const getAllCategoriesSchema = Joi.object({
 });
 
 const createCategorySchema = Joi.object({
-  name: Joi.string().required(),
+  name: Joi.string().required().min(2).max(100),
   description: Joi.string().optional(),
 });
 
 const updateCategorySchema = Joi.object({
-  name: Joi.string().optional(),
+  name: Joi.string().optional().min(2).max(100),
   description: Joi.string().optional()
 }).min(1).message({"object.min": "At least one field is required to update"});
 
