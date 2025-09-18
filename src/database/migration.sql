@@ -152,3 +152,39 @@ ADD CONSTRAINT fk_packages_dwelling_type
   FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE;
 
 ALTER TABLE contractor DROP CONSTRAINT contractor_email_key;
+
+ALTER TABLE categories
+  ADD COLUMN builder_id UUID NOT NULL,
+  ADD COLUMN admin_category_id UUID DEFAULT NULL,
+  ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN display_order INT NOT NULL;
+
+ALTER TABLE categories
+  DROP CONSTRAINT IF EXISTS categories_name_key;
+
+ALTER TABLE categories
+  ADD CONSTRAINT categories_builder_id_fkey FOREIGN KEY (builder_id)
+    REFERENCES builder(builder_id) ON DELETE CASCADE,
+  ADD CONSTRAINT categories_admin_category_id_fkey FOREIGN KEY (admin_category_id)
+    REFERENCES admin_categories(admin_category_id) ON DELETE CASCADE;
+
+CREATE OR REPLACE FUNCTION seed_builder_categories()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO categories (builder_id, admin_category_id, name, description, display_order)
+  SELECT 
+    NEW.builder_id,
+    ac.admin_category_id,
+    ac.name,
+    ac.description,
+    ROW_NUMBER() OVER (ORDER BY ac.created_at)
+  FROM admin_category ac;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER after_builder_insert
+AFTER INSERT ON builder
+FOR EACH ROW
+EXECUTE FUNCTION seed_builder_categories();

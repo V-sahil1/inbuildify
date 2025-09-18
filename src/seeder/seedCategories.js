@@ -7,8 +7,8 @@ const seedCategories = async () => {
     console.log("🌱 Starting categories seeding...");
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS categories (
-        category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      CREATE TABLE IF NOT EXISTS admin_category (
+        admin_category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         name VARCHAR(100) UNIQUE NOT NULL,
         description TEXT,
         created_at TIMESTAMP DEFAULT now(),
@@ -16,7 +16,7 @@ const seedCategories = async () => {
       );
     `);
 
-    const categories = [
+    const adminCategories = [
       {
         name: "base price",
         description: "base pricing for standard home package",
@@ -51,14 +51,14 @@ const seedCategories = async () => {
       },
     ];
 
-    for (const category of categories) {
+    for (const adminCategory of adminCategories) {
       await client.query(
         `
-        INSERT INTO categories (name, description)
+        INSERT INTO admin_category (name, description)
         VALUES ($1, $2)
         ON CONFLICT (name) DO NOTHING;
         `,
-        [category.name, category.description]
+        [adminCategory.name, adminCategory.description]
       );
     }
 

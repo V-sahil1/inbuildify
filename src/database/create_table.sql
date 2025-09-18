@@ -259,6 +259,28 @@ CREATE TABLE conditions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS admin_category (
+  admin_category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(100) UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE categories (
+  category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  builder_id UUID NOT NULL,
+  admin_category_id UUID DEFAULT NULL,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  display_order INT NOT NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now(),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (admin_category_id) REFERENCES admin_category(admin_category_id) ON DELETE CASCADE
+);
+
 CREATE TABLE category_items (
   category_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,

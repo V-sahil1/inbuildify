@@ -17,7 +17,7 @@ exports.createPackage = async (req, res) => {
     const builderId = req.user.builder_id;
 
     const checkQuery = `
-      SELECT category_item_id, description 
+      SELECT category_item_id, description, cost 
       FROM category_items 
       WHERE builder_id = $1 AND status = 'ACTIVE' AND package_only = 'TRUE' AND category_item_id = ANY($2::uuid[])
     `;
@@ -80,11 +80,17 @@ exports.createPackage = async (req, res) => {
       dwellingCheck.rows[0].dwelling_type_id,
     ]);
 
+    const items = checkResult.rows.map((row) => ({
+      id: row.category_item_id,
+      desc: row.description,
+      price: row.cost || 0,
+    }));
+
     const finalResult = {
       ...result.rows[0],
       range: rangeCheck.rows[0].name,
       dwelling: dwellingCheck.rows[0].name,
-      category_item_descriptions: checkResult.rows.map((row) => row.description),
+      category_items: items,
     };
 
     return successResponse(
@@ -182,7 +188,9 @@ exports.getAllPackages = async (req, res) => {
       SELECT p.*, 
              r.name AS range_name,
              dt.name AS dwelling_name,
-             ARRAY_AGG(ci.description) AS category_item_descriptions
+             ARRAY_AGG(ci.description) AS category_item_descriptions,
+             ARRAY_AGG(ci.category_item_id) AS category_item_ids,
+             ARRAY_AGG(ci.cost) AS category_item_costs
       FROM packages p
       LEFT JOIN category_items ci 
         ON ci.category_item_id = ANY(p.category_item_ids)
@@ -216,31 +224,28 @@ exports.getAllPackages = async (req, res) => {
     const result = await client.query(query, values);
 
     const finalResult = result.rows.map((row) => {
-      const descriptions = row.category_item_descriptions || [];
       const ids = row.category_item_ids || [];
+      const descriptions = row.category_item_descriptions || [];
+      const prices = row.category_item_costs || [];
 
-      const validPairs = [];
-
-      for (let i = 0; i < Math.max(ids.length, descriptions.length); i++) {
-        const desc = descriptions[i];
-        const id = ids[i];
-
-        if (
-          id !== null &&
-          id !== undefined &&
-          desc !== null &&
-          desc !== undefined
-        ) {
-          validPairs.push({ id, desc });
+      const items = [];
+      for (let i = 0; i < Math.max(ids.length, descriptions.length, prices.length); i++) {
+        if (ids[i] && descriptions[i]) {
+          items.push({
+            id: ids[i],
+            desc: descriptions[i],
+            price: prices[i] || 0
+          });
         }
       }
 
-      const validIds = validPairs.map(pair => pair.id);
-      const validDescriptions = validPairs.map(pair => pair.desc);
+      delete row.category_item_ids;
+      delete row.category_item_descriptions;
+      delete row.category_item_costs;
+
       return {
         ...row,
-        category_item_descriptions: validDescriptions,
-        category_item_ids: validIds,
+        category_items: items,
         range: row.range_name || null,
         dwelling: row.dwelling_name || null,
       };
@@ -361,7 +366,7 @@ exports.updatePackage = async (req, res) => {
 
     if (category_item_ids && category_item_ids.length > 0) {
       const checkQuery = `
-        SELECT category_item_id, description
+        SELECT category_item_id, description, cost
         FROM category_items
         WHERE builder_id = $1
           AND status = 'ACTIVE'
@@ -463,27 +468,24 @@ exports.updatePackage = async (req, res) => {
 
     const updatedPackage = result.rows[0];
 
-    let categoryItemIds = [];
-    let categoryDescriptions = [];
-
+    let categoryItems = [];
     if (
       updatedPackage.category_item_ids &&
       updatedPackage.category_item_ids.length > 0
     ) {
       const categoryItemsQuery = `
-        SELECT category_item_id, description
+        SELECT category_item_id, description, cost
         FROM category_items
         WHERE category_item_id = ANY($1::uuid[])
       `;
       const categoryItemsResult = await client.query(categoryItemsQuery, [
         updatedPackage.category_item_ids,
       ]);
-      categoryItemIds = categoryItemsResult.rows.map(
-        (row) => row.category_item_id
-      );
-      categoryDescriptions = categoryItemsResult.rows.map(
-        (row) => row.description
-      );
+      categoryItems = categoryItemsResult.rows.map((row) => ({
+        id: row.category_item_id,
+        desc: row.description,
+        price: row.cost || 0,
+      }));
     }
 
     if (!rangeName && updatedPackage.range_id) {
@@ -510,8 +512,7 @@ exports.updatePackage = async (req, res) => {
       keysToCamelCase({
         packageId: updatedPackage.package_id,
         name: updatedPackage.name,
-        categoryItemIds,
-        categoryItemDescriptions: categoryDescriptions,
+        category_items: categoryItems,
         amount: updatedPackage.amount,
         rangeId,
         dwellingId,

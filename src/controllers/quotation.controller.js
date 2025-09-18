@@ -628,6 +628,23 @@ exports.getQuotationVersionById = async (req, res) => {
 
     const row = keysToCamelCase(result.rows[0]);
 
+    let packageItems = [];
+    if (row.categoryItemIds && row.categoryItemIds.length > 0) {
+      const pkgItemsQuery = `
+        SELECT category_item_id, description, cost
+        FROM category_items
+        WHERE category_item_id = ANY($1::uuid[])
+      `;
+      const pkgItemsResult = await client.query(pkgItemsQuery, [
+        row.categoryItemIds,
+      ]);
+      packageItems = pkgItemsResult.rows.map((r) => ({
+        id: r.category_item_id,
+        desc: r.description,
+        price: r.cost || 0,
+      }));
+    }
+
     const itemsQuery = `
       SELECT 
         qvi.quotation_version_item_id, qvi.notes as item_notes,
@@ -769,7 +786,7 @@ exports.getQuotationVersionById = async (req, res) => {
         builderId: row.packageBuilderId,
         amount: row.packageAmount,
         packageAmount: row.packageAmount,
-        categoryItemIds: row.categoryItemIds,
+        categoryItems: packageItems,
         createdAt: row.packageCreatedAt,
         updatedAt: row.packageUpdatedAt,
       },
@@ -1117,7 +1134,15 @@ exports.getQuotations = async (req, res) => {
           dt.name as dwelling_type_name,
           qv.created_at,
           qv.updated_at,
-          COALESCE(SUM(qvi.category_item_cost * COALESCE(qvi.category_item_quantity,1)), 0) as items_total
+          COALESCE(
+            SUM(
+              CASE 
+                WHEN qvi.category_item_id = ANY(pk.category_item_ids) THEN 0
+                ELSE qvi.category_item_cost * COALESCE(qvi.category_item_quantity,1)
+              END
+            ), 
+            0
+          ) as items_total
         FROM quotation_versions qv
         LEFT JOIN quotation_version_items qvi 
           ON qv.quotation_version_id = qvi.quotation_version_id
