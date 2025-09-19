@@ -16,10 +16,12 @@ const imageRule = Joi.alternatives().try(
 ).optional();
 
 const updateBuilderSchema = Joi.object({
-  name: Joi.string().optional().messages({
+  name: Joi.string().optional().trim().min(3).max(250).messages({
     'string.base': 'Name must be a string',
     'string.empty': 'Name is required',
-    'any.required': 'Name is required'
+    'any.required': 'Name is required',
+    'string.min': 'Name must be at least 3 characters long',
+    'string.max': 'Name must be at most 250 characters long'
   }),
   phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow("").messages({
     'string.base': 'Phone number must be a string',
@@ -27,15 +29,19 @@ const updateBuilderSchema = Joi.object({
     'any.required': 'Phone number is required',
     'string.pattern.base': 'Phone number must be a valid phone number'
   }),
-  slogan: Joi.string().optional().messages({
+  slogan: Joi.string().optional().trim().min(3).max(250).messages({
     'string.base': 'Slogan must be a string',
     'string.empty': 'Slogan is required',
-    'any.required': 'Slogan is required'
+    'any.required': 'Slogan is required',
+    'string.min': 'Slogan must be at least 3 characters long',
+    'string.max': 'Slogan must be at most 250 characters long'
   }),
-  firm_name: Joi.string().optional().messages({
+  firm_name: Joi.string().optional().trim().min(3).max(250).messages({
     'string.base': 'Firm name must be a string',
     'string.empty': 'Firm name is required',
-    'any.required': 'Firm name is required'
+    'any.required': 'Firm name is required',
+    'string.min': 'Firm name must be at least 3 characters long',
+    'string.max': 'Firm name must be at most 250 characters long'
   }),
   abn_number: Joi.string()
     .pattern(/^\d{11}$/)
