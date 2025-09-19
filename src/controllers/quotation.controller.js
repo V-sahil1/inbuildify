@@ -608,7 +608,7 @@ exports.getQuotationVersionById = async (req, res) => {
       JOIN quotation q ON qv.quotation_id = q.quotation_id
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id 
-      LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
+      LEFT JOIN leads_contact lc ON l.lead_contact_id = lc.leads_contact_id
       LEFT JOIN country co ON lc.country_id = co.country_id
       LEFT JOIN state s ON lc.state_id = s.state_id
       JOIN property p ON q.property_id = p.property_id
