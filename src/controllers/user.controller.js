@@ -5,6 +5,7 @@ const {
   encrypt,
   generateAccessToken,
   generateRefreshToken,
+  keysToCamelCase,
 } = require("../utils/common");
 const crypto = require("crypto");
 
@@ -99,7 +100,7 @@ exports.getInvitedUser = async (req, res) => {
 
   try {
     const userResult = await client.query(
-      `SELECT * FROM invites WHERE builder_id = $1 LIMIT $2 OFFSET $3`,
+      `SELECT invite_id, email, builder_id, role, invited_at FROM invites WHERE builder_id = $1 ORDER BY invited_at DESC LIMIT $2 OFFSET $3`,
       [user?.builder_id, parsedLimit, parsedOffset]
     );
 
@@ -122,10 +123,8 @@ exports.getInvitedUser = async (req, res) => {
         users: userResult?.rows?.map((user) => ({
           inviteId: user.invite_id,
           email: user.email,
-          inviteToken: user.invite_token,
           builderId: user.builder_id,
           role: user.role,
-          expiresAt: user.expires_at,
           invitedAt: user.invited_at,
         })),
         pagination: {
@@ -232,21 +231,35 @@ exports.inviteUser = async (req, res) => {
         `;
       await client.query(updateInviteQuery, [existingInvite.invite_token]);
 
-      return successResponse(res, null, "Invitation resent successfully.");
+      return successResponse(res, keysToCamelCase({
+        invite_id: existingInvite.invite_id,
+        email: existingInvite.email,
+        builder_id: existingInvite.builder_id,
+        role: existingInvite.role,
+        invited_at: existingInvite.invited_at,
+      }), "Invitation resent successfully.");
     }
 
     const inviteToken = generateToken();
-    const insertInviteQuery = `INSERT INTO invites (email, invite_token, builder_id, role, expires_at) VALUES ($1, $2, $3, $4, NOW() + '1 days')`;
-    await client.query(insertInviteQuery, [
+    const insertInviteQuery = `INSERT INTO invites (email, invite_token, builder_id, role, expires_at) VALUES ($1, $2, $3, $4, NOW() + '1 days') RETURNING *;`;
+    const insertInviteResult = await client.query(insertInviteQuery, [
       email,
       inviteToken,
       user?.builder_id,
       role,
     ]);
 
+    const inviteData = insertInviteResult.rows[0];
+
     await sendVerificationEmail(email, null, inviteToken);
 
-    return successResponse(res, null, "Invitation sent successfully.");
+    return successResponse(res, keysToCamelCase({
+      invite_id: inviteData.invite_id,
+      email: inviteData.email,
+      builder_id: inviteData.builder_id,
+      role: inviteData.role,
+      invited_at: inviteData.invited_at,
+    }), "Invitation sent successfully.");
   } catch (error) {
     console.error("Error inviting user:", error);
     return errorResponse(

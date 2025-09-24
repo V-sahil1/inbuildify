@@ -188,3 +188,34 @@ CREATE TRIGGER after_builder_insert
 AFTER INSERT ON builder
 FOR EACH ROW
 EXECUTE FUNCTION seed_builder_categories();
+
+ALTER TABLE leads
+ADD COLUMN quotation_version_id UUID DEFAULT NULL,
+ADD CONSTRAINT fk_leads_quotation_version FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE SET NULL;
+
+ALTER TABLE task
+  ADD COLUMN IF NOT EXISTS is_workflow_process_task BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS workflow_process_id UUID DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS workflow_process_task_id UUID DEFAULT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'task_workflow_process_id_fkey'
+  ) THEN
+    ALTER TABLE task ADD CONSTRAINT task_workflow_process_id_fkey 
+      FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'task_workflow_process_task_id_fkey'
+  ) THEN
+    ALTER TABLE task ADD CONSTRAINT task_workflow_process_task_id_fkey 
+      FOREIGN KEY (workflow_process_task_id) REFERENCES workflow_process_task(workflow_process_task_id) ON DELETE SET NULL;
+  END IF;
+END$$;
+
+ALTER TABLE public.task ALTER COLUMN action_id DROP NOT NULL;
+ALTER TABLE public.task ALTER COLUMN action_id SET DEFAULT NULL;

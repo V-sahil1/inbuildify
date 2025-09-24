@@ -150,6 +150,7 @@ CREATE TABLE leads (
   notes TEXT,
   message TEXT,
   decision lead_decision_enum DEFAULT NULL,
+  quotation_version_id UUID DEFAULT NULL,
   assignee_id UUID NOT NULL,
   created_by_id UUID NOT NULL,
   updated_by_id UUID NOT NULL,
@@ -437,6 +438,9 @@ CREATE TABLE quotation_version_items (
   FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE CASCADE
 );
 
+ALTER TABLE leads
+ADD CONSTRAINT fk_leads_quotation_version FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE SET NULL;
+
 CREATE TYPE action_type_enum AS ENUM ('NOTES', 'SMS', 'APPOINTMENT', 'TASK');
 CREATE TYPE task_priority_enum AS ENUM ('HIGH', 'LOW', 'MEDIUM');
 
@@ -468,7 +472,7 @@ CREATE TABLE tags (
 
 CREATE TABLE task (
   task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  action_id UUID NOT NULL,
+  action_id UUID DEFAULT NULL,
   name VARCHAR(200) NOT NULL,
   due_date DATE NOT NULL,
   time TIME,
@@ -476,6 +480,9 @@ CREATE TABLE task (
   description VARCHAR(500),
   attachment TEXT,
   assignee UUID DEFAULT NULL,
+  is_workflow_process_task BOOLEAN NOT NULL DEFAULT FALSE,
+  workflow_process_id UUID DEFAULT NULL,
+  workflow_process_task_id UUID DEFAULT NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -522,4 +529,77 @@ CREATE TABLE appointment (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (action_id) REFERENCES actions(action_id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_process (
+  workflow_process_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  display_order INT NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_process_task (
+  workflow_process_task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  workflow_process_id UUID NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  attachment TEXT,
+  timespent INT,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE CASCADE
+);
+
+ALTER TABLE task ADD CONSTRAINT task_workflow_process_id_fkey 
+  FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE SET NULL;
+ALTER TABLE task ADD CONSTRAINT task_workflow_process_task_id_fkey 
+  FOREIGN KEY (workflow_process_task_id) REFERENCES workflow_process_task(workflow_process_task_id) ON DELETE SET NULL;
+
+CREATE TABLE color_category (
+  color_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE color_sub_category (
+  color_sub_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_category_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (color_category_id) REFERENCES color_category(color_category_id) ON DELETE CASCADE
+);
+
+CREATE TABLE color_items (
+  color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_sub_category_id UUID NOT NULL,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(100) NOT NULL,
+  standard BOOLEAN DEFAULT FALSE,
+  upgrade BOOLEAN DEFAULT FALSE,
+  units INT DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  highlight_notes_on_pdf BOOLEAN DEFAULT FALSE,
+  supplier_id UUID DEFAULT NULL,
+  image TEXT NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (color_sub_category_id) REFERENCES color_sub_category(color_sub_category_id) ON DELETE CASCADE,
+  FOREIGN KEY (supplier_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );

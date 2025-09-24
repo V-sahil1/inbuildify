@@ -71,8 +71,36 @@ const updateLeadSchema = {
   }),
 };
 
+const updateAssigneeSchema = {
+  params: Joi.object({
+    lead_id: Joi.string().uuid().required().messages({
+      "string.guid": "Lead ID must be a valid UUID",
+      "any.required": "Lead ID is required"
+    }),
+  }),
+  body: Joi.object({
+    notes: Joi.string().max(1000).optional().allow(null, ""),
+    assignee_id: Joi.string().uuid().optional().messages({
+      "string.guid": "Assignee ID must be a valid UUID"
+    }),
+  }).min(1).messages({
+    "object.min": "At least one field (lead_source, notes, assignee_id) must be provided"
+  }),
+};
+
+const convertLeadSchema = {
+  params: Joi.object({
+    lead_id: Joi.string().uuid().required().messages({
+      "string.guid": "Lead ID must be a valid UUID",
+      "any.required": "Lead ID is required"
+    }),
+  }),
+};
+
 module.exports = {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,
+  updateAssigneeSchema,
+  convertLeadSchema,
 };

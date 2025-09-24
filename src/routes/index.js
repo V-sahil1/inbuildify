@@ -23,6 +23,10 @@ const quotationRoutes = require("./quotation.routes");
 const jobRoutes = require("./job.routes");
 const actionsRoutes = require("./actions.routes");
 const tagsRoutes = require("./tags.routes");
+const workflowProcessRoutes = require("./workflow-process.routes");
+const colorCategoryRoutes = require("./color-category.routes");
+const colorSubCategoryRoutes = require("./color-sub-category.routes");
+const colorItemRoutes = require("./color-item.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -50,4 +54,8 @@ module.exports = function (app) {
   app.use("/job", jobRoutes);
   app.use("/actions", actionsRoutes);
   app.use("/tags", tagsRoutes);
+  app.use("/workflow-process", workflowProcessRoutes);
+  app.use("/color-category", colorCategoryRoutes);
+  app.use("/color-sub-category", colorSubCategoryRoutes);
+  app.use("/color-item", colorItemRoutes);
 };

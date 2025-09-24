@@ -159,10 +159,18 @@ const getQuotationsSchema = Joi.object({
   }),
 });
 
+const deleteQuotationsSchema = Joi.object({
+  quotation_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation ID must be a valid UUID",
+    "any.required": "Quotation ID is required",
+  }),
+});
+
 module.exports = {
   createQuotationSchema,
   getQuotationSchema,
   getQuotationVersionSchema,
   getQuotationsSchema,
   createQuotationVersionSchema,
+  deleteQuotationsSchema,
 };

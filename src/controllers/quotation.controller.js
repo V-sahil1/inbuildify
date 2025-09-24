@@ -1098,7 +1098,7 @@ exports.getQuotations = async (req, res) => {
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id
       JOIN property p ON q.property_id = p.property_id
-      WHERE q.builder_id = $1 AND q.lead_id = $2
+      WHERE q.builder_id = $1 AND q.lead_id = $2 AND q.is_deleted = false
       ORDER BY q.created_at DESC
       LIMIT $3 OFFSET $4;
     `;
@@ -1237,6 +1237,48 @@ exports.getQuotations = async (req, res) => {
       res,
       { count, quotations },
       "Quotations fetched successfully."
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error(error);
+    return errorResponse(
+      res,
+      error?.statusCode || 400,
+      error?.message || "Internal Server Error"
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.deleteQuotations = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  const builderId = req.user.builder_id;
+  const { quotation_id } = req.params;
+
+  try {
+    await client.query("BEGIN");
+
+    const checkQuotationExists = await client.query(`SELECT * FROM quotation WHERE quotation_id = $1 AND builder_id = $2 AND is_deleted = false;`, [quotation_id, builderId]);
+    if (checkQuotationExists.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Quotation not found.");
+    }
+    const softDeleteQuotationQuery = `
+      UPDATE quotation
+         SET is_deleted = true, updated_at = now()
+       WHERE quotation_id = $1 AND builder_id = $2;
+    `;
+    await client.query(softDeleteQuotationQuery, [quotation_id, builderId]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      {},
+      "Quotations deleted successfully."
     );
   } catch (error) {
     await client.query("ROLLBACK");

@@ -18,9 +18,19 @@ const createJobSchema = {
       "string.valid": "Status must be 'WON' or 'LOST'",
       "any.required": "Status is required",
     }),
+    quotation_version_id: Joi.string()
+      .uuid()
+      .when("status", {
+        is: "WON",
+        then: Joi.required().messages({
+          "any.required": "Quotation version ID is required when status is WON",
+          "string.guid": "Quotation version ID must be a valid UUID",
+        }),
+        otherwise: Joi.forbidden(),
+      }),
   }),
 };
 
 module.exports = {
-  createJobSchema
+  createJobSchema,
 };
