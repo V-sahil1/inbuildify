@@ -123,8 +123,8 @@ exports.updateColorCategory = async (req, res) => {
 
   try {
     const checkNameExists = await client.query(
-      `SELECT 1 FROM color_category WHERE name = $1 AND builder_id = $2 AND is_deleted = false`,
-      [name, builderId]
+      `SELECT 1 FROM color_category WHERE name = $1 AND builder_id = $2 AND color_category_id != $3 AND is_deleted = false`,
+      [name, builderId, color_category_id]
     );
     if (checkNameExists.rowCount > 0) {
       return errorResponse(res, 400, "Color category name already exists.");

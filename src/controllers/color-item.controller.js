@@ -1,9 +1,11 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.getAllColorItems = async (req, res) => {
-  const { limit, offset, colorSubCategoryId } = req.query;
+  const { color_sub_category_id: colorSubCategoryId } = req.params;
+  const { limit, offset } = req.query;
   const parsedLimit = parseInt(limit, 10) || 25;
   const parsedOffset = parseInt(offset, 10) || 0;
 
@@ -126,16 +128,18 @@ exports.createColorItem = async (req, res) => {
     }
 
     let supplierIdParam = null;
+    let supplierNameParam = null;
     if (supplierId) {
       // Ensure supplier belongs to this builder
       const supplier = await client.query(
-        `SELECT 1 FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
+        `SELECT * FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
         [supplierId, builderId]
       );
       if (supplier.rowCount === 0) {
         return errorResponse(res, 400, "Invalid supplierId.");
       }
-      supplierIdParam = supplierId;
+      supplierIdParam = supplier.rows[0].users_id;
+      supplierNameParam = supplier.rows[0].name;
     }
 
     const result = await client.query(
@@ -167,7 +171,11 @@ exports.createColorItem = async (req, res) => {
       ]
     );
 
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Color item created successfully.");
+    delete result.rows[0].supplier_id;
+    return successResponse(res, keysToCamelCase({ ...result.rows[0], supplier: {
+      supplier_id: supplierIdParam,
+      name: supplierNameParam,
+    } }), "Color item created successfully.");
   } catch (error) {
     console.error("Create color item error:", error);
     return errorResponse(res, 500, "Failed to create color item.");
@@ -187,7 +195,6 @@ exports.updateColorItem = async (req, res) => {
     notes,
     highlightNotesOnPdf,
     supplierId,
-    colorSubCategoryId,
   } = req.body;
   const builderId = req.user.builder_id;
   let imageUrl = null;
@@ -201,7 +208,7 @@ exports.updateColorItem = async (req, res) => {
   try {
     // verify ownership of item
     const owned = await client.query(
-      `SELECT ci.color_item_id FROM color_items ci
+      `SELECT ci.color_item_id, ci.image FROM color_items ci
        JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE ci.color_item_id = $1 AND cc.builder_id = $2 AND ci.is_deleted = false`,
@@ -209,19 +216,6 @@ exports.updateColorItem = async (req, res) => {
     );
     if (owned.rowCount === 0) {
       return errorResponse(res, 404, "Color item not found or already deleted.");
-    }
-
-    // if moving to another sub-category, verify it belongs to builder
-    if (colorSubCategoryId) {
-      const parent = await client.query(
-        `SELECT 1 FROM color_sub_category sc
-         JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-         WHERE sc.color_sub_category_id = $1 AND cc.builder_id = $2 AND sc.is_deleted = false`,
-        [colorSubCategoryId, builderId]
-      );
-      if (parent.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid colorSubCategoryId.");
-      }
     }
 
     // if supplierId is not null, verify it belongs to builder
@@ -246,9 +240,8 @@ exports.updateColorItem = async (req, res) => {
         highlight_notes_on_pdf = COALESCE($7, highlight_notes_on_pdf),
         supplier_id = COALESCE($8, supplier_id),
         image = COALESCE($9, image),
-        color_sub_category_id = COALESCE($10, color_sub_category_id),
         updated_at = NOW()
-       WHERE color_item_id = $11 AND is_deleted = false
+       WHERE color_item_id = $10 AND is_deleted = false
        RETURNING *`,
       [
         name ?? null,
@@ -258,28 +251,35 @@ exports.updateColorItem = async (req, res) => {
         units ?? null,
         notes ?? null,
         highlightNotesOnPdf ?? null,
-        supplierId ?? null,
+        supplierId ?? owned.rows[0].supplier_id,
         imageUrl ?? owned.rows[0].image,
-        colorSubCategoryId ?? null,
         color_item_id,
       ]
     );
 
-    const updatedItem = await client.query(
-      `SELECT name FROM users WHERE users_id = $1 AND is_deleted = false`,
-      [supplierId]
-    );
+    // after update old image delete if new image is uploaded
+    if (imageUrl && owned.rows[0].image) {
+      await deleteFromS3(owned.rows[0].image);
+    }
+    let updatedItem = null;
+    if (supplierId) {
+      updatedItem = await client.query(
+        `SELECT name FROM users WHERE users_id = $1 AND is_deleted = false`,
+        [supplierId]
+      );
+    }
 
     delete result.rows[0].supplier_id;
     return successResponse(res, {
       ...keysToCamelCase(result.rows[0]),
       supplier: {
-        supplierId,
-        name: updatedItem.rows[0].name,
+        supplierId: supplierId ?? null,
+        name: updatedItem?.rows[0].name ?? null,
       },
     }, "Color item updated successfully.");
   } catch (error) {
     console.error("Update color item error:", error);
+    await deleteFromS3(imageUrl);
     return errorResponse(res, 500, "Failed to update color item.");
   } finally {
     client.release();

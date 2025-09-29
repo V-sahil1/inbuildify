@@ -7,12 +7,12 @@ const getAllColorCategoriesSchema = Joi.object({
 
 const createColorCategorySchema = Joi.object({
   name: Joi.string().required().min(2).max(100),
-  description: Joi.string().optional(),
+  description: Joi.string().trim().max(255).optional(),
 });
 
 const updateColorCategorySchema = Joi.object({
   name: Joi.string().optional().min(2).max(100),
-  description: Joi.string().optional(),
+  description: Joi.string().trim().max(255).optional(),
 }).min(1).message({ "object.min": "At least one field is required to update" });
 
 const colorCategoryIdParamSchema = Joi.object({

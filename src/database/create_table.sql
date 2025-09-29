@@ -472,10 +472,10 @@ CREATE TABLE tags (
 
 CREATE TABLE task (
   task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  action_id UUID DEFAULT NULL,
+  action_id UUID NOT NULL,
   name VARCHAR(200) NOT NULL,
   due_date DATE NOT NULL,
-  time TIME,
+  time TIME DEFAULT CURRENT_TIME(6),
   priority task_priority_enum NOT NULL DEFAULT 'MEDIUM',
   description VARCHAR(500),
   attachment TEXT,
@@ -538,6 +538,8 @@ CREATE TABLE workflow_process (
   description TEXT,
   display_order INT NOT NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
@@ -551,6 +553,8 @@ CREATE TABLE workflow_process_task (
   attachment TEXT,
   timespent INT,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE CASCADE
@@ -567,6 +571,8 @@ CREATE TABLE color_category (
   name VARCHAR(100) NOT NULL,
   description TEXT,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
@@ -578,6 +584,8 @@ CREATE TABLE color_sub_category (
   name VARCHAR(100) NOT NULL,
   description TEXT,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (color_category_id) REFERENCES color_category(color_category_id) ON DELETE CASCADE
@@ -597,9 +605,33 @@ CREATE TABLE color_items (
   supplier_id UUID DEFAULT NULL,
   image TEXT NOT NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (color_sub_category_id) REFERENCES color_sub_category(color_sub_category_id) ON DELETE CASCADE,
   FOREIGN KEY (supplier_id) REFERENCES users(users_id) ON DELETE SET NULL,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TYPE invoice_status_enum AS ENUM ('draft', 'sent', 'paid', 'overdue', 'cancelled');
+
+CREATE TABLE invoice (
+  invoice_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_invoice_id VARCHAR(50) UNIQUE NOT NULL,
+  builder_id UUID NOT NULL,
+  lead_id UUID DEFAULT NULL,
+  description VARCHAR(100) NOT NULL,
+  notes VARCHAR(500) NOT NULL,
+  invoice_amount NUMERIC(12,2) DEFAULT 0,
+  due_date DATE NOT NULL,
+  status invoice_status_enum DEFAULT 'draft' NOT NULL,
+  version_number INT NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_id UUID NOT NULL,
+  updated_by_id UUID NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE SET NULL
 );

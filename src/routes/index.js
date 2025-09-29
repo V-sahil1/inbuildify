@@ -27,6 +27,8 @@ const workflowProcessRoutes = require("./workflow-process.routes");
 const colorCategoryRoutes = require("./color-category.routes");
 const colorSubCategoryRoutes = require("./color-sub-category.routes");
 const colorItemRoutes = require("./color-item.routes");
+const workflowProcessTaskRoutes = require("./workflow-process-task.routes");
+const invoiceRoutes = require("./invoice.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -58,4 +60,6 @@ module.exports = function (app) {
   app.use("/color-category", colorCategoryRoutes);
   app.use("/color-sub-category", colorSubCategoryRoutes);
   app.use("/color-item", colorItemRoutes);
+  app.use("/workflow-process-task", workflowProcessTaskRoutes);
+  app.use("/invoice", invoiceRoutes);
 };

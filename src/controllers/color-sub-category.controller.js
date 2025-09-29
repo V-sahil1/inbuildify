@@ -3,7 +3,8 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
 exports.getAllColorSubCategories = async (req, res) => {
-  const { limit, offset, colorCategoryId } = req.query;
+  const { color_category_id: colorCategoryId } = req.params;
+  const { limit, offset } = req.query;
   const parsedLimit = parseInt(limit, 10) || 25;
   const parsedOffset = parseInt(offset, 10) || 0;
 

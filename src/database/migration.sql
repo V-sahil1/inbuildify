@@ -216,6 +216,3 @@ BEGIN
       FOREIGN KEY (workflow_process_task_id) REFERENCES workflow_process_task(workflow_process_task_id) ON DELETE SET NULL;
   END IF;
 END$$;
-
-ALTER TABLE public.task ALTER COLUMN action_id DROP NOT NULL;
-ALTER TABLE public.task ALTER COLUMN action_id SET DEFAULT NULL;

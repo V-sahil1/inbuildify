@@ -6,6 +6,13 @@ const getAllColorSubCategoriesSchema = Joi.object({
   colorCategoryId: Joi.string().uuid().optional(),
 });
 
+const getAllColorSubCategoriesParamsSchema = Joi.object({
+  color_category_id: Joi.string().uuid().required().messages({
+    "string.guid": "Color Category ID must be a valid UUID",
+    "any.required": "Color Category ID is required",
+  }),
+});
+
 const createColorSubCategorySchema = Joi.object({
   colorCategoryId: Joi.string().uuid().required().messages({
     "string.guid": "Color Category ID must be a valid UUID",
@@ -29,6 +36,7 @@ const colorSubCategoryIdParamSchema = Joi.object({
 
 module.exports = {
   getAllColorSubCategoriesSchema,
+  getAllColorSubCategoriesParamsSchema,
   createColorSubCategorySchema,
   updateColorSubCategorySchema,
   colorSubCategoryIdParamSchema,
