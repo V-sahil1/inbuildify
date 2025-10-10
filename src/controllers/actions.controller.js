@@ -207,7 +207,7 @@ exports.createAction = async (req, res) => {
       );
       details = appointmentRes.rows[0];
 
-      details.selectedUser = (details.select_users || []).map((id) => ({
+      details.selectUsers = (details.select_users || []).map((id) => ({
         id,
         name: selectedUserMap[id] || null,
       }));
