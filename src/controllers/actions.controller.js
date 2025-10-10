@@ -172,9 +172,11 @@ exports.createAction = async (req, res) => {
     }
 
     if (type === "APPOINTMENT") {
+      let selectedUserMap = {};
+
       if (select_users && select_users.length > 0) {
         const selectUsersRes = await client.query(
-          `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
+          `SELECT users_id, name FROM users WHERE users_id = ANY($1::uuid[]) AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
           [select_users, builderId]
         );
         if (selectUsersRes.rowCount === 0) {
@@ -185,6 +187,9 @@ exports.createAction = async (req, res) => {
             "Select users not found or not verified."
           );
         }
+        selectedUserMap = Object.fromEntries(
+          selectUsersRes.rows.map((u) => [u.users_id, u.name])
+        );
       }
       const appointmentRes = await client.query(
         `INSERT INTO appointment (action_id, title, date, start_time, end_time, location, select_users, notes)
@@ -201,6 +206,11 @@ exports.createAction = async (req, res) => {
         ]
       );
       details = appointmentRes.rows[0];
+
+      details.selectedUser = (details.select_users || []).map((id) => ({
+        id,
+        name: selectedUserMap[id] || null,
+      }));
     }
 
     if (type === "TASK") {
@@ -230,6 +240,13 @@ exports.createAction = async (req, res) => {
         ]
       );
       details = taskRes.rows[0];
+
+      if (details.assignee) {
+        const assigneeMap = await getUsersDetails(client, [details.assignee]);
+        details.assignee = formatUserObject(details.assignee, assigneeMap);
+      } else {
+        details.assignee = null;
+      }
     }
 
     // Get user details for created_by and updated_by
