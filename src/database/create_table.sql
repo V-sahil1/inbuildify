@@ -542,7 +542,9 @@ CREATE TABLE workflow_process (
   updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TABLE workflow_process_task (
@@ -557,7 +559,9 @@ CREATE TABLE workflow_process_task (
   updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE CASCADE
+  FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 ALTER TABLE task ADD CONSTRAINT task_workflow_process_id_fkey 
@@ -575,7 +579,9 @@ CREATE TABLE color_category (
   updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TABLE color_sub_category (
@@ -588,7 +594,9 @@ CREATE TABLE color_sub_category (
   updated_by_id UUID NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (color_category_id) REFERENCES color_category(color_category_id) ON DELETE CASCADE
+  FOREIGN KEY (color_category_id) REFERENCES color_category(color_category_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TABLE color_items (
@@ -611,7 +619,9 @@ CREATE TABLE color_items (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (color_sub_category_id) REFERENCES color_sub_category(color_sub_category_id) ON DELETE CASCADE,
   FOREIGN KEY (supplier_id) REFERENCES users(users_id) ON DELETE SET NULL,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TYPE invoice_status_enum AS ENUM ('draft', 'sent', 'paid', 'overdue', 'cancelled');
@@ -633,5 +643,7 @@ CREATE TABLE invoice (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
-  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE SET NULL
+  FOREIGN KEY (lead_id) REFERENCES leads(lead_id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );

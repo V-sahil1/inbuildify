@@ -2,6 +2,33 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
+
 exports.getAllColorSubCategories = async (req, res) => {
   const { color_category_id: colorCategoryId } = req.params;
   const { limit, offset } = req.query;
@@ -41,6 +68,25 @@ exports.getAllColorSubCategories = async (req, res) => {
       countParams
     );
 
+    // Get all unique user IDs
+    const userIds = new Set();
+    result.rows.forEach(row => {
+      if (row.created_by_id) userIds.add(row.created_by_id);
+      if (row.updated_by_id) userIds.add(row.updated_by_id);
+    });
+
+    const usersMap = await getUsersDetails(client, Array.from(userIds));
+
+    // Format response with user details
+    const colorSubCategories = result.rows.map(row => {
+      const formatted = keysToCamelCase(row);
+      return {
+        ...formatted,
+        createdBy: formatUserObject(row.created_by_id, usersMap),
+        updatedBy: formatUserObject(row.updated_by_id, usersMap)
+      };
+    });
+
     const totalItems = parseInt(totalResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalItems / parsedLimit);
     const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
@@ -48,7 +94,7 @@ exports.getAllColorSubCategories = async (req, res) => {
     return successResponse(
       res,
       {
-        colorSubCategories: keysToCamelCase(result.rows),
+        colorSubCategories,
         pagination: { totalItems, totalPages, currentPage, limit: parsedLimit },
       },
       "Color sub-categories fetched successfully."
@@ -83,9 +129,20 @@ exports.getColorSubCategoryById = async (req, res) => {
       return errorResponse(res, 404, "Color sub-category not found.");
     }
 
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      response,
       "Color sub-category fetched successfully."
     );
   } catch (error) {
@@ -99,6 +156,7 @@ exports.getColorSubCategoryById = async (req, res) => {
 exports.createColorSubCategory = async (req, res) => {
   const { colorCategoryId, name, description } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -123,14 +181,24 @@ exports.createColorSubCategory = async (req, res) => {
     }
 
     const result = await client.query(
-      `INSERT INTO color_sub_category (color_category_id, name, description)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [colorCategoryId, name, description || null]
+      `INSERT INTO color_sub_category (color_category_id, name, description, created_by_id, updated_by_id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [colorCategoryId, name, description || null, userId, userId]
     );
+
+    const row = result.rows[0];
+    const usersMap = await getUsersDetails(client, [userId]);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+    };
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      response,
       "Color sub-category created successfully."
     );
   } catch (error) {
@@ -145,6 +213,7 @@ exports.updateColorSubCategory = async (req, res) => {
   const { color_sub_category_id } = req.params;
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -165,15 +234,27 @@ exports.updateColorSubCategory = async (req, res) => {
       `UPDATE color_sub_category
        SET name = COALESCE($1, name),
            description = COALESCE($2, description),
+           updated_by_id = $3,
            updated_at = NOW()
-       WHERE color_sub_category_id = $3 AND is_deleted = false
+       WHERE color_sub_category_id = $4 AND is_deleted = false
        RETURNING *`,
-      [name || null, description || null, color_sub_category_id]
+      [name || null, description || null, userId, color_sub_category_id]
     );
+
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+    };
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      response,
       "Color sub-category updated successfully."
     );
   } catch (error) {
@@ -187,6 +268,7 @@ exports.updateColorSubCategory = async (req, res) => {
 exports.deleteColorSubCategory = async (req, res) => {
   const { color_sub_category_id } = req.params;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -203,14 +285,26 @@ exports.deleteColorSubCategory = async (req, res) => {
     }
 
     const result = await client.query(
-      `UPDATE color_sub_category SET is_deleted = true, updated_at = NOW()
+      `UPDATE color_sub_category 
+       SET is_deleted = true, updated_by_id = $2, updated_at = NOW()
        WHERE color_sub_category_id = $1 AND is_deleted = false RETURNING *`,
-      [color_sub_category_id]
+      [color_sub_category_id, userId]
     );
+
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+    };
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      response,
       "Color sub-category deleted successfully."
     );
   } catch (error) {

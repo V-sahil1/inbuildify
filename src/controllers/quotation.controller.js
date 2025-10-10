@@ -1,7 +1,36 @@
+// src/controllers/quotation.controller.js
+
 const getPool = require("../config/database");
 const { generateCode } = require("../helper/codeGenerator");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
 
 function validateReferences(row, res, errorResponse) {
   switch (true) {
@@ -145,7 +174,6 @@ exports.createQuotation = async (req, res) => {
       dwellingTypeId,
     ]);
     const row = validationResult.rows[0];
-    console.log("🚀 ~ quotation.controller.js:139 ~ row:", row);
 
     const error = validateReferences(row, res, errorResponse);
     if (error) return;
@@ -331,11 +359,18 @@ exports.createQuotation = async (req, res) => {
       [leadId]
     );
 
+    // Get user details using helper function
+    const usersMap = await getUsersDetails(client, [userId]);
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(quotation),
+      keysToCamelCase({
+        ...quotation,
+        created_by: formatUserObject(quotation.created_by_id, usersMap),
+        updated_by: formatUserObject(quotation.updated_by_id, usersMap),
+      }),
       "Quotation created successfully."
     );
   } catch (error) {
@@ -366,6 +401,7 @@ exports.createQuotationVersion = async (req, res) => {
     packageId,
   } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
 
   try {
     await client.query("BEGIN");
@@ -542,6 +578,11 @@ exports.createQuotationVersion = async (req, res) => {
     `;
     await client.query(insertItems, values);
 
+    await client.query(
+      `UPDATE quotation SET updated_by_id = $1, updated_at = NOW() WHERE quotation_id = $2`,
+      [userId, quotation_id]
+    );
+
     await client.query("COMMIT");
 
     return successResponse(
@@ -569,6 +610,9 @@ exports.getQuotationVersionById = async (req, res) => {
     const query = `
       SELECT 
         q.slug_id, q.quotation_id, q.created_at, q.updated_at,
+        q.created_by_id, q.updated_by_id,
+        created_by.name AS created_by_name,
+        updated_by.name AS updated_by_name,
 
         b.builder_id, b.name as builder_name,
 
@@ -606,6 +650,8 @@ exports.getQuotationVersionById = async (req, res) => {
 
       FROM quotation_versions qv
       JOIN quotation q ON qv.quotation_id = q.quotation_id
+      LEFT JOIN users created_by ON q.created_by_id = created_by.users_id
+      LEFT JOIN users updated_by ON q.updated_by_id = updated_by.users_id
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id 
       LEFT JOIN leads_contact lc ON l.lead_contact_id = lc.leads_contact_id
@@ -627,6 +673,10 @@ exports.getQuotationVersionById = async (req, res) => {
     }
 
     const row = keysToCamelCase(result.rows[0]);
+    const usersMap = {
+      [row.createdById]: row.createdByName,
+      [row.updatedById]: row.updatedByName
+    };
 
     let packageItems = [];
     if (row.categoryItemIds && row.categoryItemIds.length > 0) {
@@ -701,6 +751,8 @@ exports.getQuotationVersionById = async (req, res) => {
       updatedAt: row.updatedAt,
       versionCreatedAt: row.versionCreatedAt,
       versionUpdatedAt: row.versionUpdatedAt,
+      createdBy: formatUserObject(row.createdById, usersMap),
+      updatedBy: formatUserObject(row.updatedById, usersMap),
       builder: {
         builderId: row.builderId,
         name: row.builderName,
@@ -825,6 +877,9 @@ exports.getQuotationById = async (req, res) => {
     const query = `
         SELECT 
           q.slug_id, q.quotation_id, q.created_at, q.updated_at,
+          q.created_by_id, q.updated_by_id,
+          created_by.name AS created_by_name,
+          updated_by.name AS updated_by_name,
 
           b.builder_id, b.name as builder_name,
 
@@ -859,6 +914,8 @@ exports.getQuotationById = async (req, res) => {
 
         FROM quotation q
         JOIN quotation_versions qv ON q.quotation_id = qv.quotation_id
+        LEFT JOIN users created_by ON q.created_by_id = created_by.users_id
+        LEFT JOIN users updated_by ON q.updated_by_id = updated_by.users_id
         JOIN builder b ON q.builder_id = b.builder_id
         JOIN leads l ON q.lead_id = l.lead_id 
         LEFT JOIN leads_contact lc ON l.lead_id = lc.lead_id
@@ -872,7 +929,7 @@ exports.getQuotationById = async (req, res) => {
         JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
         WHERE q.quotation_id = $1 AND q.builder_id = $2;
       `;
-    // property, plan, facade, package
+
     const result = await client.query(query, [quotation_id, builderId]);
 
     if (result.rows.length === 0) {
@@ -880,6 +937,11 @@ exports.getQuotationById = async (req, res) => {
     }
 
     const row = keysToCamelCase(result.rows[0]);
+
+    const usersMap = {
+      [row.createdById]: row.createdByName,
+      [row.updatedById]: row.updatedByName
+    };
 
     const { items, totalAmount } = parseItemsAndCalculateTotal(
       row.items,
@@ -953,6 +1015,8 @@ exports.getQuotationById = async (req, res) => {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       totalAmount,
+      createdBy: formatUserObject(row.createdById, usersMap),
+      updatedBy: formatUserObject(row.updatedById, usersMap),
       builder: {
         builderId: row.builderId,
         name: row.builderName,
@@ -1088,6 +1152,10 @@ exports.getQuotations = async (req, res) => {
         q.quotation_id,
         q.created_at,
         q.updated_at,
+        q.created_by_id,
+        q.updated_by_id,
+        created_by.name AS created_by_name,
+        updated_by.name AS updated_by_name,
         b.builder_id,
         b.name as builder_name,
         l.lead_id,
@@ -1095,6 +1163,8 @@ exports.getQuotations = async (req, res) => {
         p.property_id,
         p.address1 as property_address
       FROM quotation q
+      LEFT JOIN users created_by ON q.created_by_id = created_by.users_id
+      LEFT JOIN users updated_by ON q.updated_by_id = updated_by.users_id
       JOIN builder b ON q.builder_id = b.builder_id
       JOIN leads l ON q.lead_id = l.lead_id
       JOIN property p ON q.property_id = p.property_id
@@ -1202,12 +1272,18 @@ exports.getQuotations = async (req, res) => {
       const versions = versionsByQuotation[row.quotation_id] || [];
       const latestVersion = versions.length > 0 ? versions[0] : null;
       const totalAmount = latestVersion ? latestVersion.totalAmount : 0;
+      const usersMap = {
+        [row.created_by_id]: row.created_by_name,
+        [row.updated_by_id]: row.updated_by_name
+      };
 
       return {
         slugId: row.slug_id,
         quotationId: row.quotation_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        createdBy: formatUserObject(row.created_by_id, usersMap),
+        updatedBy: formatUserObject(row.updated_by_id, usersMap),
         builderId: row.builder_id,
         builderName: row.builder_name,
         leadId: row.lead_id,
@@ -1256,6 +1332,7 @@ exports.deleteQuotations = async (req, res) => {
   const client = await pool.connect();
 
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
   const { quotation_id } = req.params;
 
   try {
@@ -1268,10 +1345,10 @@ exports.deleteQuotations = async (req, res) => {
     }
     const softDeleteQuotationQuery = `
       UPDATE quotation
-         SET is_deleted = true, updated_at = now()
-       WHERE quotation_id = $1 AND builder_id = $2;
+         SET is_deleted = true, updated_by_id = $1, updated_at = now()
+       WHERE quotation_id = $2 AND builder_id = $3;
     `;
-    await client.query(softDeleteQuotationQuery, [quotation_id, builderId]);
+    await client.query(softDeleteQuotationQuery, [userId, quotation_id, builderId]);
 
     await client.query("COMMIT");
 

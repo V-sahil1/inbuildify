@@ -3,6 +3,33 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
+
 exports.getAllColorItems = async (req, res) => {
   const { color_sub_category_id: colorSubCategoryId } = req.params;
   const { limit, offset } = req.query;
@@ -45,6 +72,25 @@ exports.getAllColorItems = async (req, res) => {
       countParams
     );
 
+    const userIds = new Set();
+    result.rows.forEach(row => {
+      if (row.created_by_id) userIds.add(row.created_by_id);
+      if (row.updated_by_id) userIds.add(row.updated_by_id);
+      if (row.supplier_id) userIds.add(row.supplier_id);
+    });
+
+    const usersMap = await getUsersDetails(client, Array.from(userIds));
+
+    const colorItems = result.rows.map(row => {
+      const formatted = keysToCamelCase(row);
+      return {
+        ...formatted,
+        createdBy: formatUserObject(row.created_by_id, usersMap),
+        updatedBy: formatUserObject(row.updated_by_id, usersMap),
+        supplier: formatUserObject(row.supplier_id, usersMap)
+      };
+    });
+
     const totalItems = parseInt(totalResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalItems / parsedLimit);
     const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
@@ -52,7 +98,7 @@ exports.getAllColorItems = async (req, res) => {
     return successResponse(
       res,
       {
-        colorItems: keysToCamelCase(result.rows),
+        colorItems,
         pagination: { totalItems, totalPages, currentPage, limit: parsedLimit },
       },
       "Color items fetched successfully."
@@ -84,7 +130,19 @@ exports.getColorItemById = async (req, res) => {
       return errorResponse(res, 404, "Color item not found.");
     }
 
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Color item fetched successfully.");
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
+      supplier: formatUserObject(row.supplier_id, usersMap)
+    };
+
+    return successResponse(res, response, "Color item fetched successfully.");
   } catch (error) {
     console.error("Get color item by ID error:", error);
     return errorResponse(res, 500, "Failed to fetch color item.");
@@ -106,6 +164,7 @@ exports.createColorItem = async (req, res) => {
     supplierId,
   } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
   const imageUrl = req.file?.location;
 
   if (!imageUrl) {
@@ -128,18 +187,16 @@ exports.createColorItem = async (req, res) => {
     }
 
     let supplierIdParam = null;
-    let supplierNameParam = null;
     if (supplierId) {
       // Ensure supplier belongs to this builder
       const supplier = await client.query(
-        `SELECT * FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
+        `SELECT 1 FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
         [supplierId, builderId]
       );
       if (supplier.rowCount === 0) {
         return errorResponse(res, 400, "Invalid supplierId.");
       }
-      supplierIdParam = supplier.rows[0].users_id;
-      supplierNameParam = supplier.rows[0].name;
+      supplierIdParam = supplierId;
     }
 
     const result = await client.query(
@@ -154,8 +211,10 @@ exports.createColorItem = async (req, res) => {
         notes,
         highlight_notes_on_pdf,
         supplier_id,
-        image
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        image,
+        created_by_id,
+        updated_by_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [
         colorSubCategoryId,
         builderId,
@@ -168,14 +227,24 @@ exports.createColorItem = async (req, res) => {
         Boolean(highlightNotesOnPdf) || false,
         supplierIdParam,
         imageUrl,
+        userId,
+        userId,
       ]
     );
 
-    delete result.rows[0].supplier_id;
-    return successResponse(res, keysToCamelCase({ ...result.rows[0], supplier: {
-      supplier_id: supplierIdParam,
-      name: supplierNameParam,
-    } }), "Color item created successfully.");
+    const row = result.rows[0];
+    const userIds = [userId, row.supplier_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
+      supplier: formatUserObject(row.supplier_id, usersMap)
+    };
+
+    return successResponse(res, response, "Color item created successfully.");
   } catch (error) {
     console.error("Create color item error:", error);
     return errorResponse(res, 500, "Failed to create color item.");
@@ -197,6 +266,7 @@ exports.updateColorItem = async (req, res) => {
     supplierId,
   } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
   let imageUrl = null;
   if (req.file) {
     imageUrl = req.file.location;
@@ -208,7 +278,7 @@ exports.updateColorItem = async (req, res) => {
   try {
     // verify ownership of item
     const owned = await client.query(
-      `SELECT ci.color_item_id, ci.image FROM color_items ci
+      `SELECT ci.color_item_id, ci.image, ci.supplier_id FROM color_items ci
        JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE ci.color_item_id = $1 AND cc.builder_id = $2 AND ci.is_deleted = false`,
@@ -240,8 +310,9 @@ exports.updateColorItem = async (req, res) => {
         highlight_notes_on_pdf = COALESCE($7, highlight_notes_on_pdf),
         supplier_id = COALESCE($8, supplier_id),
         image = COALESCE($9, image),
+        updated_by_id = $10,
         updated_at = NOW()
-       WHERE color_item_id = $10 AND is_deleted = false
+       WHERE color_item_id = $11 AND is_deleted = false
        RETURNING *`,
       [
         name ?? null,
@@ -253,6 +324,7 @@ exports.updateColorItem = async (req, res) => {
         highlightNotesOnPdf ?? null,
         supplierId ?? owned.rows[0].supplier_id,
         imageUrl ?? owned.rows[0].image,
+        userId,
         color_item_id,
       ]
     );
@@ -261,22 +333,20 @@ exports.updateColorItem = async (req, res) => {
     if (imageUrl && owned.rows[0].image) {
       await deleteFromS3(owned.rows[0].image);
     }
-    let updatedItem = null;
-    if (supplierId) {
-      updatedItem = await client.query(
-        `SELECT name FROM users WHERE users_id = $1 AND is_deleted = false`,
-        [supplierId]
-      );
-    }
 
-    delete result.rows[0].supplier_id;
-    return successResponse(res, {
-      ...keysToCamelCase(result.rows[0]),
-      supplier: {
-        supplierId: supplierId ?? null,
-        name: updatedItem?.rows[0].name ?? null,
-      },
-    }, "Color item updated successfully.");
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
+      supplier: formatUserObject(row.supplier_id, usersMap)
+    };
+
+    return successResponse(res, response, "Color item updated successfully.");
   } catch (error) {
     console.error("Update color item error:", error);
     await deleteFromS3(imageUrl);
@@ -289,6 +359,7 @@ exports.updateColorItem = async (req, res) => {
 exports.deleteColorItem = async (req, res) => {
   const { color_item_id } = req.params;
   const builderId = req.user.builder_id;
+  const userId = req.user.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -305,12 +376,25 @@ exports.deleteColorItem = async (req, res) => {
     }
 
     const result = await client.query(
-      `UPDATE color_items SET is_deleted = true, updated_at = NOW()
+      `UPDATE color_items 
+       SET is_deleted = true, updated_by_id = $2, updated_at = NOW()
        WHERE color_item_id = $1 AND is_deleted = false RETURNING *`,
-      [color_item_id]
+      [color_item_id, userId]
     );
 
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Color item deleted successfully.");
+    const row = result.rows[0];
+    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
+    const usersMap = await getUsersDetails(client, userIds);
+
+    const formatted = keysToCamelCase(row);
+    const response = {
+      ...formatted,
+      createdBy: formatUserObject(row.created_by_id, usersMap),
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
+      supplier: formatUserObject(row.supplier_id, usersMap)
+    };
+
+    return successResponse(res, response, "Color item deleted successfully.");
   } catch (error) {
     console.error("Delete color item error:", error);
     return errorResponse(res, 500, "Failed to delete color item.");

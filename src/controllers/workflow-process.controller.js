@@ -2,6 +2,33 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
+
 exports.getAllWorkFlowProcess = async (req, res) => {
   const { limit, offset } = req.query;
   const parsedLimit = parseInt(limit, 10) || 25;
@@ -16,6 +43,25 @@ exports.getAllWorkFlowProcess = async (req, res) => {
       [req.user.builder_id, parsedLimit, parsedOffset]
     );
 
+    const workflows = keysToCamelCase(result.rows);
+
+    // Get all unique user IDs for created_by and updated_by
+    const allUserIds = [
+      ...new Set([
+        ...workflows.map((w) => w.createdById),
+        ...workflows.map((w) => w.updatedById),
+      ]),
+    ].filter(Boolean);
+
+    const usersMap = await getUsersDetails(client, allUserIds);
+
+    // Add user details to each workflow
+    const workflowsWithUsers = workflows.map((workflow) => ({
+      ...workflow,
+      createdBy: formatUserObject(workflow.createdById, usersMap),
+      updatedBy: formatUserObject(workflow.updatedById, usersMap),
+    }));
+
     const totalResult = await client.query(
       `SELECT COUNT(*) FROM workflow_process WHERE builder_id = $1 AND is_deleted = false`,
       [req.user.builder_id]
@@ -28,7 +74,7 @@ exports.getAllWorkFlowProcess = async (req, res) => {
     return successResponse(
       res,
       {
-        workflowProcesses: keysToCamelCase(result.rows),
+        workflowProcesses: workflowsWithUsers,
         pagination: {
           totalItems,
           totalPages,
@@ -39,6 +85,7 @@ exports.getAllWorkFlowProcess = async (req, res) => {
       "Workflow processes fetched successfully."
     );
   } catch (error) {
+    console.error("Get all workflow process error:", error);
     return errorResponse(
       res,
       error?.statusCode || 400,
@@ -52,6 +99,7 @@ exports.getAllWorkFlowProcess = async (req, res) => {
 exports.createWorkFlowProcess = async (req, res) => {
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -74,16 +122,25 @@ exports.createWorkFlowProcess = async (req, res) => {
 
     const result = await client.query(
       `
-      INSERT INTO workflow_process (builder_id, name, description, display_order)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO workflow_process (builder_id, name, description, display_order, created_by_id, updated_by_id)
+      VALUES ($1, $2, $3, $4, $5, $5)
       RETURNING *
       `,
-      [builderId, name, description || null, displayOrder]
+      [builderId, name, description || null, displayOrder, userId]
     );
+
+    const workflow = result.rows[0];
+
+    // Get user details
+    const usersMap = await getUsersDetails(client, [workflow.created_by_id, workflow.updated_by_id]);
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase({
+        ...workflow,
+        created_by: formatUserObject(workflow.created_by_id, usersMap),
+        updated_by: formatUserObject(workflow.updated_by_id, usersMap),
+      }),
       "Workflow process created successfully."
     );
   } catch (error) {
@@ -98,6 +155,7 @@ exports.updateWorkFlowProcess = async (req, res) => {
   const { id } = req.params;
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -108,11 +166,12 @@ exports.updateWorkFlowProcess = async (req, res) => {
       UPDATE workflow_process
       SET name = COALESCE($1, name),
           description = COALESCE($2, description),
+          updated_by_id = $3,
           updated_at = NOW()
-      WHERE workflow_process_id = $3 AND builder_id = $4 AND is_deleted = false
+      WHERE workflow_process_id = $4 AND builder_id = $5 AND is_deleted = false
       RETURNING *
       `,
-      [name || null, description || null, id, builderId]
+      [name || null, description || null, userId, id, builderId]
     );
 
     if (result.rowCount === 0) {
@@ -123,9 +182,18 @@ exports.updateWorkFlowProcess = async (req, res) => {
       );
     }
 
+    const workflow = result.rows[0];
+
+    // Get user details
+    const usersMap = await getUsersDetails(client, [workflow.created_by_id, workflow.updated_by_id]);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase({
+        ...workflow,
+        created_by: formatUserObject(workflow.created_by_id, usersMap),
+        updated_by: formatUserObject(workflow.updated_by_id, usersMap),
+      }),
       "Workflow process updated successfully."
     );
   } catch (error) {
@@ -139,6 +207,7 @@ exports.updateWorkFlowProcess = async (req, res) => {
 exports.displayOrderManage = async (req, res) => {
   const { orderedWorkflowProcess } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -178,8 +247,8 @@ exports.displayOrderManage = async (req, res) => {
     }
 
     const cases = [];
-    const values = [builderId];
-    let i = 2;
+    const values = [builderId, userId];
+    let i = 3;
     for (const { workflowProcessId, displayOrder } of orderedWorkflowProcess) {
       cases.push(`WHEN workflow_process_id = $${i} THEN $${i + 1}::int`);
       values.push(workflowProcessId, Number(displayOrder));
@@ -189,6 +258,7 @@ exports.displayOrderManage = async (req, res) => {
     const query = `
       UPDATE workflow_process
       SET display_order = CASE ${cases.join(" ")} END,
+          updated_by_id = $2,
           updated_at = NOW()
       WHERE builder_id = $1
         AND workflow_process_id = ANY($${i}::uuid[])
@@ -202,7 +272,7 @@ exports.displayOrderManage = async (req, res) => {
 
     return successResponse(
       res,
-      "", // keysToCamelCase(updatedRows),
+      "",
       "Workflow process display orders updated successfully."
     );
   } catch (error) {
@@ -221,6 +291,7 @@ exports.displayOrderManage = async (req, res) => {
 exports.deleteWorkFlowProcess = async (req, res) => {
   const { id } = req.params;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -242,11 +313,13 @@ exports.deleteWorkFlowProcess = async (req, res) => {
     const result = await client.query(
       `
       UPDATE workflow_process
-      SET is_deleted = true
-      WHERE workflow_process_id = $1 AND builder_id = $2
+      SET is_deleted = true,
+          updated_by_id = $1,
+          updated_at = NOW()
+      WHERE workflow_process_id = $2 AND builder_id = $3
       RETURNING *
       `,
-      [id, builderId]
+      [userId, id, builderId]
     );
 
     if (result.rowCount === 0) {
@@ -257,9 +330,18 @@ exports.deleteWorkFlowProcess = async (req, res) => {
       );
     }
 
+    const workflow = result.rows[0];
+
+    // Get user details
+    const usersMap = await getUsersDetails(client, [workflow.created_by_id, workflow.updated_by_id]);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase({
+        ...workflow,
+        created_by: formatUserObject(workflow.created_by_id, usersMap),
+        updated_by: formatUserObject(workflow.updated_by_id, usersMap),
+      }),
       "Workflow process deleted successfully."
     );
   } catch (error) {
@@ -289,25 +371,35 @@ exports.getWorkflowProcessesByCategoryId = async (req, res) => {
 
     const query = `
       SELECT 
-        wpt.workflow_process_task_id,
-        wpt.workflow_process_id,
-        wpt.name,
-        wpt.description,
-        wpt.attachment,
-        wpt.timespent,
-        wpt.is_deleted,
-        wpt.created_at,
-        wpt.updated_at
+        wpt.*
       FROM workflow_process_task wpt
       WHERE wpt.workflow_process_id = $1 AND wpt.is_deleted = false
       ORDER BY wpt.created_at DESC;
     `;
 
     const result = await client.query(query, [workflow_process_id]);
+    const tasks = keysToCamelCase(result.rows);
+
+    // Get all unique user IDs for created_by and updated_by from tasks
+    const allUserIds = [
+      ...new Set([
+        ...tasks.map((t) => t.createdById),
+        ...tasks.map((t) => t.updatedById),
+      ]),
+    ].filter(Boolean);
+
+    const usersMap = await getUsersDetails(client, allUserIds);
+
+    // Add user details to each task
+    const tasksWithUsers = tasks.map((task) => ({
+      ...task,
+      createdBy: formatUserObject(task.createdById, usersMap),
+      updatedBy: formatUserObject(task.updatedById, usersMap),
+    }));
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      tasksWithUsers,
       "Workflow process tasks fetched successfully."
     );
   } catch (err) {
@@ -328,6 +420,7 @@ exports.createWorkflowProcessTask = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
+    const userId = req.user.user_id;
     const { workflow_process_id, name, description, timespent } = req.body;
 
     await client.query(`BEGIN`);
@@ -362,9 +455,9 @@ exports.createWorkflowProcessTask = async (req, res) => {
 
     const taskQuery = `
     INSERT INTO workflow_process_task (
-        workflow_process_id, name, description, attachment, timespent
+        workflow_process_id, name, description, attachment, timespent, created_by_id, updated_by_id
     ) VALUES (
-        $1, $2, $3, $4, $5
+        $1, $2, $3, $4, $5, $6, $6
     )
     RETURNING *;
     `;
@@ -375,15 +468,24 @@ exports.createWorkflowProcessTask = async (req, res) => {
       description || null,
       imageUrl || null,
       timespent || null,
+      userId,
     ];
 
     const taskResult = await client.query(taskQuery, taskValues);
+    const task = taskResult.rows[0];
+
+    // Get user details
+    const usersMap = await getUsersDetails(client, [task.created_by_id, task.updated_by_id]);
 
     await client.query(`COMMIT`);
 
     return successResponse(
       res,
-      keysToCamelCase(taskResult.rows[0]),
+      keysToCamelCase({
+        ...task,
+        created_by: formatUserObject(task.created_by_id, usersMap),
+        updated_by: formatUserObject(task.updated_by_id, usersMap),
+      }),
       "Workflow process task created successfully."
     );
   } catch (err) {
@@ -405,6 +507,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
+    const userId = req.user.user_id;
     const { workflow_process_task_id } = req.params;
     const imageUrl = req.file?.location;
 
@@ -469,6 +572,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
     addField("description", description);
     addField("attachment", imageUrl || taskRes.rows[0].attachment);
     addField("timespent", timespent);
+    addField("updated_by_id", userId);
     addField("updated_at", new Date());
 
     let updatedTask = null;
@@ -492,11 +596,18 @@ exports.updateWorkflowProcessTask = async (req, res) => {
       updatedTask = fetchRes.rows[0];
     }
 
+    // Get user details
+    const usersMap = await getUsersDetails(client, [updatedTask.created_by_id, updatedTask.updated_by_id]);
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(updatedTask),
+      keysToCamelCase({
+        ...updatedTask,
+        created_by: formatUserObject(updatedTask.created_by_id, usersMap),
+        updated_by: formatUserObject(updatedTask.updated_by_id, usersMap),
+      }),
       "Workflow process task updated successfully."
     );
   } catch (err) {
@@ -518,6 +629,7 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
+    const userId = req.user.user_id;
     const { workflow_process_task_id } = req.params;
 
     await client.query("BEGIN");
@@ -537,19 +649,29 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
       return errorResponse(res, 404, "Workflow process task not found.");
     }
 
-    const task = taskRes.rows[0];
-
     // Soft delete the task
-    await client.query(
-      `UPDATE workflow_process_task SET is_deleted = true, updated_at = NOW() WHERE workflow_process_task_id = $1`,
-      [workflow_process_task_id]
+    const result = await client.query(
+      `UPDATE workflow_process_task 
+       SET is_deleted = true, updated_by_id = $1, updated_at = NOW() 
+       WHERE workflow_process_task_id = $2
+       RETURNING *`,
+      [userId, workflow_process_task_id]
     );
+
+    const task = result.rows[0];
+
+    // Get user details
+    const usersMap = await getUsersDetails(client, [task.created_by_id, task.updated_by_id]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(task),
+      keysToCamelCase({
+        ...task,
+        created_by: formatUserObject(task.created_by_id, usersMap),
+        updated_by: formatUserObject(task.updated_by_id, usersMap),
+      }),
       "Workflow process task deleted successfully."
     );
   } catch (err) {

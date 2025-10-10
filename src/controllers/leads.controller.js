@@ -3,6 +3,33 @@ const { generateCode } = require("../helper/codeGenerator");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
+
 exports.createLead = async (req, res) => {
   const { lead_source, notes, contact } = req.body;
 
@@ -28,7 +55,7 @@ exports.createLead = async (req, res) => {
     const leadQuery = `
       INSERT INTO leads (builder_id, slug_id, lead_source_id, notes, assignee_id, created_by_id, updated_by_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING lead_id, builder_id, status, lead_source_id, notes, created_at, updated_at;
+      RETURNING lead_id, builder_id, status, lead_source_id, notes, assignee_id, created_by_id, updated_by_id, created_at, updated_at;
     `;
 
     const leadResult = await client.query(leadQuery, [
@@ -42,6 +69,8 @@ exports.createLead = async (req, res) => {
     ]);
 
     const lead = leadResult.rows[0];
+
+    const usersMap = await getUsersDetails(client, [userId]);
 
     let contactDetails = null;
     if (contact) {
@@ -106,6 +135,9 @@ exports.createLead = async (req, res) => {
       keysToCamelCase({
         ...lead,
         lead_source: leadSourceResult.rows[0].name,
+        created_by: formatUserObject(lead.created_by_id, usersMap),
+        updated_by: formatUserObject(lead.updated_by_id, usersMap),
+        assignee: formatUserObject(lead.assignee_id, usersMap),
         ...contactDetails,
       }),
       "Lead created successfully."
@@ -134,6 +166,12 @@ exports.getLeads = async (req, res) => {
         l.status,
         ls.name AS lead_source,
         l.notes,
+        l.assignee_id,
+        assignee.name AS assignee_name,
+        l.created_by_id,
+        created_by.name AS created_by_name,
+        l.updated_by_id,
+        updated_by.name AS updated_by_name,
         l.created_at,
         l.updated_at,
         c.leads_contact_id,
@@ -150,6 +188,12 @@ exports.getLeads = async (req, res) => {
         ON l.lead_contact_id = c.leads_contact_id
       LEFT JOIN lead_source ls
         ON l.lead_source_id = ls.lead_source_id
+      LEFT JOIN users assignee
+        ON l.assignee_id = assignee.users_id
+      LEFT JOIN users created_by
+        ON l.created_by_id = created_by.users_id
+      LEFT JOIN users updated_by
+        ON l.updated_by_id = updated_by.users_id
       WHERE l.builder_id = $1 AND l.is_deleted = false
       ORDER BY l.created_at DESC
       LIMIT $2 OFFSET $3;
@@ -157,9 +201,33 @@ exports.getLeads = async (req, res) => {
 
     const result = await client.query(query, [builderId, limit, offset]);
 
+    // Transform the results to include user objects
+    const transformedRows = result.rows.map(row => {
+      const { 
+        assignee_id, assignee_name,
+        created_by_id, created_by_name,
+        updated_by_id, updated_by_name,
+        ...rest 
+      } = row;
+
+      // Create a temporary map for this row
+      const usersMap = {
+        [assignee_id]: assignee_name,
+        [created_by_id]: created_by_name,
+        [updated_by_id]: updated_by_name
+      };
+
+      return {
+        ...rest,
+        assignee: formatUserObject(assignee_id, usersMap),
+        created_by: formatUserObject(created_by_id, usersMap),
+        updated_by: formatUserObject(updated_by_id, usersMap),
+      };
+    });
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      keysToCamelCase(transformedRows),
       "Leads fetched successfully."
     );
   } catch (error) {
@@ -212,7 +280,28 @@ exports.getLeadById = async (req, res) => {
       return errorResponse(res, 404, "Lead not found.");
     }
 
-    const lead = leadResult.rows[0];
+    const leadRow = leadResult.rows[0];
+    
+    // Create users map from the query result
+    const {
+      assignee_id, assignee_name,
+      created_by_id, created_by_name,
+      updated_by_id, updated_by_name,
+      ...leadData
+    } = leadRow;
+
+    const usersMap = {
+      [assignee_id]: assignee_name,
+      [created_by_id]: created_by_name,
+      [updated_by_id]: updated_by_name
+    };
+
+    const lead = {
+      ...leadData,
+      assignee: formatUserObject(assignee_id, usersMap),
+      created_by: formatUserObject(created_by_id, usersMap),
+      updated_by: formatUserObject(updated_by_id, usersMap),
+    };
 
     const contactsQuery = `
       SELECT 
@@ -275,6 +364,7 @@ exports.getLeadById = async (req, res) => {
 exports.updateLead = async (req, res) => {
   const { lead_id } = req.params;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
   const pool = getPool();
   const client = await pool.connect();
 
@@ -319,11 +409,11 @@ exports.updateLead = async (req, res) => {
     }
 
     leadFields.push(`updated_by_id = $${index++}`);
-    leadValues.push(req.user.user_id);
+    leadValues.push(userId);
 
     leadFields.push(`updated_at = NOW()`);
 
-    if (leadFields.length === 0) {
+    if (leadFields.length === 2) { // Only updated_by_id and updated_at
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "No valid fields provided for update.");
     }
@@ -349,34 +439,26 @@ exports.updateLead = async (req, res) => {
       [leadResult.rows[0].lead_source_id, builderId]
     );
 
-    const usersQuery = `
-      SELECT u.users_id, u.name
-      FROM users u
-      WHERE u.users_id = ANY($1::uuid[])
-    `;
     const userIds = [
       leadResult.rows[0].assignee_id,
       leadResult.rows[0].created_by_id,
       leadResult.rows[0].updated_by_id,
-    ].filter(Boolean);
-
-    const usersResult = await client.query(usersQuery, [userIds]);
-    const usersMap = usersResult.rows.reduce((acc, row) => {
-      acc[row.users_id] = row.name;
-      return acc;
-    }, {});
+    ];
+    const usersMap = await getUsersDetails(client, userIds);
 
     await client.query("COMMIT");
 
+    const responseData = {
+      ...leadResult.rows[0],
+      lead_source: latestLeadSource.rows[0].name,
+      assignee: formatUserObject(leadResult.rows[0].assignee_id, usersMap),
+      created_by: formatUserObject(leadResult.rows[0].created_by_id, usersMap),
+      updated_by: formatUserObject(leadResult.rows[0].updated_by_id, usersMap),
+    };
+
     return successResponse(
       res,
-      keysToCamelCase({
-        ...leadResult.rows[0],
-        assignee_name: usersMap[leadResult.rows[0].assignee_id] || null,
-        created_by_name: usersMap[leadResult.rows[0].created_by_id] || null,
-        updated_by_name: usersMap[leadResult.rows[0].updated_by_id] || null,
-        lead_source: latestLeadSource.rows[0].name,
-      }),
+      keysToCamelCase(responseData),
       "Lead updated successfully."
     );
   } catch (error) {
@@ -392,6 +474,7 @@ exports.updateAssignee = async (req, res) => {
   const { lead_id } = req.params;
   const { assignee_id, notes } = req.body;
   const builderId = req.user.builder_id;
+  const userId = req.user.user_id;
   const pool = getPool();
   const client = await pool.connect();
 
@@ -424,9 +507,10 @@ exports.updateAssignee = async (req, res) => {
       UPDATE leads 
          SET assignee_id = $1,
              notes       = COALESCE($2, notes),
+             updated_by_id = $3,
              updated_at  = NOW()
-       WHERE lead_id = $3 
-         AND builder_id = $4 
+       WHERE lead_id = $4 
+         AND builder_id = $5 
          AND is_deleted = false 
          AND (status != 'JOB' AND status != 'CANCELLED')
      RETURNING *
@@ -434,6 +518,7 @@ exports.updateAssignee = async (req, res) => {
     const leadResult = await client.query(leadQuery, [
       assignee_id,
       notes || null,
+      userId,
       lead_id,
       builderId,
     ]);
@@ -443,18 +528,27 @@ exports.updateAssignee = async (req, res) => {
     }
 
     const lead = leadResult.rows[0];
+    const userIds = [lead.created_by_id, lead.updated_by_id];
+    const usersMap = await getUsersDetails(client, userIds);
 
     await client.query("COMMIT");
 
+    const assigneeData = formatUserObject(assignee.users_id, { [assignee.users_id]: assignee.name });
+    const createdByData = formatUserObject(lead.created_by_id, usersMap);
+    const updatedByData = formatUserObject(lead.updated_by_id, usersMap);
+
+    delete lead.created_by_id;
+    delete lead.updated_by_id;
+    delete lead.assignee_id;
+
     return successResponse(
       res,
-      {
-        ...keysToCamelCase(lead),
-        assignee: {
-          id: assignee.users_id,
-          name: assignee.name,
-        },
-      },
+      keysToCamelCase({
+        ...lead,
+        assignee: assigneeData,
+        createdBy: createdByData,
+        updatedBy: updatedByData,
+      }),
       "Assignee updated successfully."
     );
   } catch (error) {
@@ -480,6 +574,11 @@ exports.convertLead = async (req, res) => {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Lead not found or already in Working.");
     }
+    if (checkLeadExists.rows[0].status === "NEW") {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Lead status is New so can't be converted.");
+    };
+
     const softDeleteQuery = `
       UPDATE quotation
          SET is_deleted = true
@@ -488,39 +587,39 @@ exports.convertLead = async (req, res) => {
     `;
     await client.query(softDeleteQuery, [lead_id, builderId]);
 
-    const deleteActionsQuery = `SELECT action_id FROM actions WHERE lead_id = $1 AND builder_id = $2;`;
-    const deleteActionsResult = await client.query(deleteActionsQuery, [lead_id, builderId]);
-    const actionIds = deleteActionsResult.rows.map(row => row.action_id);
+    // const deleteActionsQuery = `SELECT action_id FROM actions WHERE lead_id = $1 AND builder_id = $2;`;
+    // const deleteActionsResult = await client.query(deleteActionsQuery, [lead_id, builderId]);
+    // const actionIds = deleteActionsResult.rows.map(row => row.action_id);
 
-    if (actionIds.length > 0) {
-      await client.query(
-        `UPDATE notes 
-            SET is_deleted = true 
-          WHERE action_id = ANY($1)`,
-        [actionIds]
-      );
+    // if (actionIds.length > 0) {
+    //   await client.query(
+    //     `UPDATE notes 
+    //         SET is_deleted = true 
+    //       WHERE action_id = ANY($1)`,
+    //     [actionIds]
+    //   );
 
-      await client.query(
-        `UPDATE appointment 
-            SET is_deleted = true 
-          WHERE action_id = ANY($1)`,
-        [actionIds]
-      );
+    //   await client.query(
+    //     `UPDATE appointment 
+    //         SET is_deleted = true 
+    //       WHERE action_id = ANY($1)`,
+    //     [actionIds]
+    //   );
 
-      await client.query(
-        `UPDATE task 
-            SET is_deleted = true 
-          WHERE action_id = ANY($1)`,
-        [actionIds]
-      );
+    //   await client.query(
+    //     `UPDATE task 
+    //         SET is_deleted = true 
+    //       WHERE action_id = ANY($1)`,
+    //     [actionIds]
+    //   );
 
-      await client.query(
-        `UPDATE sms 
-            SET is_deleted = true 
-          WHERE action_id = ANY($1)`,
-        [actionIds]
-      );
-    }
+    //   await client.query(
+    //     `UPDATE sms 
+    //         SET is_deleted = true 
+    //       WHERE action_id = ANY($1)`,
+    //     [actionIds]
+    //   );
+    // }
 
     const updateStatusQuery = `
       UPDATE leads

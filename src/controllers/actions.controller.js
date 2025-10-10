@@ -3,6 +3,33 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
+const getUsersDetails = async (client, userIds) => {
+  if (!userIds || userIds.length === 0) return {};
+  
+  const validUserIds = userIds.filter(Boolean);
+  if (validUserIds.length === 0) return {};
+
+  const usersQuery = `
+    SELECT users_id, name 
+    FROM users 
+    WHERE users_id = ANY($1::uuid[])
+  `;
+  const usersResult = await client.query(usersQuery, [validUserIds]);
+  
+  return usersResult.rows.reduce((acc, row) => {
+    acc[row.users_id] = row.name;
+    return acc;
+  }, {});
+};
+
+const formatUserObject = (userId, usersMap) => {
+  if (!userId) return null;
+  return {
+    id: userId,
+    name: usersMap[userId] || null
+  };
+};
+
 exports.createAction = async (req, res) => {
   const { lead_id } = req.params;
   const builderId = req.user.builder_id;
@@ -205,15 +232,11 @@ exports.createAction = async (req, res) => {
       details = taskRes.rows[0];
     }
 
-    const createByIdRes = await client.query(
-      `SELECT name FROM users WHERE users_id = $1`,
-      [action.created_by_id]
-    );
-
-    const updatedByIdRes = await client.query(
-      `SELECT name FROM users WHERE users_id = $1`,
-      [action.updated_by_id]
-    );
+    // Get user details for created_by and updated_by
+    const usersMap = await getUsersDetails(client, [
+      action.created_by_id,
+      action.updated_by_id,
+    ]);
 
     const tagNamesRes = await client.query(
       `SELECT t.tag_id, t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false`,
@@ -234,8 +257,8 @@ exports.createAction = async (req, res) => {
       res,
       keysToCamelCase({
         ...action,
-        created_by_name: createByIdRes.rows[0].name,
-        updated_by_name: updatedByIdRes.rows[0].name,
+        created_by: formatUserObject(action.created_by_id, usersMap),
+        updated_by: formatUserObject(action.updated_by_id, usersMap),
         [type?.toLowerCase()]: keysToCamelCase(details),
       }),
       "Action created successfully."
@@ -288,19 +311,18 @@ exports.updateAction = async (req, res) => {
       return errorResponse(res, 400, "Type mismatch with action data.");
     }
 
-    let updateFields = [];
-    let values = [];
-    let idx = 1;
+    // Update the updated_by_id and updated_at
+    await client.query(
+      `UPDATE actions SET updated_by_id = $1, updated_at = NOW() WHERE action_id = $2`,
+      [req.user.user_id, action_id]
+    );
 
-    if (updateFields.length > 0) {
-      values.push(action_id);
-      await client.query(
-        `UPDATE actions SET ${updateFields.join(
-          ", "
-        )}, updated_at = NOW() WHERE action_id = $${idx}`,
-        values
-      );
-    }
+    // Fetch updated action
+    const updatedActionRes = await client.query(
+      `SELECT * FROM actions WHERE action_id = $1`,
+      [action_id]
+    );
+    const updatedAction = updatedActionRes.rows[0];
 
     let details = null;
 
@@ -608,23 +630,20 @@ exports.updateAction = async (req, res) => {
         : null;
     }
 
-    const createByIdRes = await client.query(
-      `SELECT name FROM users WHERE users_id = $1 AND builder_id = $2 AND is_deleted = false AND is_verified = true`,
-      [existingAction.created_by_id, builderId]
-    );
-    const updatedByIdRes = await client.query(
-      `SELECT name FROM users WHERE users_id = $1 AND builder_id = $2 AND is_deleted = false AND is_verified = true`,
-      [req.user.user_id, builderId]
-    );
+    // Get user details for created_by and updated_by
+    const usersMap = await getUsersDetails(client, [
+      updatedAction.created_by_id,
+      updatedAction.updated_by_id,
+    ]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
       keysToCamelCase({
-        ...existingAction,
-        created_by_name: createByIdRes.rows[0].name,
-        updated_by_name: updatedByIdRes.rows[0].name,
+        ...updatedAction,
+        created_by: formatUserObject(updatedAction.created_by_id, usersMap),
+        updated_by: formatUserObject(updatedAction.updated_by_id, usersMap),
         [existingAction.type.toLowerCase()]: keysToCamelCase(details),
       }),
       "Action updated successfully."
@@ -646,7 +665,11 @@ exports.getAction = async (req, res) => {
   const leadId = req.params.lead_id;
 
   try {
-    let actionQuery = `SELECT a.*, u1.name as created_by_name, u2.name as updated_by_name FROM actions a LEFT JOIN users u1 ON a.created_by_id = u1.users_id LEFT JOIN users u2 ON a.updated_by_id = u2.users_id WHERE a.lead_id = $1 AND a.builder_id = $2`;
+    let actionQuery = `
+      SELECT a.* 
+      FROM actions a 
+      WHERE a.lead_id = $1 AND a.builder_id = $2
+    `;
     const queryParams = [leadId, builderId];
 
     if (filter !== "all") {
@@ -658,13 +681,27 @@ exports.getAction = async (req, res) => {
 
     const actionResult = await client.query(actionQuery, queryParams);
     if (actionResult.rows.length === 0) {
-      return errorResponse(res, 200, []);
+      return successResponse(res, [], "No actions found.");
     }
 
     const actions = keysToCamelCase(actionResult.rows);
     const actionIds = actions.map((a) => a.actionId);
 
-    const responseData = actions.map((a) => ({ ...a }));
+    // Get all user IDs for created_by and updated_by
+    const allUserIds = [
+      ...new Set([
+        ...actions.map((a) => a.createdById),
+        ...actions.map((a) => a.updatedById),
+      ]),
+    ].filter(Boolean);
+
+    const usersMap = await getUsersDetails(client, allUserIds);
+
+    const responseData = actions.map((a) => ({
+      ...a,
+      createdBy: formatUserObject(a.createdById, usersMap),
+      updatedBy: formatUserObject(a.updatedById, usersMap),
+    }));
 
     const attachToActions = (rows, key, foreignKey = "actionId") => {
       const grouped = rows.reduce((acc, row) => {
