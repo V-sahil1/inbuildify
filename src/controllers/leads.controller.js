@@ -435,7 +435,7 @@ exports.updateLead = async (req, res) => {
     }
 
     const latestLeadSource = await client.query(
-      `SELECT name FROM lead_source WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`,
+      `SELECT name FROM lead_source WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL);`, //  AND is_deleted = false;
       [leadResult.rows[0].lead_source_id, builderId]
     );
 
