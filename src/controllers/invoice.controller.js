@@ -5,7 +5,7 @@ const { generateInvoiceCode } = require("../helper/codeGenerator");
 
 const getUsersDetails = async (client, userIds) => {
   if (!userIds || userIds.length === 0) return {};
-  
+
   const validUserIds = userIds.filter(Boolean);
   if (validUserIds.length === 0) return {};
 
@@ -15,7 +15,7 @@ const getUsersDetails = async (client, userIds) => {
     WHERE users_id = ANY($1::uuid[])
   `;
   const usersResult = await client.query(usersQuery, [validUserIds]);
-  
+
   return usersResult.rows.reduce((acc, row) => {
     acc[row.users_id] = row.name;
     return acc;
@@ -26,7 +26,7 @@ const formatUserObject = (userId, usersMap) => {
   if (!userId) return null;
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
@@ -61,7 +61,11 @@ exports.createInvoice = async (req, res) => {
       }
     }
 
-    const leadInvoiceId = generateInvoiceCode(creatorName, "invoice", version_number);
+    const leadInvoiceId = generateInvoiceCode(
+      creatorName,
+      "invoice",
+      version_number
+    );
 
     const insertQuery = `
       INSERT INTO invoice (
@@ -89,23 +93,25 @@ exports.createInvoice = async (req, res) => {
     ];
 
     const result = await client.query(insertQuery, values);
-    
+
     const usersMap = await getUsersDetails(client, [userId]);
     const invoice = keysToCamelCase(result.rows[0]);
-    
-    invoice.createdBy = formatUserObject(result.rows[0].created_by_id, usersMap);
-    invoice.updatedBy = formatUserObject(result.rows[0].updated_by_id, usersMap);
-    
+
+    invoice.createdBy = formatUserObject(
+      result.rows[0].created_by_id,
+      usersMap
+    );
+    invoice.updatedBy = formatUserObject(
+      result.rows[0].updated_by_id,
+      usersMap
+    );
+
     delete invoice.createdById;
     delete invoice.updatedById;
 
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      invoice,
-      "Invoice created successfully."
-    );
+    return successResponse(res, invoice, "Invoice created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create invoice error:", error);
@@ -150,31 +156,27 @@ exports.getInvoices = async (req, res) => {
     params.push(limit, offset);
 
     const result = await client.query(query, params);
-    
+
     const userIds = new Set();
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       if (row.created_by_id) userIds.add(row.created_by_id);
       if (row.updated_by_id) userIds.add(row.updated_by_id);
     });
-    
+
     const usersMap = await getUsersDetails(client, Array.from(userIds));
-    
-    const invoices = result.rows.map(row => {
+
+    const invoices = result.rows.map((row) => {
       const invoice = keysToCamelCase(row);
       invoice.createdBy = formatUserObject(row.created_by_id, usersMap);
       invoice.updatedBy = formatUserObject(row.updated_by_id, usersMap);
-      
+
       delete invoice.createdById;
       delete invoice.updatedById;
-      
+
       return invoice;
     });
 
-    return successResponse(
-      res,
-      invoices,
-      "Invoices fetched successfully."
-    );
+    return successResponse(res, invoices, "Invoices fetched successfully.");
   } catch (error) {
     console.error("Get invoices error:", error);
     return errorResponse(res, 500, "Failed to fetch invoices.");
@@ -187,13 +189,7 @@ exports.updateInvoice = async (req, res) => {
   const builderId = req.user.builder_id;
   const userId = req.user.users_id;
   const invoice_id = req.params.invoice_id;
-  const {
-    description,
-    notes,
-    invoice_amount,
-    due_date,
-    status,
-  } = req.body;
+  const { description, notes, invoice_amount, due_date, status } = req.body;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -207,7 +203,7 @@ exports.updateInvoice = async (req, res) => {
       WHERE invoice_id = $1 AND builder_id = $2 AND is_deleted = false
     `;
     const checkResult = await client.query(checkQuery, [invoice_id, builderId]);
-    
+
     if (checkResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Invoice not found.");
@@ -248,29 +244,34 @@ exports.updateInvoice = async (req, res) => {
       UPDATE invoice
       SET ${updates.join(", ")}
       WHERE invoice_id = $${idx++} AND builder_id = $${idx++} AND is_deleted = false
-      RETURNING *
+      RETURNING * 
     `;
 
     const result = await client.query(updateQuery, values);
-    
+
     // Get user details for the response
-    const userIds = [result.rows[0].created_by_id, result.rows[0].updated_by_id].filter(Boolean);
+    const userIds = [
+      result.rows[0].created_by_id,
+      result.rows[0].updated_by_id,
+    ].filter(Boolean);
     const usersMap = await getUsersDetails(client, userIds);
-    
+
     const invoice = keysToCamelCase(result.rows[0]);
-    invoice.createdBy = formatUserObject(result.rows[0].created_by_id, usersMap);
-    invoice.updatedBy = formatUserObject(result.rows[0].updated_by_id, usersMap);
-    
+    invoice.createdBy = formatUserObject(
+      result.rows[0].created_by_id,
+      usersMap
+    );
+    invoice.updatedBy = formatUserObject(
+      result.rows[0].updated_by_id,
+      usersMap
+    );
+
     delete invoice.createdById;
     delete invoice.updatedById;
 
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      invoice,
-      "Invoice updated successfully."
-    );
+    return successResponse(res, invoice, "Invoice updated successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Update invoice error:", error);

@@ -1,0 +1,64 @@
+const Joi = require("joi");
+
+const createLeadLostReasonSchema = Joi.object({
+  lost_reason: Joi.string().trim().max(255).required().messages({
+    "string.empty": "Lost reason is required",
+    "any.required": "Lost reason is required",
+  }),
+
+  sort_order: Joi.number().integer().min(1).optional().default(1).messages({
+    "number.base": "Sort order must be a number",
+    "number.min": "Sort order must be at least 1",
+  }),
+
+  is_active: Joi.boolean().optional(),
+});
+
+const getAllLeadLostReasonsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
+});
+
+const deleteLeadLostReasonSchema = Joi.object({
+  id: Joi.string().uuid().required().messages({
+    "string.guid": "Lead lost reasonID must be a valid UUID",
+    "any.required": "Lead lost reason ID is required",
+  }),
+});
+
+const updateLeadLostReasonParamsSchema = Joi.object({
+  id: Joi.string().uuid().required().messages({
+    "string.guid": "Lead lost reasonID must be a valid UUID",
+    "any.required": "Lead lost reason ID is required",
+  }),
+});
+
+const updateLeadLostReasonSchema = Joi.object({
+  lost_reason: Joi.string().trim().max(255).optional().messages({
+    "string.empty": "Lost reason is can not be empty.",
+  }),
+
+  sort_order: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.min": "Sort order must be at least 1",
+  }),
+
+  is_active: Joi.boolean().optional(),
+});
+module.exports = {
+  createLeadLostReasonSchema,
+  getAllLeadLostReasonsSchema,
+  deleteLeadLostReasonSchema,
+  updateLeadLostReasonParamsSchema,
+  updateLeadLostReasonSchema,
+};

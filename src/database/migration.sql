@@ -198,6 +198,7 @@ ALTER TABLE task
   ADD COLUMN IF NOT EXISTS workflow_process_id UUID DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS workflow_process_task_id UUID DEFAULT NULL;
 
+
 DO $$
 BEGIN
   IF NOT EXISTS (

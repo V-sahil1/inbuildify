@@ -1,0 +1,462 @@
+const getPool = require("../config/database");
+const { errorResponse, successResponse } = require("../helper/response");
+const { keysToCamelCase } = require("../utils/common");
+
+exports.createJobCommission = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const createdBy = req.user?.users_id;
+
+    if (!builderId) {
+      return errorResponse(res, 400, "Builder ID is required.");
+    }
+
+    let {
+      commission_type,
+      name,
+      recipient,
+      recipient_user_id,
+      commission_unit,
+      commission_value,
+      sort_order,
+    } = req.body;
+
+    await client.query("BEGIN");
+
+    const settingsQuery = `
+      SELECT job_commission_settings_id, define_outgoing_commission, define_incoming_commission
+      FROM job_commission_settings 
+      WHERE builder_id = $1
+      LIMIT 1;
+    `;
+    const settingsResult = await client.query(settingsQuery, [builderId]);
+
+    if (settingsResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "No job commission settings found for this builder."
+      );
+    }
+
+    const settings = settingsResult.rows[0];
+
+    if (
+      (commission_type === "outgoing" &&
+        !settings.define_outgoing_commission) ||
+      (commission_type === "incoming" && !settings.define_incoming_commission)
+    ) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Cannot create ${commission_type} commission. Corresponding setting is not enabled.`
+      );
+    }
+    const jobCommissionSettingsId =
+      settingsResult.rows[0].job_commission_settings_id;
+
+    if (sort_order === undefined || sort_order === null) {
+      sort_order = 1;
+    }
+
+    const duplicateQuery = `
+  SELECT job_commission_id 
+  FROM job_commission 
+  WHERE job_commission_settings_id = $1 
+    AND sort_order = $2;
+`;
+
+    const duplicateResult = await client.query(duplicateQuery, [
+      jobCommissionSettingsId,
+      sort_order,
+    ]);
+
+    if (duplicateResult.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Sort order ${sort_order} already exists for this commission setting.`
+      );
+    }
+
+    const insertQuery = `
+      INSERT INTO job_commission (
+        company_id,
+        builder_id,
+        job_commission_settings_id,
+        commission_type,
+        name,
+        recipient,
+        recipient_user_id,
+        commission_unit,
+        commission_value,
+        sort_order,
+        created_by,
+        updated_by
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+      RETURNING *;
+    `;
+
+    const values = [
+      companyId,
+      builderId,
+      jobCommissionSettingsId,
+      commission_type,
+      name,
+      recipient,
+      recipient_user_id || null,
+      commission_unit,
+      commission_value,
+      sort_order ?? 1,
+      createdBy,
+    ];
+
+    const result = await client.query(insertQuery, values);
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Job commission created successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating job commission:", err);
+    return errorResponse(res, 500, err.message || "Internal server error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getAllJobCommissions = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
+    }
+
+    let { page = 1, limit = 25 } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const offset = (page - 1) * limit;
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM job_commission jc
+      WHERE jc.builder_id = $1;
+    `;
+    const countResult = await client.query(countQuery, [builderId]);
+    const totalRecords = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    const dataQuery = `
+      SELECT 
+        *
+      FROM job_commission jc
+      WHERE jc.builder_id = $1
+      ORDER BY jc.sort_order ASC
+      LIMIT $2 OFFSET $3;
+    `;
+
+    const result = await client.query(dataQuery, [builderId, limit, offset]);
+
+    return successResponse(
+      res,
+      {
+        jobCommission: keysToCamelCase(result.rows),
+        pagination: {
+          totalRecords,
+          totalPages,
+          currentPage: page,
+          pageSize: limit,
+        },
+      },
+      "Job commissions fetched successfully."
+    );
+  } catch (err) {
+    console.error("Error fetching job commissions:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.deleteJobCommission = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { job_commission_id } = req.params;
+    const builderId = req.user?.builder_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
+    }
+
+    await client.query("BEGIN");
+
+    const checkQuery = `
+      SELECT job_commission_id 
+      FROM job_commission 
+      WHERE job_commission_id = $1 AND builder_id = $2;
+    `;
+    const checkResult = await client.query(checkQuery, [
+      job_commission_id,
+      builderId,
+    ]);
+
+    if (checkResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        404,
+        "Job commission not found or unauthorized to delete."
+      );
+    }
+
+    const deleteQuery = `
+      DELETE FROM job_commission
+      WHERE job_commission_id = $1 AND builder_id = $2;
+    `;
+    await client.query(deleteQuery, [job_commission_id, builderId]);
+
+    await client.query("COMMIT");
+
+    return successResponse(res, null, "Job commission deleted successfully.");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting job commission:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateJobCommission = async (req, res) => {
+  const { job_commission_id } = req.params;
+  const builderId = req.user?.builder_id;
+  const userId = req.user?.users_id;
+
+  const {
+    commission_type,
+    name,
+    recipient,
+    recipient_user_id,
+    commission_unit,
+    commission_value,
+    sort_order,
+  } = req.body;
+
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const settingsQuery = `
+      SELECT job_commission_settings_id, define_outgoing_commission, define_incoming_commission
+      FROM job_commission_settings 
+      WHERE builder_id = $1
+      LIMIT 1;
+    `;
+    const settingsResult = await client.query(settingsQuery, [builderId]);
+
+    if (settingsResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "No job commission settings found.");
+    }
+
+    if (
+      commission_type === undefined &&
+      name === undefined &&
+      recipient === undefined &&
+      recipient_user_id === undefined &&
+      commission_unit === undefined &&
+      commission_value === undefined &&
+      sort_order === undefined
+    ) {
+      return errorResponse(res, 400, "No fields provided to update.");
+    }
+
+    const settings = settingsResult.rows[0];
+
+    if (
+      (commission_type === "outgoing" &&
+        !settings.define_outgoing_commission) ||
+      (commission_type === "incoming" && !settings.define_incoming_commission)
+    ) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Cannot update to ${commission_type}. Corresponding setting is disabled.`
+      );
+    }
+
+    const existingQ = await client.query(
+      `SELECT commission_unit, commission_value, recipient, recipient_user_id 
+       FROM job_commission WHERE job_commission_id = $1`,
+      [job_commission_id]
+    );
+
+    if (existingQ.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Job commission not found.");
+    }
+
+    const old = existingQ.rows[0];
+
+    let finalUnit = commission_unit ?? old.commission_unit;
+    let finalValue = commission_value ?? old.commission_value;
+
+    if (finalUnit === "percentage") {
+      if (Number(finalValue) > 100) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Percentage cannot exceed 100.");
+      }
+
+      const decimals = finalValue?.toString().split(".")[1]?.length || 0;
+      if (decimals > 2) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Percentage cannot have more than 2 decimals."
+        );
+      }
+    }
+
+    if (finalUnit === "amount") {
+      const decimals = finalValue?.toString().split(".")[1]?.length || 0;
+      if (decimals > 2) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Amount cannot have more than 2 decimals."
+        );
+      }
+
+      const digits = finalValue.toString().replace(".", "").length;
+      if (digits > 10) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Amount exceeds precision limit (10,2)."
+        );
+      }
+    }
+
+    const jobCommissionSettingsId = settings.job_commission_settings_id;
+
+    if (sort_order !== undefined) {
+      const duplicateSort = await client.query(
+        `SELECT job_commission_id FROM job_commission
+         WHERE job_commission_settings_id = $1 
+         AND sort_order = $2 
+         AND job_commission_id <> $3`,
+        [jobCommissionSettingsId, sort_order, job_commission_id]
+      );
+
+      if (duplicateSort.rowCount > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          `Sort order ${sort_order} already exists.`
+        );
+      }
+    }
+
+    let i = 1;
+    const fields = [];
+    const values = [];
+
+    const assign = (col, val) => {
+      if (val !== undefined) {
+        fields.push(`${col} = $${i++}`);
+        values.push(val);
+      }
+    };
+
+    assign("commission_type", commission_type);
+    assign("name", name);
+    assign("recipient", recipient);
+    assign("commission_unit", commission_unit);
+    assign("commission_value", commission_value);
+    assign("sort_order", sort_order);
+
+    const finalRecipient = recipient ?? old.recipient;
+    const oldRecipientUser = old.recipient_user_id;
+
+    if (finalRecipient !== "other_user") {
+      if (recipient_user_id !== undefined) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "recipient_user_id is only allowed when recipient = other_user."
+        );
+      }
+
+      fields.push(`recipient_user_id = $${i++}`);
+      values.push(null);
+    } else {
+      if (!oldRecipientUser && recipient_user_id === undefined) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "recipient_user_id is required when recipient is other_user."
+        );
+      }
+
+      fields.push(`recipient_user_id = $${i++}`);
+      values.push(recipient_user_id ?? oldRecipientUser);
+    }
+
+    fields.push(`updated_by = $${i}`);
+    values.push(userId);
+    i++;
+
+    fields.push(`updated_at = NOW()`);
+
+    const updateQuery = `
+      UPDATE job_commission
+      SET ${fields.join(", ")}
+      WHERE job_commission_id = $${i}
+      RETURNING *;
+    `;
+    values.push(job_commission_id);
+
+    const result = await client.query(updateQuery, values);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Job commission updated successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating job commission:", err);
+    return errorResponse(res, 500, "Internal server error.");
+  } finally {
+    client.release();
+  }
+};

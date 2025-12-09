@@ -1,0 +1,24 @@
+const Joi = require("joi");
+
+const createJobCommissionSettingSchema = Joi.object({
+  define_outgoing_commission: Joi.boolean().default(false),
+  define_incoming_commission: Joi.boolean().default(false),
+});
+
+const updateJobCommissionSettingParamsSchema = Joi.object({
+  job_commission_settings_id: Joi.string().uuid().required().messages({
+    "string.guid": "ID must be a valid UUID",
+    "any.required": "ID is required",
+  }),
+});
+
+const updateJobCommissionSettingSchema = Joi.object({
+  define_outgoing_commission: Joi.boolean().optional(),
+  define_incoming_commission: Joi.boolean().optional(),
+});
+
+module.exports = {
+  createJobCommissionSettingSchema,
+  updateJobCommissionSettingParamsSchema,
+  updateJobCommissionSettingSchema,
+};

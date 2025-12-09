@@ -3,46 +3,74 @@ const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
 exports.createLeadSource = async (req, res) => {
-  const { name } = req.body || {};
-  const builderId = req.user.builder_id;
+  const { name, sort_order, is_active, allow_change } = req.body || {};
+
+  const builderId = req.user?.builder_id;
+  const companyId = req.user?.company_id;
+  const userId = req.user?.users_id;
+
+  if (!name) {
+    return errorResponse(res, 400, "Name is required.");
+  }
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const builderQuery = `SELECT * FROM builder WHERE builder_id = $1;`;
-    const builderResult = await client.query(builderQuery, [builderId]);
-
-    if (builderResult.rows.length === 0) {
-      return errorResponse(res, 404, "Builder not found with the provided ID.");
-    }
-
     const existingLeadSourceQuery = `
-      SELECT lead_source_id, name FROM lead_source 
-      WHERE LOWER(name) = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;
+      SELECT lead_source_id FROM lead_source 
+      WHERE LOWER(name) = $1 
+        AND (builder_id = $2 OR builder_id IS NULL)
     `;
-    const existingLeadSourceResult = await client.query(
-      existingLeadSourceQuery,
-      [name.toLowerCase(), builderId]
-    );
 
-    if (existingLeadSourceResult.rows.length > 0) {
-      return errorResponse(res, 409, "Lead source already exists.");
-    }
-
-    const leadSourceQuery = `
-      INSERT INTO lead_source (name, builder_id) 
-      VALUES ($1, $2) 
-      RETURNING lead_source_id, name, builder_id, created_at, updated_at;
-    `;
-    const leadSourceResult = await client.query(leadSourceQuery, [
+    const existing = await client.query(existingLeadSourceQuery, [
       name,
       builderId,
     ]);
 
+    if (existing.rows.length > 0) {
+      return errorResponse(res, 409, "Lead source already exists.");
+    }
+
+    const finalSortOrder = sort_order ?? 1;
+
+    const checkSortOrder = await client.query(
+      `SELECT 1 
+   FROM lead_source
+   WHERE sort_order = $1
+     AND builder_id = $2
+     `,
+      [finalSortOrder, builderId]
+    );
+
+    if (checkSortOrder.rowCount > 0) {
+      return errorResponse(
+        res,
+        409,
+        `Sort order ${finalSortOrder} already exists for this builder.`
+      );
+    }
+
+    const insertQuery = `
+      INSERT INTO lead_source 
+      (name, company_id, builder_id, sort_order, is_active, allow_change, created_by, updated_by) 
+      VALUES ($1, $2, $3, COALESCE($4, 1), COALESCE($5, true), COALESCE($6, true), $7, $7)
+      RETURNING *;
+    `;
+
+    const result = await client.query(insertQuery, [
+      name,
+      companyId,
+      builderId,
+      sort_order,
+      is_active,
+      allow_change,
+      userId,
+    ]);
+
     return successResponse(
       res,
-      keysToCamelCase(leadSourceResult.rows[0]),
+      keysToCamelCase(result.rows[0]),
       "Lead source created successfully."
     );
   } catch (error) {
@@ -59,21 +87,53 @@ exports.createLeadSource = async (req, res) => {
 };
 
 exports.getLeadSources = async (req, res) => {
-  const builderId = req.user.builder_id;
+  const builderId = req.user?.builder_id;
+  const companyId = req.user?.company_id;
+
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 25;
+  const offset = (page - 1) * limit;
+
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const query = `
-      SELECT lead_source_id, name, builder_id, created_at, updated_at FROM lead_source 
-      WHERE (builder_id IS NULL OR builder_id = $1) AND is_deleted = false
-      ORDER BY created_at DESC;
+    const countQuery = `
+      SELECT COUNT(*) AS total 
+      FROM lead_source
+      WHERE (company_id = $1 OR company_id IS NULL)
+        AND (builder_id = $2 OR builder_id IS NULL)
     `;
-    const result = await client.query(query, [builderId]);
+    const countResult = await client.query(countQuery, [companyId, builderId]);
+    const total = parseInt(countResult.rows[0].total, 10);
+    const totalPages = Math.ceil(total / limit);
+
+    const query = `
+      SELECT *
+      FROM lead_source 
+      WHERE (company_id = $1 OR company_id IS NULL)
+      AND (builder_id = $2 OR builder_id IS NULL)
+      ORDER BY sort_order ASC, created_at DESC
+      LIMIT $3 OFFSET $4;
+    `;
+    const result = await client.query(query, [
+      companyId,
+      builderId,
+      limit,
+      offset,
+    ]);
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      {
+        leadSource: keysToCamelCase(result.rows),
+        pagination: {
+          totalRecord: total,
+          curruntPage: page,
+          totalPage: totalPages,
+          limit,
+        },
+      },
       "Lead sources retrieved successfully."
     );
   } catch (error) {
@@ -93,8 +153,8 @@ exports.getLeadSourceById = async (req, res) => {
 
   try {
     const query = `
-      SELECT lead_source_id, name, builder_id, created_at, updated_at FROM lead_source 
-      WHERE lead_source_id = $1 AND (builder_id IS NULL OR builder_id = $2) AND is_deleted = false;
+      SELECT * FROM lead_source 
+      WHERE lead_source_id = $1 AND (builder_id IS NULL OR builder_id = $2)
     `;
     const result = await client.query(query, [lead_source_id, builderId]);
 
@@ -117,60 +177,159 @@ exports.getLeadSourceById = async (req, res) => {
 
 exports.updateLeadSource = async (req, res) => {
   const { lead_source_id } = req.params;
-  const builderId = req.user.builder_id;
-  const { name } = req.body;
+  const { name, sort_order, is_active, allow_change } = req.body;
+
+  const builderId = req.user?.builder_id;
+  const companyId = req.user?.company_id;
+  const userId = req.user?.users_id;
 
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const checkLeadSourceQuery = `
-      SELECT * FROM lead_source 
-      WHERE lead_source_id = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;
+    const updatingOtherFields =
+      name || sort_order !== undefined || allow_change !== undefined;
+
+    const checkQuery = `
+      SELECT allow_change, is_active 
+      FROM lead_source
+      WHERE lead_source_id = $1
+        AND (company_id = $2 OR company_id IS NULL)
+        AND (builder_id = $3 OR builder_id IS NULL)
     `;
-    const checkLeadSourceResult = await client.query(checkLeadSourceQuery, [
+    const checkResult = await client.query(checkQuery, [
       lead_source_id,
+      companyId,
       builderId,
     ]);
 
-    if (checkLeadSourceResult.rowCount === 0) {
+    if (checkResult.rowCount === 0) {
+      return errorResponse(res, 404, "Lead source not found.");
+    }
+
+    if (!name && !sort_order && is_active === undefined && !allow_change) {
       return errorResponse(
         res,
-        404,
-        "Lead source not found or you don't have permission to update this lead source."
+        400,
+        "At least one field must be provided to update."
       );
     }
 
-    const existingLeadSourceQuery = `
-      SELECT lead_source_id FROM lead_source 
-      WHERE LOWER(name) = $1 AND (builder_id = $2 OR builder_id IS NULL) 
-      AND lead_source_id != $3 AND is_deleted = false;
-    `;
-    const existingLeadSourceResult = await client.query(
-      existingLeadSourceQuery,
-      [name.toLowerCase(), builderId, lead_source_id]
-    );
+    const currentAllowChange = checkResult.rows[0].allow_change;
+    const currentIsActive = checkResult.rows[0].is_active;
 
-    if (existingLeadSourceResult.rows.length > 0) {
-      return errorResponse(res, 409, "Lead source name already exists.");
+    if (!currentAllowChange) {
+      return errorResponse(res, 403, "This lead source cannot be modified.");
+    }
+
+    const requestedIsActiveTrue = is_active === true || is_active === "true";
+    const requestedIsActiveFalse = is_active === false || is_active === "false";
+
+    if (currentIsActive === true && requestedIsActiveFalse) {
+      if (updatingOtherFields) {
+        return errorResponse(
+          res,
+          403,
+          "To deactivate an active lead source, 'is_active' must be the only field provided in the request."
+        );
+      }
+    }
+
+    if (currentIsActive === false) {
+      if (requestedIsActiveTrue) {
+        if (updatingOtherFields) {
+          return errorResponse(
+            res,
+            403,
+            "To activate an inactive lead source, 'is_active' must be the only field provided in the request."
+          );
+        }
+      }
+
+      if (updatingOtherFields) {
+        return errorResponse(
+          res,
+          403,
+          "Cannot update non-'is_active' fields when the lead source is currently inactive."
+        );
+      }
+
+      if (is_active !== undefined) {
+        if (requestedIsActiveFalse) {
+          return errorResponse(
+            res,
+            403,
+            "Lead source is already inactive. 'is_active' can only be updated to true from this state."
+          );
+        }
+      }
+    }
+
+    if (name) {
+      const duplicateNameQuery = `
+        SELECT 1 FROM lead_source
+        WHERE LOWER(name) = $1
+          AND (company_id = $2 OR company_id IS NULL)
+          AND (builder_id = $3 OR builder_id IS NULL)
+          AND lead_source_id != $4
+      `;
+      const duplicateName = await client.query(duplicateNameQuery, [
+        name.toLowerCase(),
+        companyId,
+        builderId,
+        lead_source_id,
+      ]);
+
+      if (duplicateName.rowCount > 0) {
+        return errorResponse(res, 409, "Lead source name already exists.");
+      }
+    }
+
+    if (sort_order !== undefined) {
+      const duplicateSortQuery = `
+        SELECT 1 FROM lead_source
+        WHERE sort_order = $1
+          AND (company_id = $2 OR company_id IS NULL)
+          AND (builder_id = $3 OR builder_id IS NULL)
+          AND lead_source_id != $4
+      `;
+      const duplicateSort = await client.query(duplicateSortQuery, [
+        sort_order,
+        companyId,
+        builderId,
+        lead_source_id,
+      ]);
+
+      if (duplicateSort.rowCount > 0) {
+        return errorResponse(
+          res,
+          409,
+          `Sort order ${sort_order} already exists.`
+        );
+      }
     }
 
     const updateQuery = `
-      UPDATE lead_source 
-      SET name = $1, updated_at = NOW()
-      WHERE lead_source_id = $2 AND builder_id = $3
-      RETURNING lead_source_id, name, builder_id, created_at, updated_at;
+      UPDATE lead_source
+      SET 
+        name = COALESCE($1, name),
+        sort_order = COALESCE($2, sort_order),
+        is_active = COALESCE($3, is_active),
+        allow_change = COALESCE($4, allow_change),
+        updated_by = $5,
+        updated_at = NOW()
+      WHERE lead_source_id = $6
+      RETURNING *;
     `;
 
     const updateResult = await client.query(updateQuery, [
       name,
+      sort_order,
+      is_active,
+      allow_change,
+      userId,
       lead_source_id,
-      builderId,
     ]);
-
-    if (updateResult.rowCount === 0) {
-      return errorResponse(res, 404, "Lead source not found.");
-    }
 
     return successResponse(
       res,
@@ -179,11 +338,6 @@ exports.updateLeadSource = async (req, res) => {
     );
   } catch (error) {
     console.error("Error updating lead source:", error);
-
-    if (error.code === "23505") {
-      return errorResponse(res, 409, "Lead source name already exists.");
-    }
-
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -198,35 +352,23 @@ exports.deleteLeadSource = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const checkLeadSourceQuery = `
-      SELECT * FROM lead_source 
-      WHERE lead_source_id = $1 AND builder_id = $2 AND is_deleted = false;
-    `;
-    const checkLeadSourceResult = await client.query(checkLeadSourceQuery, [
+    if (!lead_source_id) {
+      return errorResponse(res, 400, "lead source id is required.");
+    }
+    const existingSource = await client.query(
+      `SELECT lead_source_id FROM lead_source WHERE lead_source_id = $1 AND builder_id = $2`,
+      [lead_source_id, builderId]
+    );
+
+    if (existingSource.rowCount === 0) {
+      return errorResponse(res, 404, "lead_source not found for this builder.");
+    }
+
+    await client.query(`DELETE FROM lead_source WHERE lead_source_id = $1`, [
       lead_source_id,
-      builderId,
     ]);
 
-    if (checkLeadSourceResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Lead source not found or you don't have permission to delete this lead source."
-      );
-    }
-
-    const deleteQuery = `
-      UPDATE lead_source 
-      SET is_deleted = true, updated_at = NOW()
-      WHERE lead_source_id = $1 AND builder_id = $2;
-    `;
-    const deleteResult = await client.query(deleteQuery, [lead_source_id, builderId]);
-
-    if (deleteResult.rowCount === 0) {
-      return errorResponse(res, 404, "Lead source not found.");
-    }
-
-    return successResponse(res, {}, "Lead source deleted successfully.");
+    return successResponse(res, null, "lead_source deleted successfully.");
   } catch (error) {
     console.error("Error deleting lead source:", error);
     return errorResponse(res, 500, "Internal Server Error");

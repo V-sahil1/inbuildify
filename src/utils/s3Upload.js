@@ -1,9 +1,9 @@
-const multer = require('multer');
-const multerS3 = require('multer-s3');
-const { S3Client } = require('@aws-sdk/client-s3');
-const path = require('path');
-const { allowedFileData } = require('./common');
-const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const multer = require("multer");
+const multerS3 = require("multer-s3");
+const { S3Client } = require("@aws-sdk/client-s3");
+const path = require("path");
+const { allowedFileData } = require("./common");
+const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -14,21 +14,23 @@ const s3Client = new S3Client({
 });
 
 const fileData = allowedFileData();
-const allowedTypes = new RegExp(fileData.types.replace(/^\/|\/$/g, ''), 'i');
+const allowedTypes = new RegExp(fileData.types.replace(/^\/|\/$/g, ""), "i");
 const fileFilter = (req, file, cb) => {
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
     const allowedList = fileData.types
-      .replace(/^\/|\/$/g, '')
-      .split('|')
-      .map(t => t.replace('image/', '').toUpperCase())
-      .map(t => (t === 'JPG' || t === 'JPEG' ? 'JPG/JPEG' : t))
+      .replace(/^\/|\/$/g, "")
+      .split("|")
+      .map((t) => t.replace("image/", "").toUpperCase())
+      .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
       .filter((v, i, arr) => arr.indexOf(v) === i)
-      .join(', ');
+      .join(", ");
     const message = `Invalid file type. Only the following are allowed: ${allowedList}.`;
     cb(new Error(message));
   }
@@ -61,55 +63,55 @@ const createUpload = (folderName = "uploads") =>
     },
   });
 
-  const deleteFromS3 = async (fileUrl) => {
-    if (!fileUrl) return;
+const deleteFromS3 = async (fileUrl) => {
+  if (!fileUrl) return;
 
-    try {
-      const bucketName = process.env.S3_BUCKET_NAME;
-      const url = new URL(fileUrl);
-      const key = decodeURIComponent(url.pathname.substring(1));
+  try {
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const url = new URL(fileUrl);
+    const key = decodeURIComponent(url.pathname.substring(1));
 
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: key,
-        })
-      );
-      console.log(`Deleted old file from S3: ${key}`);
-    } catch (err) {
-      console.error("Error deleting old file from S3:", err.message);
-    }
-  };
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      })
+    );
+    console.log(`Deleted old file from S3: ${key}`);
+  } catch (err) {
+    console.error("Error deleting old file from S3:", err.message);
+  }
+};
 
-  const handleMulterError = (error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-      if (error.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: `File size too large. Maximum size is ${fileData.size}MB.`,
-          data: null,
-        });
-      }
-      if (error.code === "LIMIT_UNEXPECTED_FILE") {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: `Unexpected field name for file upload.`,
-          data: null,
-        });
-      }
-    }
-    if (error.message?.startsWith("Invalid file type")) {
+const handleMulterError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
         statusCode: 400,
-        message: error.message,
+        message: `File size too large. Maximum size is ${fileData.size}MB.`,
         data: null,
       });
     }
+    if (error.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: `Unexpected field name for file upload.`,
+        data: null,
+      });
+    }
+  }
+  if (error.message?.startsWith("Invalid file type")) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: error.message,
+      data: null,
+    });
+  }
 
-    next(error);
-  };
+  next(error);
+};
 
 module.exports = { createUpload, deleteFromS3, handleMulterError, s3Client };

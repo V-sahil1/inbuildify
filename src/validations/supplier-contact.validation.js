@@ -1,0 +1,74 @@
+const Joi = require("joi");
+
+const createSupplierContactSchema = Joi.object({
+  supplier_id: Joi.string().uuid().required().messages({
+    "string.guid": "Supplier ID must be a valid UUID",
+    "any.required": "Supplier ID is required",
+  }),
+  contact_name: Joi.string().trim().max(150).required(),
+  email: Joi.string().trim().max(150).email(),
+
+  phone: Joi.string()
+    .pattern(/^[0-9+\-\s()]*$/)
+    .max(50)
+    .allow(null, "")
+    .messages({
+      "string.pattern.base":
+        "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
+      "string.max": "Secondery phone cannot exceed 50 characters",
+    }),
+  contact_type: Joi.string().trim().max(100),
+});
+
+const getAllSupplierContactsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
+});
+
+const deleteSupplierContactSchema = Joi.object({
+  supplier_contact_id: Joi.string().uuid().required().messages({
+    "string.guid": "supplier contact ID must be a valid UUID",
+    "any.required": " supplier contact ID is required",
+  }),
+});
+
+const updateSupplierContactParamsSchema = Joi.object({
+  supplier_contact_id: Joi.string().uuid().required().messages({
+    "string.guid": "supplier contact ID must be a valid UUID",
+    "any.required": " supplier contact ID is required",
+  }),
+});
+
+const updateSupplierContactSchema = Joi.object({
+  contact_name: Joi.string().trim().max(150).optional(),
+  email: Joi.string().trim().max(150).email().optional(),
+
+  phone: Joi.string()
+    .pattern(/^[0-9+\-\s()]*$/)
+    .max(50)
+    .allow(null, "")
+    .optional()
+    .messages({
+      "string.pattern.base":
+        "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
+      "string.max": "Secondery phone cannot exceed 50 characters",
+    }),
+  contact_type: Joi.string().trim().max(100).optional(),
+});
+module.exports = {
+  createSupplierContactSchema,
+  getAllSupplierContactsSchema,
+  deleteSupplierContactSchema,
+  updateSupplierContactParamsSchema,
+  updateSupplierContactSchema,
+};

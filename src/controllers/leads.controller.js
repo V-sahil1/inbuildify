@@ -5,7 +5,7 @@ const { keysToCamelCase } = require("../utils/common");
 
 const getUsersDetails = async (client, userIds) => {
   if (!userIds || userIds.length === 0) return {};
-  
+
   const validUserIds = userIds.filter(Boolean);
   if (validUserIds.length === 0) return {};
 
@@ -15,7 +15,7 @@ const getUsersDetails = async (client, userIds) => {
     WHERE users_id = ANY($1::uuid[])
   `;
   const usersResult = await client.query(usersQuery, [validUserIds]);
-  
+
   return usersResult.rows.reduce((acc, row) => {
     acc[row.users_id] = row.name;
     return acc;
@@ -26,7 +26,7 @@ const formatUserObject = (userId, usersMap) => {
   if (!userId) return null;
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
@@ -41,7 +41,7 @@ exports.createLead = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const leadSourceQuery = `SELECT lead_source_id, name FROM lead_source WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL) AND is_deleted = false;`;
+    const leadSourceQuery = `SELECT lead_source_id, name FROM lead_source WHERE name = $1 AND (builder_id = $2 OR builder_id IS NULL);`;
     const leadSourceResult = await client.query(leadSourceQuery, [
       lead_source,
       builderId,
@@ -202,19 +202,22 @@ exports.getLeads = async (req, res) => {
     const result = await client.query(query, [builderId, limit, offset]);
 
     // Transform the results to include user objects
-    const transformedRows = result.rows.map(row => {
-      const { 
-        assignee_id, assignee_name,
-        created_by_id, created_by_name,
-        updated_by_id, updated_by_name,
-        ...rest 
+    const transformedRows = result.rows.map((row) => {
+      const {
+        assignee_id,
+        assignee_name,
+        created_by_id,
+        created_by_name,
+        updated_by_id,
+        updated_by_name,
+        ...rest
       } = row;
 
       // Create a temporary map for this row
       const usersMap = {
         [assignee_id]: assignee_name,
         [created_by_id]: created_by_name,
-        [updated_by_id]: updated_by_name
+        [updated_by_id]: updated_by_name,
       };
 
       return {
@@ -281,19 +284,22 @@ exports.getLeadById = async (req, res) => {
     }
 
     const leadRow = leadResult.rows[0];
-    
+
     // Create users map from the query result
     const {
-      assignee_id, assignee_name,
-      created_by_id, created_by_name,
-      updated_by_id, updated_by_name,
+      assignee_id,
+      assignee_name,
+      created_by_id,
+      created_by_name,
+      updated_by_id,
+      updated_by_name,
       ...leadData
     } = leadRow;
 
     const usersMap = {
       [assignee_id]: assignee_name,
       [created_by_id]: created_by_name,
-      [updated_by_id]: updated_by_name
+      [updated_by_id]: updated_by_name,
     };
 
     const lead = {
@@ -413,7 +419,8 @@ exports.updateLead = async (req, res) => {
 
     leadFields.push(`updated_at = NOW()`);
 
-    if (leadFields.length === 2) { // Only updated_by_id and updated_at
+    if (leadFields.length === 2) {
+      // Only updated_by_id and updated_at
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "No valid fields provided for update.");
     }
@@ -533,7 +540,9 @@ exports.updateAssignee = async (req, res) => {
 
     await client.query("COMMIT");
 
-    const assigneeData = formatUserObject(assignee.users_id, { [assignee.users_id]: assignee.name });
+    const assigneeData = formatUserObject(assignee.users_id, {
+      [assignee.users_id]: assignee.name,
+    });
     const createdByData = formatUserObject(lead.created_by_id, usersMap);
     const updatedByData = formatUserObject(lead.updated_by_id, usersMap);
 
@@ -569,15 +578,22 @@ exports.convertLead = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const checkLeadExists = await client.query(`SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false AND (status != 'JOB' AND status != 'CANCELLED');`, [lead_id, builderId]);
+    const checkLeadExists = await client.query(
+      `SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false AND (status != 'JOB' AND status != 'CANCELLED');`,
+      [lead_id, builderId]
+    );
     if (checkLeadExists.rows.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Lead not found or already in Working.");
     }
     if (checkLeadExists.rows[0].status === "NEW") {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Lead status is New so can't be converted.");
-    };
+      return errorResponse(
+        res,
+        404,
+        "Lead status is New so can't be converted."
+      );
+    }
 
     const softDeleteQuery = `
       UPDATE quotation
@@ -593,29 +609,29 @@ exports.convertLead = async (req, res) => {
 
     // if (actionIds.length > 0) {
     //   await client.query(
-    //     `UPDATE notes 
-    //         SET is_deleted = true 
+    //     `UPDATE notes
+    //         SET is_deleted = true
     //       WHERE action_id = ANY($1)`,
     //     [actionIds]
     //   );
 
     //   await client.query(
-    //     `UPDATE appointment 
-    //         SET is_deleted = true 
+    //     `UPDATE appointment
+    //         SET is_deleted = true
     //       WHERE action_id = ANY($1)`,
     //     [actionIds]
     //   );
 
     //   await client.query(
-    //     `UPDATE task 
-    //         SET is_deleted = true 
+    //     `UPDATE task
+    //         SET is_deleted = true
     //       WHERE action_id = ANY($1)`,
     //     [actionIds]
     //   );
 
     //   await client.query(
-    //     `UPDATE sms 
-    //         SET is_deleted = true 
+    //     `UPDATE sms
+    //         SET is_deleted = true
     //       WHERE action_id = ANY($1)`,
     //     [actionIds]
     //   );
@@ -628,7 +644,7 @@ exports.convertLead = async (req, res) => {
          AND builder_id = $3
     `;
     await client.query(updateStatusQuery, ["NEW", lead_id, builderId]);
-    
+
     await client.query("COMMIT");
     return successResponse(res, {}, "Lead converted successfully.");
   } catch (error) {
@@ -649,7 +665,10 @@ exports.deleteLead = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const checkLeadExists = await client.query(`SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false;`, [lead_id, builderId]);
+    const checkLeadExists = await client.query(
+      `SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false;`,
+      [lead_id, builderId]
+    );
     if (checkLeadExists.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Lead not found.");
@@ -663,8 +682,11 @@ exports.deleteLead = async (req, res) => {
     await client.query(softDeleteQuotationQuery, [lead_id, builderId]);
 
     const deleteActionsQuery = `SELECT action_id FROM actions WHERE lead_id = $1 AND builder_id = $2;`;
-    const deleteActionsResult = await client.query(deleteActionsQuery, [lead_id, builderId]);
-    const actionIds = deleteActionsResult.rows.map(row => row.action_id);
+    const deleteActionsResult = await client.query(deleteActionsQuery, [
+      lead_id,
+      builderId,
+    ]);
+    const actionIds = deleteActionsResult.rows.map((row) => row.action_id);
 
     if (actionIds.length > 0) {
       await client.query(
@@ -703,7 +725,7 @@ exports.deleteLead = async (req, res) => {
          AND builder_id = $2
     `;
     await client.query(updateStatusQuery, [lead_id, builderId]);
-    
+
     await client.query("COMMIT");
     return successResponse(res, {}, "Lead deleted successfully.");
   } catch (error) {

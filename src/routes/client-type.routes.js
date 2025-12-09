@@ -1,0 +1,49 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  createClientType,
+  getAllClientType,
+  deleteClientType,
+  updateClientType,
+} = require("../controllers/client-type.controller");
+const {
+  createClientTypeSchema,
+  getAllClientTypeSchema,
+  deleteClientTypeSchema,
+  updateClientTypeParamsSchema,
+  updateClientTypeSchema,
+} = require("../validations/client-type.validation");
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const { REQUEST_SOURCE } = require("../config/constants");
+
+router.use(authMiddleware);
+router.use(roleMiddleware);
+
+router.post(
+  "/",
+  validateRequest(createClientTypeSchema, REQUEST_SOURCE.BODY),
+  createClientType
+);
+
+router.get(
+  "/",
+  validateRequest(getAllClientTypeSchema, REQUEST_SOURCE.QUERY),
+  getAllClientType
+);
+
+router.delete(
+  "/:id",
+  validateRequest(deleteClientTypeSchema, REQUEST_SOURCE.PARAMS),
+  deleteClientType
+);
+
+router.put(
+  "/:id",
+  validateRequest(updateClientTypeParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateClientTypeSchema, REQUEST_SOURCE.BODY),
+  updateClientType
+);
+module.exports = router;

@@ -12,6 +12,7 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   createLeadSourceSchema,
+  getLeadResourcesSchema,
   getLeadSourceByIdSchema,
   updateLeadSourceParamsSchema,
   updateLeadSourceSchema,
@@ -23,9 +24,26 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 
 router.post("/", validateRequest(createLeadSourceSchema), createLeadSource);
-router.get("/", getLeadSources);
-router.get("/:lead_source_id", validateRequest(getLeadSourceByIdSchema, REQUEST_SOURCE.PARAMS), getLeadSourceById);
-router.put("/:lead_source_id", validateRequest(updateLeadSourceParamsSchema, REQUEST_SOURCE.PARAMS), validateRequest(updateLeadSourceSchema), updateLeadSource);
-router.delete("/:lead_source_id", validateRequest(deleteLeadSourceSchema, REQUEST_SOURCE.PARAMS), deleteLeadSource);
+router.get(
+  "/",
+  validateRequest(getLeadResourcesSchema, REQUEST_SOURCE.QUERY),
+  getLeadSources
+);
+router.get(
+  "/:lead_source_id",
+  validateRequest(getLeadSourceByIdSchema, REQUEST_SOURCE.PARAMS),
+  getLeadSourceById
+);
+router.put(
+  "/:lead_source_id",
+  validateRequest(updateLeadSourceParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateLeadSourceSchema),
+  updateLeadSource
+);
+router.delete(
+  "/:lead_source_id",
+  validateRequest(deleteLeadSourceSchema, REQUEST_SOURCE.PARAMS),
+  deleteLeadSource
+);
 
 module.exports = router;

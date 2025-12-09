@@ -44,6 +44,33 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     req.user = result.rows[0];
 
     console.info({ requestId, message: "✅ JWT authentication successful" });
+
+    if (!req.user || !req.user.builder_id) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing user or builder_id."
+      );
+    }
+
+    const builderId = req.user.builder_id;
+
+    // ✅ Fetch company_id from DB if not already attached
+    const companyQuery = `
+      SELECT company_id 
+      FROM company 
+      WHERE builder_id = $1 
+      LIMIT 1;
+    `;
+    const results = await client.query(companyQuery, [builderId]);
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, "Company not found for this builder.");
+    }
+
+    // ✅ Attach company_id to req.user
+    req.user.company_id = results.rows[0].company_id;
+
     next();
   } catch (error) {
     console.error({

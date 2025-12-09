@@ -7,7 +7,7 @@ const { keysToCamelCase } = require("../utils/common");
 
 const getUsersDetails = async (client, userIds) => {
   if (!userIds || userIds.length === 0) return {};
-  
+
   const validUserIds = userIds.filter(Boolean);
   if (validUserIds.length === 0) return {};
 
@@ -17,7 +17,7 @@ const getUsersDetails = async (client, userIds) => {
     WHERE users_id = ANY($1::uuid[])
   `;
   const usersResult = await client.query(usersQuery, [validUserIds]);
-  
+
   return usersResult.rows.reduce((acc, row) => {
     acc[row.users_id] = row.name;
     return acc;
@@ -28,7 +28,7 @@ const formatUserObject = (userId, usersMap) => {
   if (!userId) return null;
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
@@ -675,7 +675,7 @@ exports.getQuotationVersionById = async (req, res) => {
     const row = keysToCamelCase(result.rows[0]);
     const usersMap = {
       [row.createdById]: row.createdByName,
-      [row.updatedById]: row.updatedByName
+      [row.updatedById]: row.updatedByName,
     };
 
     let packageItems = [];
@@ -714,32 +714,34 @@ exports.getQuotationVersionById = async (req, res) => {
     `;
     const itemsResult = await client.query(itemsQuery, [quotation_version_id]);
 
-    const items = itemsResult.rows.map((r) => keysToCamelCase({
-      quotationVersionItemId: r.quotation_version_item_id,
-      notes: r.item_notes,
-      categoryId: r.category_id,
-      caterogyName: r.caterogy_name,
-      categoryDescription: r.category_description,
-      categoryItemId: r.category_item_id,
-      categoryItemDescription: r.category_item_description,
-      categoryItemShortDescription: r.category_item_short_description,
-      categoryItemQuantity: r.category_item_quantity,
-      categoryItemCostType: r.category_item_cost_type,
-      categoryItemCost: r.category_item_cost,
-      categoryItemCostTypeText: r.category_item_cost_type_text,
-      categoryItemCostOption: r.category_item_cost_option,
-      categoryItemIncludeByDefault: r.category_item_include_by_default,
-      categoryItemShowInHlPackage: r.category_item_show_in_hl_package,
-      categoryItemPackageOnly: r.category_item_package_only,
-      categoryItemUom: r.category_item_uom,
-      categoryItemSortOrder: r.category_item_sort_order,
-      categoryItemRangeId: r.category_item_range_id,
-      categoryItemDwellingTypeId: r.category_item_dwelling_type_id,
-      categoryItemCreatedAt: r.category_item_created_at,
-      categoryItemUpdatedAt: r.category_item_updated_at,
-      createdAt: r.item_created_at,
-      updatedAt: r.item_updated_at,
-    }));
+    const items = itemsResult.rows.map((r) =>
+      keysToCamelCase({
+        quotationVersionItemId: r.quotation_version_item_id,
+        notes: r.item_notes,
+        categoryId: r.category_id,
+        caterogyName: r.caterogy_name,
+        categoryDescription: r.category_description,
+        categoryItemId: r.category_item_id,
+        categoryItemDescription: r.category_item_description,
+        categoryItemShortDescription: r.category_item_short_description,
+        categoryItemQuantity: r.category_item_quantity,
+        categoryItemCostType: r.category_item_cost_type,
+        categoryItemCost: r.category_item_cost,
+        categoryItemCostTypeText: r.category_item_cost_type_text,
+        categoryItemCostOption: r.category_item_cost_option,
+        categoryItemIncludeByDefault: r.category_item_include_by_default,
+        categoryItemShowInHlPackage: r.category_item_show_in_hl_package,
+        categoryItemPackageOnly: r.category_item_package_only,
+        categoryItemUom: r.category_item_uom,
+        categoryItemSortOrder: r.category_item_sort_order,
+        categoryItemRangeId: r.category_item_range_id,
+        categoryItemDwellingTypeId: r.category_item_dwelling_type_id,
+        categoryItemCreatedAt: r.category_item_created_at,
+        categoryItemUpdatedAt: r.category_item_updated_at,
+        createdAt: r.item_created_at,
+        updatedAt: r.item_updated_at,
+      })
+    );
 
     const responseData = {
       slugId: row.slugId,
@@ -940,7 +942,7 @@ exports.getQuotationById = async (req, res) => {
 
     const usersMap = {
       [row.createdById]: row.createdByName,
-      [row.updatedById]: row.updatedByName
+      [row.updatedById]: row.updatedByName,
     };
 
     const { items, totalAmount } = parseItemsAndCalculateTotal(
@@ -1274,7 +1276,7 @@ exports.getQuotations = async (req, res) => {
       const totalAmount = latestVersion ? latestVersion.totalAmount : 0;
       const usersMap = {
         [row.created_by_id]: row.created_by_name,
-        [row.updated_by_id]: row.updated_by_name
+        [row.updated_by_id]: row.updated_by_name,
       };
 
       return {
@@ -1338,7 +1340,10 @@ exports.deleteQuotations = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const checkQuotationExists = await client.query(`SELECT * FROM quotation WHERE quotation_id = $1 AND builder_id = $2 AND is_deleted = false;`, [quotation_id, builderId]);
+    const checkQuotationExists = await client.query(
+      `SELECT * FROM quotation WHERE quotation_id = $1 AND builder_id = $2 AND is_deleted = false;`,
+      [quotation_id, builderId]
+    );
     if (checkQuotationExists.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Quotation not found.");
@@ -1348,15 +1353,15 @@ exports.deleteQuotations = async (req, res) => {
          SET is_deleted = true, updated_by_id = $1, updated_at = now()
        WHERE quotation_id = $2 AND builder_id = $3;
     `;
-    await client.query(softDeleteQuotationQuery, [userId, quotation_id, builderId]);
+    await client.query(softDeleteQuotationQuery, [
+      userId,
+      quotation_id,
+      builderId,
+    ]);
 
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      {},
-      "Quotations deleted successfully."
-    );
+    return successResponse(res, {}, "Quotations deleted successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error(error);

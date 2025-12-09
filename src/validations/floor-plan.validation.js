@@ -1,227 +1,200 @@
-const Joi = require('joi');
+const Joi = require("joi");
 
-// Reusable rules
-const nameRule = Joi.string().min(2).max(100).trim().messages({
-  'string.base': 'Name must be a string',
-  'string.empty': 'Name is required',
-  'string.min': 'Name must be at least 2 characters long',
-  'string.max': 'Name must not exceed 100 characters',
-  'any.required': 'Name is required'
-});
-
-const imageRule = Joi.alternatives().try(
-  Joi.string().uri().max(500).trim().messages({
-    'string.base': 'Image must be a string',
-    'string.uri': 'Image must be a valid URL',
-    'string.max': 'Image URL must not exceed 500 characters'
-  }),
-  Joi.object({
-    fieldname: Joi.string().valid('image').required(),
-    originalname: Joi.string().required(),
-    mimetype: Joi.string().required(),
-    size: Joi.number().max(10 * 1024 * 1024).required(), // enforce max 10MB
-    location: Joi.string().uri().required() // s3 URL added by multer-s3
-  }).unknown(true) // allow extra multer fields
-).optional();
-
-const rangeRule = Joi.string().messages({
-  'string.base': 'Range must be a string',
-});
-
-const dwellingTypeRule = Joi.string().messages({
-  'string.base': 'Dwelling type must be a string',
-});
-
-const integerRule = (fieldName) => Joi.number().integer().min(0).messages({
-  'number.base': `${fieldName} must be a number`,
-  'number.integer': `${fieldName} must be an integer`,
-  'number.min': `${fieldName} must be greater than or equal to 0`
-});
-
-const decimalRule = (fieldName) => Joi.number().precision(2).min(0).messages({
-  'number.base': `${fieldName} must be a number`,
-  'number.precision': `${fieldName} must have at most 2 decimal places`,
-  'number.min': `${fieldName} must be greater than or equal to 0`
-});
+const imageRule = Joi.alternatives()
+  .try(
+    Joi.string().uri().max(500).trim().messages({
+      "string.base": "Image must be a string",
+      "string.uri": "Image must be a valid URL",
+      "string.max": "Image URL must not exceed 500 characters",
+    }),
+    Joi.object({
+      fieldname: Joi.string().valid("image").required(),
+      originalname: Joi.string().required(),
+      mimetype: Joi.string().required(),
+      size: Joi.number()
+        .max(10 * 1024 * 1024)
+        .required(), // enforce max 10MB
+      location: Joi.string().uri().required(), // s3 URL added by multer-s3
+    }).unknown(true) // allow extra multer fields
+  )
+  .optional();
 
 const floorPlanIdRule = Joi.string().uuid().messages({
-  'string.base': 'Floor plan ID must be a string',
-  'string.empty': 'Floor plan ID is required',
-  'string.guid': 'Floor plan ID must be a valid UUID',
-  'any.required': 'Floor plan ID is required'
+  "string.base": "Floor plan ID must be a string",
+  "string.empty": "Floor plan ID is required",
+  "string.guid": "Floor plan ID must be a valid UUID",
+  "any.required": "Floor plan ID is required",
 });
 
 const pageRule = Joi.number().integer().min(1).default(1).messages({
-  'number.base': 'Page must be a number',
-  'number.integer': 'Page must be an integer',
-  'number.min': 'Page must be greater than 0'
+  "number.base": "Page must be a number",
+  "number.integer": "Page must be an integer",
+  "number.min": "Page must be greater than 0",
 });
 
 const limitRule = Joi.number().integer().min(1).max(100).default(10).messages({
-  'number.base': 'Limit must be a number',
-  'number.integer': 'Limit must be an integer',
-  'number.min': 'Limit must be at least 1',
-  'number.max': 'Limit must not exceed 100'
+  "number.base": "Limit must be a number",
+  "number.integer": "Limit must be an integer",
+  "number.min": "Limit must be at least 1",
+  "number.max": "Limit must not exceed 100",
 });
 
-// Create floor plan validation
 const createFloorPlanSchema = Joi.object({
-  name: nameRule.required(),
-  image: imageRule.optional(),
-  range: rangeRule.optional(),
-  dwelling_type: dwellingTypeRule.optional(),
-  beds: integerRule('Beds').optional(),
-  bath: integerRule('Bath').optional(),
-  car_park: integerRule('Car park').optional(),
-  width_meter: decimalRule('Width').optional(),
-  depth_meter: decimalRule('Depth').optional(),
-  dwelling: integerRule('Dwelling').optional(),
-  garage: integerRule('Garage').optional(),
-  porch: integerRule('Porch').optional(),
-  alfresco: integerRule('Alfresco').optional(),
-  total_sqft: decimalRule('Total square feet').optional()
-}).custom((obj, helpers) => {
-  const numericFields = [
-    'beds',
-    'bath',
-    'car_park',
-    'width_meter',
-    'depth_meter',
-    'dwelling',
-    'garage',
-    'porch',
-    'alfresco',
-    'total_sqft'
-  ];
+  name: Joi.string().max(150).required(),
 
-  const presentNumericKeys = numericFields.filter(k =>
-    Object.prototype.hasOwnProperty.call(obj, k)
-  );
+  min_land_width: Joi.number()
+    .min(0)
+    .max(999999.99)
+    .precision(2)
+    .allow(null, ""),
+  min_land_depth: Joi.number()
+    .min(0)
+    .precision(2)
+    .max(999999.99)
+    .allow(null, ""),
+  dwelling_area: Joi.number()
+    .precision(2)
+    .min(0)
+    .max(99999999.99)
+    .allow(null, ""),
 
-  if (presentNumericKeys.length === 0) {
-    return obj;
-  }
+  dwelling_type_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Dwelling type ID must be a valid UUID",
+  }),
 
-  let hasPositive = false;
+  beds: Joi.number().integer().min(0).max(100000).allow(null, ""),
+  baths: Joi.number().integer().min(0).max(100000).allow(null, ""),
+  carpark: Joi.number().integer().min(0).max(100000).allow(null, ""),
+  living: Joi.number().integer().min(0).max(100000).allow(null, ""),
 
-  for (const k of presentNumericKeys) {
-    const raw = obj[k];
+  range_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Range ID must be a valid UUID",
+  }),
 
-    if (typeof raw === 'string' && raw.trim() === '-0') {
-      return helpers.error('object.negativeZeroNotAllowed', {
-        message: `${k} must not be -0`
-      });
-    }
+  location_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Location ID must be a valid UUID",
+  }),
 
-    const num = Number(raw);
+  garage_area: Joi.number()
+    .min(0)
+    .max(99999999.99)
+    .precision(2)
+    .allow(null, ""),
+  porch_area: Joi.number().min(0).max(99999999.99).precision(2).allow(null, ""),
+  alfresco_area: Joi.number()
+    .min(0)
+    .max(999999.99)
+    .precision(2)
+    .allow(null, ""),
+  total_area: Joi.number().min(0).max(99999999.99).precision(2).allow(null, ""),
 
-    if (isNaN(num)) {
-      return helpers.error('object.invalidNumber', {
-        message: `${k} must be a valid number`
-      });
-    }
+  detailed_image: imageRule.optional(),
+  simple_image: imageRule.optional(),
 
-    if (num < 0) {
-      return helpers.error('object.negativeNotAllowed', {
-        message: `${k} must not be negative`
-      });
-    }
-
-    if (num > 0) {
-      hasPositive = true;
-    }
-  }
-
-  if (!hasPositive) {
-    return helpers.error('object.numericAtLeastOnePositive', {
-      message: 'At least one numeric field must be greater than 0'
-    });
-  }
-
-  return obj;
-}).messages({
-  'object.invalidNumber': '{{#message}}',
-  'object.negativeNotAllowed': '{{#message}}',
-  'object.negativeZeroNotAllowed': '{{#message}}',
-  'object.numericAtLeastOnePositive': '{{#message}}'
+  description: Joi.string().allow(null, ""),
+  status: Joi.boolean().default(true),
 });
 
-// Get floor plan by ID validation (params)
-const getFloorPlanByIdSchema = Joi.object({
-  floor_plan_id: floorPlanIdRule.required()
-});
-
-// Get floor plans with filters validation (query)
 const getFloorPlansSchema = Joi.object({
-  range: Joi.string().optional(),
-  dwelling_type: Joi.string().optional(),
+  name: Joi.string().max(150).optional(),
+  dwelling_type_id: Joi.string().uuid().allow("", null).optional().messages({
+    "string.guid": "Dwelling type ID must be a valid UUID",
+  }),
+  range_id: Joi.string().uuid().optional().allow("", null).messages({
+    "string.guid": "Range ID must be a valid UUID",
+  }),
+
+  location_id: Joi.string().uuid().allow("", null).optional().messages({
+    "string.guid": "Location ID must be a valid UUID",
+  }),
+  status: Joi.boolean().optional(),
   page: pageRule,
-  limit: limitRule
+  limit: limitRule,
 });
 
-// Update floor plan validation
 const updateFloorPlanSchema = Joi.object({
-  name: nameRule.optional(),
-  image: imageRule.optional(),
-  range: rangeRule.optional(),
-  dwelling_type: dwellingTypeRule.optional(),
-  beds: integerRule('Beds').optional(),
-  bath: integerRule('Bath').optional(),
-  car_park: integerRule('Car park').optional(),
-  width_meter: decimalRule('Width').optional(),
-  depth_meter: decimalRule('Depth').optional(),
-  dwelling: integerRule('Dwelling').optional(),
-  garage: integerRule('Garage').optional(),
-  porch: integerRule('Porch').optional(),
-  alfresco: integerRule('Alfresco').optional(),
-  total_sqft: decimalRule('Total square feet').optional()
-}).min(1)
-  .custom((obj, helpers) => {
-    const numericFields = [
-      'beds',
-      'bath',
-      'car_park',
-      'width_meter',
-      'depth_meter',
-      'dwelling',
-      'garage',
-      'porch',
-      'alfresco',
-      'total_sqft'
-    ];
+  name: Joi.string().max(150).optional(),
 
-    const presentNumericKeys = numericFields.filter(k => Object.prototype.hasOwnProperty.call(obj, k));
-    if (presentNumericKeys.length === 0) {
-      return obj;
-    }
+  min_land_width: Joi.number()
+    .min(0)
+    .max(999999.99)
+    .precision(2)
+    .allow(null, "")
+    .optional(),
+  min_land_depth: Joi.number()
+    .precision(2)
+    .min(0)
+    .max(999999.99)
+    .allow(null, "")
+    .optional(),
+  dwelling_area: Joi.number()
+    .precision(2)
+    .min(0)
+    .max(99999999.99)
+    .allow(null, "")
+    .optional(),
 
-    for (const k of presentNumericKeys) {
-      const v = obj[k];
-      if (typeof v === 'number' && v > 0) return obj;
-    }
+  dwelling_type_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Dwelling type ID must be a valid UUID",
+  }),
 
-    return helpers.error('object.numericAtLeastOnePositive', { message: 'At least one numeric field must be greater than 0' });
-})
-.messages({
-  'object.min': 'At least one field is required to update',
-  'object.numericAtLeastOnePositive': '{{#message}}'
+  beds: Joi.number().integer().min(0).max(100000).allow(null, "").optional(),
+  baths: Joi.number().integer().min(0).max(100000).allow(null, "").optional(),
+  carpark: Joi.number().integer().min(0).max(100000).allow(null, "").optional(),
+  living: Joi.number().integer().min(0).max(100000).allow(null, "").optional(),
+
+  range_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Range ID must be a valid UUID",
+  }),
+
+  location_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Location ID must be a valid UUID",
+  }),
+
+  garage_area: Joi.number()
+    .min(0)
+    .max(99999999.99)
+    .precision(2)
+    .allow(null, "")
+    .optional(),
+  porch_area: Joi.number()
+    .min(0)
+    .max(99999999.99)
+    .precision(2)
+    .allow(null, "")
+    .optional(),
+  alfresco_area: Joi.number()
+    .min(0)
+    .max(999999.99)
+    .precision(2)
+    .allow(null, "")
+    .optional(),
+  total_area: Joi.number()
+    .min(0)
+    .max(99999999.99)
+    .precision(2)
+    .allow(null, "")
+    .optional(),
+
+  detailed_image: imageRule.optional(),
+  simple_image: imageRule.optional(),
+
+  description: Joi.string().allow(null, "").optional(),
+  status: Joi.boolean(),
 });
 
-// Update floor plan params validation
 const updateFloorPlanParamsSchema = Joi.object({
-  floor_plan_id: floorPlanIdRule.required()
+  floor_plan_id: floorPlanIdRule.required(),
 });
 
-// Delete floor plan validation (params)
 const deleteFloorPlanSchema = Joi.object({
-  floor_plan_id: floorPlanIdRule.required()
+  floor_plan_id: floorPlanIdRule.required(),
 });
 
 module.exports = {
   createFloorPlanSchema,
-  getFloorPlanByIdSchema,
   getFloorPlansSchema,
   updateFloorPlanSchema,
   updateFloorPlanParamsSchema,
-  deleteFloorPlanSchema
+  deleteFloorPlanSchema,
 };

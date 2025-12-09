@@ -1,29 +1,115 @@
 const Joi = require("joi");
 
 const getAllRangesSchema = Joi.object({
-  limit: Joi.number().optional().default(25).max(50),
-  offset: Joi.number().optional().default(0).max(25),
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
 });
 
 const createRangeSchema = Joi.object({
-  name: Joi.string().required(),
+  name: Joi.string().max(150).required().messages({
+    "string.base": "Name must be text",
+    "string.empty": "Name is required",
+    "any.required": "Name is required",
+  }),
+
+  logo_image: Joi.string().uri().allow(null, "").messages({
+    "string.uri": "Logo URL must be a valid URL",
+  }),
+
+  header_image: Joi.string().max(500).allow(null, "").optional(),
+
+  user_id: Joi.array().items(Joi.string().uuid()).default([]),
+
+  sort_order: Joi.number().integer().min(1).allow(null).messages({
+    "number.base": "Sort order must be a number",
+    "number.min": "Sort order must be at least 1",
+  }),
+
+  bg_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
+    .messages({
+      "string.pattern.base":
+        "Enter valid background color in HEX format (e.g., #FF5733)",
+    }),
+
+  font_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
+    .messages({
+      "string.pattern.base":
+        "Enter valid font color in HEX format (e.g., #FFF453)",
+    }),
+
+  is_active: Joi.boolean().default(true),
 });
 
-const updateRangeSchema = {
-  params: Joi.object({
-    range_id: Joi.string().uuid().required().messages({
-      "string.guid": "Range ID must be a valid UUID",
-      "any.required": "Range ID is required",
-    }),
+const updateRangeParamsSchema = Joi.object({
+  range_id: Joi.string().uuid().required().messages({
+    "string.guid": "Range ID must be a valid UUID",
+    "any.required": "Range ID is required",
   }),
-  body: Joi.object({
-    name: Joi.string().optional(),
-  })
-    .min(1)
+});
+
+const updateRangeSchema = Joi.object({
+  name: Joi.string().max(150).optional().messages({
+    "string.base": "Name must be text",
+    "string.empty": "Name can not be empty",
+  }),
+
+  logo_image: Joi.string().uri().allow(null, "").optional().messages({
+    "string.uri": "Logo URL must be a valid URL",
+  }),
+
+  header_image: Joi.string().max(500).allow(null, "").optional(),
+
+  user_id: Joi.array().items(Joi.string().uuid()).default([]).optional(),
+
+  sort_order: Joi.number().integer().min(1).allow(null).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.min": "Sort order must be at least 1",
+  }),
+
+  bg_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
     .messages({
-      "object.min": "At least one field is required to update",
+      "string.pattern.base":
+        "Enter valid background color in HEX format (e.g., #FF5733)",
     }),
-};
+
+  font_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
+    .messages({
+      "string.pattern.base":
+        "Enter valid font color in HEX format (e.g., #FFF453)",
+    }),
+
+  is_active: Joi.boolean().default(true),
+})
+  .min(1)
+  .messages({
+    "object.min": "At least one field is required to update",
+  });
 
 const deleteRangeSchema = {
   params: Joi.object({
@@ -37,6 +123,7 @@ const deleteRangeSchema = {
 module.exports = {
   getAllRangesSchema,
   createRangeSchema,
+  updateRangeParamsSchema,
   updateRangeSchema,
   deleteRangeSchema,
 };

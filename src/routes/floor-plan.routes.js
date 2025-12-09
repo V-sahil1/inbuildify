@@ -3,10 +3,9 @@ const router = express.Router();
 const {
   createFloorPlan,
   getFloorPlans,
-  getFloorPlanById,
   updateFloorPlan,
   deleteFloorPlan,
-  getFloorPlanFilters
+  getFloorPlanFilters,
 } = require("../controllers/floor-plan.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -14,11 +13,10 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
 const {
   createFloorPlanSchema,
-  getFloorPlanByIdSchema,
   getFloorPlansSchema,
   updateFloorPlanParamsSchema,
   updateFloorPlanSchema,
-  deleteFloorPlanSchema
+  deleteFloorPlanSchema,
 } = require("../validations/floor-plan.validation");
 const { REQUEST_SOURCE } = require("../config/constants");
 
@@ -27,21 +25,31 @@ router.use(roleMiddleware);
 
 const upload = createUpload("floor-plans");
 
-router.post("/", upload.single("image"), handleMulterError, validateRequest(createFloorPlanSchema, REQUEST_SOURCE.FORM_DATA), createFloorPlan);
+router.post(
+  "/",
+  upload.fields([
+    { name: "detailed_image", maxCount: 1 },
+    { name: "simple_image", maxCount: 1 },
+  ]),
+  handleMulterError,
+  validateRequest(createFloorPlanSchema, REQUEST_SOURCE.FORM_DATA),
+  createFloorPlan
+);
 
-router.get("/", validateRequest(getFloorPlansSchema, REQUEST_SOURCE.QUERY), getFloorPlans);
+router.get(
+  "/",
+  validateRequest(getFloorPlansSchema, REQUEST_SOURCE.QUERY),
+  getFloorPlans
+);
 
 router.get("/filters", getFloorPlanFilters);
 
-router.get(
-  "/:floor_plan_id",
-  validateRequest(getFloorPlanByIdSchema, REQUEST_SOURCE.PARAMS),
-  getFloorPlanById
-);
-
 router.put(
   "/:floor_plan_id",
-  upload.single("image"),
+  upload.fields([
+    { name: "detailed_image", maxCount: 1 },
+    { name: "simple_image", maxCount: 1 },
+  ]),
   handleMulterError,
   validateRequest(updateFloorPlanParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateFloorPlanSchema, REQUEST_SOURCE.FORM_DATA),

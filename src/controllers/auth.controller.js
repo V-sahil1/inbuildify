@@ -64,8 +64,10 @@ exports.registerUser = async (req, res) => {
 
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    console.log("otp", otp);
 
     const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
+    console.log("emailsend:", emailSent);
 
     if (!emailSent) {
       return errorResponse(res, 500, "Failed to send verification email.");

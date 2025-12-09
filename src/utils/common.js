@@ -1,6 +1,9 @@
 const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
-const { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } = require("../config/constants");
+const {
+  ALLOWED_FILE_TYPES,
+  ALLOWED_FILE_SIZE,
+} = require("../config/constants");
 
 const generateRequestId = () => {
   return uuidv4();
@@ -45,7 +48,7 @@ const decrypt = (encryptedText) => {
 
   const buffer = Buffer.from(encryptedText, "base64");
   return buffer.toString("utf8");
-}
+};
 
 const encrypt = (text) => {
   if (text == null || text === "") {
@@ -54,8 +57,7 @@ const encrypt = (text) => {
 
   const buffer = Buffer.from(text, "utf8");
   return buffer.toString("base64");
-}
-
+};
 
 function toSnakeCase(str) {
   return str.replace(/([A-Z])/g, "_$1").toLowerCase();

@@ -231,7 +231,7 @@ CREATE TABLE floor_plan (
   CONSTRAINT fk_floor_plan_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
   CONSTRAINT fk_floor_plan_range FOREIGN KEY (range_id) REFERENCES range(range_id) ON DELETE CASCADE,
   CONSTRAINT fk_floor_plan_dwelling_type FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
-);
+);  
 
 CREATE TABLE facade (
   facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -647,3 +647,1720 @@ CREATE TABLE invoice (
   FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 );
+
+
+
+
+
+
+CREATE TABLE country (
+  country_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE state (
+  state_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  country_id UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT fk_country FOREIGN KEY (country_id) REFERENCES country(country_id) ON DELETE CASCADE,
+  CONSTRAINT unique_state_per_country UNIQUE (country_id, name)
+);
+
+CREATE TABLE builder (
+  builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  logo VARCHAR(500) DEFAULT 'https://cdn.dribbble.com/userupload/5245642/file/original-430a2e28de5df4e1932405b3a9f783e7.png?resize=752x&vertical=center',
+  slogan VARCHAR(500),
+  firm_name VARCHAR(250),
+  license_number VARCHAR(100),
+  abn_number VARCHAR(100),
+  phone_number VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TYPE users_role_enum AS ENUM ('super_admin', 'admin', 'project_owner', 'service_provider', 'client');
+
+CREATE TABLE users (
+  users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL, 
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  is_verified BOOLEAN DEFAULT FALSE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  role users_role_enum[] NOT NULL,
+  root_user BOOLEAN DEFAULT FALSE,
+  otp VARCHAR(10),
+  expires_at TIMESTAMP,
+  reset_password_token VARCHAR(255),
+  reset_token_expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE users_token (
+  users_token_id UUID DEFAULT uuid_generate_v4() PRI  MARY KEY,
+  user_id UUID NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(users_id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_group (
+  user_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  updated_by_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE master_price_list_categories (
+  master_price_list_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  display_order INT DEFAULT 0,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  CONSTRAINT fk_mcc_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TYPE cost_type_enum AS ENUM ('include', 'fixed', 'variable');
+CREATE TYPE cost_option_enum AS ENUM ('none', 'tba', 'tbc');
+
+CREATE TABLE master_price_list_categories_item (
+  master_price_list_categories_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  master_price_list_category_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  sku VARCHAR(100),
+  short_description VARCHAR(500),
+  full_description TEXT,
+  item_type VARCHAR(100),
+  cost NUMERIC(12,2) DEFAULT 0,
+  cost_type cost_type_enum NOT NULL,
+  cost_option cost_option_enum NOT NULL,
+  currency VARCHAR(10) DEFAULT 'AUD',
+  uom VARCHAR(50),
+  sort_order INT DEFAULT 0,
+  is_standard BOOLEAN DEFAULT FALSE,
+  is_upgrade BOOLEAN DEFAULT FALSE,
+  extra JSONB DEFAULT '{}'::jsonb,
+  created_by_id UUID,
+  updated_by_id UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  CONSTRAINT fk_master_price_list_category_id FOREIGN KEY (master_price_list_category_id) REFERENCES master_price_list_categories(master_price_list_category_id) ON DELETE CASCADE,
+  CONSTRAINT fk_master_price_list_created_by FOREIGN KEY (created_by_id) REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT fk_master_price_list_updated_by FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+CREATE TABLE range (
+  range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE dwelling_type (
+  dwelling_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
+CREATE TABLE master_facade (
+  master_facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  image VARCHAR(500),
+  range_type_id UUID NOT NULL,
+  dwelling_type_id UUID NOT NULL,
+  standard BOOLEAN DEFAULT FALSE,
+  upgrade BOOLEAN DEFAULT FALSE,
+  cost NUMERIC(12,2) DEFAULT 0,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_facade_builder FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+  CONSTRAINT fk_facade_range FOREIGN KEY (range_type_id) REFERENCES range(range_id) ON DELETE CASCADE,
+  CONSTRAINT fk_facade_dwelling_type FOREIGN KEY (dwelling_type_id) REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE
+);
+
+CREATE TABLE address (
+  address_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  address_line1 VARCHAR(255) NOT NULL,
+  address_line2 VARCHAR(255),
+  city VARCHAR(100),
+  zip_code VARCHAR(20),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL  ,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE company (
+  company_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  abn_number VARCHAR(20),
+  timezone VARCHAR(100),
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  bank_name VARCHAR(150),
+  account_name VARCHAR(150),
+  account_number VARCHAR(50),
+  account_bsb VARCHAR(20),
+  email_signature_logo VARCHAR(500),
+  company_logo VARCHAR(500),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE screen (
+  screen_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_screen_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_screen_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE functionality (
+  functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+); 
+
+CREATE TABLE checklist (
+  checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
+  functionality_id UUID NOT NULL REFERENCES functionality(functionality_id) ON DELETE CASCADE,
+  is_active BOOLEAN DEFAULT TRUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE,
+);
+
+CREATE TYPE checklist_item_type AS ENUM ('checkbox', 'dropdown');
+
+CREATE TABLE checklist_item (
+  checklist_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  checklist_id UUID NOT NULL REFERENCES checklist(checklist_id) ON DELETE CASCADE,
+  description VARCHAR(500) NOT NULL,
+  notes BOOLEAN DEFAULT FALSE,
+  is_required BOOLEAN DEFAULT FALSE,
+  type checklist_item_type NOT NULL,
+  sort INT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+CREATE TYPE show_reference_id_in_pdf_type AS ENUM (
+    'document_id',
+    'job_id',
+    'document_id_and_job_id',
+    'hide_document_id_and_job_id'
+);
+
+CREATE TABLE general_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    notification_referral_partner BOOLEAN DEFAULT FALSE,
+    pdf_password_protected BOOLEAN DEFAULT FALSE,
+    pdf_password VARCHAR(255),
+    round_of_cost BOOLEAN DEFAULT FALSE,
+    negative_value_show BOOLEAN DEFAULT TRUE,
+    negative_value_color VARCHAR(50),
+    show_reference_id_in_pdf show_reference_id_in_pdf_type DEFAULT 'hide_document_id_and_job_id',
+    job_id_label VARCHAR(100)
+);
+
+CREATE TABLE surveyor (
+  surveyor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150),
+  phone VARCHAR(50),
+  abn_number VARCHAR(20),
+  registration_number VARCHAR(100),
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE custom_field_module (
+  module_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE, -- e.g. 'lead', 'job'
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE custom_field (
+  custom_field_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  module_id UUID NOT NULL REFERENCES custom_field_module(module_id) ON DELETE CASCADE,
+  field_name VARCHAR(150) NOT NULL,
+  field_label VARCHAR(150) NOT NULL,
+  field_type VARCHAR(50) NOT NULL CHECK (field_type IN ('text', 'number', 'date', 'checkbox', 'list', 'multiline')),
+  options TEXT[], -- Used for 'list' type
+  is_required BOOLEAN DEFAULT FALSE,
+  sort_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE, 
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_company_or_builder CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_field_scope UNIQUE (module_id, field_name, company_id, builder_id)
+  );
+
+  CREATE TABLE custom_field_value (
+  custom_field_value_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  custom_field_id UUID NOT NULL REFERENCES custom_field(custom_field_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  record_id UUID NOT NULL, -- e.g. lead_id or job_id
+  value_text TEXT,
+  value_number NUMERIC,
+  value_date DATE,
+  value_boolean BOOLEAN,
+  value_list TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_field_record UNIQUE (custom_field_id, record_id)
+);
+
+CREATE TABLE notes_tag (
+  notes_tag_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  background_color VARCHAR(20), -- e.g., #a34d39ff
+  font_color VARCHAR(20),       -- e.g., #FFFFFF
+  is_active BOOLEAN DEFAULT TRUE, 
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_notes_tag_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_notes_tag_scope UNIQUE (name, company_id, builder_id)
+);
+
+CREATE TABLE role (
+  role_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,           -- e.g., 'Task Manager', 'Company Admin (My Home)'
+  type VARCHAR(100),                    -- e.g., 'Sales Executive', 'Accounts Manager'
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(), 
+  CONSTRAINT chk_role_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_role_scope UNIQUE (name, company_id, builder_id)
+);
+
+CREATE TABLE user_role_mapping (
+  user_role_mapping_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
+  assigned_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  assigned_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_user_role UNIQUE (user_id, role_id)
+);
+
+CREATE TABLE role_permission (
+  role_permission_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  module_name VARCHAR(100) NOT NULL,     -- e.g. 'leads', 'jobs', 'surveyors'
+  can_create BOOLEAN DEFAULT FALSE,
+  can_read BOOLEAN DEFAULT FALSE,
+  can_update BOOLEAN DEFAULT FALSE,
+  can_delete BOOLEAN DEFAULT FALSE, 
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_permission_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_role_module_scope UNIQUE (role_id, module_name, company_id, builder_id)
+);
+
+CREATE TABLE password_policy (
+  password_policy_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  expires_in_days INT DEFAULT 90,                   -- Password expires after N days
+  invalid_attempt_limit INT DEFAULT 5,              -- Number of invalid login attempts before lock
+  alert_before_expiry_days INT DEFAULT 7,           -- Show alert before password expiry
+  password_history_count INT DEFAULT 5,             -- Number of previous passwords stored
+  enforce_strong_password BOOLEAN DEFAULT TRUE,     -- Optional: Enforce uppercase, numbers, special chars
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(), 
+  CONSTRAINT chk_password_policy_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_password_policy_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE user_password_history (
+  history_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  old_password VARCHAR(255) NOT NULL,  -- hashed password
+  changed_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_user_old_password UNIQUE (user_id, old_password)
+);
+
+CREATE TABLE sales_module_settings (
+    sales_module_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    allow_duplicate_leads BOOLEAN DEFAULT FALSE,
+    send_email_on_new_lead BOOLEAN DEFAULT TRUE,
+    show_common_folders BOOLEAN DEFAULT TRUE,
+    -- Optional lead mandatory fields setting
+    lead_mandatory_option VARCHAR(50) DEFAULT 'email_and_phone', 
+    -- Values: 'email_and_phone', 'either_email_or_phone', 'email_not_mandatory', 'phone_not_mandatory', 'email_and_phone_not_mandatory'
+    role_id UUID[] '{}'                --REFERENCES role(role_id),
+    sales_won_button_text VARCHAR(100) DEFAULT 'Mark as Won',
+    house_size_unit VARCHAR(20) DEFAULT 'sq_m2',  -- e.g., 'sq_m2', 'sq_ft'
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_sales_module_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_sales_module_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE sales_process (
+    sales_process_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    is_default BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_sales_process_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_sales_process_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE sales_stage (
+    sales_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    sales_process_id UUID NOT NULL REFERENCES sales_process(sales_process_id) ON DELETE CASCADE,
+    stage_name VARCHAR(150) NOT NULL,
+    functionality TEXT[] NOT NULL,    -- e.g. '{Contact, Quotation, Close}'
+    category VARCHAR(50) NOT NULL CHECK (category IN ('lead', 'opportunity')),
+    sort_order INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_stage_per_process UNIQUE (sales_process_id, stage_name)
+);
+
+CREATE TABLE lead_source (  
+    lead_source_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,          -- e.g., 'Website', 'Referral', 'Facebook Ads'
+    sort_order INT DEFAULT 1,            -- Used for ordered display in dropdowns
+    allow_change BOOLEAN DEFAULT TRUE,   -- If FALSE, cannot modify source after creation
+    is_active BOOLEAN DEFAULT TRUE,      -- Enable/disable lead source visibility
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_lead_source_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_lead_source_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE lead_lost_reason (
+    lead_lost_reason_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    lost_reason VARCHAR(255) NOT NULL,     -- e.g. 'Budget too low', 'No response'
+    sort_order INT DEFAULT 1,                -- controls display order in dropdowns
+    is_active BOOLEAN DEFAULT TRUE,        -- enable/disable reason
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_lead_lost_reason_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_lead_lost_reason_scope UNIQUE (company_id, builder_id, lost_reason)
+);
+
+CREATE TABLE client_type (
+  client_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, 
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    client_type VARCHAR(150) NOT NULL,      -- e.g., 'Home Owner', 'Investor'
+    sort_order INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_client_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_client_type_scope UNIQUE (company_id, builder_id, client_type)
+);
+
+CREATE TABLE range (
+    range_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,              -- Range name, e.g., 'Classic', 'Premium', etc.
+    logo_url VARCHAR(500),                   -- Logo for range
+    header_url VARCHAR(500),                 -- Header/banner image
+    user_id UUID[] DEFAULT '{}'              --REFERENCES users(user_id) ON DELETE SET NULL, -- Owner/assigned user
+    sort_order INT DEFAULT 1,
+    bg_color VARCHAR(50),                    -- Background color (e.g., #ffffff)
+    font_color VARCHAR(50),                  -- Text color (e.g., #000000)
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_range_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_range_scope UNIQUE (company_id, builder_id, name)
+);  
+
+CREATE TABLE dwelling_type (
+    dwelling_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,          -- e.g., 'Single Storey', 'Double Storey', etc.
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_dwelling_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_dwelling_type_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE quotation_settings (
+    quotation_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    allow_save_as_new_version BOOLEAN DEFAULT FALSE,
+    mandatory_contact_details BOOLEAN DEFAULT FALSE,
+    mandatory_dwelling_type BOOLEAN DEFAULT FALSE,
+    mandatory_sketch_number BOOLEAN DEFAULT FALSE,
+    mandatory_land_title BOOLEAN DEFAULT FALSE,
+    enable_dwelling_size BOOLEAN DEFAULT FALSE,
+    enable_builder_cost BOOLEAN DEFAULT FALSE,
+    allow_notes BOOLEAN DEFAULT TRUE,
+    allow_cost_adjustment BOOLEAN DEFAULT TRUE,
+    show_notes_by_default BOOLEAN DEFAULT TRUE,
+    allow_multiple_packages BOOLEAN DEFAULT FALSE,
+    include_additional_items_in_price_adjusted_list BOOLEAN DEFAULT FALSE,
+    auto_approve_on_sales_won BOOLEAN DEFAULT FALSE,
+    show_default_pricelist_in_additional_items BOOLEAN DEFAULT TRUE,
+    hide_price_to_customer BOOLEAN DEFAULT FALSE,
+    enable_estimated_price_range BOOLEAN DEFAULT FALSE,
+    quotation_validity_days INT DEFAULT 30,                -- e.g. 30 days
+    extend_validity_from_updated_date INT DEFAULT 0,       -- e.g. extend by 5 days
+    rename_send_for_approval_button VARCHAR(150),          -- e.g., 'Submit for Review'
+    default_pricelist_id UUID REFERENCES price_list(price_list_id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_quotation_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_quotation_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE house_land_package_settings (
+    house_land_package_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    include_facade_cost_in_total BOOLEAN DEFAULT FALSE,  -- 🔘 main toggle
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_house_land_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_house_land_package_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_settings (
+    job_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    auto_move_to_maintenance BOOLEAN DEFAULT FALSE,     -- Move job to maintenance automatically when construction completed
+    auto_mark_completed BOOLEAN DEFAULT FALSE,          -- Automatically mark job as completed
+    auto_archive_after_completion BOOLEAN DEFAULT FALSE, -- Auto-archive job after completion
+    auto_archive_after_days INT DEFAULT NULL,            -- Number of days after completion to archive
+    milestone_status_check_days INT DEFAULT NULL,        -- Number of days for milestone task/checklist status review
+    report_custom_days INT DEFAULT NULL,                 -- Number of days to include in job status report
+    report_status_filter VARCHAR(100) DEFAULT 'all',     -- Status filter: 'all', 'active', 'completed', etc.
+    report_include_date BOOLEAN DEFAULT TRUE,            -- Include date in job status report
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_job_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_color_settings (
+    job_color_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    hide_color_item_images BOOLEAN DEFAULT FALSE,
+    hide_color_item_price BOOLEAN DEFAULT FALSE,
+    exit_color_code BOOLEAN DEFAULT FALSE,
+    page_orientation_portrait BOOLEAN DEFAULT TRUE,
+    header_text VARCHAR(500),  -- Color selection screen header text
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_color_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_color_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_color_columns (
+    job_color_column_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_color_settings_id UUID NOT NULL REFERENCES job_color_settings(job_color_settings_id) ON DELETE CASCADE,
+    column_name VARCHAR(150) NOT NULL,  -- e.g., 'Supplier', 'Room', 'Finish', 'Color', etc.
+    display_option VARCHAR(50) NOT NULL CHECK (display_option IN ('dont_show', 'show_as_separate_column', 'show_in_existing_items_column')),
+    sort_order INT DEFAULT NULL,
+    width INT DEFAULT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_color_column_width_sort CHECK ((display_option != 'show_in_existing_items_column') OR (sort_order IS NULL AND width IS NULL))
+);
+
+CREATE TABLE job_color_column_sections (
+    job_color_column_section_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_color_settings_id UUID NOT NULL REFERENCES job_color_settings(job_color_settings_id) ON DELETE CASCADE,
+    section_name VARCHAR(150) NOT NULL,
+    attachments TEXT,
+    sort_order INT DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()  
+);
+
+CREATE TABLE job_workflow_settings (
+    job_workflow_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    show_all_tasks_to_all_roles BOOLEAN DEFAULT FALSE,
+    include_weekend_date BOOLEAN DEFAULT FALSE,
+    include_holiday_date BOOLEAN DEFAULT FALSE,
+    recalculate_estimated_end_dates_future_tasks BOOLEAN DEFAULT FALSE,
+    recalculate_estimated_dates_based_on_actual_changes BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_workflow_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_job_workflow_scope UNIQUE (company_id, builder_id)
+);  
+
+CREATE TABLE job_invoice_settings (
+    job_invoice_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    show_invoice_summary_in_pdf BOOLEAN DEFAULT FALSE,
+    invoice_terms_days INT DEFAULT 0 CHECK (invoice_terms_days >= 0),
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_invoice_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_job_invoice_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_invoice_stage_payments (
+    job_invoice_stage_payment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_invoice_settings_id UUID NOT NULL REFERENCES job_invoice_settings(job_invoice_settings_id) ON DELETE CASCADE,
+    description VARCHAR(150) NOT NULL,   -- e.g. Deposit, Base Stage, Frame Stage
+    percentage NUMERIC(5,2) CHECK (percentage >= 0 AND percentage <= 100),
+    sort_order INT NOT NULL DEFAULT 1,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_stage_payment_order UNIQUE (job_invoice_settings_id, sort_order)
+);
+
+CREATE TABLE job_variation_settings (
+    job_variation_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    allow_notes_in_variation BOOLEAN DEFAULT FALSE,
+    allow_cost_adjustment BOOLEAN DEFAULT FALSE,
+    show_notes_in_variation_by_default BOOLEAN DEFAULT FALSE,
+    drawing_changes_required BOOLEAN DEFAULT FALSE,
+    notify_signed_variation BOOLEAN DEFAULT FALSE,
+    notify_signed_variation_only_after_contract_prepared BOOLEAN DEFAULT FALSE,
+    allowed_move_job_to_construction_with_pending_variation BOOLEAN DEFAULT FALSE,
+    make_requested_by_and_delayed_days_mandatory BOOLEAN DEFAULT FALSE,
+    send_mail_when_variation_self_approved BOOLEAN DEFAULT FALSE,
+    contract_based_variation_header BOOLEAN DEFAULT FALSE,
+    contract_based_variation_header_title VARCHAR(255),    
+    pre_contract_header VARCHAR(255),                      
+    post_contract_header VARCHAR(255),
+    notify_signed_variation_user_ids UUID[] DEFAULT '{}',       -- references users.user_id[]   
+    notify_signed_variation_group_ids UUID[] DEFAULT '{}',      -- references user_group.user_group_id[]  
+    notify_after_contract_user_ids UUID[] DEFAULT '{}',         -- references users.user_id[]   
+    notify_after_contract_group_ids UUID[] DEFAULT '{}',        -- references user_group.user_group_id[] 
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_variation_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_job_variation_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_commission_settings (
+    job_commission_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    define_outgoing_commission BOOLEAN DEFAULT FALSE,
+    define_incoming_commission BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_commission_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_job_commission_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TYPE commission_type_enum AS ENUM ('outgoing', 'incoming');
+CREATE TYPE commission_unit_enum AS ENUM ('percentage', 'amount');
+CREATE TYPE commission_recipient_enum AS ENUM (
+    'sales_person',
+    'reporting_to',
+    'referral_partner',
+    'customer',
+    'other_user'
+);
+
+CREATE TABLE job_commission (
+    job_commission_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    job_commission_settings_id UUID REFERENCES job_commission_settings(job_commission_settings_id) ON DELETE CASCADE,
+    commission_type commission_type_enum NOT NULL, -- outgoing or incoming
+    name VARCHAR(150) NOT NULL,
+    recipient commission_recipient_enum NOT NULL,
+    recipient_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL, -- only for 'other_user'
+    commission_unit commission_unit_enum NOT NULL, -- % or $
+    commission_value NUMERIC(10,2) NOT NULL CHECK (commission_value >= 0),
+    sort_order INT DEFAULT 0,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_job_commission_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE job_commission_sub_stage (
+    job_commission_sub_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_commission_id UUID NOT NULL REFERENCES job_commission(job_commission_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    commission_unit commission_unit_enum NOT NULL, -- % or $
+    commission_value NUMERIC(10,2) NOT NULL CHECK (commission_value >= 0),
+    sort_order INT DEFAULT 0,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE maintenance_settings (                                                         
+    maintenance_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    area_enabled BOOLEAN DEFAULT FALSE,
+    supplier_enabled BOOLEAN DEFAULT FALSE,
+    allow_completion_without_supplier_response BOOLEAN DEFAULT FALSE,
+    request_date_enabled BOOLEAN DEFAULT FALSE,
+    task_date_enabled BOOLEAN DEFAULT FALSE,
+    repair_cost_enabled BOOLEAN DEFAULT FALSE,
+    hours_spent_enabled BOOLEAN DEFAULT FALSE,
+    maintenance_start_date DATE,
+    handover_date DATE,
+    maintenance_period_days INT CHECK (maintenance_period_days >= 0),
+    maintenance_duration_days INT CHECK (maintenance_duration_days >= 0),
+    supervisor_roles UUID[] DEFAULT '{}'                             -- refrence from role.role_id[]
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_maintenance_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_maintenance_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE maintenance_area (
+    maintenance_area_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,     -- in this table add is_activr column
+    name VARCHAR(150) NOT NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_maintenance_area_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_maintenance_area_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE document_common_folder (
+    document_common_folder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    sort_order INT DEFAULT 0,
+    notify BOOLEAN DEFAULT FALSE,
+    share_to_customer BOOLEAN DEFAULT FALSE,
+    is_locked BOOLEAN DEFAULT FALSE,
+    role_ids UUID[] DEFAULT '{}',     -- refrence from role.role_id
+    user_ids UUID[] DEFAULT '{}',     -- refrence from users.users.id
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_document_common_folder_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_document_common_folder_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE document_common_subfolder ( 
+    document_common_subfolder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    document_common_folder_id UUID NOT NULL REFERENCES document_common_folder(document_common_folder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    sort_order INT DEFAULT 0,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_document_subfolder UNIQUE (document_common_folder_id, name)
+);
+
+CREATE TABLE document_file_naming_rule (
+    document_file_naming_rule_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    file_type VARCHAR(150) NOT NULL,
+    folder_ids UUID[] DEFAULT '{}',      --refrence from document_common_folder.document_common_folder_id
+    naming_format VARCHAR(255) NOT NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_document_file_naming_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_document_file_naming_rule UNIQUE (company_id, builder_id, file_type)
+);
+
+CREATE TYPE document_mapping_type_enum AS ENUM (
+    'signed_quotation',
+    'signed_color',
+    'signed_variation',
+    'signed_maintenance',
+    'signed_contract_document',
+    'compliance_certificate',
+    'purchase_order',
+    'job_documents'
+);
+
+CREATE TABLE document_folder_mapping (
+    document_folder_mapping_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    mapping_type document_mapping_type_enum NOT NULL,
+    folder_id UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    select_all_files_from_folder BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL, 
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_document_folder_mapping_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_document_folder_mapping UNIQUE (company_id, builder_id, mapping_type)
+)
+
+CREATE TABLE integration_settings (
+    integration_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    automatically_send_welcome_email BOOLEAN DEFAULT FALSE,
+    rea_hl_enabled BOOLEAN DEFAULT FALSE,
+    canibuild_enabled BOOLEAN DEFAULT FALSE,
+    website_hl_enabled BOOLEAN DEFAULT FALSE,
+    google_enabled BOOLEAN DEFAULT FALSE,
+    assign_leads_if_assignee_not_found UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    always_assign_leads_to UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_integration_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_integration_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE integration_custom_field_header (
+    integration_custom_field_header_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    header_name VARCHAR(150) NOT NULL,     -- e.g. "Lead Type", "Job Type"
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_integration_header_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_integration_header UNIQUE (company_id, builder_id, header_name)
+);
+
+CREATE TABLE integration_custom_field_item (
+    integration_custom_field_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    header1_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE CASCADE,
+    header2_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE CASCADE,
+    value1 VARCHAR(255),  -- e.g. "Residential"
+    value2 VARCHAR(255),  -- e.g. "Plumbing"
+    assignee_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_integration_item_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE template_email (
+    template_email_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    type VARCHAR(50) CHECK (type IN ('standard', 'customized')) NOT NULL DEFAULT 'standard',
+    subject VARCHAR(255),
+    email_content TEXT NOT NULL,
+    additional_recipient_users UUID[] DEFAULT '{}', -- REFERENCES users(user_id) ON DELETE SET NULL,
+    additional_recipient_groups UUID[] DEFAULT '{}' -- REFERENCES user_group(user_group_id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_template_email_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_template_email_name UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE template_email_signature (
+    template_email_signature_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    include_email_signature BOOLEAN DEFAULT FALSE,
+    signature_content TEXT,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_template_signature_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_template_signature_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE template_note (
+    template_note_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    content TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_template_note_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_template_note_name UNIQUE (company_id, builder_id, name)
+);
+
+
+CREATE TABLE scheduler_email (
+    scheduler_email_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    frequency VARCHAR(50) CHECK (frequency IN ('daily', 'weekly', 'monthly')) NOT NULL,
+    send_to_all_active_users BOOLEAN DEFAULT FALSE,
+    notification_recipient_users UUIDuser_group_id[] DEFUALT '{}'  --REFERENCES users(user_id) ON DELETE SET NULL,
+    reply_to_users UUID[] DEFAULT '{}'                --REFERENCES users(user_id) ON DELETE SET NULL,
+    subject VARCHAR(255) NOT NULL,
+    message_body TEXT NOT NULL,
+    no_of_action_days INT CHECK (no_of_action_days >= 0),
+    no_record_message BOOLEAN DEFAULT FALSE,
+    no_record_message_body TEXT,
+    attach_files BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_scheduler_email_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_scheduler_email_name UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE scheduler_settings (
+    scheduler_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    receiver_of_replies UUID[] DEFAULT '{}'     --REFERENCES users(user_id) ON DELETE SET NULL,  -- multiple users can receive replies
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_scheduler_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_scheduler_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE portal_settings (
+    portal_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    send_login_credentials_to_customer BOOLEAN DEFAULT FALSE,   --if this false then other field can not put value by user if the the user sill give the calue any filed give them error except publish_packages_to_agent_portal
+    portal_active_days_after_handover INT CHECK (portal_active_days_after_handover >= 0),
+    send_mail_when_portal_inactive BOOLEAN DEFAULT FALSE,
+    show_site_supervisor_details BOOLEAN DEFAULT FALSE,
+    show_balance_to_pay BOOLEAN DEFAULT FALSE,
+    add_notes_enabled BOOLEAN DEFAULT FALSE,
+    allow_color_selection BOOLEAN DEFAULT FALSE,
+    show_color_cost BOOLEAN DEFAULT FALSE,  -- only applicable if allow_color_selection = TRUE
+    show_construction_stages BOOLEAN DEFAULT FALSE,
+    auto_share_site_images BOOLEAN DEFAULT FALSE, -- only applies if show_construction_stages = TRUE
+    show_progress_tab BOOLEAN DEFAULT FALSE,
+    default_facade_image VARCHAR(500),
+    publish_packages_to_agent_portal BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_portal_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_portal_settings_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE master_price_list_categories (
+  master_price_list_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  display_order INT DEFAULT 0,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TYPE cost_type_enum AS ENUM ('include', 'fixed', 'variable');
+CREATE TYPE cost_option_enum AS ENUM ('none', 'tba', 'tbc');
+
+CREATE TABLE master_price_list_categories_item (
+  master_price_list_categories_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  master_price_list_category_id UUID NOT NULL REFERENCES master_price_list_categories(master_price_list_category_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  sku VARCHAR(100),
+  short_description VARCHAR(500),
+  full_description TEXT,
+  item_type VARCHAR(100),
+  cost NUMERIC(12,2) DEFAULT 0, 
+  cost_type cost_type_enum NOT NULL,
+  cost_option cost_option_enum NOT NULL,
+  currency VARCHAR(10) DEFAULT 'AUD',
+  uom VARCHAR(50),
+  sort_order INT DEFAULT 0,
+  is_standard BOOLEAN DEFAULT FALSE,
+  is_upgrade BOOLEAN DEFAULT FALSE,
+  extra JSONB DEFAULT '{}'::jsonb,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE master_facade (
+  master_facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  image VARCHAR(500),
+  range_type_id UUID REFERENCES range(range_id) ON DELETE CASCADE NOT NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE NOT NULL,
+  standard BOOLEAN DEFAULT FALSE,
+  upgrade BOOLEAN DEFAULT FALSE,
+  cost NUMERIC(12,2) DEFAULT 0,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE screen (
+  screen_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_screen_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_screen_scope UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE functionality (
+  functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
+  name VARCHAR(150) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE checklist (
+  checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
+  functionality_id UUID NOT NULL REFERENCES functionality(functionality_id) ON DELETE CASCADE,
+  is_active BOOLEAN DEFAULT TRUE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TYPE checklist_item_type AS ENUM ('checkbox', 'dropdown');
+
+CREATE TABLE checklist_item (
+  checklist_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  checklist_id UUID NOT NULL REFERENCES checklist(checklist_id) ON DELETE CASCADE,
+  description VARCHAR(500) NOT NULL,
+  notes BOOLEAN DEFAULT FALSE,
+  is_required BOOLEAN DEFAULT FALSE,
+  type checklist_item_type NOT NULL,
+  sort INT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE price_list (
+    price_list_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT DEFAULT 0,
+    show_in_view_list BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN DEFAULT TRUE,
+    location UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_price_list_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_price_list_name UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE price_list_item (
+    price_list_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    price_list_id UUID NOT NULL REFERENCES price_list(price_list_id) ON DELETE CASCADE,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    item_description TEXT NOT NULL,
+    short_description VARCHAR(255),
+    cost_type VARCHAR(50) CHECK (cost_type IN ('Included', 'Fixed', 'Variable')) NOT NULL,
+    cost_type_text VARCHAR(255),
+    cost_option VARCHAR(50) CHECK (cost_option IN ('none', 'tba', 'tbc')) DEFAULT 'none',
+    cost NUMERIC(12, 2),
+    builder_cost NUMERIC(12, 2),
+    sort_order INT DEFAULT 0,
+    uom VARCHAR(50),
+    status VARCHAR(20) CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
+    include_by_default BOOLEAN DEFAULT FALSE,
+    allow_remove_from_quotation BOOLEAN DEFAULT FALSE,
+    show_in_hl_package BOOLEAN DEFAULT FALSE,
+    show_only_in_package BOOLEAN DEFAULT FALSE,
+    range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+    dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+    conditions TEXT,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_price_list_item_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE supplier_type (
+    supplier_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL ,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_supplier_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+    CONSTRAINT uq_supplier_type_per_builder UNIQUE (company_id, builder_id, name),
+);
+
+CREATE TABLE supplier (
+    supplier_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    company_name VARCHAR(255) NOT NULL,
+    abn VARCHAR(50),
+    description TEXT,
+    contact_name VARCHAR(150),
+    primary_phone VARCHAR(50),
+    secondary_phone VARCHAR(50),
+    website VARCHAR(255),
+    address_line1 VARCHAR(255),
+    city VARCHAR(150),
+    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    zip_code VARCHAR(20),
+    lead_time VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    emails TEXT[], -- array to store multiple email addresses
+    is_recommended BOOLEAN DEFAULT FALSE, -- after creation can be marked as recommended
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_supplier_per_builder UNIQUE (company_id, builder_id, company_name),
+    CONSTRAINT chk_supplier_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE supplier_supplier_type_map (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
+    supplier_type_id UUID NOT NULL REFERENCES supplier_type(supplier_type_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_supplier_type_map UNIQUE (supplier_id, supplier_type_id)
+);
+
+CREATE TABLE supplier_contacts (
+    supplier_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
+    contact_name VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    phone VARCHAR(50),
+    contact_type VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE supplier_documents (
+    supplier_document_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
+    work_cover_url VARCHAR(500),
+    pl_insurance_url VARCHAR(500),
+    white_card_url VARCHAR(500),
+    fork_lift_license_url VARCHAR(500),
+    trade_license_url VARCHAR(500),
+    induction_pack_received BOOLEAN DEFAULT FALSE,
+    induction_pack_url VARCHAR(500),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE survey_template (
+    survey_template_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT DEFAULT 0,
+    is_recommended BOOLEAN DEFAULT FALSE,
+    status BOOLEAN DEFAULT TRUE, -- Active/Inactive
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_survey_template UNIQUE (company_id, builder_id, name),
+    CONSTRAINT chk_survey_template_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+
+CREATE TABLE survey_template_questions (
+    survey_question_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    survey_template_id UUID NOT NULL REFERENCES survey_template(survey_template_id) ON DELETE CASCADE,
+    description TEXT NOT NULL, -- Question text
+    option_type VARCHAR(50) NOT NULL CHECK (option_type IN ('text', 'radio', 'star_1_to_5', 'star_1_to_10')),
+    options TEXT[], -- only used if option_type = 'radio', e.g. ARRAY['Yes', 'No', 'Maybe']
+    sort_order INT DEFAULT 0,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+)
+
+CREATE TABLE package (
+    package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    cost NUMERIC(12,2),
+    builder_cost NUMERIC(12,2),
+    sort_order INT DEFAULT 0,
+    status BOOLEAN DEFAULT TRUE, -- Active / Inactive
+    allow_add_item_from_pricelist BOOLEAN DEFAULT FALSE,  
+    allow_remove_package_items BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_package_per_scope UNIQUE (company_id, builder_id, name),
+    CONSTRAINT chk_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE package_group (
+    package_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    no_of_packages INT DEFAULT 0, -- calculated or maintained manually
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_package_group UNIQUE (company_id, builder_id, name),
+    CONSTRAINT chk_package_group_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE package_group_map (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
+    package_group_id UUID NOT NULL REFERENCES package_group(package_group_id) ON DELETE CASCADE,
+    UNIQUE (package_id, package_group_id)
+);
+
+CREATE TABLE package_label_map (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
+    range_id UUID NOT NULL REFERENCES range(range_id) ON DELETE CASCADE,
+    UNIQUE (package_id, range_id)
+);
+
+CREATE TABLE package_dwelling_map (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
+    dwelling_type_id UUID NOT NULL REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE,
+    UNIQUE (package_id, dwelling_type_id)
+);
+
+CREATE TABLE package_pricelist_item_map (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
+    price_list_item_id UUID NOT NULL REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+    UNIQUE (package_id, price_list_item_id)
+);
+
+CREATE TABLE task (
+      task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+      company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+      builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+      name VARCHAR(200) NOT NULL,
+      description TEXT,
+      due_date DATE,
+      due_time TIME,
+      assignee_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      priority VARCHAR(20) CHECK (priority IN ('Low', 'Medium', 'High')) DEFAULT 'Medium',
+      status VARCHAR(20) CHECK (status IN ('Yet to Start', 'In Progress', 'Completed', 'Cancelled', 'Skipped')) DEFAULT 'Yet to Start',
+      created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE TABLE entity_action (
+    entity_action_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    entity_type VARCHAR(50) CHECK (entity_type IN ('lead', 'job', 'sales', 'construction', 'opportunity')) NOT NULL,
+    entity_id UUID NOT NULL, -- ID of the lead/job/etc.
+    action_type VARCHAR(50) CHECK (action_type IN ('task', 'note', 'appointment')) NOT NULL,
+    action_id UUID NOT NULL, -- ID of the task/note/appointment record
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (entity_type, entity_id, action_type, action_id)
+);
+
+CREATE TABLE task_attachment (
+    attachment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    task_id UUID REFERENCES task(task_id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,
+    file_name VARCHAR(255),
+    uploaded_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE location (
+    location_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    status BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_location_per_builder UNIQUE (builder_id, name)
+);
+
+CREATE TABLE facade (
+    facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+    name VARCHAR(150) NOT NULL,
+    dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+    range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+    cost_type VARCHAR(20) CHECK (cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
+    cost NUMERIC(12,2),
+    builder_cost NUMERIC(12,2),
+    image VARCHAR(500),
+    status BOOLEAN DEFAULT TRUE,  -- Active / Inactive
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_facade_per_location UNIQUE (location_id, name)
+);
+
+CREATE TABLE floor_plan (
+    floor_plan_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    min_land_width NUMERIC(8,2),
+    min_land_depth NUMERIC(8,2),
+    dwelling_area NUMERIC(10,2),  -- in sqm
+    dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+    beds INT,
+    baths INT,
+    carpark INT,
+    living INT,
+    range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+    location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+    garage_area NUMERIC(10,2),
+    porch_area NUMERIC(10,2),
+    alfresco_area NUMERIC(10,2),
+    total_area NUMERIC(10,2),
+    detailed_image VARCHAR(500),
+    simple_image VARCHAR(500),
+    description TEXT,
+    status BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_floor_plan_per_builder UNIQUE (builder_id, name)
+);
+
+CREATE TABLE estate (
+    estate_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    street_name VARCHAR(150),
+    city VARCHAR(100),
+    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+    zip VARCHAR(20),
+    estate_logo VARCHAR(500),
+    website VARCHAR(255),
+    description TEXT CHECK (char_length(description) <= 4000),
+    status BOOLEAN DEFAULT TRUE,
+    featured BOOLEAN DEFAULT FALSE,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_estate_per_builder UNIQUE (builder_id, name)
+);
+
+CREATE TABLE estate_images (
+    estate_image_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+    image_url VARCHAR(500) NOT NULL,
+    uploaded_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE estate_documents (
+    estate_document_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+    document_name VARCHAR(255) NOT NULL,
+    file_url VARCHAR(500) NOT NULL,
+    uploaded_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE estate_features (
+    estate_feature_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+    feature_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (estate_id, feature_name)
+);
+
+CREATE TABLE estate_stages (
+    estate_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    release_date DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (estate_id, name)
+);
+
+CREATE TABLE estate_stage_documents (
+    estate_stage_document_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
+    document_name VARCHAR(255) NOT NULL,
+    file_url VARCHAR(500) NOT NULL,
+    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+--------------------------------------------------------------------------------------------------------------
+CREATE TABLE construction_settings(
+    construction_setting_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    suppliers_tradies_madatory_to_complete_checklist BOOLEAN DEFAULT FALSE,
+    allow_checklist_even_supplier_tradies_not_responded BOOLEAN DEFAULT FALSE,
+    show_warning_when_supplier_trade_booked_same_day_for_checklist BOOLEAN DEFAULT FALSE,
+    sending_email_private_inspector_mandatory BOOLEAN DEFAULT FALSE,
+    make_inspection_chacklist_mandatory BOOLEAN DEFAULT FALSE,
+    include_weekend_date BOOLEAN DEFAULT FALSE,
+    include_holiday_date BOOLEAN DEFAULT FALSE,
+    include_onhold_date BOOLEAN DEFAULT FALSE,
+    allow_stage_date_change BOOLEAN DEFAULT FALSE,
+    default_lead_time_for_supplier_trade BOOLEAN DEFAULT FALSE,
+    no_of_reminder_days INT DEFAULT 7,
+    allow_move_next_stage_even_checklist_not_completed BOOLEAN DEFAULT FALSE,
+    apply_changes_all_existing_jobs BOOLEAN DEFAULT FALSE,
+    rebook_confrimed_bookings_on_date_changes BOOLEAN DEFAULT FALSE,
+    send_email_when_stage_completed BOOLEAN DEFAULT FALSE,
+    move_jobs_from_ready_for_construction_to_under_construction BOOLEAN DEFAULT FALSE,
+    recalculate_stage_date_construction_days_when_deleys_captured BOOLEAN DEFAULT FALSE,
+    enable_forcast_date BOOLEAN DEFAULT FALSE,
+    number_of_days_site_start_from_title_date INT DEFAULT 90,
+    label_for_permit_received_date VARCHAR(150),
+    site_supervisor_roles UUID[] DEFAULT '{}',
+    stage_completion_date VARCHAR(50) CHECK(stage_completion_date IN ('claim', 'move_to_next_page')) DEFAULT 'claim',
+    admin_coordinator_roles UUID[] DEFAULT '{}',
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_construction_setting_scope UNIQUE (company_id, builder_id)
+)
+
+CREATE TABLE construction_option(
+    construction_option_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    option_name VARCHAR(255) NOT NULL,
+    created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_construction_option_option_name UNIQUE (company_id, builder_id, option_name)
+)
+
+CREATE TABLE construction_type(
+  construction_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder VARCHAR(150) CHECK(builder IN('my_home', 'company_level')) DEFAULT 'my_home',
+  types_name VARCHAR(255) NOT NULL,
+  start_construction_days INT DEFAULT 21,
+  -- commencement_date_checklist                                          
+  sort_order INT DEFAULT 1, 
+  dwelling_type UUID[] DEFAULT '{}',
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+)
+
+CREATE TABLE construction_stage(
+  construction_stage UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder VARCHAR(100) CHECK(builder IN('my_home', 'company_level')) DEFAULT 'my_home',
+  construction_type_id UUID NOT NULL REFERENCES construction_type(construction_type_id) ON DELETE CASCADE,
+  stage_name VARCHAR(255) NOT NULL,
+  days INT DEFAULT 10,
+  sort_order INT DEFAULT 1,
+  site_image BOOLEAN DEFAULT FALSE,
+  inspection VARCHAR(100) CHECK(inspection IN('not_required', 'stage_start', 'stage_completed')) DEFAULT 'not_required',
+  bg_color VARCHAR(50),                    -- Background color (e.g., #ffffff)
+  font_color VARCHAR(50),                  -- Text color (e.g., #000000)
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_stage_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_construction_stage_stage_name UNIQUE (company_id, builder_id, stage_name)
+)
+
+CREATE TABLE appointment(
+  appointment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+  select_users UUID[] DEFAULT '{}',
+  notes VARCHAR(255),
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_appointment_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+)
+
+CREATE TABLE holiday(
+  holiday_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  state UUID[] DEFAULT '{}',            -- from state_id
+  holiday_start_date DATE NOT NULL,
+  holiday_end_date DATE NOT NULL,
+  holiday_description VARCHAR(500) NOT NULL,
+  status BOOLEAN DEFAULT TRUE,          -- active / inactive
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_holiday_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+) 
+
+CREATE TABLE recalculate_date(
+  recalculate_date_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  recalculate_workflow_job_estimated_dates BOOLEAN DEFAULT FALSE,
+  recalculate_construction_job_estimated_dates BOOLEAN DEFAULT FALSE,
+  capture_reason_rebooking_and_rebooking_email BOOLEAN DEFAULT FALSE,
+  capture_text VARCHAR(500),
+  recalculate_confirmed_booking_dates BOOLEAN DEFAULT FALSE,
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_recalculate_date_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_recalculate_date_scope UNIQUE (company_id, builder_id)
+)
+
+CREATE TABLE color(
+  color_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  color_name VARCHAR(255) NOT NULL,
+  sort_order INT DEFAULT 1,
+  status BOOLEAN DEFAULT TRUE,             -- active / inactive
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_color_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+)
+
+CREATE TABLE color_category(
+  color_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_id UUID NOT NULL REFERENCES color(color_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  category_name VARCHAR(255) NOT NULL,
+  selection_type VARCHAR(100) CHECK (selection_type IN ('single', 'multiple')) DEFAULT 'multiple',
+  sort_order INT DEFAULT 1,
+  status BOOLEAN DEFAULT TRUE,                -- active / inactive
+  suppliers UUID[] DEFAULT '{}',              --from supplier_id
+  group UUID[] DEFAULT '{}',                  -- from color_group
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_color_category_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+)
+
+-- CREATE TABLE color_item(
+--   color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   color_id UUID NOT NULL REFERENCES color(color_id) ON DELETE CASCADE,
+--   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+--   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+--   item_name VARCHAR(255) NOT NULL,
+--   cost_type VARCHAR(50) CHECK(cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
+--   upgrade_option VARCHAR(50) CHECK(upgrade_option IN('fixed', 'start_from', 'tba')),
+--   cost NUMERIC (10,2),
+--   item_code VARCHAR(100) NOT NULL,
+--   supplier_id UUID REFERENCES supplier(supplier_id) ON DELETE SET NULL,
+--   sort_order INT DEFAULT 1,
+--   status BOOLEAN DEFAULT TRUE,
+--   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
+--   features VARCHAR(500),
+--   description Variable(500),
+--   color_type text[],                          
+--   range_id UUID[] DEFAULT '{}',
+-- )

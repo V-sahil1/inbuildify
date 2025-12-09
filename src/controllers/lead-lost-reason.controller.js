@@ -1,0 +1,364 @@
+const getPool = require("../config/database");
+const { errorResponse, successResponse } = require("../helper/response");
+const { keysToCamelCase } = require("../utils/common");
+
+exports.createLeadLostReason = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    const { lost_reason, sort_order, is_active } = req.body;
+
+    await client.query("BEGIN");
+
+    const duplicateCheck = await client.query(
+      `
+      SELECT lead_lost_reason_id 
+      FROM lead_lost_reason 
+      WHERE builder_id = $1
+        AND LOWER(lost_reason) = LOWER($2)
+      `,
+      [builderId, lost_reason]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Lost reason already exists.");
+    }
+
+    const finalSortOrder = sort_order ?? 1;
+
+    const checkSortOrder = await client.query(
+      `SELECT 1 
+   FROM lead_lost_reason
+   WHERE sort_order = $1
+     AND builder_id = $2
+     `,
+      [finalSortOrder, builderId]
+    );
+
+    if (checkSortOrder.rowCount > 0) {
+      return errorResponse(
+        res,
+        409,
+        `Sort order ${finalSortOrder} already exists for this builder.`
+      );
+    }
+
+    const insertQuery = `
+      INSERT INTO lead_lost_reason (
+        company_id,
+        builder_id,
+        lost_reason,
+        sort_order,
+        is_active,
+        created_by,
+        updated_by
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *;
+    `;
+    const result = await client.query(insertQuery, [
+      companyId,
+      builderId,
+      lost_reason,
+      sort_order,
+      is_active ?? true,
+      userId,
+      userId,
+    ]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Lead lost reason created successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating lead lost reason:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getAllLeadLostReasons = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    let { page = 1, limit = 25 } = req.query;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    const countResult = await client.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM lead_lost_reason
+        WHERE company_id = $1 AND builder_id = $2
+      `,
+      [companyId, builderId]
+    );
+
+    const total = parseInt(countResult.rows[0].total);
+    const result = await client.query(
+      `
+        SELECT 
+         *
+        FROM lead_lost_reason
+        WHERE company_id = $1 AND builder_id = $2
+        ORDER BY sort_order ASC
+        LIMIT $3 OFFSET $4
+      `,
+      [companyId, builderId, limit, offset]
+    );
+
+    return successResponse(res, {
+      leadLostReason: keysToCamelCase(result.rows),
+      total,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("Error fetching lead lost reasons:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.deleteLeadLostReason = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const builderId = req.user.builder_id;
+
+    if (!id) {
+      return errorResponse(res, 400, " ID is required.");
+    }
+    const existingSurveyor = await client.query(
+      `SELECT lead_lost_reason FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2`,
+      [id, builderId]
+    );
+
+    if (existingSurveyor.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "lead lost reason not found for this builder."
+      );
+    }
+
+    await client.query(
+      `DELETE FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
+      [id]
+    );
+
+    return successResponse(res, null, "lead lost reason deleted successfully.");
+  } catch (error) {
+    console.error("Error deleting surveyor:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateLeadLostReason = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    const { lost_reason, sort_order, is_active } = req.body;
+
+    const updatingOtherFields = lost_reason || sort_order !== undefined;
+
+    await client.query("BEGIN");
+
+    const record = await client.query(
+      `
+      SELECT lost_reason, is_active 
+      FROM lead_lost_reason
+      WHERE lead_lost_reason_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+      `,
+      [id, companyId, builderId]
+    );
+
+    if (record.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Lead lost not found.");
+    }
+
+    const currentIsActive = record.rows[0].is_active;
+
+    if (!lost_reason && sort_order === undefined && is_active === undefined) {
+      return errorResponse(
+        res,
+        400,
+        "At least one field must be provided to update."
+      );
+    }
+
+    const requestedIsActiveTrue = is_active === true || is_active === "true";
+    const requestedIsActiveFalse = is_active === false || is_active === "false";
+
+    if (currentIsActive === true && is_active !== undefined) {
+      if (requestedIsActiveFalse) {
+        if (updatingOtherFields) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            403,
+            "To deactivate an active lead lost reason, 'is_active' must be the only field provided in the request."
+          );
+        }
+      }
+    }
+
+    if (currentIsActive === false) {
+      if (requestedIsActiveTrue) {
+        if (updatingOtherFields) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            403,
+            "To activate an inactive lead lost reason, 'is_active' must be the only field provided in the request."
+          );
+        }
+      }
+
+      if (updatingOtherFields) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "Cannot update non-'is_active' fields when the lead lost reason is currently inactive. Only 'is_active' can be changed (to true)."
+        );
+      }
+
+      if (is_active !== undefined) {
+        if (requestedIsActiveFalse) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            403,
+            "Lead lost reason is already inactive. 'is_active' can only be updated to true from this state."
+          );
+        }
+      }
+    }
+
+    if (lost_reason) {
+      const dupCheck = await client.query(
+        `
+        SELECT lead_lost_reason_id 
+        FROM lead_lost_reason
+        WHERE (company_id = $1 AND builder_id = $2)
+          AND LOWER(lost_reason) = LOWER($3)
+          AND lead_lost_reason_id <> $4
+        `,
+        [companyId, builderId, lost_reason, id]
+      );
+
+      if (dupCheck.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Lost reason already exists.");
+      }
+    }
+
+    if (sort_order !== undefined) {
+      const duplicateSortQuery = `
+        SELECT 1 FROM lead_lost_reason
+        WHERE sort_order = $1
+          AND (company_id = $2 OR company_id IS NULL)
+          AND (builder_id = $3 OR builder_id IS NULL)
+          AND lead_lost_reason_id != $4
+      `;
+      const duplicateSort = await client.query(duplicateSortQuery, [
+        sort_order,
+        companyId,
+        builderId,
+        id,
+      ]);
+
+      if (duplicateSort.rowCount > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          409,
+          `Sort order ${sort_order} already exists.`
+        );
+      }
+    }
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (lost_reason) {
+      updates.push(`lost_reason = $${idx++}`);
+      values.push(lost_reason);
+    }
+
+    if (sort_order !== undefined) {
+      // Check for !== undefined
+      updates.push(`sort_order = $${idx++}`);
+      values.push(sort_order);
+    }
+
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${idx++}`);
+      values.push(is_active);
+    }
+    updates.push(`updated_by = $${idx++}`);
+    values.push(userId);
+
+    updates.push(`updated_at = NOW()`);
+
+    const updateQuery = `
+      UPDATE lead_lost_reason
+      SET ${updates.join(", ")}
+      WHERE lead_lost_reason_id = $${idx}
+        AND company_id = $${idx + 1}
+        AND builder_id = $${idx + 2}
+      RETURNING *;
+    `;
+
+    values.push(id, companyId, builderId);
+
+    const result = await client.query(updateQuery, values);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Lead lost reason updated successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating lead lost reason:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

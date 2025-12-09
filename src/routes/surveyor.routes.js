@@ -1,0 +1,51 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  createSurveyor,
+  getAllSurveyor,
+  deleteSurveyor,
+  updateSurveyor,
+} = require("../controllers/surveyor.controller");
+const {
+  createSurveyorSchema,
+  getAllServeyorSchema,
+  deleteSurveyorSchema,
+  updateSurveyorIdParamsSchema,
+  updateSurveyorSchema,
+} = require("../validations/surveyor.validation");
+
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+
+const { REQUEST_SOURCE } = require("../config/constants");
+
+router.use(authMiddleware);
+router.use(roleMiddleware);
+
+router.post(
+  "/",
+  validateRequest(createSurveyorSchema, REQUEST_SOURCE.BODY),
+  createSurveyor
+);
+
+router.get(
+  "/",
+  validateRequest(getAllServeyorSchema, REQUEST_SOURCE.QUERY),
+  getAllSurveyor
+);
+
+router.delete(
+  "/:surveyor_id",
+  validateRequest(deleteSurveyorSchema, REQUEST_SOURCE.PARAMS),
+  deleteSurveyor
+);
+
+router.put(
+  "/:surveyor_id",
+  validateRequest(updateSurveyorIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateSurveyorSchema, REQUEST_SOURCE.BODY),
+  updateSurveyor
+);
+module.exports = router;

@@ -1,0 +1,49 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  createUserPasswordHistory,
+  getUserPasswordHistory,
+  deleteUserPasswordHistory,
+  getUserPasswordHistoryById,
+} = require("../controllers/user-password-history.controller");
+const {
+  createUserPasswordHistorySchema,
+  getAllUserPasswordHistorySchema,
+  deleteUserPasswordHistorySchema,
+  getUserPasswordHistoryByIdSchema,
+} = require("../validations/user-password-history.validation");
+
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+
+const { REQUEST_SOURCE } = require("../config/constants");
+
+router.use(authMiddleware);
+router.use(roleMiddleware);
+
+router.post(
+  "/",
+  validateRequest(createUserPasswordHistorySchema, REQUEST_SOURCE.BODY),
+  createUserPasswordHistory
+);
+
+router.get(
+  "/",
+  validateRequest(getAllUserPasswordHistorySchema, REQUEST_SOURCE.QUERY),
+  getUserPasswordHistory
+);
+
+router.delete(
+  "/:id",
+  validateRequest(deleteUserPasswordHistorySchema, REQUEST_SOURCE.PARAMS),
+  deleteUserPasswordHistory
+),
+  router.get(
+    "/:id",
+    validateRequest(getUserPasswordHistoryByIdSchema, REQUEST_SOURCE.PARAMS),
+    getUserPasswordHistoryById
+  );
+
+module.exports = router;

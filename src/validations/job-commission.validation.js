@@ -1,0 +1,145 @@
+const Joi = require("joi");
+
+const createJobCommissionSchema = Joi.object({
+  commission_type: Joi.string().valid("outgoing", "incoming").required(),
+  name: Joi.string().max(150).required(),
+  recipient: Joi.string()
+    .valid(
+      "sales_person",
+      "reporting_to",
+      "referral_partner",
+      "customer",
+      "other_user"
+    )
+    .required(),
+  recipient_user_id: Joi.alternatives().conditional("recipient", {
+    is: "other_user",
+    then: Joi.string().uuid().required().messages({
+      "any.required":
+        "recipient_user_id is required when recipient is 'other_user'.",
+      "string.guid": "recipient_user_id must be a valid UUID.",
+    }),
+
+    otherwise: Joi.forbidden().messages({
+      "any.unknown":
+        "recipient_user_id is allowed only when recipient is 'other_user'.",
+    }),
+  }),
+  commission_unit: Joi.string().valid("percentage", "amount").required(),
+  commission_value: Joi.alternatives()
+    .conditional("commission_unit", {
+      is: "percentage",
+      then: Joi.number().min(0).max(100).precision(2).required().messages({
+        "number.max": "Percentage cannot be more than 100.",
+        "number.precision":
+          "Percentage must have maximum 2 decimal places (precision 5,2).",
+      }),
+    })
+    .conditional("commission_unit", {
+      is: "amount",
+      then: Joi.number()
+        .min(0)
+        .max(99999999.99)
+        .precision(2)
+        .required()
+        .messages({
+          "number.max": "Amount cannot exceed 99999999.99 (precision 10,2).",
+          "number.precision":
+            "Amount must have maximum 2 decimal places (precision 10,2).",
+        }),
+    })
+    .required(),
+  sort_order: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Sort order must be a number.",
+    "number.min": "Sort order must be at least 1.",
+  }),
+});
+
+const getAllJobCommissionsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
+});
+
+const deleteJobCommissionSchema = Joi.object({
+  job_commission_id: Joi.string().uuid().required().messages({
+    "string.guid": "ID must be a valid UUID",
+    "any.required": "ID is required",
+  }),
+});
+
+const updateJobCommissionParamsSchema = Joi.object({
+  job_commission_id: Joi.string().uuid().required().messages({
+    "string.guid": "Job commission ID must be a valid UUID",
+    "any.required": "Job commission ID is required",
+  }),
+});
+
+const updateJobCommissionSchema = Joi.object({
+  commission_type: Joi.string()
+    .valid("outgoing", "incoming")
+    .optional()
+    .messages({
+      "any.only": "Commission type must be 'outgoing' or 'incoming'.",
+    }),
+
+  name: Joi.string().max(150).optional().messages({
+    "string.max": "Name cannot exceed 150 characters.",
+  }),
+
+  recipient: Joi.string()
+    .valid(
+      "sales_person",
+      "reporting_to",
+      "referral_partner",
+      "customer",
+      "other_user"
+    )
+    .optional()
+    .messages({
+      "any.only":
+        "Recipient must be one of 'sales_person', 'reporting_to', 'referral_partner', 'customer', or 'other_user'.",
+    }),
+
+  recipient_user_id: Joi.string()
+    .uuid()
+    .optional()
+    .when("recipient", {
+      is: "other_user",
+      then: Joi.optional().messages({
+        "any.required":
+          "Recipient user ID is required when recipient is 'other_user'.",
+      }),
+    }),
+
+  commission_unit: Joi.string()
+    .valid("percentage", "amount")
+    .optional()
+    .messages({
+      "any.only": "Commission unit must be 'percentage' or 'amount'.",
+    }),
+
+  commission_value: Joi.number().min(0).optional(),
+
+  sort_order: Joi.number().integer().min(0).optional().messages({
+    "number.base": "Sort order must be an integer.",
+    "number.min": "Sort order cannot be negative.",
+  }),
+});
+
+module.exports = {
+  createJobCommissionSchema,
+  getAllJobCommissionsSchema,
+  deleteJobCommissionSchema,
+  updateJobCommissionParamsSchema,
+  updateJobCommissionSchema,
+};

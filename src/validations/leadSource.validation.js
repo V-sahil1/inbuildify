@@ -2,7 +2,7 @@ const Joi = require("joi");
 
 const nameRule = Joi.string()
   .min(2)
-  .max(100)
+  .max(150)
   .trim()
   .pattern(/^[a-zA-Z0-9\s&.,()-]+$/)
   .messages({
@@ -15,6 +15,8 @@ const nameRule = Joi.string()
     "any.required": "Lead source name is required",
   });
 
+const sortOrderRule = Joi.number().integer().default(1).min(1);
+
 const leadSourceIdRule = Joi.string().uuid().messages({
   "string.base": "Lead source ID must be a string",
   "string.empty": "Lead source ID is required",
@@ -24,6 +26,24 @@ const leadSourceIdRule = Joi.string().uuid().messages({
 
 const createLeadSourceSchema = Joi.object({
   name: nameRule.required(),
+  sort_order: sortOrderRule.optional(),
+  is_active: Joi.boolean().default(true),
+  allow_change: Joi.boolean().default(true),
+});
+
+const getLeadResourcesSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
 });
 
 const getLeadSourceByIdSchema = Joi.object({
@@ -31,7 +51,10 @@ const getLeadSourceByIdSchema = Joi.object({
 });
 
 const updateLeadSourceSchema = Joi.object({
-  name: nameRule.required(),
+  name: nameRule.optional(),
+  sort_order: sortOrderRule.optional(),
+  is_active: Joi.boolean().optional(),
+  allow_change: Joi.boolean().default(true),
 });
 
 const updateLeadSourceParamsSchema = Joi.object({
@@ -44,6 +67,7 @@ const deleteLeadSourceSchema = Joi.object({
 
 module.exports = {
   createLeadSourceSchema,
+  getLeadResourcesSchema,
   getLeadSourceByIdSchema,
   updateLeadSourceSchema,
   updateLeadSourceParamsSchema,
