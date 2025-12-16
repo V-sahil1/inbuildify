@@ -8,10 +8,6 @@ const allowedShowReferenceValues = [
 ];
 
 const createGeneralSettigSchema = Joi.object({
-  // company_id: Joi.string().uuid().allow(null).messages({
-  //   "string.guid": "ID must be a valid UUID",
-  // }),
-
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 
@@ -64,8 +60,6 @@ const updateGeneralSettingIdParamsSchema = Joi.object({
 });
 
 const updateGeneralSettingsSchema = Joi.object({
-  // company_id: Joi.string().uuid().allow(null).optional(),
-
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 

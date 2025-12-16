@@ -23,7 +23,7 @@ const createSupplierSchema = Joi.object({
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
-  website: Joi.string().uri().allow(null, ""),
+  website: Joi.string().uri().max(50).allow(null, ""),
   address_line1: Joi.string().max(255).allow(null, ""),
   city: Joi.string().max(150).allow(null, ""),
   state_id: Joi.string().uuid().allow(null, "").messages({

@@ -6,7 +6,6 @@ const {
   getMasterFacadeById,
   updateMasterFacade,
   deleteMasterFacade,
-  getMasterFacadeFilters,
 } = require("../controllers/master-facade.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -40,8 +39,6 @@ router.get(
   validateRequest(getMasterFacadesSchema, REQUEST_SOURCE.QUERY),
   getMasterFacades
 );
-
-router.get("/filters", getMasterFacadeFilters);
 
 router.get(
   "/:id",

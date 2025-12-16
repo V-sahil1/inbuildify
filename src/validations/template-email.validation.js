@@ -52,7 +52,7 @@ const updateTemplateEmailParamsSchema = Joi.object({
 const updateTemplateEmailSchem = Joi.object({
   name: Joi.string().min(3).max(200).optional(),
 
-  type: Joi.string().valid("standard", "customized"),
+  type: Joi.string().max(50).valid("standard", "customized"),
   subject: Joi.string().allow(null, "").max(255).optional(),
   email_content: Joi.string().optional(),
   additional_recipient_users: Joi.array()

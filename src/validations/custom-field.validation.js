@@ -17,6 +17,7 @@ const createCustomFieldSchema = Joi.object({
   field_type: Joi.string()
     .valid("text", "number", "date", "checkbox", "list", "multiline")
     .required()
+    .max(50)
     .messages({
       "any.only":
         "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.",
@@ -83,6 +84,7 @@ const updateCustomFieldSchema = Joi.object({
   field_label: Joi.string().trim().max(150).optional(),
 
   field_type: Joi.string()
+    .max(50)
     .valid("text", "number", "date", "checkbox", "list", "multiline")
     .optional(),
 

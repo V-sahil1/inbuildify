@@ -15,11 +15,11 @@ const imageRule = Joi.string().max(500).trim().allow("", null).messages({
   "string.max": "Image URL must not exceed 500 characters",
 });
 
-const rangeTypeRule = Joi.string().uuid().optional().messages({
+const rangeTypeRule = Joi.string().uuid().messages({
   "string.guid": "Surveyor ID must be a valid UUID",
 });
 
-const dwellingTypeRule = Joi.string().uuid().optional().messages({
+const dwellingTypeRule = Joi.string().uuid().messages({
   "string.guid": "Dwelling type must be a UUID",
 });
 
@@ -54,14 +54,21 @@ const booleanFilterRule = Joi.string().valid("true", "false").messages({
 
 // Create facade validation
 const createMasterFacadeSchema = Joi.object({
+  location_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Invalid location_id.",
+  }),
   name: nameRule.required(),
   image: imageRule.optional(),
-  range_type: rangeTypeRule.required(),
-  dwelling_type: dwellingTypeRule.required(),
-  standard: booleanRule("Standard").optional(),
-  upgrade: booleanRule("Upgrade").optional(),
+  range_id: rangeTypeRule.optional(),
+  dwelling_type_id: dwellingTypeRule.optional(),
+  cost_type: Joi.string()
+    .valid("standard", "upgrade")
+    .default("standard")
+    .messages({
+      "any.only": "cost_type must be either 'standard' or 'upgrade'.",
+    }),
   cost: Joi.string()
-    .required()
+    .optional()
     .pattern(/^\d+$/)
     .custom((value, helpers) => {
       try {
@@ -78,6 +85,21 @@ const createMasterFacadeSchema = Joi.object({
       "number.min": "Cost must not be less than 0",
       "number.max": "Cost must not exceed 1000000",
     }),
+
+  builder_cost: Joi.number()
+    .precision(2)
+    .positive()
+    .max(9999999999.99)
+    .optional()
+    .allow(null)
+    .messages({
+      "number.base": "Builder cost must be a number.",
+      "number.positive": "Builder cost must be greater than 0.",
+    }),
+
+  status: Joi.boolean().default(true).messages({
+    "boolean.base": "Status must be true or false.",
+  }),
 });
 
 // Get facade by ID validation (params)
@@ -87,39 +109,30 @@ const getMasterFacadeByIdSchema = Joi.object({
 
 // Get facades with filters validation (query)
 const getMasterFacadesSchema = Joi.object({
-  range_type: Joi.string().optional(),
-  dwelling_type: Joi.string().optional(),
-  standard: booleanFilterRule.optional(),
-  upgrade: booleanFilterRule.optional(),
-  cost: Joi.string()
-    .optional()
-    .pattern(/^\d+$/)
-    .custom((value, helpers) => {
-      try {
-        const num = BigInt(value);
-        if (num <= 0n) return helpers.error("number.min");
-        if (num > 1000000n) return helpers.error("number.max");
-        return Number(num); // or keep as string if safer
-      } catch {
-        return helpers.error("number.base");
-      }
-    })
-    .messages({
-      "string.pattern.base": "Cost must be a valid number",
-      "number.min": "Cost must not be less than 0",
-      "number.max": "Cost must not exceed 1000000",
-    }),
+  name: Joi.string().max(150).optional(),
+  range_id: Joi.string().optional(),
+  dwelling_type_id: Joi.string().optional(),
+  location_id: Joi.string().uuid().optional(),
+  cost_type: Joi.string().valid("standard", "upgrade").optional().messages({
+    "any.only": "cost_type must be either 'standard' or 'upgrade'.",
+  }),
+  status: Joi.boolean().optional(),
   page: pageRule,
   limit: limitRule,
 });
 
 // Update facade validation
 const updateMasterFacadeSchema = Joi.object({
+  location_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Invalid location_id.",
+  }),
   name: nameRule.optional(),
   image: imageRule.optional(),
-  range_type: rangeTypeRule.optional(),
-  dwelling_type: dwellingTypeRule.optional(),
-  standard: booleanRule("Standard").optional(),
+  range_id: rangeTypeRule.optional(),
+  dwelling_type_id: dwellingTypeRule.optional(),
+  cost_type: Joi.string().valid("standard", "upgrade").optional().messages({
+    "any.only": "cost_type must be either 'standard' or 'upgrade'.",
+  }),
   cost: Joi.string()
     .optional()
     .pattern(/^\d+$/)
@@ -138,7 +151,20 @@ const updateMasterFacadeSchema = Joi.object({
       "number.min": "Cost must not be less than 0",
       "number.max": "Cost must not exceed 1000000",
     }),
-  upgrade: booleanRule("Upgrade").optional(),
+
+  builder_cost: Joi.number()
+    .precision(2)
+    .positive()
+    .max(9999999999.99)
+    .optional()
+    .allow(null)
+    .messages({
+      "number.base": "Builder cost must be a number.",
+      "number.positive": "Builder cost must be greater than 0.",
+    }),
+  status: Joi.boolean().optional().messages({
+    "boolean.base": "Status must be true or false.",
+  }),
 })
   .min(1)
   .messages({

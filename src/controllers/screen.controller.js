@@ -13,14 +13,6 @@ exports.createScreen = async (req, res) => {
 
     const { name } = req.body;
 
-    if (!companyId && !builderId) {
-      return errorResponse(
-        res,
-        400,
-        "Either company_id or builder_id is required"
-      );
-    }
-
     const insertQuery = `
       INSERT INTO screen (
         company_id,
@@ -170,14 +162,6 @@ exports.updateScreen = async (req, res) => {
 
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id || req.user?.users_id;
-
-    if (!screen_id) {
-      return errorResponse(res, 400, "screen_id is required");
-    }
-
-    if (!name) {
-      return errorResponse(res, 400, "Name is required");
-    }
 
     const checkQuery = `
       SELECT screen_id

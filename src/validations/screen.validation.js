@@ -36,7 +36,7 @@ const updateScreenParamsSchema = Joi.object({
 });
 
 const updateScreenSchema = Joi.object({
-  name: Joi.string().trim().min(3).max(150).optional(),
+  name: Joi.string().trim().min(3).max(150).required(),
 });
 module.exports = {
   createScreenSchema,

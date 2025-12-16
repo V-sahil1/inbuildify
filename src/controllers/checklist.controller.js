@@ -185,14 +185,6 @@ exports.updateChecklist = async (req, res) => {
     const { name, is_active, functionality_id, screen_id } = req.body;
     const { user_id } = req.user;
 
-    if (!builderId) {
-      return errorResponse(res, 403, "Unauthorized. Builder login required.");
-    }
-
-    if (!checklist_id) {
-      return errorResponse(res, 400, "Checklist ID is required.");
-    }
-
     await client.query("BEGIN");
 
     const checkQuery = `

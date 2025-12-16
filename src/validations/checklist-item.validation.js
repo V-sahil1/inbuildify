@@ -9,8 +9,8 @@ const createChecklistItemSchema = Joi.object({
     "any.required": "Description is required",
     "string.max": "Description cannot exceed 500 characters",
   }),
-  notes: Joi.boolean().optional(),
-  is_required: Joi.boolean().default("FALSE").optional(),
+  notes: Joi.boolean().default(false),
+  is_required: Joi.boolean().default(false),
   type: Joi.string().valid("checkbox", "dropdown").required().messages({
     "any.required": "Type is required",
     "any.only": "Type must be either 'checkbox' or 'dropdown'",
@@ -92,5 +92,6 @@ module.exports = {
   getAllChecklistItemSchema,
   getChecklistItemsByChecklistIdSchema,
   deleteChecklistItemSchema,
+  updateChecklistItemParamsSchema,
   updateChecklistItemSchema,
 };

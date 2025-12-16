@@ -13,22 +13,6 @@ exports.createFunctionality = async (req, res) => {
 
     const { screen_id, name } = req.body;
 
-    if (!screen_id) {
-      return errorResponse(res, 400, "screen_id is required");
-    }
-
-    if (!name || name.trim() === "") {
-      return errorResponse(res, 400, "Name is required");
-    }
-
-    if (!companyId && !builderId) {
-      return errorResponse(
-        res,
-        400,
-        "Either company_id or builder_id is required."
-      );
-    }
-
     const validateScreenQuery = `
       SELECT screen_id
       FROM screen
@@ -185,10 +169,6 @@ exports.updateFunctionality = async (req, res) => {
     const builderId = req.user.builder_id;
 
     const { name, screen_id } = req.body;
-
-    if (!functionality_id) {
-      return errorResponse(res, 400, "Functionality ID is required.");
-    }
 
     const existing = await client.query(
       `SELECT functionality_id 

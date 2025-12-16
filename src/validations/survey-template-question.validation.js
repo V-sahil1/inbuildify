@@ -13,6 +13,7 @@ const createSurveyQuestionSchema = Joi.object({
     "string.empty": "description cannot be empty",
   }),
   option_type: Joi.string()
+    .max(50)
     .valid("text", "radio", "star_1_to_5", "star_1_to_10")
     .required()
     .messages({
@@ -75,6 +76,7 @@ const updateSurveyTemplateQuestionSchema = Joi.object({
     "string.empty": "description cannot be empty",
   }),
   option_type: Joi.string()
+    .max(50)
     .valid("text", "radio", "star_1_to_5", "star_1_to_10")
     .optional()
     .messages({

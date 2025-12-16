@@ -15,6 +15,34 @@ exports.createAddress = async (req, res) => {
       zip_code,
     } = req.body;
 
+    if (country_id) {
+      const countryIdCheck = await client.query(
+        `SELECT country_id FROM country WHERE country_id = $1 LIMIT 1`,
+        [country_id]
+      );
+
+      if (countryIdCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid country id. country not found."
+        );
+      }
+    }
+
+    if (state_id) {
+      const stateCheck = await client.query(
+        `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
+        [state_id]
+      );
+
+      if (stateCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid state_id. state not found.");
+      }
+    }
+
     if (!address_line1) {
       return errorResponse(res, 400, "Address Line 1 is required.");
     }
@@ -47,7 +75,7 @@ exports.createAddress = async (req, res) => {
       keysToCamelCase(result.rows[0]),
       "Address created successfully."
     );
-  } catch (error) {
+  } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating address:", err);
     return errorResponse(res, 400, err.message || "Internal Server Error");

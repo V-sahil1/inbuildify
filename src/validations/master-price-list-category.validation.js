@@ -16,12 +16,12 @@ const getAllMasterPriceListCategoriesSchema = Joi.object({
 });
 
 const createMasterPriceListCategorySchema = Joi.object({
-  name: Joi.string().required().min(2).max(100),
+  name: Joi.string().required().min(2).max(200),
   description: Joi.string().optional(),
 });
 
 const updateMasterPriceListCategorySchema = Joi.object({
-  name: Joi.string().optional().min(2).max(100),
+  name: Joi.string().optional().min(2).max(200),
   description: Joi.string().optional(),
 })
   .min(1)

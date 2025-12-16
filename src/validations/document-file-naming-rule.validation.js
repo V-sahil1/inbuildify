@@ -18,7 +18,7 @@ const createDocumentFileNamingRuleSchema = Joi.object({
       "array.base": "Folder IDs must be an array of UUIDs.",
     }),
 
-  naming_format: Joi.string().trim().max(250).required().messages({
+  naming_format: Joi.string().trim().max(255).required().messages({
     "string.base": "Naming format must be a string.",
     "string.empty": "Naming format is required.",
     "any.required": "Naming format is required.",

@@ -3,6 +3,7 @@ const Joi = require("joi");
 const createJobColorCoulmnSchema = Joi.object({
   column_name: Joi.string().trim().max(150).required(),
   display_option: Joi.string()
+    .max(50)
     .valid(
       "dont_show",
       "show_as_separate_column",
@@ -38,6 +39,7 @@ const updateJobColorColumnParamsSchema = Joi.object({
 const updateJobColorColumnSchema = Joi.object({
   column_name: Joi.string().trim().max(150).optional(),
   display_option: Joi.string()
+    .max(50)
     .valid(
       "dont_show",
       "show_as_separate_column",

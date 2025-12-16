@@ -39,7 +39,7 @@ const updateSupplierTypeParamsSchema = Joi.object({
 
 const updateSupplierTypeSchema = Joi.object({
   name: Joi.string().trim().max(150).optional(),
-  is_active: Joi.boolean(),
+  is_active: Joi.boolean().optional(),
 });
 module.exports = {
   createSuppllierTypeSchema,

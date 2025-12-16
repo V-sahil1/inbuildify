@@ -24,9 +24,13 @@ const createTaskSchema = Joi.object({
 
   assignee_id: Joi.string().uuid().allow(null).optional(),
 
-  priority: Joi.string().valid("Low", "Medium", "High").default("Medium"),
+  priority: Joi.string()
+    .max(20)
+    .valid("Low", "Medium", "High")
+    .default("Medium"),
 
   status: Joi.string()
+    .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
     .default("Yet to Start"),
 });
@@ -104,9 +108,10 @@ const updateTaskSchema = Joi.object({
 
   assignee_id: Joi.string().uuid().allow(null).optional(),
 
-  priority: Joi.string().valid("Low", "Medium", "High").optional(),
+  priority: Joi.string().max(20).valid("Low", "Medium", "High").optional(),
 
   status: Joi.string()
+    .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
     .optional(),
 });

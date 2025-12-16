@@ -30,6 +30,22 @@ exports.createCompany = async (req, res) => {
       return errorResponse(res, 400, "Company name is required.");
     }
 
+    if (address_id) {
+      const addressCheck = await client.query(
+        `SELECT address_id FROM address WHERE address_id = $1 LIMIT 1`,
+        [address_id]
+      );
+
+      if (addressCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid address_id. Address not found."
+        );
+      }
+    }
+
     await client.query("BEGIN");
 
     // Optional: prevent multiple companies per builder

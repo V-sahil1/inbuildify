@@ -13,7 +13,7 @@ const {
   updateTemplateEmailParamsSchema,
   updateTemplateEmailSchem,
   deleteTemplateEmailSchema,
-} = require("../validations/templete-email.validation");
+} = require("../validations/template-email.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");

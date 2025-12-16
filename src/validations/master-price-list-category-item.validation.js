@@ -30,8 +30,8 @@ const createMasterPriceListCategoryItemSchema = Joi.object({
     "string.guid": "Category ID must be a valid UUID",
     "any.required": "Category ID is required",
   }),
-  name: Joi.string().trim().min(2).max(50).required(),
-  sku: Joi.string().min(2).max(50).optional(),
+  name: Joi.string().trim().min(2).max(255).required(),
+  sku: Joi.string().min(2).max(100).optional(),
   full_description: Joi.string().min(2).max(1000).required(),
   short_description: Joi.string().max(500).optional().allow(null, ""),
   item_type: Joi.string().min(2).max(100).optional(),
@@ -55,7 +55,7 @@ const createMasterPriceListCategoryItemSchema = Joi.object({
   cost_option: Joi.string()
     .valid(...costOptions)
     .default("NONE"),
-  currency: Joi.string().min(2).max(100).default("AUD").optional(),
+  currency: Joi.string().min(2).max(10).default("AUD").optional(),
   is_standard: Joi.boolean().default(false),
   is_upgrade: Joi.boolean().default(false),
   include_by_default: Joi.boolean().default(false),

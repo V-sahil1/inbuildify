@@ -46,6 +46,7 @@ const updateSalesModuleSettingSchema = Joi.object({
   show_common_folders: Joi.boolean().optional(),
 
   lead_mandatory_option: Joi.string()
+    .max(50)
     .valid(
       "email_and_phone",
       "either_email_or_phone",
@@ -68,6 +69,7 @@ const updateSalesModuleSettingSchema = Joi.object({
     .optional(),
 
   house_size_unit: Joi.string()
+    .max(20)
     .valid("sq_m2", "sq_ft")
     .optional()
     .default("sq_m2"),

@@ -1,7 +1,7 @@
 const Joi = require("joi");
 
 const createNoteTageSchema = Joi.object({
-  name: Joi.string().trim().min(3).max(150).required().messages({
+  name: Joi.string().trim().min(3).max(100).required().messages({
     "string.empty": "Tag name is required.",
   }),
   background_color: Joi.string()

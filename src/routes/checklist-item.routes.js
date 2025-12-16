@@ -12,6 +12,7 @@ const {
   getAllChecklistItemSchema,
   getChecklistItemsByChecklistIdSchema,
   deleteChecklistItemSchema,
+  updateChecklistItemParamsSchema,
   updateChecklistItemSchema,
 } = require("../validations/checklist-item.validation");
 
@@ -49,6 +50,7 @@ router.delete(
 
 router.put(
   "/:checklist_item_id",
+  validateRequest(updateChecklistItemParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateChecklistItemSchema, REQUEST_SOURCE.BODY),
   updateChecklistItem
 );

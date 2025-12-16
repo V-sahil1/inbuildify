@@ -10,147 +10,154 @@ exports.createMasterFacade = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
-    const createdBy = req.user?.user_id;
+    const userId = req.user?.user_id;
     const imageUrl = req.file?.location || null;
 
-    const { name, range_type, dwelling_type, standard, upgrade, cost } =
-      req.body || {};
+    const {
+      name,
+      location_id,
+      dwelling_type_id,
+      range_id,
+      cost_type = "standard",
+      cost,
+      builder_cost,
+      status = true,
+    } = req.body || {};
 
-    if (!builderId || !companyId) {
+    if (!["standard", "upgrade"].includes(cost_type)) {
+      return errorResponse(res, 400, "Invalid cost_type.");
+    }
+
+    if (location_id) {
+      const locCheck = await client.query(
+        `SELECT location_id
+         FROM location
+         WHERE location_id = $1 AND builder_id = $2`,
+        [location_id, builderId]
+      );
+
+      if (locCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid location id does not belong to this builder."
+        );
+      }
+    }
+
+    if (location_id) {
+      const locActiveCheck = await client.query(
+        `SELECT location_id
+         FROM location
+         WHERE location_id = $1 AND builder_id = $2 AND status = true`,
+        [location_id, builderId]
+      );
+
+      if (locActiveCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Inactive location.");
+      }
+    }
+
+    if (range_id) {
+      const rangeCheck = `
+        SELECT range_id
+        FROM range
+        WHERE range_id = $1
+          AND builder_id = $2
+          AND is_active = true
+      `;
+      const rangeResult = await client.query(rangeCheck, [range_id, builderId]);
+      if (rangeResult.rowCount === 0) {
+        return errorResponse(res, 404, "Invalid or inactive range.");
+      }
+    }
+
+    if (dwelling_type_id) {
+      const dwellingCheck = `
+        SELECT dwelling_type_id
+        FROM dwelling_type
+        WHERE dwelling_type_id = $1
+          AND builder_id = $2
+          AND is_active = true
+      `;
+      const dwellingResult = await client.query(dwellingCheck, [
+        dwelling_type_id,
+        builderId,
+      ]);
+      if (dwellingResult.rowCount === 0) {
+        return errorResponse(res, 404, "Invalid or inactive dwelling type.");
+      }
+    }
+
+    const uniqueCheck = `
+      SELECT facade_id
+      FROM facade
+      WHERE location_id = $1
+        AND name = $2
+    `;
+    const uniqueResult = await client.query(uniqueCheck, [location_id, name]);
+    if (uniqueResult.rowCount > 0) {
       return errorResponse(
         res,
-        400,
-        "Missing builder_id or company_id in user context."
+        409,
+        "Facade with this name already exists for this location."
       );
     }
 
-    const builderQuery = `SELECT builder_id FROM builder WHERE builder_id = $1;`;
-    const builderResult = await client.query(builderQuery, [builderId]);
-    if (builderResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Builder not found or not linked to this company."
-      );
-    }
-
-    const rangeTypeQuery = `
-      SELECT range_id 
-      FROM range 
-      WHERE range_id = $1 
-        AND (builder_id = $2)
-    `;
-    const rangeTypeResult = await client.query(rangeTypeQuery, [
-      range_type,
-      builderId,
-    ]);
-    if (rangeTypeResult.rowCount === 0) {
-      return errorResponse(res, 404, "Invalid range type provided.");
-    }
-
-    const rangeTypeActiveQuery = `
-      SELECT range_id 
-      FROM range 
-      WHERE range_id = $1 
-        AND (builder_id = $2) AND is_active = true
-    `;
-    const rangeTypeActiveResult = await client.query(rangeTypeActiveQuery, [
-      range_type,
-      builderId,
-    ]);
-    if (rangeTypeActiveResult.rowCount === 0) {
-      return errorResponse(res, 404, "Inactive range type provided.");
-    }
-
-    const dwellingTypeQuery = `
-      SELECT dwelling_type_id 
-      FROM dwelling_type 
-      WHERE dwelling_type_id = $1 
-        AND (builder_id = $2)
-    `;
-    const dwellingTypeResult = await client.query(dwellingTypeQuery, [
-      dwelling_type,
-      builderId,
-    ]);
-    if (dwellingTypeResult.rowCount === 0) {
-      return errorResponse(res, 404, "Invalid dwelling type provided.");
-    }
-
-    const dwellingTypeActiveQuery = `
-      SELECT dwelling_type_id 
-      FROM dwelling_type 
-      WHERE dwelling_type_id = $1 
-        AND (builder_id = $2) AND is_active = true
-    `;
-    const dwellingTypeActiveResult = await client.query(
-      dwellingTypeActiveQuery,
-      [dwelling_type, builderId]
-    );
-    if (dwellingTypeActiveResult.rowCount === 0) {
-      return errorResponse(res, 404, "Inactive dwelling type provided.");
-    }
-
-    const insertFacadeQuery = `
-      INSERT INTO master_facade (
+    const insertQuery = `
+      INSERT INTO facade (
         company_id,
         builder_id,
+        location_id,
         name,
-        image,
-        range_type_id,
         dwelling_type_id,
-        standard,
-        upgrade,
+        range_id,
+        cost_type,
         cost,
+        builder_cost,
+        image,
+        status,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12
+      )
       RETURNING *;
     `;
 
     const values = [
       companyId,
       builderId,
+      location_id,
       name,
+      dwelling_type_id || null,
+      range_id || null,
+      cost_type,
+      cost || null,
+      builder_cost || null,
       imageUrl,
-      rangeTypeResult.rows[0].range_id,
-      dwellingTypeResult.rows[0].dwelling_type_id,
-      standard || false,
-      upgrade || false,
-      cost || 0,
-      createdBy,
+      status,
+      userId,
     ];
 
-    const facadeResult = await client.query(insertFacadeQuery, values);
-
-    const createdFacade = {
-      ...facadeResult.rows[0],
-      range_type_name: range_type,
-      dwelling_type_name: dwelling_type,
-    };
+    const result = await client.query(insertQuery, values);
 
     return successResponse(
       res,
-      keysToCamelCase(createdFacade),
-      "Master Facade created successfully."
+      keysToCamelCase(result.rows[0]),
+      "Facade created successfully."
     );
   } catch (error) {
-    console.error("Create Master Facade Error:", error);
+    console.error("Create Facade Error:", error);
 
     if (error.code === "23505") {
-      // Unique violation
-      return errorResponse(
-        res,
-        409,
-        "Master Facade with this name already exists."
-      );
+      return errorResponse(res, 409, "Facade with this name already exists.");
     }
 
-    return errorResponse(
-      res,
-      500,
-      error.message || "Failed to create Master Facade."
-    );
+    return errorResponse(res, 500, error.message);
   } finally {
     client.release();
   }
@@ -159,11 +166,14 @@ exports.createMasterFacade = async (req, res) => {
 exports.getMasterFacades = async (req, res) => {
   const builderId = req.user.builder_id;
   const companyId = req.user.company_id;
+
   const {
-    dwelling_type,
-    range_type,
-    standard,
-    upgrade,
+    name,
+    dwelling_type_id,
+    range_id,
+    cost_type,
+    location_id,
+    status,
     page = 1,
     limit = 25,
   } = req.query;
@@ -172,138 +182,135 @@ exports.getMasterFacades = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    let dwellingTypeId = null;
-    let rangeTypeId = null;
-
-    if (dwelling_type) {
-      const dtResult = await client.query(
-        `
-        SELECT dwelling_type_id 
-        FROM dwelling_type 
-        WHERE dwelling_type_id = $1 
-          AND (builder_id = $2)
-        `,
-        [dwelling_type, builderId]
-      );
-
-      if (dtResult.rows.length === 0) {
-        return errorResponse(res, 400, "Invalid dwelling type.");
-      }
-      dwellingTypeId = dtResult.rows[0].dwelling_type_id;
-    }
-
-    if (range_type) {
-      const rtResult = await client.query(
-        `
-        SELECT range_id 
-        FROM range 
-        WHERE range_id = $1 
-          AND (builder_id = $2)
-        `,
-        [range_type, builderId]
-      );
-
-      if (rtResult.rows.length === 0) {
-        return errorResponse(res, 400, "Invalid range type.");
-      }
-      rangeTypeId = rtResult.rows[0].range_id;
-    }
-
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
+    /* -------------------- BASE QUERY -------------------- */
     let baseQuery = `
-      SELECT 
-        mf.master_facade_id,
-        mf.company_id,
-        mf.builder_id,
-        mf.name,
-        mf.image,
-        mf.standard,
-        mf.upgrade,
-        mf.cost,
-        mf.created_at,
-        mf.updated_at,
+      SELECT
+        f.facade_id,
+        f.company_id,
+        f.builder_id,
+        f.location_id,
+        f.name,
+        f.cost_type,
+        f.cost,
+        f.builder_cost,
+        f.dwelling_type_id,
+        f.range_id,
+        f.image,
+        f.status,
+        f.created_at,
+        f.updated_at,
         dt.name AS dwelling_type_name,
-        rt.name AS range_type_name
-      FROM master_facade mf
-      JOIN dwelling_type dt 
-        ON mf.dwelling_type_id = dt.dwelling_type_id
-      LEFT JOIN range rt 
-        ON mf.range_type_id = rt.range_id
-      WHERE mf.builder_id = $1 
-        AND mf.company_id = $2
-        AND mf.is_deleted = false
+        r.name AS range_name,
+        l.name AS location_name
+      FROM facade f
+      LEFT JOIN dwelling_type dt 
+        ON f.dwelling_type_id = dt.dwelling_type_id
+      LEFT JOIN range r 
+        ON f.range_id = r.range_id
+      LEFT JOIN location l
+        ON f.location_id = l.location_id
+      WHERE f.builder_id = $1
+        AND f.company_id = $2
     `;
 
     const queryParams = [builderId, companyId];
     let paramIndex = 3;
 
-    if (dwellingTypeId) {
-      baseQuery += ` AND mf.dwelling_type_id = $${paramIndex}`;
-      queryParams.push(dwellingTypeId);
+    /* -------------------- FILTERS -------------------- */
+
+    if (name) {
+      baseQuery += ` AND f.name ILIKE $${paramIndex}`;
+      queryParams.push(`%${name}%`);
       paramIndex++;
     }
 
-    if (rangeTypeId) {
-      baseQuery += ` AND mf.range_type_id = $${paramIndex}`;
-      queryParams.push(rangeTypeId);
+    if (location_id) {
+      baseQuery += ` AND f.location_id = $${paramIndex}`;
+      queryParams.push(location_id);
       paramIndex++;
     }
 
-    if (standard !== undefined) {
-      baseQuery += ` AND mf.standard = $${paramIndex}`;
-      queryParams.push(standard === "true");
+    if (dwelling_type_id) {
+      baseQuery += ` AND f.dwelling_type_id = $${paramIndex}`;
+      queryParams.push(dwelling_type_id);
       paramIndex++;
     }
 
-    if (upgrade !== undefined) {
-      baseQuery += ` AND mf.upgrade = $${paramIndex}`;
-      queryParams.push(upgrade === "true");
+    if (range_id) {
+      baseQuery += ` AND f.range_id = $${paramIndex}`;
+      queryParams.push(range_id);
       paramIndex++;
     }
 
-    baseQuery += ` 
-      ORDER BY mf.created_at DESC 
+    if (cost_type) {
+      baseQuery += ` AND f.cost_type = $${paramIndex}`;
+      queryParams.push(cost_type);
+      paramIndex++;
+    }
+
+    if (status !== undefined) {
+      baseQuery += ` AND f.status = $${paramIndex}`;
+      queryParams.push(status === "true");
+      paramIndex++;
+    }
+
+    /* -------------------- PAGINATION -------------------- */
+    baseQuery += `
+      ORDER BY f.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     queryParams.push(limitValue, offset);
 
     const result = await client.query(baseQuery, queryParams);
 
+    /* -------------------- COUNT QUERY -------------------- */
     let countQuery = `
       SELECT COUNT(*) AS total
-      FROM master_facade mf
-      WHERE mf.builder_id = $1 
-        AND mf.company_id = $2
-        AND mf.is_deleted = false
+      FROM facade f
+      WHERE f.builder_id = $1
+        AND f.company_id = $2
     `;
 
     const countParams = [builderId, companyId];
     let countIndex = 3;
 
-    if (dwellingTypeId) {
-      countQuery += ` AND mf.dwelling_type_id = $${countIndex}`;
-      countParams.push(dwellingTypeId);
+    if (name) {
+      countQuery += ` AND f.name ILIKE $${countIndex}`;
+      countParams.push(`%${name}%`);
       countIndex++;
     }
 
-    if (rangeTypeId) {
-      countQuery += ` AND mf.range_type_id = $${countIndex}`;
-      countParams.push(rangeTypeId);
+    if (location_id) {
+      countQuery += ` AND f.location_id = $${countIndex}`;
+      countParams.push(location_id);
       countIndex++;
     }
 
-    if (standard !== undefined) {
-      countQuery += ` AND mf.standard = $${countIndex}`;
-      countParams.push(standard === "true");
+    if (dwelling_type_id) {
+      countQuery += ` AND f.dwelling_type_id = $${countIndex}`;
+      countParams.push(dwelling_type_id);
       countIndex++;
     }
 
-    if (upgrade !== undefined) {
-      countQuery += ` AND mf.upgrade = $${countIndex}`;
-      countParams.push(upgrade === "true");
+    if (range_id) {
+      countQuery += ` AND f.range_id = $${countIndex}`;
+      countParams.push(range_id);
+      countIndex++;
+    }
+
+    if (cost_type) {
+      countQuery += ` AND f.cost_type = $${countIndex}`;
+      countParams.push(cost_type);
+      countIndex++;
+    }
+
+    if (status !== undefined) {
+      countQuery += ` AND f.status = $${countIndex}`;
+      countParams.push(status === "true");
       countIndex++;
     }
 
@@ -321,10 +328,10 @@ exports.getMasterFacades = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Master Facades fetched successfully."
+      "Facades fetched successfully."
     );
   } catch (error) {
-    console.error("Get Master Facades error:", error);
+    console.error("Get Facades error:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
@@ -340,22 +347,22 @@ exports.getMasterFacadeById = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM master_facade 
-      WHERE master_facade_id = $1 AND builder_id = $2 AND is_deleted = false;
+      SELECT * FROM facade 
+      WHERE facade_id = $1 AND builder_id = $2;
     `;
     const result = await client.query(query, [id, builderId]);
 
     if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Master Facade not found.");
+      return errorResponse(res, 404, " Facade not found.");
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Master Facade fetched successfully."
+      " Facade fetched successfully."
     );
   } catch (error) {
-    console.error("Get master facade by ID error:", error);
+    console.error("Get facade by ID error:", error);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -366,6 +373,7 @@ exports.updateMasterFacade = async (req, res) => {
   const { facade_id } = req.params;
   const builderId = req.user.builder_id;
   const companyId = req.user.company_id;
+  const userId = req.user.user_id;
   const updates = req.body;
   const imageUrl = req.file?.location;
 
@@ -375,207 +383,292 @@ exports.updateMasterFacade = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const checkFacadeQuery = `
-      SELECT * 
-      FROM master_facade mf
-      LEFT JOIN dwelling_type dt ON mf.dwelling_type_id = dt.dwelling_type_id
-      LEFT JOIN range r ON mf.range_type_id = r.range_id
-      WHERE mf.master_facade_id = $1 
-        AND mf.builder_id = $2 
-        AND mf.company_id = $3
-        AND mf.is_deleted = false;
+    /* -------------------- CHECK & LOCK FACADE -------------------- */
+    const checkQuery = `
+      SELECT *
+      FROM facade
+      WHERE facade_id = $1
+        AND builder_id = $2
+        AND company_id = $3 FOR UPDATE;
     `;
-    const checkFacadeResult = await client.query(checkFacadeQuery, [
+    const checkResult = await client.query(checkQuery, [
       facade_id,
       builderId,
       companyId,
     ]);
 
-    if (checkFacadeResult.rowCount === 0) {
+    if (checkResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Master Facade not found.");
+      return errorResponse(res, 404, "Facade not found.");
     }
+
+    const existingFacade = checkResult.rows[0];
+    const currentStatus = existingFacade.status;
+    const statusInBody =
+      updates &&
+      typeof updates === "object" &&
+      Object.prototype.hasOwnProperty.call(updates, "status");
+
+    let requestedStatus = statusInBody ? updates.status : undefined;
+
+    /* -------------------- Status Business Logic (is_active) -------------------- */
+
+    // 1. Determine if any field other than 'status' is present in the request
+    const updatesWithoutStatus = { ...updates };
+    delete updatesWithoutStatus.status;
+
+    // Check if updates contain any non-status field or if an image is being uploaded
+    const updatingOtherFields =
+      Object.keys(updatesWithoutStatus).length > 0 || !!imageUrl;
+
+    // 2. Status Validation and Conversion
+    if (statusInBody) {
+      if (typeof requestedStatus === "string") {
+        const v = requestedStatus.trim().toLowerCase();
+        if (v === "true") requestedStatus = true;
+        else if (v === "false") requestedStatus = false;
+        else {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            400,
+            "The 'status' field must be a boolean (true or false)."
+          );
+        }
+      } else if (typeof requestedStatus !== "boolean") {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "The 'status' field must be a boolean (true or false)."
+        );
+      }
+    }
+
+    // 3. Rule 1: Active (true) -> Inactive (false) transition
+    if (currentStatus === true && statusInBody && requestedStatus === false) {
+      // Must only change status, no other fields.
+      if (updatingOtherFields) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "To deactivate an active facade, 'status' must be the only field provided in the request."
+        );
+      }
+    }
+
+    // 4. Rule 2 & 3: Currently Inactive (false)
+    if (currentStatus === false) {
+      const performingActivation = statusInBody && requestedStatus === true;
+
+      if (statusInBody && requestedStatus === false) {
+        // Rule 3: Block Inactive -> Inactive update
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "Facade is already Inactive. 'status' can only be updated to true (Active) from this state."
+        );
+      }
+
+      // Rule 2: Cannot update non-'status' fields unless performing activation
+      if (updatingOtherFields && !performingActivation) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "Cannot update non-'status' fields when the facade is currently Inactive. Only 'status' can be changed (to true/Active)."
+        );
+      }
+
+      // Rule: If activating (false -> true), only 'status' must be present.
+      if (performingActivation && updatingOtherFields) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "To activate an inactive facade, 'status' must be the only field provided in the request."
+        );
+      }
+    }
+
+    // If status was validated successfully, overwrite the original updates.status with the boolean value
+    if (statusInBody) {
+      updates.status = requestedStatus;
+    }
+
+    /* -------------------- END Status Business Logic -------------------- */
 
     const setClauses = [];
     const values = [];
 
+    /* -------------------- SIMPLE FIELDS -------------------- */
+    const allowedFields = [
+      "name",
+      "cost_type",
+      "cost",
+      "builder_cost",
+      "status", // Now contains the validated boolean
+      "location_id",
+    ];
+
     for (const [key, rawValue] of Object.entries(updates)) {
-      if (["image", "dwelling_type", "range_type"].includes(key)) continue;
+      if (!allowedFields.includes(key)) continue;
 
       let value = rawValue;
-      if (typeof value === "string") {
-        const lv = value.trim().toLowerCase();
-        if (lv === "true" || lv === "false") value = lv === "true";
-      }
+
+      // Removed the original string->boolean conversion since it's now handled above
+      // for validation and consistency.
 
       setClauses.push(`${key} = $${values.length + 1}`);
       values.push(value);
     }
 
-    if (updates.dwelling_type) {
-      const dwellingTypeQuery = `
-        SELECT dwelling_type_id 
-        FROM dwelling_type 
-        WHERE dwelling_type_id = $1 
-          AND (builder_id = $2)
+    /* -------------------- VALIDATE COST TYPE -------------------- */
+    if (updates.cost_type) {
+      if (!["standard", "upgrade"].includes(updates.cost_type)) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid cost_type.");
+      }
+    }
+
+    /* -------------------- VALIDATE LOCATION -------------------- */
+    if (updates.location_id) {
+      const locCheck = `
+        SELECT location_id
+        FROM location
+        WHERE location_id = $1
+          AND builder_id = $2
       `;
-      const dwellingTypeResult = await client.query(dwellingTypeQuery, [
-        updates.dwelling_type,
+      const locResult = await client.query(locCheck, [
+        updates.location_id,
         builderId,
       ]);
-
-      if (dwellingTypeResult.rows.length === 0) {
+      if (locResult.rowCount === 0) {
         await client.query("ROLLBACK");
-        return errorResponse(res, 404, "Invalid dwelling type.");
+        return errorResponse(res, 404, "Invalid location.");
       }
+    }
 
-      if (updates.dwelling_type) {
-        const dwellingTypeQuery = `
-        SELECT dwelling_type_id 
-        FROM dwelling_type 
-        WHERE dwelling_type_id = $1 
-          AND (builder_id = $2) AND is_active = true
+    /* -------------------- VALIDATE DWELLING TYPE -------------------- */
+    if (updates.dwelling_type_id) {
+      const dtCheck = `
+        SELECT dwelling_type_id
+        FROM dwelling_type
+        WHERE dwelling_type_id = $1
+          AND builder_id = $2
+          AND is_active = true
       `;
-        const dwellingTypeResult = await client.query(dwellingTypeQuery, [
-          updates.dwelling_type,
-          builderId,
-        ]);
-
-        if (dwellingTypeResult.rows.length === 0) {
-          await client.query("ROLLBACK");
-          return errorResponse(res, 404, "Inactive dwelling type.");
-        }
+      const dtResult = await client.query(dtCheck, [
+        updates.dwelling_type_id,
+        builderId,
+      ]);
+      if (dtResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Invalid or inactive dwelling type.");
       }
 
       setClauses.push(`dwelling_type_id = $${values.length + 1}`);
-      values.push(dwellingTypeResult.rows[0].dwelling_type_id);
+      values.push(updates.dwelling_type_id);
     }
 
-    if (updates.range_type) {
-      const rangeTypeQuery = `
+    /* -------------------- VALIDATE RANGE -------------------- */
+    if (updates.range_id) {
+      const rangeCheck = `
         SELECT range_id
-        FROM range 
-        WHERE range_id = $1 
-          AND (builder_id = $2)
+        FROM range
+        WHERE range_id = $1
+          AND builder_id = $2
+          AND is_active = true
       `;
-      const rangeTypeResult = await client.query(rangeTypeQuery, [
-        updates.range_type,
+      const rangeResult = await client.query(rangeCheck, [
+        updates.range_id,
         builderId,
       ]);
-
-      if (rangeTypeResult.rows.length === 0) {
+      if (rangeResult.rowCount === 0) {
         await client.query("ROLLBACK");
-        return errorResponse(res, 404, "Invalid range type.");
+        return errorResponse(res, 404, "Invalid or inactive range.");
       }
 
-      if (updates.range_type) {
-        const rangeTypeQuery = `
-        SELECT range_id
-        FROM range 
-        WHERE range_id = $1 
-          AND (builder_id = $2) AND is_active = true
-      `;
-        const rangeTypeResult = await client.query(rangeTypeQuery, [
-          updates.range_type,
-          builderId,
-        ]);
-
-        if (rangeTypeResult.rows.length === 0) {
-          await client.query("ROLLBACK");
-          return errorResponse(res, 404, "Inactive range type.");
-        }
-      }
-
-      setClauses.push(`range_type_id = $${values.length + 1}`);
-      values.push(rangeTypeResult.rows[0].range_id);
+      setClauses.push(`range_id = $${values.length + 1}`);
+      values.push(updates.range_id);
     }
 
-    if (setClauses.length === 0 && !imageUrl) {
+    /* -------------------- UNIQUE (location_id + name) -------------------- */
+    if (updates.name || updates.location_id) {
+      const locationId = updates.location_id || existingFacade.location_id;
+      const name = updates.name || existingFacade.name;
+
+      const uniqueCheck = `
+    SELECT facade_id
+    FROM facade
+    WHERE location_id = $1
+      AND name = $2
+      AND facade_id <> $3
+  `;
+      const uniqueResult = await client.query(uniqueCheck, [
+        locationId,
+        name,
+        facade_id,
+      ]);
+
+      if (uniqueResult.rowCount > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          409,
+          "Facade with this name already exists for this location."
+        );
+      }
+    }
+
+    /* -------------------- IMAGE UPDATE -------------------- */
+    if (imageUrl) {
+      if (existingFacade.image) {
+        await deleteFromS3(existingFacade.image);
+      }
+      setClauses.push(`image = $${values.length + 1}`);
+      values.push(imageUrl);
+    }
+
+    if (setClauses.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "No updatable fields provided.");
     }
 
-    const facadeIndex = values.length + 1;
-    const builderIndex = values.length + 2;
-    const companyIndex = values.length + 3;
-
+    /* -------------------- FINAL UPDATE -------------------- */
     const updateQuery = `
-      UPDATE master_facade 
-      SET ${setClauses.join(", ")}, updated_at = NOW()
-      WHERE master_facade_id = $${facadeIndex} 
-        AND builder_id = $${builderIndex}
-        AND company_id = $${companyIndex}
-        AND is_deleted = false
+      UPDATE facade
+      SET ${setClauses.join(", ")},
+          updated_by = $${values.length + 1},
+          updated_at = NOW()
+      WHERE facade_id = $${values.length + 2}
+        AND builder_id = $${values.length + 3}
+        AND company_id = $${values.length + 4}
       RETURNING *;
     `;
-    values.push(facade_id, builderId, companyId);
+
+    values.push(userId, facade_id, builderId, companyId);
 
     const updateResult = await client.query(updateQuery, values);
 
-    if (updateResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Master Facade not found.");
-    }
-
-    let updatedImage = updateResult.rows[0].image;
-    if (imageUrl !== undefined) {
-      if (checkFacadeResult.rows[0].image)
-        await deleteFromS3(checkFacadeResult.rows[0].image);
-
-      const updateImageQuery = `
-        UPDATE master_facade 
-        SET image = $1, updated_at = NOW()
-        WHERE master_facade_id = $2 
-          AND builder_id = $3 
-          AND company_id = $4
-          AND is_deleted = false;
-      `;
-      await client.query(updateImageQuery, [
-        imageUrl,
-        facade_id,
-        builderId,
-        companyId,
-      ]);
-      updatedImage = imageUrl;
-    }
-
-    const updatedDwellingType = await client.query(
-      `SELECT name FROM dwelling_type WHERE dwelling_type_id = $1;`,
-      [updateResult.rows[0].dwelling_type_id]
-    );
-
-    const updatedRangeType = await client.query(
-      `SELECT name FROM range WHERE range_id = $1;`,
-      [updateResult.rows[0].range_type_id]
-    );
-
     await client.query("COMMIT");
-
-    const finalUpdatedData = {
-      ...updateResult.rows[0],
-      dwelling_type_name: updatedDwellingType.rows[0]?.name || null,
-      range_type_name: updatedRangeType.rows[0]?.name || null,
-      image: updatedImage,
-    };
 
     return successResponse(
       res,
-      keysToCamelCase(finalUpdatedData),
-      "Master Facade updated successfully."
+      keysToCamelCase(updateResult.rows[0]),
+      "Facade updated successfully."
     );
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Error updating master facade:", error);
+    console.error("Update Facade Error:", error);
 
     if (error.code === "23505") {
-      return errorResponse(
-        res,
-        409,
-        "Master Facade with this name already exists."
-      );
+      return errorResponse(res, 409, "Facade with this name already exists.");
     }
 
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -592,7 +685,7 @@ exports.deleteMasterFacade = async (req, res) => {
     await client.query("BEGIN");
 
     const checkFacadeQuery = `
-      SELECT * FROM master_facade WHERE master_facade_id = $1 AND builder_id = $2 AND is_deleted = false;
+      SELECT * FROM facade WHERE facade_id = $1 AND builder_id = $2;
     `;
     const checkFacadeResult = await client.query(checkFacadeQuery, [
       facade_id,
@@ -601,18 +694,13 @@ exports.deleteMasterFacade = async (req, res) => {
 
     if (checkFacadeResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Master Facade not found.");
+      return errorResponse(res, 404, " Facade not found.");
     }
 
     const deleteQuery = `
-      UPDATE master_facade 
-      SET is_deleted = true, updated_at = NOW()
-      WHERE master_facade_id = $1 AND builder_id = $2;
+      DELETE FROM facade where facade_id = $1
     `;
-    const deleteResult = await client.query(deleteQuery, [
-      facade_id,
-      builderId,
-    ]);
+    const deleteResult = await client.query(deleteQuery, [facade_id]);
 
     if (deleteResult.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -626,71 +714,6 @@ exports.deleteMasterFacade = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error deleting master facade:", error);
     return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getMasterFacadeFilters = async (req, res) => {
-  const builderId = req.user.builder_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const dwellingTypeQuery = `
-      SELECT DISTINCT dt.name AS dwelling_type
-      FROM master_facade mf
-      JOIN dwelling_type dt ON mf.dwelling_type_id = dt.dwelling_type_id
-      WHERE mf.builder_id = $1 AND dt.name IS NOT NULL AND mf.is_deleted = false
-      ORDER BY dt.name;
-    `;
-
-    const standardQuery = `
-      SELECT DISTINCT mf.standard
-      FROM master_facade mf
-      WHERE mf.builder_id = $1 AND mf.is_deleted = false
-      ORDER BY mf.standard;
-    `;
-
-    const upgradeQuery = `
-      SELECT DISTINCT mf.upgrade
-      FROM master_facade mf
-      WHERE mf.builder_id = $1 AND mf.is_deleted = false
-      ORDER BY mf.upgrade;
-    `;
-
-    const rangeTypeQuery = `
-      SELECT DISTINCT r.name AS range_type
-      FROM master_facade mf
-      JOIN range r ON mf.range_type_id = r.range_id
-      WHERE mf.builder_id = $1 AND r.name IS NOT NULL AND mf.is_deleted = false
-      ORDER BY r.name;
-    `;
-
-    const [dwellingTypeResult, standardResult, upgradeResult, rangeTypeResult] =
-      await Promise.all([
-        client.query(dwellingTypeQuery, [builderId]),
-        client.query(standardQuery, [builderId]),
-        client.query(upgradeQuery, [builderId]),
-        client.query(rangeTypeQuery, [builderId]),
-      ]);
-
-    const filters = {
-      dwellingTypes: dwellingTypeResult.rows.map((row) => row.dwelling_type),
-      rangeTypes: rangeTypeResult.rows.map((row) => row.range_type),
-      standardOptions: standardResult.rows.map((row) => row.standard),
-      upgradeOptions: upgradeResult.rows.map((row) => row.upgrade),
-    };
-
-    return successResponse(
-      res,
-      filters,
-      "Master Facade filters fetched successfully."
-    );
-  } catch (error) {
-    console.error("Get facade filters error:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

@@ -12,6 +12,7 @@ const createJobSettingsSchema = Joi.object({
     .optional(),
   report_custom_days: Joi.number().integer().min(0).allow(null).optional(),
   report_status_filter: Joi.string()
+    .max(100)
     .valid("all", "active", "completed", "archived")
     .default("all")
     .optional(),
@@ -37,6 +38,7 @@ const updateJobSettingSchema = Joi.object({
     .optional(),
   report_custom_days: Joi.number().integer().min(0).allow(null).optional(),
   report_status_filter: Joi.string()
+    .max(100)
     .valid("all", "active", "completed", "archived")
     .default("all")
     .optional(),

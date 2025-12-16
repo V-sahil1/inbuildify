@@ -57,19 +57,38 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
 
     // ✅ Fetch company_id from DB if not already attached
     const companyQuery = `
-      SELECT company_id 
-      FROM company 
-      WHERE builder_id = $1 
-      LIMIT 1;
-    `;
+  SELECT company_id
+  FROM company
+  WHERE builder_id = $1
+  LIMIT 1;
+`;
+
     const results = await client.query(companyQuery, [builderId]);
 
-    if (result.rows.length === 0) {
+    // 🚨 IMPORTANT: use results (not result)
+    const isCompanyExists = results.rowCount > 0;
+
+    // ✅ Detect create-company API
+    // adjust path/method if needed
+    const isCreateCompanyRequest =
+      (req.method === "POST" && req.originalUrl.includes("/company")) ||
+      (req.method === "POST" && req.originalUrl.includes("/address"));
+
+    // ❌ Company does not exist
+    if (!isCompanyExists) {
+      // ✅ Allow only create-company API
+      if (isCreateCompanyRequest) {
+        console.log("ℹ️ Company not found, but allowing company creation");
+        return next();
+      }
+
+      // ❌ Block all other APIs
       return errorResponse(res, 404, "Company not found for this builder.");
     }
 
-    // ✅ Attach company_id to req.user
+    // ✅ Company exists → attach company_id
     req.user.company_id = results.rows[0].company_id;
+    console.log("🚀 ~ handleTokenAuthorization ~ req.user:", req.user);
 
     next();
   } catch (error) {
