@@ -232,7 +232,6 @@ exports.updateRolePermission = async (req, res) => {
       can_read,
       can_update,
       can_delete,
-      is_active,
     } = req.body;
 
     if (!role_permission_id) {
@@ -251,6 +250,18 @@ exports.updateRolePermission = async (req, res) => {
     if (existRes.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Role permission not found.");
+    }
+
+    const existActiveRes = await client.query(
+      `SELECT role_id, is_active 
+       FROM role_permission 
+       WHERE role_permission_id = $1 AND builder_id = $2 AND is_active = true FOR UPDATE`,
+      [role_permission_id, builderId]
+    );
+
+    if (existActiveRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive role permission.");
     }
 
     const existing = existRes.rows[0];
@@ -295,76 +306,76 @@ exports.updateRolePermission = async (req, res) => {
     }
 
     // IS_ACTIVE LOGIC → NOT MODIFIED (AS PER YOUR REQUEST)
-    const currentIsActive = existing.is_active;
-    const isActiveInBody = is_active !== undefined;
-    const requestedIsActive = is_active;
+    // const currentIsActive = existing.is_active;
+    // const isActiveInBody = is_active !== undefined;
+    // const requestedIsActive = is_active;
 
-    const fieldsToCheck = [
-      "module_name",
-      "can_create",
-      "can_read",
-      "can_update",
-      "can_delete",
-      "role_id", // role_id is part of other-field update check
-    ];
+    // const fieldsToCheck = [
+    //   "module_name",
+    //   "can_create",
+    //   "can_read",
+    //   "can_update",
+    //   "can_delete",
+    //   "role_id", // role_id is part of other-field update check
+    // ];
 
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
-    );
+    // const updatingOtherFields = fieldsToCheck.some(
+    //   (field) => req.body[field] !== undefined
+    // );
 
-    // same is_active logic (unchanged)
-    if (isActiveInBody && typeof requestedIsActive !== "boolean") {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 400, "'is_active' must be a boolean.");
-    }
+    // // same is_active logic (unchanged)
+    // if (isActiveInBody && typeof requestedIsActive !== "boolean") {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(res, 400, "'is_active' must be a boolean.");
+    // }
 
-    if (
-      currentIsActive === true &&
-      isActiveInBody &&
-      requestedIsActive === false
-    ) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate, only 'is_active' must be provided."
-        );
-      }
-    }
+    // if (
+    //   currentIsActive === true &&
+    //   isActiveInBody &&
+    //   requestedIsActive === false
+    // ) {
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To deactivate, only 'is_active' must be provided."
+    //     );
+    //   }
+    // }
 
-    if (currentIsActive === false) {
-      if (isActiveInBody && requestedIsActive === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate, only 'is_active' must be provided."
-          );
-        }
-      }
+    // if (currentIsActive === false) {
+    //   if (isActiveInBody && requestedIsActive === true) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate, only 'is_active' must be provided."
+    //       );
+    //     }
+    //   }
 
-      const performingActivation = isActiveInBody && requestedIsActive === true;
+    //   const performingActivation = isActiveInBody && requestedIsActive === true;
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update other fields when inactive."
-        );
-      }
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update other fields when inactive."
+    //     );
+    //   }
 
-      if (isActiveInBody && requestedIsActive === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Already inactive. You can only activate it."
-        );
-      }
-    }
+    //   if (isActiveInBody && requestedIsActive === false) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Already inactive. You can only activate it."
+    //     );
+    //   }
+    // }
 
     const duplicateCheck = await client.query(
       `SELECT role_permission_id
@@ -404,7 +415,6 @@ exports.updateRolePermission = async (req, res) => {
     addField("can_read", can_read);
     addField("can_update", can_update);
     addField("can_delete", can_delete);
-    addField("is_active", is_active);
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -474,6 +484,75 @@ exports.updateRolePermission = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating role permission:", error);
     return errorResponse(res, 500, error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateRolePermissionIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { role_permission_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!role_permission_id) {
+      return errorResponse(res, 400, "Role permission id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT role_permission_id
+      FROM role_permission
+      WHERE role_permission_id = $1
+        AND builder_id = $2
+      `,
+      [role_permission_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "role permission not found for this builder"
+      );
+    }
+
+    const updateQuery = `
+      UPDATE role_permission
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE role_permission_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      role_permission_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "role status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating role is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

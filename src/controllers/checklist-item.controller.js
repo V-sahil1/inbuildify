@@ -40,7 +40,7 @@ exports.createChecklistItem = async (req, res) => {
     const checklistQuery = `
       SELECT checklist_id 
       FROM checklist 
-      WHERE checklist_id = $1 AND builder_id = $2 AND is_deleted = FALSE
+      WHERE checklist_id = $1 AND builder_id = $2 AND is_deleted = FALSE AND is_active = true
     `;
     const checklist = await client.query(checklistQuery, [
       checklist_id,
@@ -49,10 +49,32 @@ exports.createChecklistItem = async (req, res) => {
 
     if (checklist.rowCount === 0) {
       await client.query("ROLLBACK");
+      return errorResponse(res, 403, "Checklist is invalid or inactive.");
+    }
+
+    const duplicateCheckQuery = `
+  SELECT ci.checklist_item_id
+  FROM checklist_item ci
+  INNER JOIN checklist c
+    ON c.checklist_id = ci.checklist_id
+  WHERE ci.checklist_id = $1
+    AND ci.description = $2
+    AND c.builder_id = $3
+    AND c.is_deleted = FALSE
+  LIMIT 1;
+`;
+
+    const duplicateResult = await client.query(duplicateCheckQuery, [
+      checklist_id,
+      description.trim(),
+      builderId,
+    ]);
+
+    if (duplicateResult.rowCount > 0) {
       return errorResponse(
         res,
-        403,
-        "Checklist does not belong to this builder."
+        409,
+        "Description with this name already exists for this checklist."
       );
     }
 
@@ -323,6 +345,37 @@ exports.updateChecklistItem = async (req, res) => {
       }
 
       finalChecklistId = checklist_id;
+    }
+
+    const finalDescription =
+      description !== undefined ? description.trim() : item.description;
+
+    const duplicateCheckQuery = `
+  SELECT ci.checklist_item_id
+  FROM checklist_item ci
+  JOIN checklist c ON c.checklist_id = ci.checklist_id
+  WHERE ci.checklist_id = $1
+    AND ci.description = $2
+    AND c.builder_id = $3
+    AND c.is_deleted = FALSE
+    AND ci.checklist_item_id <> $4
+  LIMIT 1;
+`;
+
+    const duplicateResult = await client.query(duplicateCheckQuery, [
+      finalChecklistId,
+      finalDescription,
+      builderId,
+      checklist_item_id,
+    ]);
+
+    if (duplicateResult.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        409,
+        "Description with this name already exists for this checklist."
+      );
     }
 
     if (type && !["checkbox", "dropdown"].includes(type)) {

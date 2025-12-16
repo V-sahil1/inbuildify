@@ -162,7 +162,7 @@ exports.updateNoteTag = async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { name, background_color, font_color, is_active } = req.body;
+    const { name, background_color, font_color } = req.body;
 
     const companyId = req.user?.company_id;
     const builder_id = req.user?.builder_id;
@@ -186,84 +186,98 @@ exports.updateNoteTag = async (req, res) => {
       return errorResponse(res, 404, "Note tag not found for this builder.");
     }
 
-    const existing = existingNoteTag.rows[0];
+    const existingActiveQuery = `
+      SELECT * FROM notes_tag 
+      WHERE notes_tag_id = $1 AND builder_id = $2  AND is_active = true FOR UPDATE
+    `;
+    const existingActiveNoteTag = await client.query(existingActiveQuery, [
+      id,
+      builder_id,
+    ]);
 
-    // --- Start Is Active Business Logic ---
-
-    const currentIsActive = existing.is_active; // Current status from DB
-    const isActiveInBody = is_active !== undefined;
-    const requestedIsActive = is_active;
-
-    // Define fields that are considered 'other fields' besides 'is_active'
-    const fieldsToCheck = ["name", "background_color", "font_color"];
-    // Check if any field other than 'is_active' is present in the request body
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
-    );
-
-    // Check for boolean type validation if is_active is present
-    if (isActiveInBody && typeof requestedIsActive !== "boolean") {
+    if (existingActiveNoteTag.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "The 'is_active' field must be a boolean (true or false)."
-      );
+      return errorResponse(res, 404, "Inactive note tag.");
     }
 
-    // 1. Active (true) to Inactive (false) transition
-    if (
-      currentIsActive === true &&
-      isActiveInBody &&
-      requestedIsActive === false
-    ) {
-      // RULE: If deactivating (true -> false), only 'is_active' must be present.
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active note tag, 'is_active' must be the only field provided in the request."
-        );
-      }
-    }
+    // const existing = existingNoteTag.rows[0];
 
-    // 2. Inactive Status Rules (currentIsActive = false)
-    if (currentIsActive === false) {
-      // RULE: If activating (false -> true), only 'is_active' must be present.
-      if (isActiveInBody && requestedIsActive === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive note tag, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    // // --- Start Is Active Business Logic ---
 
-      // RULE: Block updates to non-'is_active' fields entirely.
-      const performingActivation = isActiveInBody && requestedIsActive === true;
+    // const currentIsActive = existing.is_active; // Current status from DB
+    // const isActiveInBody = is_active !== undefined;
+    // const requestedIsActive = is_active;
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the note tag is currently Inactive. Only 'is_active' can be changed (to true/Active)."
-        );
-      }
+    // // Define fields that are considered 'other fields' besides 'is_active'
+    // const fieldsToCheck = ["name", "background_color", "font_color"];
+    // // Check if any field other than 'is_active' is present in the request body
+    // const updatingOtherFields = fieldsToCheck.some(
+    //   (field) => req.body[field] !== undefined
+    // );
 
-      // RULE: Block Inactive -> Inactive update.
-      if (isActiveInBody && requestedIsActive === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Note tag is already Inactive. 'is_active' can only be updated to true (Active) from this state."
-        );
-      }
-    }
+    // // Check for boolean type validation if is_active is present
+    // if (isActiveInBody && typeof requestedIsActive !== "boolean") {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "The 'is_active' field must be a boolean (true or false)."
+    //   );
+    // }
+
+    // // 1. Active (true) to Inactive (false) transition
+    // if (
+    //   currentIsActive === true &&
+    //   isActiveInBody &&
+    //   requestedIsActive === false
+    // ) {
+    //   // RULE: If deactivating (true -> false), only 'is_active' must be present.
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To deactivate an active note tag, 'is_active' must be the only field provided in the request."
+    //     );
+    //   }
+    // }
+
+    // // 2. Inactive Status Rules (currentIsActive = false)
+    // if (currentIsActive === false) {
+    //   // RULE: If activating (false -> true), only 'is_active' must be present.
+    //   if (isActiveInBody && requestedIsActive === true) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive note tag, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+
+    //   // RULE: Block updates to non-'is_active' fields entirely.
+    //   const performingActivation = isActiveInBody && requestedIsActive === true;
+
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when the note tag is currently Inactive. Only 'is_active' can be changed (to true/Active)."
+    //     );
+    //   }
+
+    //   // RULE: Block Inactive -> Inactive update.
+    //   if (isActiveInBody && requestedIsActive === false) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Note tag is already Inactive. 'is_active' can only be updated to true (Active) from this state."
+    //     );
+    //   }
+    // }
     // --- End Is Active Business Logic ---
 
     if (name) {
@@ -297,21 +311,13 @@ exports.updateNoteTag = async (req, res) => {
         name = COALESCE($1, name),
         background_color = COALESCE($2, background_color),
         font_color = COALESCE($3, font_color),
-        is_active = COALESCE($4, is_active),
-        updated_by = $5,
+        updated_by = $4,
         updated_at = NOW()
-      WHERE notes_tag_id = $6
+      WHERE notes_tag_id = $5
       RETURNING *
     `;
 
-    const values = [
-      name,
-      background_color,
-      font_color,
-      is_active,
-      updated_by,
-      id,
-    ];
+    const values = [name, background_color, font_color, updated_by, id];
 
     const result = await client.query(updateQuery, values);
 
@@ -326,6 +332,67 @@ exports.updateNoteTag = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Update Notes Tag Error:", error);
     return errorResponse(res, "Internal server error", 500);
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateNoteTagIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 400, "custom field id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT notes_tag_id
+      FROM notes_tag
+      WHERE notes_tag_id = $1
+        AND builder_id = $2
+      `,
+      [id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "note tag not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE notes_tag
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE notes_tag_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [is_active, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "note tag status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating note tag is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

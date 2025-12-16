@@ -49,8 +49,10 @@ const updateChecklistSchema = Joi.object({
     "string.guid": "Functionality ID must be a valid UUID",
     "any.required": "Functionality ID is required",
   }),
+});
 
-  is_active: Joi.boolean().default("TRUE").optional(),
+const updateChecklistIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 
 module.exports = {
@@ -59,4 +61,5 @@ module.exports = {
   deleteChecklistSchema,
   updateChecklistParamsSchema,
   updateChecklistSchema,
+  updateChecklistIsActiveSchema,
 };

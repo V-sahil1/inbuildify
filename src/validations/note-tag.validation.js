@@ -82,22 +82,20 @@ const updateNoteTagSchema = Joi.object({
         "Enter a valid font color in hex format (e.g., #FFFFFF).",
     })
     .optional(),
-
-  is_active: Joi.boolean()
-    .messages({
-      "boolean.base": "is_active must be true or false.",
-    })
-    .optional(),
 })
   .min(1)
   .messages({
     "object.min": "At least one field is required to update.",
   });
 
+const updateNoteTagIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
 module.exports = {
   createNoteTageSchema,
   getAllNoteTagSchema,
   deleteNoteTagSchema,
   updateNoteTagIdParamsSchema,
   updateNoteTagSchema,
+  updateNoteTagIsActiveSchema,
 };

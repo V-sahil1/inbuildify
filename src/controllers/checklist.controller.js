@@ -31,6 +31,31 @@ exports.createChecklist = async (req, res) => {
       return errorResponse(res, 404, "Functionality not found.");
     }
 
+    const duplicateCheckQuery = `
+      SELECT checklist_id
+      FROM checklist
+      WHERE functionality_id = $1
+        AND name = $2
+        AND (
+          (builder_id = $3)
+        )
+      LIMIT 1;
+    `;
+
+    const duplicateResult = await client.query(duplicateCheckQuery, [
+      functionality_id,
+      name.trim(),
+      builderId,
+    ]);
+
+    if (duplicateResult.rowCount > 0) {
+      return errorResponse(
+        res,
+        409,
+        "Functionality with this name already exists for this screen."
+      );
+    }
+
     const insertRes = await client.query(
       `INSERT INTO checklist
        (builder_id, name, screen_id, functionality_id, is_active, created_by, updated_by)
@@ -182,7 +207,7 @@ exports.updateChecklist = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const { checklist_id } = req.params;
-    const { name, is_active, functionality_id, screen_id } = req.body;
+    const { name, functionality_id, screen_id } = req.body;
     const { user_id } = req.user;
 
     await client.query("BEGIN");
@@ -201,73 +226,89 @@ exports.updateChecklist = async (req, res) => {
       return errorResponse(res, 404, "Checklist not found or access denied.");
     }
 
-    const existing = checkResult.rows[0];
-
-    const currentIsActive = existing.is_active;
-    const isActiveInBody = is_active !== undefined;
-    const requestedIsActive = is_active;
-
-    const fieldsToCheck = ["name", "functionality_id", "screen_id"];
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+    const checklistCheck = await client.query(
+      `
+  SELECT checklist_id
+  FROM checklist
+  WHERE checklist_id = $1
+    AND builder_id = $2
+    AND is_active = TRUE
+    AND is_deleted = FALSE
+  `,
+      [checklist_id, builderId]
     );
 
-    if (isActiveInBody && typeof requestedIsActive !== "boolean") {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "The 'is_active' field must be a boolean (true or false)."
-      );
+    if (checklistCheck.rowCount === 0) {
+      return errorResponse(res, 400, "Checklist is inactive.");
     }
+    //  --------------------------------------------------------------------------
+    // const existing = checkResult.rows[0];
 
-    if (
-      currentIsActive === true &&
-      isActiveInBody &&
-      requestedIsActive === false
-    ) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active checklist, 'is_active' must be the only field provided in the request."
-        );
-      }
-    }
+    // const currentIsActive = existing.is_active;
+    // const isActiveInBody = is_active !== undefined;
+    // const requestedIsActive = is_active;
 
-    if (currentIsActive === false) {
-      if (isActiveInBody && requestedIsActive === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive checklist, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    // const fieldsToCheck = ["name", "functionality_id", "screen_id"];
+    // const updatingOtherFields = fieldsToCheck.some(
+    //   (field) => req.body[field] !== undefined
+    // );
 
-      const performingActivation = isActiveInBody && requestedIsActive === true;
+    // if (isActiveInBody && typeof requestedIsActive !== "boolean") {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "The 'is_active' field must be a boolean (true or false)."
+    //   );
+    // }
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the checklist is currently Inactive. Only 'is_active' can be changed (to true/Active)."
-        );
-      }
+    // if (
+    //   currentIsActive === true &&
+    //   isActiveInBody &&
+    //   requestedIsActive === false
+    // ) {
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To deactivate an active checklist, 'is_active' must be the only field provided in the request."
+    //     );
+    //   }
+    // }
 
-      if (isActiveInBody && requestedIsActive === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Checklist is already Inactive. 'is_active' can only be updated to true (Active) from this state."
-        );
-      }
-    }
+    // if (currentIsActive === false) {
+    //   if (isActiveInBody && requestedIsActive === true) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive checklist, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+
+    //   const performingActivation = isActiveInBody && requestedIsActive === true;
+
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when the checklist is currently Inactive. Only 'is_active' can be changed (to true/Active)."
+    //     );
+    //   }
+
+    //   if (isActiveInBody && requestedIsActive === false) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Checklist is already Inactive. 'is_active' can only be updated to true (Active) from this state."
+    //     );
+    //   }
+    // }
 
     if (screen_id) {
       const screenCheck = await client.query(
@@ -295,6 +336,35 @@ exports.updateChecklist = async (req, res) => {
       }
     }
 
+    const finalName = name || existing.name;
+
+    if (name || functionality_id) {
+      const duplicateCheckQuery = `
+        SELECT checklist_id
+        FROM checklist
+        WHERE functionality_id = $1
+          AND name = $2
+          AND checklist_id <> $3
+          AND builder_id = $4
+        LIMIT 1;
+      `;
+
+      const duplicateResult = await client.query(duplicateCheckQuery, [
+        functionality_id,
+        finalName.trim(),
+        checklist_id,
+        builderId,
+      ]);
+
+      if (duplicateResult.rowCount > 0) {
+        return errorResponse(
+          res,
+          409,
+          "checklist with this name already exists for this functionality."
+        );
+      }
+    }
+
     const fields = [];
     const values = [];
     let index = 3;
@@ -304,11 +374,7 @@ exports.updateChecklist = async (req, res) => {
       values.push(name);
       index++;
     }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${index}`);
-      values.push(is_active);
-      index++;
-    }
+
     if (functionality_id !== undefined) {
       fields.push(`functionality_id = $${index}`);
       values.push(functionality_id);
@@ -334,7 +400,7 @@ exports.updateChecklist = async (req, res) => {
       UPDATE checklist
       SET ${fields.join(", ")}
       WHERE checklist_id = $1 AND builder_id = $2
-      RETURNING checklist_id, name, is_active, screen_id, functionality_id, updated_at;
+      RETURNING checklist_id, name, screen_id, functionality_id, updated_at;
     `;
 
     const finalValues = [checklist_id, builderId, ...values];
@@ -356,6 +422,72 @@ exports.updateChecklist = async (req, res) => {
       500,
       err.message || "Failed to update checklist."
     );
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateChecklistIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { checklist_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!checklist_id) {
+      return errorResponse(res, 400, "checklist_id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT checklist_id
+      FROM checklist
+      WHERE checklist_id = $1
+        AND builder_id = $2
+        AND is_deleted = FALSE
+      `,
+      [checklist_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "Checklist not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE checklist
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE checklist_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      checklist_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Checklist status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating checklist is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

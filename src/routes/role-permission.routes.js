@@ -6,6 +6,7 @@ const {
   getAllRolePermission,
   deleteRolePermission,
   updateRolePermission,
+  updateRolePermissionIsActive,
 } = require("../controllers/role-permission.controller");
 const {
   createRolePermissionSchema,
@@ -13,6 +14,7 @@ const {
   deleteRolePermissionSchema,
   updatePermissionIdSchemaSchema,
   updateRolePermissionSchema,
+  updateRolePermissionIsActiveSchema,
 } = require("../validations/role-permission.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -46,6 +48,13 @@ router.put(
   validateRequest(updatePermissionIdSchemaSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRolePermissionSchema, REQUEST_SOURCE.BODY),
   updateRolePermission
+);
+
+router.put(
+  "/is-active/:role_permission_id",
+  validateRequest(updatePermissionIdSchemaSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateRolePermissionIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateRolePermissionIsActive
 );
 
 module.exports = router;

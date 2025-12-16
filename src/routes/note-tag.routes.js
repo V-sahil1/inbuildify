@@ -6,6 +6,7 @@ const {
   getAllNoteTag,
   deleteNoteTag,
   updateNoteTag,
+  updateNoteTagIsActive,
 } = require("../controllers/note-tag.controller");
 const {
   createNoteTageSchema,
@@ -13,6 +14,7 @@ const {
   deleteNoteTagSchema,
   updateNoteTagIdParamsSchema,
   updateNoteTagSchema,
+  updateNoteTagIsActiveSchema,
 } = require("../validations/note-tag.validation");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -46,6 +48,13 @@ router.put(
   validateRequest(updateNoteTagIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateNoteTagSchema, REQUEST_SOURCE.BODY),
   updateNoteTag
+);
+
+router.put(
+  "/is-active/:id",
+  validateRequest(updateNoteTagIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateNoteTagIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateNoteTagIsActive
 );
 
 module.exports = router;

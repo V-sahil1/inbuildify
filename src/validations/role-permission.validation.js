@@ -59,8 +59,10 @@ const updateRolePermissionSchema = Joi.object({
   can_read: Joi.boolean().default(false),
   can_update: Joi.boolean().default(false),
   can_delete: Joi.boolean().default(false),
+});
 
-  is_active: Joi.boolean().default(true),
+const updateRolePermissionIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 
 module.exports = {
@@ -69,4 +71,5 @@ module.exports = {
   deleteRolePermissionSchema,
   updatePermissionIdSchemaSchema,
   updateRolePermissionSchema,
+  updateRolePermissionIsActiveSchema,
 };

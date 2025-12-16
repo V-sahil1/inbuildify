@@ -99,8 +99,10 @@ const updateCustomFieldSchema = Joi.object({
   is_required: Joi.boolean().default(false).optional(),
 
   sort_order: Joi.number().integer().min(1).optional(),
+});
 
-  is_active: Joi.boolean().default(true).optional(),
+const updateCustomFieldIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 module.exports = {
   createCustomFieldSchema,
@@ -108,4 +110,5 @@ module.exports = {
   deleteCustomFieldSchema,
   updateCustomFieldIdParamsSchema,
   updateCustomFieldSchema,
+  updateCustomFieldIsActiveSchema,
 };

@@ -50,13 +50,15 @@ const updateRoleSchema = Joi.object({
   type: Joi.string().trim().min(2).max(100).optional(),
 
   description: Joi.string().optional(),
-
-  is_active: Joi.boolean().default(true),
 })
   .min(1)
   .messages({
     "object.min": "At least one field is required to update.",
   });
+
+const updateRoleIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
 
 module.exports = {
   createRoleSchema,
@@ -64,4 +66,5 @@ module.exports = {
   deleteRoleSchema,
   updateRoleIdParamsSchema,
   updateRoleSchema,
+  updateRoleIsActiveSchema,
 };

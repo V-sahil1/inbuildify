@@ -6,6 +6,7 @@ const {
   getAllRole,
   deleteRole,
   updateRole,
+  updateRoleIsActive,
 } = require("../controllers/role.controller");
 const {
   createRoleSchema,
@@ -13,6 +14,7 @@ const {
   deleteRoleSchema,
   updateRoleIdParamsSchema,
   updateRoleSchema,
+  updateRoleIsActiveSchema,
 } = require("../validations/role.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -46,6 +48,13 @@ router.put(
   validateRequest(updateRoleIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRoleSchema, REQUEST_SOURCE.BODY),
   updateRole
+);
+
+router.put(
+  "/is-active/:role_id",
+  validateRequest(updateRoleIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateRoleIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateRoleIsActive
 );
 
 module.exports = router;

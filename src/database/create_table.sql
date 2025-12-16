@@ -2238,11 +2238,18 @@ CREATE TABLE cost_center(
     code VARCHAR(100) NoT NULL,
     name VARCHAR(255) NOT NULL,
     description VARCHAR(500),
-    sort_order int DEFAULT 0,
+    sort_order int DEFAULT 1,
     status BOOLEAN DEFAULT TRUE,         -- active or inactive
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_cost_center_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+)
+
+CREATE TABLE cost_center_checklist_map(
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    cost_center_id UUID NOT NULL REFERENCES cost_center(cost_center_id) ON DELETE CASCADE,
+    checklist_id UUID NOT NULL REFERENCES checklist(checklist_id) ON DELETE CASCADE,
+    UNIQUE (cost_center_id, checklist_id)
 )

@@ -304,7 +304,6 @@ exports.updateCustomField = async (req, res) => {
       options,
       is_required,
       sort_order,
-      is_active,
     } = req.body;
 
     if (!companyId) {
@@ -326,81 +325,95 @@ exports.updateCustomField = async (req, res) => {
       );
     }
 
+    const existingActiveQuery = `
+      SELECT * FROM custom_field 
+      WHERE custom_field_id = $1 AND builder_id = $2 AND is_active = true FOR UPDATE;
+    `;
+    const existingActiveResult = await client.query(existingActiveQuery, [
+      id,
+      builderId,
+    ]);
+
+    if (existingActiveResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "inactive custom field.");
+    }
+
     const existing = existingResult.rows[0];
     const moduleId = existing.module_id;
 
-    const currentIsActive = existing.is_active;
-    const isActiveInBody = is_active !== undefined;
-    const requestedIsActive = is_active;
+    // const currentIsActive = existing.is_active;
+    // const isActiveInBody = is_active !== undefined;
+    // const requestedIsActive = is_active;
 
-    const fieldsToCheck = [
-      "field_name",
-      "field_label",
-      "field_type",
-      "options",
-      "is_required",
-      "sort_order",
-    ];
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
-    );
+    // const fieldsToCheck = [
+    //   "field_name",
+    //   "field_label",
+    //   "field_type",
+    //   "options",
+    //   "is_required",
+    //   "sort_order",
+    // ];
+    // const updatingOtherFields = fieldsToCheck.some(
+    //   (field) => req.body[field] !== undefined
+    // );
 
-    if (isActiveInBody && typeof requestedIsActive !== "boolean") {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "The 'is_active' field must be a boolean (true or false)."
-      );
-    }
+    // if (isActiveInBody && typeof requestedIsActive !== "boolean") {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "The 'is_active' field must be a boolean (true or false)."
+    //   );
+    // }
 
-    if (
-      currentIsActive === true &&
-      isActiveInBody &&
-      requestedIsActive === false
-    ) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active custom field, 'is_active' must be the only field provided in the request."
-        );
-      }
-    }
+    // if (
+    //   currentIsActive === true &&
+    //   isActiveInBody &&
+    //   requestedIsActive === false
+    // ) {
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To deactivate an active custom field, 'is_active' must be the only field provided in the request."
+    //     );
+    //   }
+    // }
 
-    if (currentIsActive === false) {
-      if (isActiveInBody && requestedIsActive === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive custom field, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    // if (currentIsActive === false) {
+    //   if (isActiveInBody && requestedIsActive === true) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive custom field, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
 
-      const performingActivation = isActiveInBody && requestedIsActive === true;
+    //   const performingActivation = isActiveInBody && requestedIsActive === true;
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the custom field is currently Inactive. Only 'is_active' can be changed (to true/Active)."
-        );
-      }
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when the custom field is currently Inactive. Only 'is_active' can be changed (to true/Active)."
+    //     );
+    //   }
 
-      if (isActiveInBody && requestedIsActive === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Custom field is already Inactive. 'is_active' can only be updated to true (Active) from this state."
-        );
-      }
-    }
+    //   if (isActiveInBody && requestedIsActive === false) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Custom field is already Inactive. 'is_active' can only be updated to true (Active) from this state."
+    //     );
+    //   }
+    // }
 
     if (field_name) {
       const duplicateField = await client.query(
@@ -471,12 +484,11 @@ exports.updateCustomField = async (req, res) => {
         options = $4,
         is_required = COALESCE($5, is_required),
         sort_order = COALESCE($6, sort_order),
-        is_active = COALESCE($7, is_active),
-        updated_by = $8,
+        updated_by = $7,
         updated_at = NOW(),
-        company_id = $9,
-        builder_id = $10
-      WHERE custom_field_id = $11
+        company_id = $8,
+        builder_id = $9
+      WHERE custom_field_id = $10
       RETURNING *;
     `;
     const values = [
@@ -486,7 +498,6 @@ exports.updateCustomField = async (req, res) => {
       finalOptions,
       is_required ?? existing.is_required,
       sort_order ?? existing.sort_order,
-      is_active ?? existing.is_active,
       userId || null,
       companyId,
       builderId,
@@ -505,6 +516,67 @@ exports.updateCustomField = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating custom field:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateCustomFieldIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 400, "custom field id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT custom_field_id
+      FROM custom_field
+      WHERE custom_field_id = $1
+        AND builder_id = $2
+      `,
+      [id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "custom field not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE custom_field
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE custom_field_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [is_active, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "custom field status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating custom field is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

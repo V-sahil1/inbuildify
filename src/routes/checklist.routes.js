@@ -5,6 +5,7 @@ const {
   getAllChecklist,
   deleteChecklist,
   updateChecklist,
+  updateChecklistIsActive,
 } = require("../controllers/checklist.controller");
 const {
   createChecklistSchema,
@@ -12,6 +13,7 @@ const {
   deleteChecklistSchema,
   updateChecklistSchema,
   updateChecklistParamsSchema,
+  updateChecklistIsActiveSchema,
 } = require("../validations/checklist.validation");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -48,4 +50,11 @@ router.put(
   updateChecklist
 );
 
+router.put(
+  "/is-active/:checklist_id",
+
+  validateRequest(updateChecklistParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateChecklistIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateChecklistIsActive
+);
 module.exports = router;

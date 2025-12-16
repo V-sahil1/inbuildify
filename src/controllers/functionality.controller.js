@@ -33,6 +33,33 @@ exports.createFunctionality = async (req, res) => {
       );
     }
 
+    const duplicateCheckQuery = `
+      SELECT functionality_id
+      FROM functionality
+      WHERE screen_id = $1
+        AND name = $2
+        AND (
+          (builder_id = $3 AND company_id IS NULL)
+          OR (company_id = $4)
+        )
+      LIMIT 1;
+    `;
+
+    const duplicateResult = await client.query(duplicateCheckQuery, [
+      screen_id,
+      name.trim(),
+      builderId,
+      companyId,
+    ]);
+
+    if (duplicateResult.rowCount > 0) {
+      return errorResponse(
+        res,
+        409,
+        "Functionality with this name already exists for this screen."
+      );
+    }
+
     const insertQuery = `
       INSERT INTO functionality (
         company_id,
@@ -170,14 +197,17 @@ exports.updateFunctionality = async (req, res) => {
 
     const { name, screen_id } = req.body;
 
-    const existing = await client.query(
-      `SELECT functionality_id 
-       FROM functionality 
-       WHERE functionality_id = $1 AND builder_id = $2`,
+    const existingResult = await client.query(
+      `
+      SELECT functionality_id, screen_id, name
+      FROM functionality
+      WHERE functionality_id = $1
+        AND builder_id = $2
+      `,
       [functionality_id, builderId]
     );
 
-    if (existing.rowCount === 0) {
+    if (existingResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
@@ -185,20 +215,58 @@ exports.updateFunctionality = async (req, res) => {
       );
     }
 
-    const checkQuery = `
-      SELECT screen_id
-      FROM screen
-      WHERE screen_id = $1 AND builder_id = $2;
-    `;
+    const existing = existingResult.rows[0];
 
-    const checkResult = await client.query(checkQuery, [screen_id, builderId]);
+    const finalScreenId = screen_id || existing.screen_id;
 
-    if (checkResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Screen not found or you are not authorized to update this screen"
-      );
+    if (screen_id) {
+      const checkScreenQuery = `
+        SELECT screen_id
+        FROM screen
+        WHERE screen_id = $1
+          AND builder_id = $2;
+      `;
+      const checkResult = await client.query(checkScreenQuery, [
+        screen_id,
+        builderId,
+      ]);
+
+      if (checkResult.rowCount === 0) {
+        return errorResponse(
+          res,
+          404,
+          "Screen not found or you are not authorized to update this screen."
+        );
+      }
+    }
+
+    const finalName = name || existing.name;
+
+    if (name || screen_id) {
+      const duplicateCheckQuery = `
+        SELECT functionality_id
+        FROM functionality
+        WHERE screen_id = $1
+          AND name = $2
+          AND functionality_id <> $3
+          AND builder_id = $4
+        LIMIT 1;
+      `;
+
+      const duplicateResult = await client.query(duplicateCheckQuery, [
+        finalScreenId,
+        finalName.trim(),
+        functionality_id,
+        builderId,
+      ]);
+
+      if (duplicateResult.rowCount > 0) {
+        return errorResponse(
+          res,
+          409,
+          "Functionality with this name already exists for this screen."
+        );
+      }
     }
 
     let updateFields = [];
@@ -207,7 +275,7 @@ exports.updateFunctionality = async (req, res) => {
 
     if (name !== undefined) {
       updateFields.push(`name = $${index}`);
-      values.push(name);
+      values.push(name.trim());
       index++;
     }
 
@@ -227,10 +295,11 @@ exports.updateFunctionality = async (req, res) => {
       UPDATE functionality
       SET ${updateFields.join(", ")}
       WHERE functionality_id = $${index}
+        AND builder_id = $${index + 1}
       RETURNING *;
     `;
 
-    values.push(functionality_id);
+    values.push(functionality_id, builderId);
 
     const updateResult = await client.query(updateQuery, values);
 
@@ -241,6 +310,15 @@ exports.updateFunctionality = async (req, res) => {
     );
   } catch (error) {
     console.error("Error updating functionality:", error);
+
+    if (error.code === "23505") {
+      return errorResponse(
+        res,
+        409,
+        "Functionality with this name already exists."
+      );
+    }
+
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
