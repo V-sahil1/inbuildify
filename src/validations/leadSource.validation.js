@@ -53,7 +53,6 @@ const getLeadSourceByIdSchema = Joi.object({
 const updateLeadSourceSchema = Joi.object({
   name: nameRule.optional(),
   sort_order: sortOrderRule.optional(),
-  is_active: Joi.boolean().optional(),
   allow_change: Joi.boolean().default(true),
 });
 
@@ -65,6 +64,10 @@ const deleteLeadSourceSchema = Joi.object({
   lead_source_id: leadSourceIdRule.required(),
 });
 
+const updateLeadSourceIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
+
 module.exports = {
   createLeadSourceSchema,
   getLeadResourcesSchema,
@@ -72,4 +75,5 @@ module.exports = {
   updateLeadSourceSchema,
   updateLeadSourceParamsSchema,
   deleteLeadSourceSchema,
+  updateLeadSourceIsActiveSchema,
 };

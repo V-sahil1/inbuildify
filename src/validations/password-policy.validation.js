@@ -121,18 +121,19 @@ const updatePasswordPolicySchema = Joi.object({
   enforce_strong_password: Joi.boolean().optional().messages({
     "boolean.base": "Enforce strong password must be true or false.",
   }),
-
-  is_active: Joi.boolean().optional().messages({
-    "boolean.base": "Is active must be true or false.",
-  }),
 })
   .min(1)
   .messages({
     "object.min": "At least one field is required to update.",
   });
 
+const updatePasswordPolicyIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
+
 module.exports = {
   cretePasswordPolicySchema,
   updatePasswordPolicyIdParamsSchema,
   updatePasswordPolicySchema,
+  updatePasswordPolicyIsActiveSchema,
 };

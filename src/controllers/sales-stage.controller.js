@@ -17,7 +17,7 @@ exports.createSalesStage = async (req, res) => {
     const {
       sales_process_id,
       stage_name,
-      functionality,
+      functionality_id,
       category,
       sort_order,
       is_active,
@@ -49,20 +49,26 @@ exports.createSalesStage = async (req, res) => {
       );
     }
 
-    // const checkSortOrder = await client.query(
-    //   `SELECT 1
-    //     FROM sales_stage
-    //     WHERE sales_process_id = $1 AND sort_order = $2`,
-    //   [sales_process_id, sort_order]
-    // );
+    if (functionality_id.length > 0) {
+      const funcCheck = await client.query(
+        `
+          SELECT functionality_id
+          FROM functionality
+          WHERE functionality_id = ANY($1)
+            AND builder_id = $2
+          `,
+        [functionality_id, builderId]
+      );
 
-    // if (checkSortOrder.rowCount > 0) {
-    //   return errorResponse(
-    //     res,
-    //     400,
-    //     "Sort order already exists for this sales process"
-    //   );
-    // }
+      if (funcCheck.rowCount !== functionality_id.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more functionality_id values are invalid."
+        );
+      }
+    }
 
     const finalSortOrder = sort_order ?? 1;
 
@@ -87,7 +93,7 @@ exports.createSalesStage = async (req, res) => {
       INSERT INTO sales_stage (
         sales_process_id,
         stage_name,
-        functionality,
+        functionality_id,
         category,
         sort_order,
         is_active,
@@ -101,7 +107,7 @@ exports.createSalesStage = async (req, res) => {
     const values = [
       sales_process_id,
       stage_name.trim(),
-      functionality,
+      functionality_id || [],
       category,
       sort_order || 1,
       is_active ?? true,
@@ -157,7 +163,7 @@ exports.getAllSalesStages = async (req, res) => {
         ss.sales_stage_id,
         ss.sales_process_id,
         ss.stage_name,
-        ss.functionality,
+        ss.functionality_id,
         ss.category,
         ss.sort_order,
         ss.is_active,
@@ -269,11 +275,10 @@ exports.updateSalesStage = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
-    let { stage_name, functionality, category, sort_order, is_active } =
-      req.body;
+    let { stage_name, functionality_id, category, sort_order } = req.body;
 
     const updatingOtherFields =
-      stage_name || functionality || category || sort_order !== undefined;
+      stage_name || functionality_id || category || sort_order !== undefined;
 
     if (!updatingOtherFields && is_active === undefined) {
       return errorResponse(
@@ -302,57 +307,24 @@ exports.updateSalesStage = async (req, res) => {
       return errorResponse(res, 404, "Sales stage not found for this builder.");
     }
 
+    const stageActiveCheck = await client.query(
+      `SELECT
+          ss.sales_process_id,
+          ss.is_active
+        FROM sales_stage ss
+        JOIN sales_process sp
+          ON ss.sales_process_id = sp.sales_process_id
+        WHERE ss.sales_stage_id = $1
+          AND sp.builder_id = $2 AND is_active = true`,
+      [sales_stage_id, builderId]
+    );
+
+    if (stageActiveCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive sales stage.");
+    }
+
     const salesProcessId = stageCheck.rows[0].sales_process_id;
-    const currentIsActive = stageCheck.rows[0].is_active;
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active sales stage, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive sales stage, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the sales stage is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Sales stage is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
 
     if (stage_name) {
       const dup = await client.query(
@@ -366,6 +338,38 @@ exports.updateSalesStage = async (req, res) => {
       if (dup.rowCount > 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Stage name already exists.");
+      }
+    }
+
+    if (functionality_id !== undefined) {
+      if (!Array.isArray(functionality_id)) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "functionality_id must be an array of UUIDs."
+        );
+      }
+
+      if (functionality_id.length > 0) {
+        const funcCheck = await client.query(
+          `
+          SELECT functionality_id
+          FROM functionality
+          WHERE functionality_id = ANY($1)
+            AND builder_id = $2
+          `,
+          [functionality_id, builderId]
+        );
+
+        if (funcCheck.rowCount !== functionality_id.length) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            400,
+            "One or more functionality_id values are invalid."
+          );
+        }
       }
     }
 
@@ -392,9 +396,9 @@ exports.updateSalesStage = async (req, res) => {
       fields.push(`stage_name = $${i++}`);
       values.push(stage_name.trim());
     }
-    if (functionality) {
-      fields.push(`functionality = $${i++}`);
-      values.push(functionality);
+    if (functionality_id) {
+      fields.push(`functionality_id = $${i++}`);
+      values.push(functionality_id);
     }
     if (category) {
       fields.push(`category = $${i++}`);
@@ -403,10 +407,6 @@ exports.updateSalesStage = async (req, res) => {
     if (sort_order !== undefined) {
       fields.push(`sort_order = $${i++}`);
       values.push(sort_order);
-    }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${i++}`);
-      values.push(is_active);
     }
 
     fields.push(`updated_by = $${i++}`);
@@ -435,6 +435,83 @@ exports.updateSalesStage = async (req, res) => {
     await client.query("ROLLBACK");
     console.error(err);
     return errorResponse(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateSalesStageIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { sales_stage_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
+    }
+
+    if (!sales_stage_id) {
+      return errorResponse(res, 400, "Sales stage id is required.");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)."
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const existing = await client.query(
+      `
+      SELECT ss.sales_stage_id
+      FROM sales_stage ss
+      JOIN sales_process sp
+        ON ss.sales_process_id = sp.sales_process_id
+      WHERE ss.sales_stage_id = $1
+        AND sp.builder_id = $2
+      `,
+      [sales_stage_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Sales stage not found for this builder.");
+    }
+
+    const updateQuery = `
+      UPDATE sales_stage
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE sales_stage_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      sales_stage_id,
+    ]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Sales stage status updated successfully."
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error updating sales stage is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

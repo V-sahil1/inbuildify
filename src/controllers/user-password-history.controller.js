@@ -269,3 +269,69 @@ exports.getUserPasswordHistoryById = async (req, res) => {
     client.release();
   }
 };
+
+exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const loggedInUserId = req.user?.user_id;
+    const { user_id } = req.params;
+
+    if (!loggedInUserId) {
+      return errorResponse(res, 401, "Unauthorized: User not logged in.");
+    }
+
+    if (user_id !== loggedInUserId) {
+      return errorResponse(
+        res,
+        403,
+        "You are not allowed to delete another user's password history."
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const existing = await client.query(
+      `
+      SELECT history_id
+      FROM user_password_history
+      WHERE user_id = $1
+      `,
+      [user_id]
+    );
+
+    if (existing.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        404,
+        "No password history found for this user."
+      );
+    }
+
+    const deleteQuery = `
+      DELETE FROM user_password_history
+      WHERE user_id = $1
+      RETURNING history_id;
+    `;
+
+    const deleted = await client.query(deleteQuery, [user_id]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      {
+        deletedCount: deleted.rowCount,
+      },
+      "User password history deleted successfully."
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting user password history:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

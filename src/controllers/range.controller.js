@@ -208,20 +208,10 @@ exports.updateRange = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
-    let { name, user_id, sort_order, bg_color, font_color, is_active } =
-      req.body;
+    let { name, user_id, sort_order, bg_color, font_color } = req.body;
 
     const logo_image = req.body.logo_image || null;
     const header_image = req.body.header_image || null;
-
-    const updatingOtherFields =
-      name ||
-      user_id ||
-      sort_order !== undefined ||
-      bg_color ||
-      font_color ||
-      req.body.logo_image !== undefined ||
-      req.body.header_image !== undefined;
 
     await client.query("BEGIN");
 
@@ -235,57 +225,17 @@ exports.updateRange = async (req, res) => {
       return errorResponse(res, 404, "Range not found for this builder.");
     }
 
+    const rangeActiveCheck = await client.query(
+      `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true`,
+      [range_id, builderId]
+    );
+
+    if (rangeActiveCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive range.");
+    }
+
     const existingRange = rangeCheck.rows[0];
-    const currentIsActive = existingRange.is_active;
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active range, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive range, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the range is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Range is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
 
     if (user_id) {
       try {
@@ -397,11 +347,6 @@ exports.updateRange = async (req, res) => {
       values.push(font_color);
     }
 
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${i++}`);
-      values.push(is_active);
-    }
-
     let updatedLogoUrl = existingRange.logo_url;
     if (logo_image !== undefined) {
       if (!logo_image) {
@@ -501,6 +446,71 @@ exports.deleteRange = async (req, res) => {
     );
   } catch (error) {
     console.error(error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateRangeActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { range_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!range_id) {
+      return errorResponse(res, 400, "range id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT range_id
+      FROM range
+      WHERE range_id = $1
+        AND builder_id = $2
+      `,
+      [range_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "range not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE range
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE range_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      range_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Range status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating range is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();

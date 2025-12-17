@@ -103,8 +103,6 @@ const updateRangeSchema = Joi.object({
       "string.pattern.base":
         "Enter valid font color in HEX format (e.g., #FFF453)",
     }),
-
-  is_active: Joi.boolean().default(true),
 })
   .min(1)
   .messages({
@@ -120,10 +118,15 @@ const deleteRangeSchema = {
   }),
 };
 
+const updateRangeActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
+
 module.exports = {
   getAllRangesSchema,
   createRangeSchema,
   updateRangeParamsSchema,
   updateRangeSchema,
   deleteRangeSchema,
+  updateRangeActiveSchema,
 };

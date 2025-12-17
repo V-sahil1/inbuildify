@@ -6,12 +6,14 @@ const {
   getUserPasswordHistory,
   deleteUserPasswordHistory,
   getUserPasswordHistoryById,
+  deleteUserPasswordHistoryByUserId,
 } = require("../controllers/user-password-history.controller");
 const {
   createUserPasswordHistorySchema,
   getAllUserPasswordHistorySchema,
   deleteUserPasswordHistorySchema,
   getUserPasswordHistoryByIdSchema,
+  deleteUserPasswordHistoryByUserIdSchema,
 } = require("../validations/user-password-history.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -45,5 +47,14 @@ router.delete(
     validateRequest(getUserPasswordHistoryByIdSchema, REQUEST_SOURCE.PARAMS),
     getUserPasswordHistoryById
   );
+
+router.delete(
+  "/user/:user_id",
+  validateRequest(
+    deleteUserPasswordHistoryByUserIdSchema,
+    REQUEST_SOURCE.PARAMS
+  ),
+  deleteUserPasswordHistoryByUserId
+);
 
 module.exports = router;

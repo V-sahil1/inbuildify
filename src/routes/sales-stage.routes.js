@@ -6,6 +6,7 @@ const {
   getAllSalesStages,
   deleteSalesStage,
   updateSalesStage,
+  updateSalesStageIsActive,
 } = require("../controllers/sales-stage.controller");
 const {
   createSalesStageSchema,
@@ -13,6 +14,7 @@ const {
   deleteSalesStageSchema,
   updateSalesStageIdParamsSchema,
   updateSalesStageSchema,
+  updateSalesStageIsActiveSchema,
 } = require("../validations/sales-stage.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -46,5 +48,12 @@ router.put(
   validateRequest(updateSalesStageIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSalesStageSchema, REQUEST_SOURCE.BODY),
   updateSalesStage
+);
+
+router.put(
+  "/is-active/:sales_stage_id",
+  validateRequest(updateSalesStageIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateSalesStageIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateSalesStageIsActive
 );
 module.exports = router;

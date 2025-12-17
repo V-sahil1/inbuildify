@@ -52,8 +52,10 @@ const updateClientTypeSchema = Joi.object({
     "number.base": "Sort order must be a number",
     "number.min": "Sort order must be at least 1",
   }),
+});
 
-  is_active: Joi.boolean().default(true).optional(),
+const updateClientTypeIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 module.exports = {
   createClientTypeSchema,
@@ -61,4 +63,5 @@ module.exports = {
   deleteClientTypeSchema,
   updateClientTypeParamsSchema,
   updateClientTypeSchema,
+  updateClientTypeIsActiveSchema,
 };

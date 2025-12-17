@@ -6,6 +6,7 @@ const {
   getAllClientType,
   deleteClientType,
   updateClientType,
+  updateClientTypeIsActive,
 } = require("../controllers/client-type.controller");
 const {
   createClientTypeSchema,
@@ -13,7 +14,9 @@ const {
   deleteClientTypeSchema,
   updateClientTypeParamsSchema,
   updateClientTypeSchema,
+  updateClientTypeIsActiveSchema,
 } = require("../validations/client-type.validation");
+
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -46,4 +49,12 @@ router.put(
   validateRequest(updateClientTypeSchema, REQUEST_SOURCE.BODY),
   updateClientType
 );
+
+router.put(
+  "/is-active/:id",
+  validateRequest(updateClientTypeParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateClientTypeIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateClientTypeIsActive
+);
+
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { errorResponse } = require("./src/helper/response.js");
+// const camelToSnakeMiddleware = require("./src/middleware/caseConverterMiddleware.js");
 dotenv.config();
 
 const app = express();
@@ -11,13 +12,18 @@ app.use(
   })
 );
 app.use(express.json());
+// app.use(camelToSnakeMiddleware);
 
 const PORT = process.env.PORT || 5000;
 
 require("./src/routes/index")(app);
 
 app.use("*path", (req, res) => {
-  return errorResponse(res, 404, "Please check endPoint, not any api of this route!");
+  return errorResponse(
+    res,
+    404,
+    "Please check endPoint, not any api of this route!"
+  );
 });
 
 app.listen(PORT, (err, res) => {

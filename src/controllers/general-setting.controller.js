@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
 exports.createGeneralSetting = async (req, res) => {
+  console.log("🚀 ~ req:", req.body);
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;

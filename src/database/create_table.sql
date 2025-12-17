@@ -872,7 +872,11 @@ CREATE TABLE surveyor (
   phone VARCHAR(50),
   abn_number VARCHAR(20),
   registration_number VARCHAR(100),
-  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  address1 VARCHAR(255) NOT NULL,
+  address2 VARCHAR(255),
+  city VARCHAR(150) NOT NULL,
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  zip_postal_code VARCHAR(20) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -1046,7 +1050,7 @@ CREATE TABLE sales_stage (
     sales_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     sales_process_id UUID NOT NULL REFERENCES sales_process(sales_process_id) ON DELETE CASCADE,
     stage_name VARCHAR(150) NOT NULL,
-    functionality TEXT[] NOT NULL,    -- e.g. '{Contact, Quotation, Close}'
+    functionality_id UUID[] DEFAULT '{}',
     category VARCHAR(50) NOT NULL CHECK (category IN ('lead', 'opportunity')),
     sort_order INT DEFAULT 1,
     is_active BOOLEAN DEFAULT TRUE,

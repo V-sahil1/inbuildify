@@ -27,15 +27,22 @@ const getAllUserPasswordHistorySchema = Joi.object({
 
 const deleteUserPasswordHistorySchema = Joi.object({
   id: Joi.string().uuid().required().messages({
-    "string.guid": "Surveyor ID must be a valid UUID",
-    "any.required": "Surveyor ID is required",
+    "string.guid": "history ID must be a valid UUID",
+    "any.required": "history ID is required",
   }),
 });
 
 const getUserPasswordHistoryByIdSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
-    "string.guid": "Surveyor ID must be a valid UUID",
-    "any.required": "Surveyor ID is required",
+    "string.guid": "history ID must be a valid UUID",
+    "any.required": "history ID is required",
+  }),
+});
+
+const deleteUserPasswordHistoryByUserIdSchema = Joi.object({
+  user_id: Joi.string().uuid().required().messages({
+    "string.guid": "user ID must be a valid UUID",
+    "any.required": "user ID is required",
   }),
 });
 
@@ -44,4 +51,5 @@ module.exports = {
   getAllUserPasswordHistorySchema,
   deleteUserPasswordHistorySchema,
   getUserPasswordHistoryByIdSchema,
+  deleteUserPasswordHistoryByUserIdSchema,
 };

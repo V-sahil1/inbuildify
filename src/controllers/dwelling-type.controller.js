@@ -20,7 +20,7 @@ exports.getAllDwellingTypes = async (req, res) => {
       FROM dwelling_type 
       WHERE builder_id = $1
       ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3;p
+      LIMIT $2 OFFSET $3;
     `;
 
     const dataResult = await client.query(dataQuery, [
@@ -147,11 +147,9 @@ exports.updateDwellingType = async (req, res) => {
   const client = await pool.connect();
 
   const { dwelling_type_id } = req.params;
-  const { name, is_active } = req.body;
+  const { name } = req.body;
   const builderId = req.user.builder_id;
   const userId = req.user?.user_id;
-
-  const updatingOtherFields = name !== undefined;
 
   try {
     await client.query("BEGIN");
@@ -166,64 +164,23 @@ exports.updateDwellingType = async (req, res) => {
       return errorResponse(res, 404, "Dwelling type not found.");
     }
 
-    const currentIsActive = existingDwellingType.rows[0].is_active;
+    const existingActiveDwellingType = await client.query(
+      `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true`,
+      [dwelling_type_id, builderId]
+    );
 
-    if (!name && is_active === undefined) {
+    if (existingActiveDwellingType.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive dwelling type.");
+    }
+
+    if (!name) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
         "At least one field is required to update."
       );
-    }
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active dwelling type, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive dwelling type, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the dwelling type is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Dwelling type is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
     }
 
     if (name) {
@@ -253,11 +210,6 @@ exports.updateDwellingType = async (req, res) => {
     if (name) {
       fields.push(`name = $${i++}`);
       values.push(name.trim());
-    }
-
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${i++}`);
-      values.push(is_active);
     }
 
     fields.push(`updated_by = $${i++}`);
@@ -320,6 +272,75 @@ exports.deleteDwellingType = async (req, res) => {
     );
   } catch (error) {
     console.error(error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateDwellingTypeActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { dwelling_type_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!dwelling_type_id) {
+      return errorResponse(res, 400, "dwelling type id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT dwelling_type_id
+      FROM dwelling_type
+      WHERE dwelling_type_id = $1
+        AND builder_id = $2
+      `,
+      [dwelling_type_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "dwelling type not found for this builder"
+      );
+    }
+
+    const updateQuery = `
+      UPDATE dwelling_type
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE dwelling_type_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      dwelling_type_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Dwelling type status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating dwelling type is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();

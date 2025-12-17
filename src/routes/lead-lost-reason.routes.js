@@ -7,12 +7,14 @@ const {
   deleteLeadLostReasonSchema,
   updateLeadLostReasonSchema,
   updateLeadLostReasonParamsSchema,
+  updateLeadLostReasonIsActiveSchema,
 } = require("../validations/lead-lost-reason.validation");
 const {
   createLeadLostReason,
   getAllLeadLostReasons,
   deleteLeadLostReason,
   updateLeadLostReason,
+  updateLeadLostReasonIsActive,
 } = require("../controllers/lead-lost-reason.controller");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -46,6 +48,13 @@ router.put(
   validateRequest(updateLeadLostReasonParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLeadLostReasonSchema, REQUEST_SOURCE.BODY),
   updateLeadLostReason
+);
+
+router.put(
+  "/is-active/:id",
+  validateRequest(updateLeadLostReasonParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateLeadLostReasonIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateLeadLostReasonIsActive
 );
 
 module.exports = router;

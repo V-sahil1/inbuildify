@@ -5,11 +5,13 @@ const {
   createPasswordPolicy,
   getPasswordPolicyByUser,
   updatePasswordPolicy,
+  updatePasswordPolicyIsActive,
 } = require("../controllers/password-policy.controller");
 const {
   cretePasswordPolicySchema,
   updatePasswordPolicyIdParamsSchema,
   updatePasswordPolicySchema,
+  updatePasswordPolicyIsActiveSchema,
 } = require("../validations/password-policy.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -33,6 +35,13 @@ router.put(
   validateRequest(updatePasswordPolicyIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePasswordPolicySchema, REQUEST_SOURCE.BODY),
   updatePasswordPolicy
+);
+
+router.put(
+  "/is-active/:password_policy_id",
+  validateRequest(updatePasswordPolicyIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updatePasswordPolicyIsActiveSchema, REQUEST_SOURCE.BODY),
+  updatePasswordPolicyIsActive
 );
 
 module.exports = router;

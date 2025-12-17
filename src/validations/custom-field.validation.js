@@ -9,10 +9,6 @@ const createCustomFieldSchema = Joi.object({
     "string.empty": "Field name is required.",
     "any.required": "Field name is required.",
   }),
-  field_label: Joi.string().trim().min(2).max(150).required().messages({
-    "string.empty": "Field label is required.",
-    "any.required": "Field label is required.",
-  }),
 
   field_type: Joi.string()
     .valid("text", "number", "date", "checkbox", "list", "multiline")
@@ -41,8 +37,6 @@ const createCustomFieldSchema = Joi.object({
       }),
     otherwise: Joi.forbidden(),
   }),
-
-  is_required: Joi.boolean().default(false),
 
   sort_order: Joi.number().integer().min(1).default(0),
 
@@ -81,8 +75,6 @@ const updateCustomFieldIdParamsSchema = Joi.object({
 const updateCustomFieldSchema = Joi.object({
   field_name: Joi.string().trim().max(150).optional(),
 
-  field_label: Joi.string().trim().max(150).optional(),
-
   field_type: Joi.string()
     .max(50)
     .valid("text", "number", "date", "checkbox", "list", "multiline")
@@ -95,8 +87,6 @@ const updateCustomFieldSchema = Joi.object({
       otherwise: Joi.forbidden(),
     })
     .optional(),
-
-  is_required: Joi.boolean().default(false).optional(),
 
   sort_order: Joi.number().integer().min(1).optional(),
 });

@@ -148,7 +148,6 @@ exports.updatePasswordPolicy = async (req, res) => {
       alert_before_expiry_days,
       password_history_count,
       enforce_strong_password,
-      is_active,
     } = req.body;
 
     const updatingOtherFields =
@@ -175,56 +174,67 @@ exports.updatePasswordPolicy = async (req, res) => {
       return errorResponse(res, 404, "Password policy not found.");
     }
 
-    const currentIsActive = exist.rows[0].is_active;
+    const existActive = await client.query(
+      `SELECT * FROM password_policy 
+       WHERE password_policy_id = $1 AND builder_id = $2 AND is_active = true`,
+      [password_policy_id, builderId]
+    );
 
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active password policy, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    if (existActive.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "inactive password policy.");
     }
 
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive password policy, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    // const currentIsActive = exist.rows[0].is_active;
 
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the password policy is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
+    // const requestedIsActiveTrue = is_active === true || is_active === "true";
+    // const requestedIsActiveFalse = is_active === false || is_active === "false";
 
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Password policy is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
+    // if (currentIsActive === true && is_active !== undefined) {
+    //   if (requestedIsActiveFalse) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To deactivate an active password policy, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+    // }
+
+    // if (currentIsActive === false) {
+    //   if (requestedIsActiveTrue) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive password policy, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when the password policy is currently inactive. Only 'is_active' can be changed (to true)."
+    //     );
+    //   }
+
+    //   if (is_active !== undefined) {
+    //     if (requestedIsActiveFalse) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "Password policy is already inactive. 'is_active' can only be updated to true from this state."
+    //       );
+    //     }
+    //   }
+    // }
 
     const fields = [];
     const values = [];
@@ -253,11 +263,6 @@ exports.updatePasswordPolicy = async (req, res) => {
     if (enforce_strong_password !== undefined) {
       fields.push(`enforce_strong_password = $${idx}`);
       values.push(enforce_strong_password);
-      idx++;
-    }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${idx}`);
-      values.push(is_active);
       idx++;
     }
 
@@ -300,6 +305,75 @@ exports.updatePasswordPolicy = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating password policy:", error);
     return errorResponse(res, 500, error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.updatePasswordPolicyIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { password_policy_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!password_policy_id) {
+      return errorResponse(res, 400, "Password policy id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT password_policy_id
+      FROM password_policy
+      WHERE password_policy_id = $1
+        AND builder_id = $2
+      `,
+      [password_policy_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "password policy not found for this builder"
+      );
+    }
+
+    const updateQuery = `
+      UPDATE password_policy
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE password_policy_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      password_policy_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "password policy status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating password policy is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

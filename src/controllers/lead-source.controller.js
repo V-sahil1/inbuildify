@@ -177,7 +177,7 @@ exports.getLeadSourceById = async (req, res) => {
 
 exports.updateLeadSource = async (req, res) => {
   const { lead_source_id } = req.params;
-  const { name, sort_order, is_active, allow_change } = req.body;
+  const { name, sort_order, allow_change } = req.body;
 
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
@@ -207,62 +207,30 @@ exports.updateLeadSource = async (req, res) => {
       return errorResponse(res, 404, "Lead source not found.");
     }
 
-    if (!name && !sort_order && is_active === undefined && !allow_change) {
+    const checkActiveQuery = `
+      SELECT allow_change, is_active 
+      FROM lead_source
+      WHERE lead_source_id = $1
+        AND (company_id = $2 OR company_id IS NULL)
+        AND (builder_id = $3 OR builder_id IS NULL)
+        AND is_active = true
+    `;
+    const checkActiveResult = await client.query(checkActiveQuery, [
+      lead_source_id,
+      companyId,
+      builderId,
+    ]);
+
+    if (checkActiveResult.rowCount === 0) {
+      return errorResponse(res, 404, "Inactive lead source.");
+    }
+
+    if (!name && !sort_order && !allow_change) {
       return errorResponse(
         res,
         400,
         "At least one field must be provided to update."
       );
-    }
-
-    const currentAllowChange = checkResult.rows[0].allow_change;
-    const currentIsActive = checkResult.rows[0].is_active;
-
-    if (!currentAllowChange) {
-      return errorResponse(res, 403, "This lead source cannot be modified.");
-    }
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && requestedIsActiveFalse) {
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active lead source, 'is_active' must be the only field provided in the request."
-        );
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive lead source, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the lead source is currently inactive."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Lead source is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
     }
 
     if (name) {
@@ -314,18 +282,16 @@ exports.updateLeadSource = async (req, res) => {
       SET 
         name = COALESCE($1, name),
         sort_order = COALESCE($2, sort_order),
-        is_active = COALESCE($3, is_active),
-        allow_change = COALESCE($4, allow_change),
-        updated_by = $5,
+        allow_change = COALESCE($3, allow_change),
+        updated_by = $4,
         updated_at = NOW()
-      WHERE lead_source_id = $6
+      WHERE lead_source_id = $5
       RETURNING *;
     `;
 
     const updateResult = await client.query(updateQuery, [
       name,
       sort_order,
-      is_active,
       allow_change,
       userId,
       lead_source_id,
@@ -372,6 +338,71 @@ exports.deleteLeadSource = async (req, res) => {
   } catch (error) {
     console.error("Error deleting lead source:", error);
     return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateLeadSourceIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { lead_source_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!lead_source_id) {
+      return errorResponse(res, 400, "lead source id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT lead_source_id
+      FROM lead_source
+      WHERE lead_source_id = $1
+        AND builder_id = $2
+      `,
+      [lead_source_id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "lead source not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE lead_source
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE lead_source_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      is_active,
+      userId,
+      lead_source_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "lead source status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating lead source is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

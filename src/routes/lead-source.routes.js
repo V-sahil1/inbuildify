@@ -6,6 +6,7 @@ const {
   getLeadSourceById,
   updateLeadSource,
   deleteLeadSource,
+  updateLeadSourceIsActive,
 } = require("../controllers/lead-source.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -17,6 +18,7 @@ const {
   updateLeadSourceParamsSchema,
   updateLeadSourceSchema,
   deleteLeadSourceSchema,
+  updateLeadSourceIsActiveSchema,
 } = require("../validations/leadSource.validation.js");
 const { REQUEST_SOURCE } = require("../config/constants");
 
@@ -44,6 +46,13 @@ router.delete(
   "/:lead_source_id",
   validateRequest(deleteLeadSourceSchema, REQUEST_SOURCE.PARAMS),
   deleteLeadSource
+);
+
+router.put(
+  "/is-active/:lead_source_id",
+  validateRequest(updateLeadSourceParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateLeadSourceIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateLeadSourceIsActive
 );
 
 module.exports = router;

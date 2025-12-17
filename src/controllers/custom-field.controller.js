@@ -14,21 +14,11 @@ exports.createCustomField = async (req, res) => {
     const {
       module_id,
       field_name,
-      field_label,
       field_type,
       options,
-      is_required,
       sort_order,
       is_active,
     } = req.body;
-
-    if (!field_name || !field_label || !field_type) {
-      return errorResponse(
-        res,
-        400,
-        "field_name, field_label, and field_type are required."
-      );
-    }
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -127,16 +117,14 @@ exports.createCustomField = async (req, res) => {
         builder_id,
         module_id,
         field_name,
-        field_label,
         field_type,
         options,
-        is_required,
         sort_order,
         is_active,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *;
     `;
 
@@ -145,10 +133,8 @@ exports.createCustomField = async (req, res) => {
       builderId,
       module_id,
       field_name.trim(),
-      field_label.trim(),
       field_type.toLowerCase(),
       finalOptions,
-      is_required ?? false,
       finalSortOrder,
       is_active ?? true,
       userId || null,
@@ -297,14 +283,7 @@ exports.updateCustomField = async (req, res) => {
     const companyId = req.user?.company_id;
     const { id } = req.params;
 
-    const {
-      field_name,
-      field_label,
-      field_type,
-      options,
-      is_required,
-      sort_order,
-    } = req.body;
+    const { field_name, field_type, options, sort_order } = req.body;
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -479,24 +458,20 @@ exports.updateCustomField = async (req, res) => {
       UPDATE custom_field
       SET
         field_name = COALESCE($1, field_name),
-        field_label = COALESCE($2, field_label),
-        field_type = COALESCE($3, field_type),
-        options = $4,
-        is_required = COALESCE($5, is_required),
-        sort_order = COALESCE($6, sort_order),
-        updated_by = $7,
+        field_type = COALESCE($2, field_type),
+        options = $3,
+        sort_order = COALESCE($4, sort_order),
+        updated_by = $5,
         updated_at = NOW(),
-        company_id = $8,
-        builder_id = $9
-      WHERE custom_field_id = $10
+        company_id = $6,
+        builder_id = $7
+      WHERE custom_field_id = $8
       RETURNING *;
     `;
     const values = [
       field_name || null,
-      field_label || null,
       field_type ? field_type.toLowerCase() : null,
       finalOptions,
-      is_required ?? existing.is_required,
       sort_order ?? existing.sort_order,
       userId || null,
       companyId,

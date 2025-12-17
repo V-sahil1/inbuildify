@@ -187,9 +187,9 @@ exports.updateLeadLostReason = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
 
-    const { lost_reason, sort_order, is_active } = req.body;
+    const { lost_reason, sort_order } = req.body;
 
-    const updatingOtherFields = lost_reason || sort_order !== undefined;
+    // const updatingOtherFields = lost_reason || sort_order !== undefined;
 
     await client.query("BEGIN");
 
@@ -209,63 +209,29 @@ exports.updateLeadLostReason = async (req, res) => {
       return errorResponse(res, 404, "Lead lost not found.");
     }
 
-    const currentIsActive = record.rows[0].is_active;
+    const activeRecord = await client.query(
+      `
+      SELECT lost_reason, is_active 
+      FROM lead_lost_reason
+      WHERE lead_lost_reason_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+        AND is_active = true
+      `,
+      [id, companyId, builderId]
+    );
 
-    if (!lost_reason && sort_order === undefined && is_active === undefined) {
+    if (activeRecord.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive lead lost reason.");
+    }
+
+    if (!lost_reason && sort_order === undefined) {
       return errorResponse(
         res,
         400,
         "At least one field must be provided to update."
       );
-    }
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active lead lost reason, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive lead lost reason, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the lead lost reason is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Lead lost reason is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
     }
 
     if (lost_reason) {
@@ -325,10 +291,6 @@ exports.updateLeadLostReason = async (req, res) => {
       values.push(sort_order);
     }
 
-    if (is_active !== undefined) {
-      updates.push(`is_active = $${idx++}`);
-      values.push(is_active);
-    }
     updates.push(`updated_by = $${idx++}`);
     values.push(userId);
 
@@ -358,6 +320,71 @@ exports.updateLeadLostReason = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating lead lost reason:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateLeadLostReasonIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 400, "lead lost reason id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT lead_lost_reason_id
+      FROM lead_lost_reason
+      WHERE lead_lost_reason_id = $1
+        AND builder_id = $2
+      `,
+      [id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "lead lost reason not found for this builder"
+      );
+    }
+
+    const updateQuery = `
+      UPDATE lead_lost_reason
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE lead_lost_reason_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [is_active, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "lead lost reason status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating lead source is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

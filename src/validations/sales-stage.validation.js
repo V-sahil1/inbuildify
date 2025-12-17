@@ -10,10 +10,12 @@ const createSalesStageSchema = Joi.object({
     "any.required": "Stage name is required",
   }),
 
-  functionality: Joi.array().items(Joi.string()).min(1).required().messages({
-    "array.base": "Functionality must be an array",
-    "array.min": "At least one functionality option is required",
-  }),
+  functionality_id: Joi.array()
+    .items(Joi.string().guid({ version: "uuidv4" }))
+    .optional()
+    .messages({
+      "string.guid": "functionality id  must be a valid UUID",
+    }),
 
   category: Joi.string()
     .valid("lead", "opportunity")
@@ -60,10 +62,12 @@ const updateSalesStageIdParamsSchema = Joi.object({
 const updateSalesStageSchema = Joi.object({
   stage_name: Joi.string().max(150).optional().messages({}),
 
-  functionality: Joi.array().items(Joi.string()).min(1).optional().messages({
-    "array.base": "Functionality must be an array",
-    "array.min": "At least one functionality option is required",
-  }),
+  functionality_id: Joi.array()
+    .items(Joi.string().guid({ version: "uuidv4" }))
+    .optional()
+    .messages({
+      "string.guid": "functionality id  must be a valid UUID",
+    }),
 
   category: Joi.string()
     .max(50)
@@ -74,8 +78,10 @@ const updateSalesStageSchema = Joi.object({
     }),
 
   sort_order: Joi.number().integer().default(1).min(1).optional(),
+});
 
-  is_active: Joi.boolean().optional(),
+const updateSalesStageIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 module.exports = {
   createSalesStageSchema,
@@ -83,4 +89,5 @@ module.exports = {
   deleteSalesStageSchema,
   updateSalesStageIdParamsSchema,
   updateSalesStageSchema,
+  updateSalesStageIsActiveSchema,
 };

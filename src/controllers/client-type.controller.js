@@ -182,9 +182,7 @@ exports.updateClientType = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
 
-    const { client_type, sort_order, is_active } = req.body;
-
-    const updatingOtherFields = client_type || sort_order !== undefined;
+    const { client_type, sort_order } = req.body;
 
     await client.query("BEGIN");
 
@@ -204,63 +202,21 @@ exports.updateClientType = async (req, res) => {
       return errorResponse(res, 404, "client type Record not found.");
     }
 
-    const currentIsActive = record.rows[0].is_active;
+    const activeRecord = await client.query(
+      `
+      SELECT client_type, is_active 
+      FROM client_type
+      WHERE client_type_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+        AND is_active = true
+      `,
+      [id, companyId, builderId]
+    );
 
-    if (!client_type && sort_order === undefined && is_active === undefined) {
-      return errorResponse(
-        res,
-        400,
-        "At least one field must be provided to update."
-      );
-    }
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active client type, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive client type, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the client type is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Client type is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
+    if (activeRecord.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive client type.");
     }
 
     if (client_type) {
@@ -319,10 +275,6 @@ exports.updateClientType = async (req, res) => {
       values.push(sort_order);
     }
 
-    if (is_active !== undefined) {
-      updates.push(`is_active = $${idx++}`);
-      values.push(is_active);
-    }
     updates.push(`updated_by = $${idx++}`);
     values.push(userId);
 
@@ -352,6 +304,67 @@ exports.updateClientType = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating client type:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateClientTypeIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const userId = req.user?.user_id;
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 400, "client type id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT client_type_id
+      FROM client_type
+      WHERE client_type_id = $1
+        AND builder_id = $2
+      `,
+      [id, builderId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "client type not found for this builder");
+    }
+
+    const updateQuery = `
+      UPDATE client_type
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE client_type_id = $3
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [is_active, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "client type status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating client type is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

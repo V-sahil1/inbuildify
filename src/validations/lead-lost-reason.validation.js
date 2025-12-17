@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { join } = require("lodash");
 
 const createLeadLostReasonSchema = Joi.object({
   lost_reason: Joi.string().trim().max(255).required().messages({
@@ -52,8 +53,10 @@ const updateLeadLostReasonSchema = Joi.object({
     "number.base": "Sort order must be a number",
     "number.min": "Sort order must be at least 1",
   }),
+});
 
-  is_active: Joi.boolean().optional(),
+const updateLeadLostReasonIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 module.exports = {
   createLeadLostReasonSchema,
@@ -61,4 +64,5 @@ module.exports = {
   deleteLeadLostReasonSchema,
   updateLeadLostReasonParamsSchema,
   updateLeadLostReasonSchema,
+  updateLeadLostReasonIsActiveSchema,
 };
