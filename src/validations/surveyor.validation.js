@@ -43,9 +43,13 @@ const createSurveyorSchema = Joi.object({
     .messages({
       "string.max": "Registration number cannot exceed 100 characters.",
     }),
-  address_id: Joi.string().uuid().allow(null, "").optional().messages({
-    "string.guid": "Address ID must be a valid UUID.",
+  address1: Joi.string().trim().max(255).required(),
+  address2: Joi.string().trim().max(255).optional(),
+  city: Joi.string().trim().max(150).required(),
+  state_id: Joi.string().uuid().required().messages({
+    "string.guid": "state ID must be a valid UUID",
   }),
+  zip_postal_code: Joi.string().trim().max(20).required(),
 });
 
 const getAllServeyorSchema = Joi.object({
@@ -118,9 +122,13 @@ const updateSurveyorSchema = Joi.object({
     .messages({
       "string.max": "Registration number cannot exceed 100 characters.",
     }),
-  address_id: Joi.string().uuid().allow(null, "").optional().messages({
-    "string.guid": "Address ID must be a valid UUID.",
+  address1: Joi.string().trim().max(255).optional(),
+  address2: Joi.string().trim().max(255).optional(),
+  city: Joi.string().trim().max(150).optional(),
+  state_id: Joi.string().uuid().optional().messages({
+    "string.guid": "state ID must be a valid UUID",
   }),
+  zip_postal_code: Joi.string().trim().max(20).optional(),
 });
 
 module.exports = {

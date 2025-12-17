@@ -12,20 +12,39 @@ exports.createSurveyor = async (req, res) => {
 
     await client.query("BEGIN");
 
-    const { name, email, phone, abn_number, registration_number, address_id } =
-      req.body;
+    const {
+      name,
+      email,
+      phone,
+      abn_number,
+      registration_number,
+      address1,
+      address2,
+      city,
+      state_id,
+      zip_postal_code,
+    } = req.body;
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
     }
 
+    if (!name || !address1 || !city || !zip_postal_code) {
+      return errorResponse(
+        res,
+        400,
+        "Name, address1, city, and zip/postal code are required."
+      );
+    }
+
     if (email) {
       const duplicateQuery = `
-        SELECT surveyor_id 
-        FROM surveyor 
-        WHERE builder_id = $1 
-        AND LOWER(email) = LOWER($2);
+        SELECT surveyor_id
+        FROM surveyor
+        WHERE builder_id = $1
+          AND LOWER(email) = LOWER($2);
       `;
+
       const duplicateCheck = await client.query(duplicateQuery, [
         builderId,
         email,
@@ -41,19 +60,15 @@ exports.createSurveyor = async (req, res) => {
       }
     }
 
-    if (address_id) {
-      const addressCheck = await client.query(
-        `SELECT address_id FROM address WHERE address_id = $1;`,
-        [address_id]
+    if (state_id) {
+      const stateCheck = await client.query(
+        `SELECT state_id FROM state WHERE state_id = $1;`,
+        [state_id]
       );
 
-      if (addressCheck.rowCount === 0) {
+      if (stateCheck.rowCount === 0) {
         await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid address id or address not found."
-        );
+        return errorResponse(res, 400, "Invalid state id.");
       }
     }
 
@@ -66,9 +81,16 @@ exports.createSurveyor = async (req, res) => {
         phone,
         abn_number,
         registration_number,
-        address_id
+        address1,
+        address2,
+        city,
+        state_id,
+        zip_postal_code
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12
+      )
       RETURNING *;
     `;
 
@@ -80,7 +102,11 @@ exports.createSurveyor = async (req, res) => {
       phone || null,
       abn_number || null,
       registration_number || null,
-      address_id || null,
+      address1,
+      address2 || null,
+      city,
+      state_id,
+      zip_postal_code,
     ];
 
     const result = await client.query(insertQuery, values);
@@ -203,8 +229,18 @@ exports.updateSurveyor = async (req, res) => {
       return errorResponse(res, 400, "Surveyor ID is required.");
     }
 
-    const { name, email, phone, abn_number, registration_number, address_id } =
-      req.body;
+    const {
+      name,
+      email,
+      phone,
+      abn_number,
+      registration_number,
+      address1,
+      address2,
+      city,
+      state_id,
+      zip_postal_code,
+    } = req.body;
 
     if (
       !name &&
@@ -212,7 +248,11 @@ exports.updateSurveyor = async (req, res) => {
       !phone &&
       !abn_number &&
       !registration_number &&
-      !address_id
+      !address1 &&
+      !address2 &&
+      !city &&
+      !state_id &&
+      !zip_postal_code
     ) {
       return errorResponse(
         res,
@@ -224,7 +264,10 @@ exports.updateSurveyor = async (req, res) => {
     await client.query("BEGIN");
 
     const existingSurveyor = await client.query(
-      `SELECT * FROM surveyor WHERE surveyor_id = $1 AND builder_id = $2`,
+      `SELECT surveyor_id 
+       FROM surveyor 
+       WHERE surveyor_id = $1 
+         AND builder_id = $2`,
       [surveyor_id, builderId]
     );
 
@@ -235,10 +278,11 @@ exports.updateSurveyor = async (req, res) => {
 
     if (email) {
       const duplicateEmail = await client.query(
-        `SELECT surveyor_id FROM surveyor 
-         WHERE LOWER(email) = LOWER($1) 
-         AND builder_id = $2 
-         AND surveyor_id != $3`,
+        `SELECT surveyor_id
+         FROM surveyor
+         WHERE LOWER(email) = LOWER($1)
+           AND builder_id = $2
+           AND surveyor_id != $3`,
         [email, builderId, surveyor_id]
       );
 
@@ -252,19 +296,15 @@ exports.updateSurveyor = async (req, res) => {
       }
     }
 
-    if (address_id) {
-      const addressCheck = await client.query(
-        `SELECT address_id FROM address WHERE address_id = $1;`,
-        [address_id]
+    if (state_id) {
+      const stateCheck = await client.query(
+        `SELECT state_id FROM state WHERE state_id = $1;`,
+        [state_id]
       );
 
-      if (addressCheck.rowCount === 0) {
+      if (stateCheck.rowCount === 0) {
         await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid address id or address not found."
-        );
+        return errorResponse(res, 400, "Invalid state id.");
       }
     }
 
@@ -292,9 +332,25 @@ exports.updateSurveyor = async (req, res) => {
       fields.push(`registration_number = $${paramIndex++}`);
       values.push(registration_number);
     }
-    if (address_id) {
-      fields.push(`address_id = $${paramIndex++}`);
-      values.push(address_id);
+    if (address1) {
+      fields.push(`address1 = $${paramIndex++}`);
+      values.push(address1);
+    }
+    if (address2) {
+      fields.push(`address2 = $${paramIndex++}`);
+      values.push(address2);
+    }
+    if (city) {
+      fields.push(`city = $${paramIndex++}`);
+      values.push(city);
+    }
+    if (state_id) {
+      fields.push(`state_id = $${paramIndex++}`);
+      values.push(state_id);
+    }
+    if (zip_postal_code) {
+      fields.push(`zip_postal_code = $${paramIndex++}`);
+      values.push(zip_postal_code);
     }
 
     fields.push(`company_id = $${paramIndex++}`);
@@ -303,10 +359,10 @@ exports.updateSurveyor = async (req, res) => {
     fields.push(`updated_at = NOW()`);
 
     const updateQuery = `
-      UPDATE surveyor 
-      SET ${fields.join(", ")} 
-      WHERE surveyor_id = $${paramIndex} 
-      AND builder_id = $${paramIndex + 1}
+      UPDATE surveyor
+      SET ${fields.join(", ")}
+      WHERE surveyor_id = $${paramIndex}
+        AND builder_id = $${paramIndex + 1}
       RETURNING *;
     `;
 
