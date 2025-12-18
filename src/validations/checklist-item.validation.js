@@ -1,6 +1,15 @@
 const Joi = require("joi");
 
 const createChecklistItemSchema = Joi.object({
+  construction_type_id: Joi.string().uuid().required().messages({
+    "any.required": "construction type ID is required",
+    "string.guid": "construction type ID must be a valid UUID",
+  }),
+
+  construction_stage_id: Joi.string().uuid().required().messages({
+    "any.required": "construction stage ID is required",
+    "string.guid": "construction stage ID must be a valid UUID",
+  }),
   checklist_id: Joi.string().uuid().required().messages({
     "any.required": "Checklist ID is required",
     "string.guid": "Checklist ID must be a valid UUID",

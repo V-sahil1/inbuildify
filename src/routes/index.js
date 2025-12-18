@@ -1,3 +1,5 @@
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware");
+
 const countryRoutes = require("./country.routes");
 const stateRoutes = require("./state.routes");
 const authRoutes = require("./auth.routes");
@@ -104,8 +106,12 @@ const quotationSettingRoutes = require("./quotation-setting.routes");
 const appointmentRoutes = require("./appointment.routes");
 const holidayRoutes = require("./holiday.routes");
 const recalculateDateRoutes = require("./recalculate-date.routes");
+const constructionTypeRoutes = require("./construction-type.routes");
+const constructionStageRoutes = require("./construction-stage-.routes");
 
 module.exports = function (app) {
+  app.use(camelToSnakeMiddleware);
+
   app.use("/country", countryRoutes);
   app.use("/state", stateRoutes);
   app.use("/auth", authRoutes);
@@ -215,4 +221,6 @@ module.exports = function (app) {
   app.use("/appointment", appointmentRoutes);
   app.use("/holiday", holidayRoutes);
   app.use("/recalculate-date", recalculateDateRoutes);
+  app.use("/construction-type", constructionTypeRoutes);
+  app.use("/construction-stage", constructionStageRoutes);
 };

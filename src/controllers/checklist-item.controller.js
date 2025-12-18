@@ -8,10 +8,11 @@ exports.createChecklistItem = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
-    const userId = req.user?.users_id;
 
     const {
       checklist_id,
+      construction_type_id = null,
+      construction_stage_id = null,
       description,
       notes = false,
       is_required = false,
@@ -38,32 +39,77 @@ exports.createChecklistItem = async (req, res) => {
     await client.query("BEGIN");
 
     const checklistQuery = `
-      SELECT checklist_id 
-      FROM checklist 
-      WHERE checklist_id = $1 AND builder_id = $2 AND is_deleted = FALSE AND is_active = true
+      SELECT checklist_id
+      FROM checklist
+      WHERE checklist_id = $1
+        AND builder_id = $2
+        AND is_deleted = FALSE
+        AND is_active = TRUE;
     `;
-    const checklist = await client.query(checklistQuery, [
+    const checklistResult = await client.query(checklistQuery, [
       checklist_id,
       builderId,
     ]);
 
-    if (checklist.rowCount === 0) {
+    if (checklistResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 403, "Checklist is invalid or inactive.");
     }
 
-    const duplicateCheckQuery = `
-  SELECT ci.checklist_item_id
-  FROM checklist_item ci
-  INNER JOIN checklist c
-    ON c.checklist_id = ci.checklist_id
-  WHERE ci.checklist_id = $1
-    AND ci.description = $2
-    AND c.builder_id = $3
-    AND c.is_deleted = FALSE
-  LIMIT 1;
-`;
+    if (construction_type_id) {
+      const constructionTypeQuery = `
+        SELECT construction_type_id
+        FROM construction_type
+        WHERE construction_type_id = $1
+          AND builder_id = $2;
+      `;
+      const constructionTypeResult = await client.query(constructionTypeQuery, [
+        construction_type_id,
+        builderId,
+      ]);
 
+      if (constructionTypeResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid construction_type_id.");
+      }
+    }
+
+    if (construction_stage_id) {
+      const stageQuery = `
+        SELECT construction_stage
+        FROM construction_stage
+        WHERE construction_stage = $1
+          AND builder_id = $2
+          AND (
+            $3::uuid IS NULL OR construction_type_id = $3
+          );
+      `;
+      const stageResult = await client.query(stageQuery, [
+        construction_stage_id,
+        builderId,
+        construction_type_id,
+      ]);
+
+      if (stageResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid construction_stage_id or mismatch with construction_type."
+        );
+      }
+    }
+
+    const duplicateCheckQuery = `
+      SELECT ci.checklist_item_id
+      FROM checklist_item ci
+      INNER JOIN checklist c ON c.checklist_id = ci.checklist_id
+      WHERE ci.checklist_id = $1
+        AND ci.description = $2
+        AND c.builder_id = $3
+        AND c.is_deleted = FALSE
+      LIMIT 1;
+    `;
     const duplicateResult = await client.query(duplicateCheckQuery, [
       checklist_id,
       description.trim(),
@@ -71,6 +117,7 @@ exports.createChecklistItem = async (req, res) => {
     ]);
 
     if (duplicateResult.rowCount > 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         409,
@@ -79,8 +126,9 @@ exports.createChecklistItem = async (req, res) => {
     }
 
     const sortCheckQuery = `
-      SELECT 1 FROM checklist_item
-      WHERE checklist_id = $1 AND sort = $2
+      SELECT 1
+      FROM checklist_item
+      WHERE checklist_id = $1 AND sort = $2;
     `;
     const sortExists = await client.query(sortCheckQuery, [checklist_id, sort]);
 
@@ -94,13 +142,32 @@ exports.createChecklistItem = async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO checklist_item
-      (checklist_id, description, notes, is_required, type, sort, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO checklist_item (
+        checklist_id,
+        construction_type_id,
+        construction_stage_id,
+        description,
+        notes,
+        is_required,
+        type,
+        sort,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
       RETURNING *;
     `;
 
-    const values = [checklist_id, description, notes, is_required, type, sort];
+    const values = [
+      checklist_id,
+      construction_type_id,
+      construction_stage_id,
+      description.trim(),
+      notes,
+      is_required,
+      type,
+      sort,
+    ];
 
     const result = await client.query(insertQuery, values);
 
@@ -114,7 +181,7 @@ exports.createChecklistItem = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating checklist item:", error);
-    return errorResponse(res, 500, error.message);
+    return errorResponse(res, 500, error.message || "Internal server error.");
   } finally {
     client.release();
   }
