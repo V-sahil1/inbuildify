@@ -11,14 +11,8 @@ exports.createCustomField = async (req, res) => {
     const userId = req.user?.user_id;
     const companyId = req.user?.company_id;
 
-    const {
-      module_id,
-      field_name,
-      field_type,
-      options,
-      sort_order,
-      is_active,
-    } = req.body;
+    const { module_id, field_name, field_type, sort_order, is_active } =
+      req.body;
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -39,19 +33,6 @@ exports.createCustomField = async (req, res) => {
         "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline."
       );
     }
-
-    if (
-      field_type === "list" &&
-      (!options || !Array.isArray(options) || options.length === 0)
-    ) {
-      return errorResponse(
-        res,
-        400,
-        "Options are required and must be a non-empty array for 'list' field type."
-      );
-    }
-
-    const finalOptions = field_type === "list" ? options : null;
 
     await client.query("BEGIN");
     const validateModule = await client.query(
@@ -118,13 +99,12 @@ exports.createCustomField = async (req, res) => {
         module_id,
         field_name,
         field_type,
-        options,
         sort_order,
         is_active,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       RETURNING *;
     `;
 
@@ -134,7 +114,6 @@ exports.createCustomField = async (req, res) => {
       module_id,
       field_name.trim(),
       field_type.toLowerCase(),
-      finalOptions,
       finalSortOrder,
       is_active ?? true,
       userId || null,
@@ -283,7 +262,7 @@ exports.updateCustomField = async (req, res) => {
     const companyId = req.user?.company_id;
     const { id } = req.params;
 
-    const { field_name, field_type, options, sort_order } = req.body;
+    const { field_name, field_type, sort_order } = req.body;
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -321,78 +300,19 @@ exports.updateCustomField = async (req, res) => {
     const existing = existingResult.rows[0];
     const moduleId = existing.module_id;
 
-    // const currentIsActive = existing.is_active;
-    // const isActiveInBody = is_active !== undefined;
-    // const requestedIsActive = is_active;
-
-    // const fieldsToCheck = [
-    //   "field_name",
-    //   "field_label",
-    //   "field_type",
-    //   "options",
-    //   "is_required",
-    //   "sort_order",
-    // ];
-    // const updatingOtherFields = fieldsToCheck.some(
-    //   (field) => req.body[field] !== undefined
-    // );
-
-    // if (isActiveInBody && typeof requestedIsActive !== "boolean") {
-    //   await client.query("ROLLBACK");
-    //   return errorResponse(
-    //     res,
-    //     400,
-    //     "The 'is_active' field must be a boolean (true or false)."
-    //   );
-    // }
-
-    // if (
-    //   currentIsActive === true &&
-    //   isActiveInBody &&
-    //   requestedIsActive === false
-    // ) {
-    //   if (updatingOtherFields) {
-    //     await client.query("ROLLBACK");
-    //     return errorResponse(
-    //       res,
-    //       403,
-    //       "To deactivate an active custom field, 'is_active' must be the only field provided in the request."
-    //     );
-    //   }
-    // }
-
-    // if (currentIsActive === false) {
-    //   if (isActiveInBody && requestedIsActive === true) {
-    //     if (updatingOtherFields) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "To activate an inactive custom field, 'is_active' must be the only field provided in the request."
-    //       );
-    //     }
-    //   }
-
-    //   const performingActivation = isActiveInBody && requestedIsActive === true;
-
-    //   if (updatingOtherFields && !performingActivation) {
-    //     await client.query("ROLLBACK");
-    //     return errorResponse(
-    //       res,
-    //       403,
-    //       "Cannot update non-'is_active' fields when the custom field is currently Inactive. Only 'is_active' can be changed (to true/Active)."
-    //     );
-    //   }
-
-    //   if (isActiveInBody && requestedIsActive === false) {
-    //     await client.query("ROLLBACK");
-    //     return errorResponse(
-    //       res,
-    //       403,
-    //       "Custom field is already Inactive. 'is_active' can only be updated to true (Active) from this state."
-    //     );
-    //   }
-    // }
+    if (
+      field_type &&
+      Array.isArray(existing.options) &&
+      existing.options.length > 0 &&
+      field_type.toLowerCase() !== existing.field_type
+    ) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Field type cannot be updated because options already exist for this field."
+      );
+    }
 
     if (field_name) {
       const duplicateField = await client.query(
@@ -452,26 +372,22 @@ exports.updateCustomField = async (req, res) => {
       );
     }
 
-    const finalOptions =
-      field_type?.toLowerCase() === "list" ? options || [] : null;
     const updateQuery = `
       UPDATE custom_field
       SET
         field_name = COALESCE($1, field_name),
         field_type = COALESCE($2, field_type),
-        options = $3,
-        sort_order = COALESCE($4, sort_order),
-        updated_by = $5,
+        sort_order = COALESCE($3, sort_order),
+        updated_by = $4,
         updated_at = NOW(),
-        company_id = $6,
-        builder_id = $7
-      WHERE custom_field_id = $8
+        company_id = $5,
+        builder_id = $6
+      WHERE custom_field_id = $7
       RETURNING *;
     `;
     const values = [
       field_name || null,
       field_type ? field_type.toLowerCase() : null,
-      finalOptions,
       sort_order ?? existing.sort_order,
       userId || null,
       companyId,
@@ -552,6 +468,197 @@ exports.updateCustomFieldIsActive = async (req, res) => {
   } catch (error) {
     console.error("Error updating custom field is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.createOption = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    const { custom_field_id, options } = req.body;
+
+    if (!custom_field_id || !Array.isArray(options) || options.length === 0) {
+      return errorResponse(
+        res,
+        400,
+        "custom_field_id and options array are required."
+      );
+    }
+
+    const fieldQuery = `
+      SELECT custom_field_id, field_type, options
+      FROM custom_field
+      WHERE custom_field_id = $1
+        AND (
+          (builder_id = $2 AND $2 IS NOT NULL)
+          OR (company_id = $3 AND $3 IS NOT NULL)
+        );
+    `;
+
+    const fieldResult = await client.query(fieldQuery, [
+      custom_field_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (fieldResult.rowCount === 0) {
+      return errorResponse(res, 404, "Custom field not found.");
+    }
+
+    const field = fieldResult.rows[0];
+
+    if (field.field_type !== "list") {
+      return errorResponse(
+        res,
+        400,
+        "Options can only be added to fields of type 'list'."
+      );
+    }
+
+    const existingOptions = field.options || [];
+
+    const normalizedExisting = existingOptions.map((o) => o.toLowerCase());
+    const newUniqueOptions = options
+      .map((o) => o.trim())
+      .filter((o) => o && !normalizedExisting.includes(o.toLowerCase()));
+
+    if (newUniqueOptions.length === 0) {
+      return errorResponse(res, 409, "All provided options already exist.");
+    }
+
+    const updatedOptions = [...existingOptions, ...newUniqueOptions];
+
+    const updateQuery = `
+      UPDATE custom_field
+      SET
+        options = $1,
+        updated_at = NOW(),
+        updated_by = $2
+      WHERE custom_field_id = $3
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [
+      updatedOptions,
+      userId,
+      custom_field_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Options added successfully."
+    );
+  } catch (error) {
+    console.error("Create Option Error:", error);
+    return errorResponse(res, 500, error.message || "Internal server error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.deleteOption = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    const { custom_field_id } = req.params;
+    const { options } = req.body;
+
+    if (!custom_field_id || !Array.isArray(options) || options.length === 0) {
+      return errorResponse(
+        res,
+        400,
+        "custom_field_id (params) and options (array in body) are required."
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const fieldQuery = `
+      SELECT custom_field_id, field_type, options
+      FROM custom_field
+      WHERE custom_field_id = $1
+        AND (
+          (builder_id = $2 AND $2 IS NOT NULL)
+          OR (company_id = $3 AND $3 IS NOT NULL)
+        )
+      FOR UPDATE;
+    `;
+
+    const fieldResult = await client.query(fieldQuery, [
+      custom_field_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (fieldResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Custom field not found.");
+    }
+
+    const field = fieldResult.rows[0];
+
+    if (field.field_type !== "list") {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Options can only be deleted from list type fields."
+      );
+    }
+
+    let existingOptions = field.options || [];
+
+    const optionsToDelete = options.map((o) => o.toLowerCase());
+
+    const filteredOptions = existingOptions.filter(
+      (opt) => !optionsToDelete.includes(opt.toLowerCase())
+    );
+
+    if (filteredOptions.length === existingOptions.length) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "None of the provided options exist.");
+    }
+
+    const updateQuery = `
+      UPDATE custom_field
+      SET
+        options = $1,
+        updated_at = NOW(),
+        updated_by = $2
+      WHERE custom_field_id = $3
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [
+      filteredOptions,
+      userId,
+      custom_field_id,
+    ]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Option(s) deleted successfully."
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Option Error:", error);
+    return errorResponse(res, 500, error.message || "Internal server error.");
   } finally {
     client.release();
   }

@@ -23,7 +23,15 @@ const createGeneralSettigSchema = Joi.object({
 
   round_of_cost: Joi.boolean().optional().default(false),
   negative_value_show: Joi.boolean().optional().default(true),
-  negative_value_color: Joi.string().max(50).allow(null, "").optional(),
+  negative_value_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
+    .messages({
+      "string.pattern.base":
+        "Enter valid font color in HEX format (e.g., #FFF453)",
+    }),
 
   show_reference_id_in_pdf: Joi.string()
     .valid(...allowedShowReferenceValues)
@@ -75,7 +83,15 @@ const updateGeneralSettingsSchema = Joi.object({
 
   round_of_cost: Joi.boolean().optional().default(false),
   negative_value_show: Joi.boolean().optional().default(true),
-  negative_value_color: Joi.string().max(50).allow(null, "").optional(),
+  negative_value_color: Joi.string()
+    .trim()
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
+    .optional()
+    .allow(null)
+    .messages({
+      "string.pattern.base":
+        "Enter valid font color in HEX format (e.g., #FFF453)",
+    }),
 
   show_reference_id_in_pdf: Joi.string()
     .valid(...allowedShowReferenceValues)

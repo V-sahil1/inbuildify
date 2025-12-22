@@ -7,6 +7,8 @@ const {
   deleteCustomField,
   updateCustomField,
   updateCustomFieldIsActive,
+  createOption,
+  deleteOption,
 } = require("../controllers/custom-field.controller");
 const {
   createCustomFieldSchema,
@@ -15,6 +17,9 @@ const {
   updateCustomFieldIdParamsSchema,
   updateCustomFieldSchema,
   updateCustomFieldIsActiveSchema,
+  createOptionSchema,
+  deleteOptionParamsSchema,
+  deleteOptionSchema,
 } = require("../validations/custom-field.validation");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -56,4 +61,17 @@ router.put(
   validateRequest(updateCustomFieldIsActiveSchema, REQUEST_SOURCE.BODY),
   updateCustomFieldIsActive
 );
-module.exports = router;
+
+router.post(
+  "/option",
+  validateRequest(createOptionSchema, REQUEST_SOURCE.BODY),
+  createOption
+);
+
+router.delete(
+  "/option/:custom_field_id",
+  validateRequest(deleteOptionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(deleteOptionSchema, REQUEST_SOURCE.BODY),
+  deleteOption
+),
+  (module.exports = router);

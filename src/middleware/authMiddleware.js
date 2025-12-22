@@ -72,13 +72,14 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     // adjust path/method if needed
     const isCreateCompanyRequest =
       (req.method === "POST" && req.originalUrl.includes("/company")) ||
-      (req.method === "POST" && req.originalUrl.includes("/address"));
+      (req.method === "POST" && req.originalUrl.includes("/address")) ||
+      (req.method === "GET" && req.originalUrl.includes("/state")) ||
+      (req.method === "GET" && req.originalUrl.includes("/country"));
 
     // ❌ Company does not exist
     if (!isCompanyExists) {
       // ✅ Allow only create-company API
       if (isCreateCompanyRequest) {
-        console.log("ℹ️ Company not found, but allowing company creation");
         return next();
       }
 
@@ -88,7 +89,6 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
 
     // ✅ Company exists → attach company_id
     req.user.company_id = results.rows[0].company_id;
-    console.log("🚀 ~ handleTokenAuthorization ~ req.user:", req.user);
 
     next();
   } catch (error) {

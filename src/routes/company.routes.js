@@ -16,8 +16,8 @@ const upload = createUpload("company");
 router.post(
   "/",
   upload.fields([
-    { name: "emailSignatureLogoImage", maxCount: 1 },
-    { name: "companyLogoImage", maxCount: 1 },
+    { name: "email_signature_logo", maxCount: 1 },
+    { name: "company_logo", maxCount: 1 },
   ]),
   handleMulterError,
   validateRequest(createCompanySchema, REQUEST_SOURCE.FORM_DATA),

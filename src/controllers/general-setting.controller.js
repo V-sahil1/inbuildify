@@ -370,3 +370,38 @@ exports.updateGeneralSettings = async (req, res) => {
     client.release();
   }
 };
+
+exports.getUserGeneralSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id } = req.user;
+
+    let result = await client.query(
+      `SELECT * FROM general_settings
+       WHERE company_id = $1 AND builder_id = $2
+       LIMIT 1`,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `INSERT INTO general_settings (company_id, builder_id)
+         VALUES ($1, $2)
+         RETURNING *`,
+        [company_id, builder_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "General settings fetched"
+    );
+  } catch (error) {
+    return errorResponse(res, 500, error.message);
+  } finally {
+    client.release();
+  }
+};

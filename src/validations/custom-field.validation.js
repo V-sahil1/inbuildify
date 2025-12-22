@@ -19,24 +19,6 @@ const createCustomFieldSchema = Joi.object({
         "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.",
       "any.required": "Field type is required.",
     }),
-  options: Joi.when("field_type", {
-    is: "list",
-    then: Joi.array()
-      .items(
-        Joi.string().trim().min(1).messages({
-          "string.empty": "Option cannot be empty.",
-        })
-      )
-      .min(1)
-      .required()
-      .messages({
-        "array.base": "Options must be an array.",
-        "array.min": "At least one option is required for list field type.",
-        "any.required":
-          "Options are required and must be a non-empty array for list field type.",
-      }),
-    otherwise: Joi.forbidden(),
-  }),
 
   sort_order: Joi.number().integer().min(1).default(0),
 
@@ -80,20 +62,46 @@ const updateCustomFieldSchema = Joi.object({
     .valid("text", "number", "date", "checkbox", "list", "multiline")
     .optional(),
 
-  options: Joi.alternatives()
-    .conditional("field_type", {
-      is: "list",
-      then: Joi.array().items(Joi.string().trim().min(1)).min(1).required(),
-      otherwise: Joi.forbidden(),
-    })
-    .optional(),
-
   sort_order: Joi.number().integer().min(1).optional(),
 });
 
 const updateCustomFieldIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
+
+const createOptionSchema = Joi.object({
+  custom_field_id: Joi.string().uuid().required().messages({
+    "string.guid": "Custom field ID must be a valid UUID",
+    "any.required": "Custom field ID is required",
+  }),
+
+  options: Joi.array()
+    .items(
+      Joi.string().trim().min(1).messages({
+        "string.empty": "Option value cannot be empty.",
+      })
+    )
+    .min(1)
+    .required()
+    .unique((a, b) => a.toLowerCase() === b.toLowerCase())
+    .messages({
+      "array.base": "options must be an array.",
+      "array.min": "At least one option is required.",
+      "array.unique": "Duplicate options are not allowed.",
+      "any.required": "options is required.",
+    }),
+});
+
+const deleteOptionParamsSchema = Joi.object({
+  custom_field_id: Joi.string().uuid().required().messages({
+    "string.guid": "Custom field ID must be a valid UUID",
+    "any.required": "Custom field ID is required",
+  }),
+});
+const deleteOptionSchema = Joi.object({
+  options: Joi.array().items(Joi.string().trim().min(1)).min(1).required(),
+});
+
 module.exports = {
   createCustomFieldSchema,
   getAllCustomFieldSchema,
@@ -101,4 +109,7 @@ module.exports = {
   updateCustomFieldIdParamsSchema,
   updateCustomFieldSchema,
   updateCustomFieldIsActiveSchema,
+  createOptionSchema,
+  deleteOptionParamsSchema,
+  deleteOptionSchema,
 };

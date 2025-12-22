@@ -6,6 +6,7 @@ const {
   getPasswordPolicyByUser,
   updatePasswordPolicy,
   updatePasswordPolicyIsActive,
+  getPasswordPolicy,
 } = require("../controllers/password-policy.controller");
 const {
   cretePasswordPolicySchema,
@@ -43,5 +44,7 @@ router.put(
   validateRequest(updatePasswordPolicyIsActiveSchema, REQUEST_SOURCE.BODY),
   updatePasswordPolicyIsActive
 );
+
+router.get("/user", getPasswordPolicy);
 
 module.exports = router;

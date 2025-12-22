@@ -668,6 +668,17 @@ CREATE TABLE state (
   CONSTRAINT unique_state_per_country UNIQUE (country_id, name)
 );
 
+CREATE TABLE timezones (
+    timezone_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    country_code VARCHAR(2) NOT NULL,
+    timezone_name VARCHAR(100) NOT NULL,
+    display_name VARCHAR(150) NOT NULL,
+    utc_offset_minutes INT NOT NULL,
+    is_dst BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
 CREATE TABLE builder (
   builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -699,8 +710,13 @@ CREATE TABLE company (
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   abn_number VARCHAR(20),
-  timezone VARCHAR(100),
-  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  timezone_id UUID NOT NULL,
+  address1 VARCHAR(255) NOT NULL,
+  address2 VARCHAR(255),
+  city VARCHAR(255) NOT NULL,
+  zip_postal_code VARCHAR(20) NOT NULL,
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
   bank_name VARCHAR(150),
   account_name VARCHAR(150),
   account_number VARCHAR(50),
@@ -709,6 +725,7 @@ CREATE TABLE company (
   company_logo VARCHAR(500),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+  CONSTRAINT fk_timezone FOREIGN KEY (timezone_id) REFERENCES timezones(timezone_id) ON DELETE CASCADE,
 );
 
 CREATE TYPE users_role_enum AS ENUM ('super_admin', 'admin', 'project_owner', 'service_provider', 'client');

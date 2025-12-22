@@ -34,7 +34,7 @@ const convertKeysToSnakeCase = (data, res) => {
 const camelToSnakeMiddleware = (req, res, next) => {
   try {
     if (req.body && typeof req.body === "object") {
-      req.body = convertKeysToSnakeCase(req.body);
+      console.log(req.body), (req.body = convertKeysToSnakeCase(req.body));
     }
 
     if (req.query && typeof req.query === "object") {

@@ -108,6 +108,7 @@ const holidayRoutes = require("./holiday.routes");
 const recalculateDateRoutes = require("./recalculate-date.routes");
 const constructionTypeRoutes = require("./construction-type.routes");
 const constructionStageRoutes = require("./construction-stage-.routes");
+const timezoneRoutes = require("./timezone.routes");
 
 module.exports = function (app) {
   app.use(camelToSnakeMiddleware);
@@ -223,4 +224,5 @@ module.exports = function (app) {
   app.use("/recalculate-date", recalculateDateRoutes);
   app.use("/construction-type", constructionTypeRoutes);
   app.use("/construction-stage", constructionStageRoutes);
+  app.use("/timezone", timezoneRoutes);
 };

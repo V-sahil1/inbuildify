@@ -183,7 +183,7 @@ exports.getAllSalesStages = async (req, res) => {
     return successResponse(
       res,
       {
-        salesStage: result.rows,
+        salesStage: keysToCamelCase(result.rows),
         pagination: {
           totalRecords: totalRecords,
           currentPage: page,

@@ -185,57 +185,6 @@ exports.updatePasswordPolicy = async (req, res) => {
       return errorResponse(res, 404, "inactive password policy.");
     }
 
-    // const currentIsActive = exist.rows[0].is_active;
-
-    // const requestedIsActiveTrue = is_active === true || is_active === "true";
-    // const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    // if (currentIsActive === true && is_active !== undefined) {
-    //   if (requestedIsActiveFalse) {
-    //     if (updatingOtherFields) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "To deactivate an active password policy, 'is_active' must be the only field provided in the request."
-    //       );
-    //     }
-    //   }
-    // }
-
-    // if (currentIsActive === false) {
-    //   if (requestedIsActiveTrue) {
-    //     if (updatingOtherFields) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "To activate an inactive password policy, 'is_active' must be the only field provided in the request."
-    //       );
-    //     }
-    //   }
-
-    //   if (updatingOtherFields) {
-    //     await client.query("ROLLBACK");
-    //     return errorResponse(
-    //       res,
-    //       403,
-    //       "Cannot update non-'is_active' fields when the password policy is currently inactive. Only 'is_active' can be changed (to true)."
-    //     );
-    //   }
-
-    //   if (is_active !== undefined) {
-    //     if (requestedIsActiveFalse) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "Password policy is already inactive. 'is_active' can only be updated to true from this state."
-    //       );
-    //     }
-    //   }
-    // }
-
     const fields = [];
     const values = [];
     let idx = 1;
@@ -374,6 +323,46 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
   } catch (error) {
     console.error("Error updating password policy is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getPasswordPolicy = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    if (!company_id && !builder_id) {
+      return errorResponse(res, 400, "Company or builder context is required");
+    }
+
+    let result = await client.query(
+      `SELECT * FROM password_policy
+       WHERE company_id = $1 AND builder_id = $2
+       LIMIT 1`,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `INSERT INTO password_policy 
+          (company_id, builder_id, created_by, updated_by)
+         VALUES ($1, $2, $3, $3)
+         RETURNING *`,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Password policy fetched successfully"
+    );
+  } catch (error) {
+    return errorResponse(res, 500, error.message);
   } finally {
     client.release();
   }

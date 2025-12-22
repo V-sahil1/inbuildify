@@ -6,6 +6,7 @@ const {
   getAllGeneralSettings,
   updateGeneralSettings,
   getGeneralSettingByUser,
+  getUserGeneralSettings,
 } = require("../controllers/general-setting.controller");
 const {
   createGeneralSettigSchema,
@@ -42,5 +43,7 @@ router.put(
   validateRequest(updateGeneralSettingsSchema, REQUEST_SOURCE.BODY),
   updateGeneralSettings
 );
+
+router.get("/user", getUserGeneralSettings);
 
 module.exports = router;
