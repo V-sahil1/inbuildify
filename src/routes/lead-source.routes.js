@@ -25,7 +25,11 @@ const { REQUEST_SOURCE } = require("../config/constants");
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-router.post("/", validateRequest(createLeadSourceSchema), createLeadSource);
+router.post(
+  "/",
+  validateRequest(createLeadSourceSchema, REQUEST_SOURCE.BODY),
+  createLeadSource
+);
 router.get(
   "/",
   validateRequest(getLeadResourcesSchema, REQUEST_SOURCE.QUERY),

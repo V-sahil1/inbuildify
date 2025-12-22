@@ -121,7 +121,7 @@ module.exports = function (app) {
   app.use("/builder", builderRoutes);
   app.use("/contractor", contractorRoutes);
   app.use("/service", serviceRoutes);
-  app.use("/lead-source", leadSourceRoutes);
+  app.use("/sales/lead-source", leadSourceRoutes);
   app.use("/leads", leadRoutes);
   app.use("/leads-contact", leadsContactRoutes);
   app.use("/opportunities", opportunitiesRoutes);
