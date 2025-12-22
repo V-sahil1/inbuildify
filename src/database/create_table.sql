@@ -829,6 +829,43 @@ CREATE TABLE functionality (
   CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 ); 
 
+CREATE TABLE construction_type(
+  construction_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  types_name VARCHAR(255) NOT NULL,
+  start_construction_days INT DEFAULT 21,                                 
+  sort_order INT DEFAULT 1, 
+  dwelling_type UUID[] DEFAULT '{}',
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE construction_stage(
+  construction_stage UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  construction_type_id UUID REFERENCES construction_type(construction_type_id) ON DELETE CASCADE,
+  stage_name VARCHAR(255) NOT NULL,
+  days INT DEFAULT 10,
+  sort_order INT DEFAULT 1,
+  site_image BOOLEAN DEFAULT FALSE,
+  inspection VARCHAR(100) CHECK(inspection IN('not_required', 'stage_start', 'stage_completed')) DEFAULT 'not_required',
+  bg_color VARCHAR(50),                    -- Background color (e.g., #ffffff)
+  font_color VARCHAR(50),                  -- Text color (e.g., #000000)
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_stage_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT uq_construction_stage_stage_name UNIQUE (company_id, builder_id, stage_name)
+);
+
 CREATE TABLE checklist (
   checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,
@@ -2112,43 +2149,6 @@ CREATE TABLE construction_option(
     CONSTRAINT uq_construction_option_option_name UNIQUE (company_id, builder_id, option_name)
 );
 
-CREATE TABLE construction_type(
-  construction_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  types_name VARCHAR(255) NOT NULL,
-  start_construction_days INT DEFAULT 21,                                 
-  sort_order INT DEFAULT 1, 
-  dwelling_type UUID[] DEFAULT '{}',
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_construction_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-);
-
-CREATE TABLE construction_stage(
-  construction_stage UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  construction_type_id UUID REFERENCES construction_type(construction_type_id) ON DELETE CASCADE,
-  stage_name VARCHAR(255) NOT NULL,
-  days INT DEFAULT 10,
-  sort_order INT DEFAULT 1,
-  site_image BOOLEAN DEFAULT FALSE,
-  inspection VARCHAR(100) CHECK(inspection IN('not_required', 'stage_start', 'stage_completed')) DEFAULT 'not_required',
-  bg_color VARCHAR(50),                    -- Background color (e.g., #ffffff)
-  font_color VARCHAR(50),                  -- Text color (e.g., #000000)
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_construction_stage_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
-  CONSTRAINT uq_construction_stage_stage_name UNIQUE (company_id, builder_id, stage_name)
-);
-
 CREATE TABLE appointment(
   appointment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2267,11 +2267,11 @@ CREATE TABLE cost_center(
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_cost_center_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-)
+);
 
 CREATE TABLE cost_center_checklist_map(
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     cost_center_id UUID NOT NULL REFERENCES cost_center(cost_center_id) ON DELETE CASCADE,
     checklist_id UUID NOT NULL REFERENCES checklist(checklist_id) ON DELETE CASCADE,
     UNIQUE (cost_center_id, checklist_id)
-)
+);
