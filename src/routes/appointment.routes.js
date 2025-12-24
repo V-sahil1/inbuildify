@@ -29,7 +29,6 @@ router.post(
   validateRequest(createAppointmentSchema, REQUEST_SOURCE.BODY),
   createAppointment
 );
-
 router.get(
   "/",
   validateRequest(getAllAppointmentSchema, REQUEST_SOURCE.QUERY),

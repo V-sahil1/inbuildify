@@ -397,3 +397,56 @@ exports.updateQuotationSettings = async (req, res) => {
     client.release();
   }
 };
+
+exports.getQuotationSetting = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    if (!company_id || !builder_id) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM quotation_settings
+      WHERE company_id = $1 AND builder_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO quotation_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      {
+        quotationSettings: keysToCamelCase(result.rows[0]),
+      },
+      "Quotation Settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching quotation settings:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

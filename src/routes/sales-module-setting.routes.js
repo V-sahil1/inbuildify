@@ -5,6 +5,7 @@ const {
   createSalesModuleSettings,
   getSalesModuleSettings,
   updateSalesModuleSettings,
+  getSalesModuleSetting,
 } = require("../controllers/sales-module-setting.controller");
 const {
   createSalesModuleSettingsSchema,
@@ -25,6 +26,8 @@ router.post(
   validateRequest(createSalesModuleSettingsSchema, REQUEST_SOURCE.BODY),
   createSalesModuleSettings
 );
+
+router.get("/fetch", getSalesModuleSetting);
 
 router.get("/", getSalesModuleSettings);
 

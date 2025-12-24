@@ -5,6 +5,7 @@ const {
   createQuotationSettings,
   getQuotationSettings,
   updateQuotationSettings,
+  getQuotationSetting,
 } = require("../controllers/quotation-setting.controller");
 const {
   createQuotationSettingSchems,
@@ -26,6 +27,8 @@ router.post(
   validateRequest(createQuotationSettingSchems, REQUEST_SOURCE.BODY),
   createQuotationSettings
 );
+
+router.get("/fetch", getQuotationSetting);
 
 router.get("/", getQuotationSettings);
 

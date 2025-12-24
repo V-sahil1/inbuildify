@@ -218,11 +218,7 @@ exports.inviteUser = async (req, res) => {
         );
       }
 
-      await sendVerificationEmail(
-        email,
-        null,
-        existingInvite.invite_token
-      );
+      await sendVerificationEmail(email, null, existingInvite.invite_token);
 
       const updateInviteQuery = `
           UPDATE invites 
@@ -231,13 +227,17 @@ exports.inviteUser = async (req, res) => {
         `;
       await client.query(updateInviteQuery, [existingInvite.invite_token]);
 
-      return successResponse(res, keysToCamelCase({
-        invite_id: existingInvite.invite_id,
-        email: existingInvite.email,
-        builder_id: existingInvite.builder_id,
-        role: existingInvite.role,
-        invited_at: existingInvite.invited_at,
-      }), "Invitation resent successfully.");
+      return successResponse(
+        res,
+        keysToCamelCase({
+          invite_id: existingInvite.invite_id,
+          email: existingInvite.email,
+          builder_id: existingInvite.builder_id,
+          role: existingInvite.role,
+          invited_at: existingInvite.invited_at,
+        }),
+        "Invitation resent successfully."
+      );
     }
 
     const inviteToken = generateToken();
@@ -253,13 +253,17 @@ exports.inviteUser = async (req, res) => {
 
     await sendVerificationEmail(email, null, inviteToken);
 
-    return successResponse(res, keysToCamelCase({
-      invite_id: inviteData.invite_id,
-      email: inviteData.email,
-      builder_id: inviteData.builder_id,
-      role: inviteData.role,
-      invited_at: inviteData.invited_at,
-    }), "Invitation sent successfully.");
+    return successResponse(
+      res,
+      keysToCamelCase({
+        invite_id: inviteData.invite_id,
+        email: inviteData.email,
+        builder_id: inviteData.builder_id,
+        role: inviteData.role,
+        invited_at: inviteData.invited_at,
+      }),
+      "Invitation sent successfully."
+    );
   } catch (error) {
     console.error("Error inviting user:", error);
     return errorResponse(
@@ -357,11 +361,7 @@ exports.acceptInvite = async (req, res) => {
   }
 };
 
-async function sendVerificationEmail(
-  email,
-  otp,
-  inviteToken = null
-) {
+async function sendVerificationEmail(email, otp, inviteToken = null) {
   let subject;
   let verificationLink;
   let text;
@@ -382,3 +382,64 @@ async function sendVerificationEmail(
     return false;
   }
 }
+
+exports.getAllUsers = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const pageValue = Math.max(parseInt(page, 10), 1);
+    const limitValue = Math.max(parseInt(limit, 10), 1);
+    const offset = (pageValue - 1) * limitValue;
+
+    const countResult = await client.query(`
+      SELECT COUNT(*)::int AS total
+      FROM users
+      WHERE is_deleted = FALSE;
+    `);
+
+    const totalRecords = countResult.rows[0].total;
+
+    const usersResult = await client.query(
+      `
+      SELECT
+        users_id,
+        builder_id,
+        name,
+        email,
+        is_verified,
+        is_deleted,
+        role,
+        root_user,
+        created_at,
+        updated_at
+      FROM users
+      WHERE is_deleted = FALSE
+      ORDER BY created_at DESC
+      LIMIT $1 OFFSET $2;
+      `,
+      [limitValue, offset]
+    );
+
+    return successResponse(
+      res,
+      {
+        users: keysToCamelCase(usersResult.rows),
+        pagination: {
+          currentPage: pageValue,
+          limit: limitValue,
+          totalRecords,
+          totalPages: Math.ceil(totalRecords / limitValue),
+        },
+      },
+      "Users fetched successfully."
+    );
+  } catch (error) {
+    console.error("Get All Users Error:", error);
+    return errorResponse(res, 500, "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+};

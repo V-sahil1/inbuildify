@@ -1013,10 +1013,22 @@ CREATE TABLE role (
   CONSTRAINT uq_role_scope UNIQUE (name, company_id, builder_id)
 );
 
+CREATE TABLE role_type(
+    role_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    type_name VARCHAR(100) NOT NULL,
+    role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_role_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+); 
+
 CREATE TABLE user_role_mapping (
   user_role_mapping_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
+  user_id UUID  REFERENCES users(users_id) ON DELETE CASCADE,
   role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
+  role_type_id UUID REFERENCES role_type(role_type_id) ON DELETE CASCADE,
   assigned_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   assigned_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT uq_user_role UNIQUE (user_id, role_id)

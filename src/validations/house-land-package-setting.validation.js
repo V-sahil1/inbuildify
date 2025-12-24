@@ -14,6 +14,7 @@ const updateHouseLandPackageSettingParamsSchema = Joi.object({
 const updateHouseLandPackageSettingSchems = Joi.object({
   include_facade_cost_in_total: Joi.bool().default(false),
 });
+
 module.exports = {
   createHouseLandPackageSettingSchema,
   updateHouseLandPackageSettingParamsSchema,

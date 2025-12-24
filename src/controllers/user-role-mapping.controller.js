@@ -9,97 +9,138 @@ exports.createUserRoleMapping = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
-    const currentUserId = req.user?.user_id;
 
     if (!builderId || !companyId) {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const { user_id, role_id, assigned_by } = req.body || {};
+    const {
+      role_type_id = null,
+      user_id = null,
+      role_id,
+      assigned_by = null,
+    } = req.body || {};
 
-    if (!user_id || !role_id) {
-      return errorResponse(res, 400, "user_id and role_id are required.");
+    if (!role_id) {
+      return errorResponse(res, 400, "role_id is required.");
     }
 
     const roleResult = await client.query(
-      `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = $2`,
+      `
+      SELECT role_id
+      FROM role
+      WHERE builder_id = $1
+        AND role_id = $2
+      `,
       [builderId, role_id]
     );
 
     if (roleResult.rowCount === 0) {
-      await client.query("ROLLBACK");
       return errorResponse(res, 404, "No role found for this builder.");
     }
 
     const roleActiveResult = await client.query(
-      `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = $2 AND is_active = true`,
+      `
+      SELECT role_id
+      FROM role
+      WHERE builder_id = $1
+        AND role_id = $2
+        AND is_active = true
+      `,
       [builderId, role_id]
     );
 
     if (roleActiveResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "role is inactive.");
+      return errorResponse(res, 404, "Role is inactive.");
     }
 
-    const userResult = await client.query(
-      `SELECT users_id FROM users WHERE users_id = $1`,
-      [user_id]
-    );
+    if (role_type_id) {
+      const roleTypeResult = await client.query(
+        `
+        SELECT role_type_id
+        FROM role_type
+        WHERE role_type_id = $1
+          AND role_id = $2
+          AND (
+            (company_id IS NULL AND builder_id IS NULL)
+            OR (company_id = $3 AND $3 IS NOT NULL)
+            OR (builder_id = $4 AND $4 IS NOT NULL)
+          )
+        LIMIT 1
+        `,
+        [role_type_id, role_id, companyId, builderId]
+      );
 
-    if (userResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "No user found.");
+      if (roleTypeResult.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid role_type_id or role_type not accessible for this role."
+        );
+      }
     }
 
-    const assignedByFinal = assigned_by || currentUserId;
+    if (user_id) {
+      const userResult = await client.query(
+        `
+        SELECT users_id
+        FROM users
+        WHERE users_id = $1 AND is_deleted = fals
+        `,
+        [user_id]
+      );
 
-    const duplicateQuery = `
+      if (userResult.rowCount === 0) {
+        return errorResponse(res, 404, "No user found.");
+      }
+    }
+
+    const duplicateResult = await client.query(
+      `
       SELECT user_role_mapping_id
       FROM user_role_mapping
-      WHERE user_id = $1 AND role_id = $2;
-    `;
-
-    const duplicateResult = await client.query(duplicateQuery, [
-      user_id,
-      role_id,
-    ]);
+      WHERE role_id = $1
+        AND (
+          (user_id = $2)
+          OR (user_id IS NULL AND $2 IS NULL)
+        )
+        AND (
+          (role_type_id = $3)
+          OR (role_type_id IS NULL AND $3 IS NULL)
+        )
+      LIMIT 1
+      `,
+      [role_id, user_id, role_type_id]
+    );
 
     if (duplicateResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        409,
-        "This role is already assigned to the selected user."
-      );
+      return errorResponse(res, 409, "This role mapping already exists.");
     }
 
-    const insertQuery = `
+    const insertResult = await client.query(
+      `
       INSERT INTO user_role_mapping (
         user_id,
         role_id,
+        role_type_id,
         assigned_by
       )
-      VALUES ($1, $2, $3)
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
-    `;
-
-    const insertValues = [user_id, role_id, assignedByFinal];
-
-    const result = await client.query(insertQuery, insertValues);
+      `,
+      [user_id, role_id, role_type_id, assigned_by]
+    );
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
-      "Role assigned to user successfully."
+      keysToCamelCase(insertResult.rows[0]),
+      "Role mapping created successfully."
     );
   } catch (error) {
     console.error("Create User Role Mapping Error:", error);
 
     if (error.code === "23505") {
-      return errorResponse(
-        res,
-        409,
-        "This role is already assigned to the selected user."
-      );
+      return errorResponse(res, 409, "This role mapping already exists.");
     }
 
     return errorResponse(res, 500, "Internal Server Error.");
@@ -142,6 +183,7 @@ exports.getAllUserRoleMapping = async (req, res) => {
         urm.user_role_mapping_id,
         urm.user_id,
         urm.role_id,
+        urm.role_type_id,
         urm.assigned_by,
         urm.assigned_at
       FROM user_role_mapping urm
@@ -241,24 +283,28 @@ exports.updateUserRoleMapping = async (req, res) => {
 
   try {
     const { user_role_mapping_id } = req.params;
-
     const builderId = req.user?.builder_id;
-    const currentUserId = req.user?.user_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
+    if (!builderId || !companyId) {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const { user_id, role_id, assigned_by } = req.body || {};
+    const {
+      user_id = undefined,
+      role_id = undefined,
+      role_type_id = undefined,
+      assigned_by = undefined,
+    } = req.body || {};
 
-    const existingQuery = `
+    const existingResult = await client.query(
+      `
       SELECT *
       FROM user_role_mapping
       WHERE user_role_mapping_id = $1;
-    `;
-    const existingResult = await client.query(existingQuery, [
-      user_role_mapping_id,
-    ]);
+      `,
+      [user_role_mapping_id]
+    );
 
     if (existingResult.rowCount === 0) {
       return errorResponse(res, 404, "User role mapping not found.");
@@ -266,36 +312,80 @@ exports.updateUserRoleMapping = async (req, res) => {
 
     const existing = existingResult.rows[0];
 
-    const finalUserId = user_id ?? existing.user_id;
-    const finalRoleId = role_id ?? existing.role_id;
+    const finalUserId = user_id !== undefined ? user_id : existing.user_id;
+
+    const finalRoleId = role_id !== undefined ? role_id : existing.role_id;
+
+    const finalRoleTypeId =
+      role_type_id !== undefined ? role_type_id : existing.role_type_id;
+
     const finalAssignedBy =
-      assigned_by ?? existing.assigned_by ?? currentUserId;
+      assigned_by !== undefined ? assigned_by : existing.assigned_by;
 
     if (role_id !== undefined) {
       const roleResult = await client.query(
-        `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = $2`,
+        `
+        SELECT role_id
+        FROM role
+        WHERE builder_id = $1
+          AND role_id = $2;
+        `,
         [builderId, finalRoleId]
       );
 
       if (roleResult.rowCount === 0) {
         return errorResponse(res, 404, "No role found for this builder.");
       }
-    }
 
-    if (role_id !== undefined) {
-      const roleResult = await client.query(
-        `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = $2 AND is_active = true`,
+      const roleActiveResult = await client.query(
+        `
+        SELECT role_id
+        FROM role
+        WHERE builder_id = $1
+          AND role_id = $2
+          AND is_active = true;
+        `,
         [builderId, finalRoleId]
       );
 
-      if (roleResult.rowCount === 0) {
-        return errorResponse(res, 404, "role is inactive.");
+      if (roleActiveResult.rowCount === 0) {
+        return errorResponse(res, 404, "Role is inactive.");
       }
     }
 
-    if (user_id !== undefined) {
+    if (finalRoleTypeId) {
+      const roleTypeResult = await client.query(
+        `
+        SELECT role_type_id
+        FROM role_type
+        WHERE role_type_id = $1
+          AND role_id = $2
+          AND (
+            (company_id IS NULL AND builder_id IS NULL)
+            OR (company_id = $3 AND $3 IS NOT NULL)
+            OR (builder_id = $4 AND $4 IS NOT NULL)
+          )
+        LIMIT 1;
+        `,
+        [finalRoleTypeId, finalRoleId, companyId, builderId]
+      );
+
+      if (roleTypeResult.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid role_type_id or role_type not accessible for this role."
+        );
+      }
+    }
+
+    if (user_id !== undefined && finalUserId !== null) {
       const userResult = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
+        `
+        SELECT users_id
+        FROM users
+        WHERE users_id = $1 AND is_deleted = false;
+        `,
         [finalUserId]
       );
 
@@ -304,26 +394,27 @@ exports.updateUserRoleMapping = async (req, res) => {
       }
     }
 
-    const duplicateQuery = `
+    const duplicateResult = await client.query(
+      `
       SELECT user_role_mapping_id
       FROM user_role_mapping
-      WHERE user_id = $1 
-        AND role_id = $2
-        AND user_role_mapping_id <> $3;
-    `;
-
-    const duplicateResult = await client.query(duplicateQuery, [
-      finalUserId,
-      finalRoleId,
-      user_role_mapping_id,
-    ]);
+      WHERE role_id = $1
+        AND (
+          (user_id = $2)
+          OR (user_id IS NULL AND $2 IS NULL)
+        )
+        AND (
+          (role_type_id = $3)
+          OR (role_type_id IS NULL AND $3 IS NULL)
+        )
+        AND user_role_mapping_id <> $4
+      LIMIT 1;
+      `,
+      [finalRoleId, finalUserId, finalRoleTypeId, user_role_mapping_id]
+    );
 
     if (duplicateResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        409,
-        "This role is already assigned to the selected user."
-      );
+      return errorResponse(res, 409, "This role mapping already exists.");
     }
 
     const fields = [];
@@ -335,6 +426,9 @@ exports.updateUserRoleMapping = async (req, res) => {
 
     fields.push(`role_id = $${idx++}`);
     values.push(finalRoleId);
+
+    fields.push(`role_type_id = $${idx++}`);
+    values.push(finalRoleTypeId);
 
     fields.push(`assigned_by = $${idx++}`);
     values.push(finalAssignedBy);
@@ -359,11 +453,7 @@ exports.updateUserRoleMapping = async (req, res) => {
     console.error("Update User Role Mapping Error:", error);
 
     if (error.code === "23505") {
-      return errorResponse(
-        res,
-        409,
-        "This role is already assigned to the selected user."
-      );
+      return errorResponse(res, 409, "This role mapping already exists.");
     }
 
     return errorResponse(res, 500, "Internal Server Error.");

@@ -5,6 +5,7 @@ const {
   createHouseLandPackageSetting,
   getHouseLandPackagesetting,
   updateHouseLandPackageSetting,
+  getHouseLandPackageSettings,
 } = require("../controllers/house-land-package-setting.controller");
 const {
   createHouseLandPackageSettingSchema,
@@ -25,6 +26,8 @@ router.post(
   validateRequest(createHouseLandPackageSettingSchema, REQUEST_SOURCE.BODY),
   createHouseLandPackageSetting
 );
+
+router.get("/fetch", getHouseLandPackageSettings);
 
 router.get("/", getHouseLandPackagesetting);
 

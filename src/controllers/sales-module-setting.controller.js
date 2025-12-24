@@ -305,3 +305,56 @@ exports.updateSalesModuleSettings = async (req, res) => {
     client.release();
   }
 };
+
+exports.getSalesModuleSetting = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    if (!company_id || !builder_id) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM sales_module_settings
+      WHERE company_id = $1 AND builder_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO sales_module_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      {
+        salesModuleSettings: keysToCamelCase(result.rows[0]),
+      },
+      "Sales Module Settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching sales module settings:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

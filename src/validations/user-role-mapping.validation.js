@@ -1,9 +1,12 @@
 const Joi = require("joi");
 
 const createUserRoleMappingSchema = Joi.object({
-  user_id: Joi.string().uuid().required().messages({
+  role_type_id: Joi.string().uuid().optional().messages({
     "string.guid": "user ID must be a valid UUID",
-    "any.required": "user ID is required",
+  }),
+
+  user_id: Joi.string().uuid().optional().messages({
+    "string.guid": "user ID must be a valid UUID",
   }),
 
   role_id: Joi.string().uuid().required().messages({
@@ -46,6 +49,10 @@ const updateUserRoleMppingParamsSchema = Joi.object({
 });
 
 const updateUserRoleMappingSchema = Joi.object({
+  role_type_id: Joi.string().uuid().optional().messages({
+    "string.guid": "role type ID must be a valid UUID",
+  }),
+
   user_id: Joi.string().uuid().optional().messages({
     "string.guid": "user ID must be a valid UUID",
   }),

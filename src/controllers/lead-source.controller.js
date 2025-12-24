@@ -101,27 +101,22 @@ exports.getLeadSources = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total 
       FROM lead_source
-      WHERE (company_id = $1 OR company_id IS NULL)
-        AND (builder_id = $2 OR builder_id IS NULL)
+      WHERE 
+       (builder_id = $1)
     `;
-    const countResult = await client.query(countQuery, [companyId, builderId]);
+    const countResult = await client.query(countQuery, [builderId]);
     const total = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(total / limit);
 
     const query = `
       SELECT *
       FROM lead_source 
-      WHERE (company_id = $1 OR company_id IS NULL)
-      AND (builder_id = $2 OR builder_id IS NULL)
+      WHERE 
+      (builder_id = $1)
       ORDER BY sort_order ASC, created_at DESC
-      LIMIT $3 OFFSET $4;
+      LIMIT $2 OFFSET $3;
     `;
-    const result = await client.query(query, [
-      companyId,
-      builderId,
-      limit,
-      offset,
-    ]);
+    const result = await client.query(query, [builderId, limit, offset]);
 
     return successResponse(
       res,

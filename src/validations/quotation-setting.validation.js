@@ -76,6 +76,7 @@ const updateQuotationSettingSchema = Joi.object({
     "string.guid": "price list ID must be a valid UUID",
   }),
 });
+
 module.exports = {
   createQuotationSettingSchems,
   updateQuotationSettingParamsSchema,

@@ -5,6 +5,7 @@ const {
   getScreens,
   deleteScreen,
   updateScreen,
+  getAllScreens,
 } = require("../controllers/screen.controller");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -29,6 +30,12 @@ router.post(
 );
 
 router.get(
+  "/fetch",
+  validateRequest(getScreenSchema, REQUEST_SOURCE.QUERY),
+  getAllScreens
+);
+
+router.get(
   "/",
   validateRequest(getScreenSchema, REQUEST_SOURCE.QUERY),
   getScreens
@@ -46,4 +53,5 @@ router.put(
   validateRequest(updateScreenSchema, REQUEST_SOURCE.BODY),
   updateScreen
 );
+
 module.exports = router;

@@ -5,6 +5,7 @@ const {
   getFunctionalities,
   deleteFunctionality,
   updateFunctionality,
+  getFunctionalitiesByScreen,
 } = require("../controllers/functionality.controller");
 const {
   createFunctionalitySchema,
@@ -12,12 +13,14 @@ const {
   deleteFunctionalitySchema,
   updateFunctionalityParamsSchema,
   updateFunctionalitySchema,
+  getAllFunctionalityByScreenIdSchema,
 } = require("../validations/functionality.validation");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { REQUEST_SOURCE } = require("../config/constants");
+const { route } = require("./checklist.routes");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -46,4 +49,11 @@ router.put(
   validateRequest(updateFunctionalitySchema, REQUEST_SOURCE.BODY),
   updateFunctionality
 );
+
+router.get(
+  "/fetch",
+  validateRequest(getAllFunctionalityByScreenIdSchema, REQUEST_SOURCE.QUERY),
+  getFunctionalitiesByScreen
+);
+
 module.exports = router;

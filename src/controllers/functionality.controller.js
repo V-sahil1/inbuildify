@@ -324,3 +324,74 @@ exports.updateFunctionality = async (req, res) => {
     client.release();
   }
 };
+
+exports.getFunctionalitiesByScreen = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id; // may be null
+    const { screen_id, page = 1, limit = 25 } = req.query;
+
+    if (!screen_id) {
+      return errorResponse(res, 400, "screen_id is required");
+    }
+
+    const limitValue = parseInt(limit, 10);
+    const pageValue = parseInt(page, 10);
+    const offset = (pageValue - 1) * limitValue;
+
+    // Fetch paginated data
+    const dataQuery = `
+      SELECT
+        functionality_id,
+        name,
+        screen_id,
+        company_id,
+        builder_id,
+        created_at,
+        updated_at
+      FROM functionality
+      WHERE screen_id = $1 AND builder_id = $2
+      ORDER BY name
+      LIMIT $3 OFFSET $4;
+    `;
+    const dataResult = await client.query(dataQuery, [
+      screen_id,
+      builderId,
+      limitValue,
+      offset,
+    ]);
+
+    // Fetch total count
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM functionality
+      WHERE screen_id = $1 AND builder_id = $2;
+    `;
+    const countResult = await client.query(countQuery, [screen_id, builderId]);
+
+    const totalRecords = parseInt(countResult.rows[0].total, 10);
+    const totalPages = Math.ceil(totalRecords / limitValue);
+
+    return successResponse(
+      res,
+      {
+        functionalities: keysToCamelCase(dataResult.rows),
+        pagination: {
+          currentPage: pageValue,
+          totalPages,
+          totalRecords,
+          limit: limitValue,
+        },
+      },
+      "Functionalities fetched successfully."
+    );
+  } catch (error) {
+    console.error("Error fetching functionalities:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
