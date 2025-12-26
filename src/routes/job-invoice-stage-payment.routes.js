@@ -6,6 +6,7 @@ const {
   getAllJobInvoiceStagePayments,
   deleteJobInvoiceStagePayment,
   updateJobInvoiceStagePayment,
+  updateJobInvoiceStagePaymentIsActive,
 } = require("../controllers/job-invoice-stage-payment.controller");
 const {
   createJobInvoiceStagePaymentSchema,
@@ -13,6 +14,7 @@ const {
   deleteJobInvoiceStagePaymentSchema,
   updateJobInvoiceStagePaymentParamsSchema,
   updateJobInvoiceStagePaymentSchema,
+  updateJobInvoiceStagePaymentIsActiveSchema,
 } = require("../validations/job-invoice-stage-payment.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -52,4 +54,16 @@ router.put(
   updateJobInvoiceStagePayment
 );
 
+router.put(
+  "/is-active/:job_invoice_stage_payment_id",
+  validateRequest(
+    updateJobInvoiceStagePaymentParamsSchema,
+    REQUEST_SOURCE.PARAMS
+  ),
+  validateRequest(
+    updateJobInvoiceStagePaymentIsActiveSchema,
+    REQUEST_SOURCE.BODY
+  ),
+  updateJobInvoiceStagePaymentIsActive
+);
 module.exports = router;

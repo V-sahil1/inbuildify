@@ -79,10 +79,10 @@ const updateJobInvoiceStagePaymentSchema = Joi.object({
     "number.base": "Sort order must be a number.",
     "number.min": "Sort order must be at least 1.",
   }),
+});
 
-  active: Joi.boolean().optional().messages({
-    "boolean.base": "Active must be true or false.",
-  }),
+const updateJobInvoiceStagePaymentIsActiveSchema = Joi.object({
+  active: Joi.boolean().required(),
 });
 module.exports = {
   createJobInvoiceStagePaymentSchema,
@@ -90,4 +90,5 @@ module.exports = {
   deleteJobInvoiceStagePaymentSchema,
   updateJobInvoiceStagePaymentParamsSchema,
   updateJobInvoiceStagePaymentSchema,
+  updateJobInvoiceStagePaymentIsActiveSchema,
 };

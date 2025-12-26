@@ -242,7 +242,6 @@ exports.updateTemplateEmail = async (req, res) => {
     email_content,
     additional_recipient_users,
     additional_recipient_groups,
-    is_active,
   } = req.body;
 
   try {
@@ -264,67 +263,18 @@ exports.updateTemplateEmail = async (req, res) => {
       );
     }
 
-    const currentIsActive = checkResult.rows[0].is_active;
-
-    const updatingOtherFields =
-      name ||
-      type ||
-      subject ||
-      email_content ||
-      additional_recipient_users ||
-      additional_recipient_groups;
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (!updatingOtherFields && is_active === undefined) {
-      return errorResponse(
-        res,
-        400,
-        "At least one field is required to update."
-      );
-    }
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active email template, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive email template, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the email template is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Email template is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
+    const checkActiveQuery = `
+      SELECT * FROM template_email 
+      WHERE template_email_id = $1 
+      AND (builder_id = $2 OR company_id = $3) AND is_active = true
+    `;
+    const checkActiveResult = await client.query(checkActiveQuery, [
+      id,
+      builderId,
+      companyId,
+    ]);
+    if (checkActiveResult.rows.length === 0) {
+      return errorResponse(res, 404, "Template email is inactive.");
     }
 
     if (name) {
@@ -387,12 +337,15 @@ exports.updateTemplateEmail = async (req, res) => {
       }
     }
 
-    {
-      const groupActiveQuery = `
+    if (
+      Array.isArray(additional_recipient_groups) &&
+      additional_recipient_groups.length > 0
+    ) {
+      const groupValidationQuery = `
         SELECT user_group_id FROM user_group 
         WHERE user_group_id = ANY($1) AND (builder_id = $2 OR company_id = $3) AND is_active = true
       `;
-      const groupCheck = await client.query(groupActiveQuery, [
+      const groupCheck = await client.query(groupValidationQuery, [
         additional_recipient_groups,
         builderId,
         companyId,
@@ -431,10 +384,6 @@ exports.updateTemplateEmail = async (req, res) => {
       fields.push(`additional_recipient_groups = $${paramIndex++}`);
       values.push(additional_recipient_groups);
     }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${paramIndex++}`);
-      values.push(is_active);
-    }
 
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
@@ -453,7 +402,7 @@ exports.updateTemplateEmail = async (req, res) => {
 
     return successResponse(
       res,
-      result.rows[0],
+      keysToCamelCase(result.rows[0]),
       "Template email updated successfully."
     );
   } catch (error) {
@@ -529,6 +478,72 @@ exports.deleteTemplateEmail = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Delete Template Email Error:", error);
     return errorResponse(res, 500, "Failed to delete template email.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateTemplateEmailIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!id) {
+      return errorResponse(res, 400, "template_email_id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT template_email_id
+      FROM template_email
+      WHERE template_email_id = $1
+        AND (
+          builder_id = $2
+          OR company_id = $3
+        )
+      `,
+      [id, builderId, companyId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "Template email not found in your scope");
+    }
+
+    const updateQuery = `
+      UPDATE template_email
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE template_email_id = $3
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [is_active, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Template email status updated successfully"
+    );
+  } catch (error) {
+    console.error("Error updating template email is_active:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

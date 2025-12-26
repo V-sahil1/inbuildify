@@ -85,7 +85,7 @@ exports.createUserRoleMapping = async (req, res) => {
         `
         SELECT users_id
         FROM users
-        WHERE users_id = $1 AND is_deleted = fals
+        WHERE users_id = $1 AND is_deleted = false
         `,
         [user_id]
       );

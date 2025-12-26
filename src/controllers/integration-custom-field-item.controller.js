@@ -82,7 +82,7 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
     }
 
     if (assignee_user_id) {
-      const userCheckQuery = `SELECT users_id FROM users WHERE users_id = $1;`;
+      const userCheckQuery = `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;`;
       const userCheckResult = await client.query(userCheckQuery, [
         assignee_user_id,
       ]);
@@ -301,16 +301,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       value2,
       assignee_user_id,
       sort_order,
-      is_active,
     } = req.body;
-
-    const updatingOtherFields =
-      header1_id !== undefined ||
-      header2_id !== undefined ||
-      value1 !== undefined ||
-      value2 !== undefined ||
-      assignee_user_id !== undefined ||
-      sort_order !== undefined;
 
     const checkItemQuery = `
       SELECT * FROM integration_custom_field_item
@@ -331,63 +322,19 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       );
     }
 
-    const currentIsActive = checkItemResult.rows[0].is_active;
+    const checkActiveItemQuery = `
+      SELECT * FROM integration_custom_field_item
+      WHERE integration_custom_field_item_id = $1
+      AND (builder_id = $2 OR company_id = $3) AND is_active = true;
+    `;
+    const checkActiveItemResult = await client.query(checkActiveItemQuery, [
+      integration_custom_field_item_id,
+      builderId,
+      companyId,
+    ]);
 
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (
-      header1_id === undefined &&
-      header2_id === undefined &&
-      value1 === undefined &&
-      value2 === undefined &&
-      assignee_user_id === undefined &&
-      sort_order === undefined &&
-      is_active === undefined
-    ) {
-      return errorResponse(res, 400, "No fields provided to update.");
-    }
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active custom field item, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive custom field item, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the custom field item is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Custom field item is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
+    if (checkActiveItemResult.rowCount === 0) {
+      return errorResponse(res, 404, "Inactive integration custom field item.");
     }
 
     if (header1_id) {
@@ -434,7 +381,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
 
     if (assignee_user_id) {
       const userCheckQuery = `
-        SELECT users_id FROM users WHERE users_id = $1;
+        SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;
       `;
       const userCheckResult = await client.query(userCheckQuery, [
         assignee_user_id,
@@ -501,11 +448,6 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       values.push(sort_order);
     }
 
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${i++}`);
-      values.push(is_active);
-    }
-
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
     }
@@ -539,6 +481,75 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
   } catch (error) {
     console.error("Error updating integration custom field item:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateIntegrationCustomFieldItemIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { builder_id, company_id, user_id } = req.user;
+    const { integration_custom_field_item_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!integration_custom_field_item_id) {
+      return errorResponse(
+        res,
+        400,
+        "integration custom field item id is required"
+      );
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT integration_custom_field_item_id
+      FROM integration_custom_field_item
+      WHERE integration_custom_field_item_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+      `,
+      [integration_custom_field_item_id, company_id, builder_id]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "integration custom field item not found");
+    }
+
+    const updated = await client.query(
+      `
+      UPDATE integration_custom_field_item
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE integration_custom_field_item_id = $3
+      RETURNING *;
+      `,
+      [is_active, user_id, integration_custom_field_item_id]
+    );
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Integration custom field item status updated successfully."
+    );
+  } catch (error) {
+    console.error(
+      "Error updating integration custom field item is_active:",
+      error
+    );
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

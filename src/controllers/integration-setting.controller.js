@@ -48,7 +48,7 @@ exports.createIntegrationSettings = async (req, res) => {
     if (assign_leads_if_assignee_not_found) {
       const query = `
         SELECT users_id FROM users 
-        WHERE users_id = $1
+        WHERE users_id = $1 AND is_deleted = false
       `;
       userValidationPromises.push(
         client.query(query, [assign_leads_if_assignee_not_found])
@@ -58,7 +58,7 @@ exports.createIntegrationSettings = async (req, res) => {
     if (always_assign_leads_to) {
       const query = `
         SELECT users_id FROM users 
-        WHERE users_id = $1
+        WHERE users_id = $1 AND is_deleted = false
       `;
       userValidationPromises.push(
         client.query(query, [always_assign_leads_to])
@@ -133,49 +133,6 @@ exports.createIntegrationSettings = async (req, res) => {
   }
 };
 
-exports.getIntegrationSettingByUser = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
-
-    const getQuery = `
-      SELECT 
-       *
-      FROM integration_settings
-      WHERE (builder_id = $1 OR company_id = $2)
-      LIMIT 1;
-    `;
-
-    const result = await client.query(getQuery, [builderId, companyId]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Integration settings not found.");
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Integration settings fetched successfully."
-    );
-  } catch (err) {
-    console.error("Error fetching integration settings:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error.");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateIntegrationSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -225,7 +182,7 @@ exports.updateIntegrationSettings = async (req, res) => {
 
     if (assign_leads_if_assignee_not_found) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
         [assign_leads_if_assignee_not_found]
       );
 
@@ -240,7 +197,7 @@ exports.updateIntegrationSettings = async (req, res) => {
 
     if (always_assign_leads_to) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
         [always_assign_leads_to]
       );
 
@@ -318,6 +275,53 @@ exports.updateIntegrationSettings = async (req, res) => {
   } catch (err) {
     console.error("Error updating integration settings:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getUserIntegrationSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM integration_settings
+      WHERE company_id = $1
+        AND builder_id = $2
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO integration_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Integration settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching integration settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

@@ -291,48 +291,6 @@ exports.createJobVariationSettings = async (req, res) => {
   }
 };
 
-exports.getJobVariationSettings = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-
-    if (!builderId) {
-      return errorResponse(res, "Builder ID missing or invalid", 400);
-    }
-
-    const query = `
-      SELECT
-        *
-      FROM job_variation_settings
-      WHERE builder_id = $1
-      LIMIT 1;
-    `;
-
-    const result = await client.query(query, [builderId]);
-
-    if (result.rows.length === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No job variation settings found for this builder"
-      );
-    }
-
-    return successResponse(
-      res,
-      result.rows[0],
-      "Job variation settings fetched successfully"
-    );
-  } catch (error) {
-    console.error("Error fetching job variation settings:", error);
-    return errorResponse(res, "Internal server error", 500);
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateJobVariationSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -599,6 +557,53 @@ exports.updateJobVariationSettings = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating job variation settings:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getUserJobVariationSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM job_variation_settings
+      WHERE company_id = $1
+        AND builder_id = $2
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO job_variation_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Job variation settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching job variation settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

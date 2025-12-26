@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createIntegrationSettings,
-  getIntegrationSettingByUser,
   updateIntegrationSettings,
+  getUserIntegrationSettings,
 } = require("../controllers/integration-setting.controller");
 const {
   createIntegrationSettingsSchema,
@@ -27,7 +27,7 @@ router.post(
   createIntegrationSettings
 );
 
-router.get("/", getIntegrationSettingByUser);
+router.get("/", getUserIntegrationSettings);
 
 router.put(
   "/:integration_settings_id",

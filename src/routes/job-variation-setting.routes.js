@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createJobVariationSettings,
-  getJobVariationSettings,
   updateJobVariationSettings,
+  getUserJobVariationSettings,
 } = require("../controllers/job-variation-setting.controller");
 const {
   createJobVariationSettingSchema,
@@ -27,7 +27,7 @@ router.post(
   createJobVariationSettings
 );
 
-router.get("/", getJobVariationSettings);
+router.get("/", getUserJobVariationSettings);
 
 router.put(
   "/:id",

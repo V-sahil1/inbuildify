@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createMaintenanceSettings,
-  getMaintenanceSetting,
   updateMaintenanceSettings,
+  getUserMaintenanceSettings,
 } = require("../controllers/maintenance-setting.controller");
 const {
   createMaintenanceSettingSchema,
@@ -27,7 +27,7 @@ router.post(
   createMaintenanceSettings
 );
 
-router.get("/", getMaintenanceSetting);
+router.get("/", getUserMaintenanceSettings);
 
 router.put(
   "/:maintenance_settings_id",

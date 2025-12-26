@@ -67,7 +67,6 @@ const updateTemplateEmailSchem = Joi.object({
     .messages({
       "string.guid": "Additional recipient group ID must be a valid UUID",
     }),
-  is_active: Joi.boolean(),
 });
 
 const deleteTemplateEmailSchema = Joi.object({
@@ -77,10 +76,15 @@ const deleteTemplateEmailSchema = Joi.object({
   }),
 });
 
+const updateTemplateEmailIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
+
 module.exports = {
   createTemplateEmailSchema,
   getAllTemplateEmailSchema,
   updateTemplateEmailParamsSchema,
   updateTemplateEmailSchem,
   deleteTemplateEmailSchema,
+  updateTemplateEmailIsActiveSchema,
 };

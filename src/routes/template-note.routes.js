@@ -6,6 +6,7 @@ const {
   getAllTemplateNotes,
   deleteTemplateNote,
   updateTemplateNote,
+  updateTemplateNoteIsActive,
 } = require("../controllers/template-note.controller");
 const {
   createTemplateNoteSchema,
@@ -13,6 +14,7 @@ const {
   deleteTemplateNoteSchema,
   updateTemplateNoteParamsSchema,
   updateTemplateNoteSchema,
+  updateTemplateNoteIsActiveSchema,
 } = require("../validations/template-note.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -46,5 +48,12 @@ router.put(
   validateRequest(updateTemplateNoteParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateTemplateNoteSchema, REQUEST_SOURCE.BODY),
   updateTemplateNote
+);
+
+router.put(
+  "/is-active/:template_note_id",
+  validateRequest(updateTemplateNoteParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateTemplateNoteIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateTemplateNoteIsActive
 );
 module.exports = router;

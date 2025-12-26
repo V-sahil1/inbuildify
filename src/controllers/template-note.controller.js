@@ -193,7 +193,7 @@ exports.updateTemplateNote = async (req, res) => {
     const builderId = req.user.builder_id;
     const userId = req.user.users_id;
 
-    const { name, content, is_active } = req.body;
+    const { name, content } = req.body;
 
     const checkQuery = `
       SELECT *
@@ -214,56 +214,71 @@ exports.updateTemplateNote = async (req, res) => {
       );
     }
 
-    const currentIsActive = checkResult.rows[0].is_active;
+    const checkActiveQuery = `
+      SELECT *
+      FROM template_note
+      WHERE template_note_id = $1
+        AND builder_id = $2 AND is_active = true;
+    `;
+    const checkActiveResult = await client.query(checkActiveQuery, [
+      template_note_id,
+      builderId,
+    ]);
 
-    const updatingOtherFields = name || content;
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (!updatingOtherFields && is_active === undefined) {
-      return errorResponse(res, 400, "No valid fields provided for update.");
+    if (checkActiveResult.rows.length === 0) {
+      return errorResponse(res, 404, "Template note is inactive.");
     }
 
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active note template, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive note template, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
+    // const currentIsActive = checkResult.rows[0].is_active;
 
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the note template is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
+    // const updatingOtherFields = name || content;
+    // const requestedIsActiveTrue = is_active === true || is_active === "true";
+    // const requestedIsActiveFalse = is_active === false || is_active === "false";
 
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Note template is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
+    // if (!updatingOtherFields && is_active === undefined) {
+    //   return errorResponse(res, 400, "No valid fields provided for update.");
+    // }
+
+    // if (currentIsActive === true && is_active !== undefined) {
+    //   if (requestedIsActiveFalse) {
+    //     if (updatingOtherFields) {
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To deactivate an active note template, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+    // }
+    // if (currentIsActive === false) {
+    //   if (requestedIsActiveTrue) {
+    //     if (updatingOtherFields) {
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive note template, 'is_active' must be the only field provided in the request."
+    //       );
+    //     }
+    //   }
+
+    //   if (updatingOtherFields) {
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when the note template is currently inactive. Only 'is_active' can be changed (to true)."
+    //     );
+    //   }
+
+    //   if (is_active !== undefined) {
+    //     if (requestedIsActiveFalse) {
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "Note template is already inactive. 'is_active' can only be updated to true from this state."
+    //       );
+    //     }
+    //   }
+    // }
 
     if (name) {
       const duplicateQuery = `
@@ -300,10 +315,10 @@ exports.updateTemplateNote = async (req, res) => {
       fields.push(`content = $${paramIndex++}`);
       values.push(content.trim());
     }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${paramIndex++}`);
-      values.push(is_active);
-    }
+    // if (is_active !== undefined) {
+    //   fields.push(`is_active = $${paramIndex++}`);
+    //   values.push(is_active);
+    // }
 
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
@@ -328,6 +343,76 @@ exports.updateTemplateNote = async (req, res) => {
   } catch (error) {
     console.error("Error updating template note:", error);
     return errorResponse(res, 500, error.message || "Internal server error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateTemplateNoteIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    const { template_note_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!template_note_id) {
+      return errorResponse(res, 400, "template_note_id is required");
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT template_note_id
+      FROM template_note
+      WHERE template_note_id = $1
+        AND (
+          builder_id = $2
+          OR company_id = $3
+        )
+      `,
+      [template_note_id, builderId, companyId]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "Template note not found in your scope");
+    }
+
+    const updateQuery = `
+      UPDATE template_note
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE template_note_id = $3
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [
+      is_active,
+      userId,
+      template_note_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Template note status updated successfully"
+    );
+  } catch (error) {
+    console.error("Error updating template note is_active:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

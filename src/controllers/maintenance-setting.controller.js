@@ -165,52 +165,6 @@ exports.createMaintenanceSettings = async (req, res) => {
   }
 };
 
-exports.getMaintenanceSetting = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        400,
-        "Invalid user context. Missing builder or company ID."
-      );
-    }
-
-    const query = `
-      SELECT *
-      FROM maintenance_settings
-      WHERE builder_id = $1 AND company_id = $2;
-    `;
-
-    const result = await client.query(query, [builderId, companyId]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No maintenance settings found for this builder."
-      );
-    }
-
-    const data = keysToCamelCase(result.rows[0]);
-    return successResponse(
-      res,
-      data,
-      "Maintenance settings fetched successfully."
-    );
-  } catch (error) {
-    console.error("Error fetching maintenance settings:", error);
-    return errorResponse(res, 500, "Internal server error.", error.message);
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateMaintenanceSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -440,6 +394,53 @@ exports.updateMaintenanceSettings = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating maintenance settings:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.getUserMaintenanceSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM maintenance_settings
+      WHERE company_id = $1
+        AND builder_id = $2
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO maintenance_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Maintenance settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching maintenance settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

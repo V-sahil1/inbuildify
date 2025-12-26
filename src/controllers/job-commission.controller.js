@@ -58,6 +58,22 @@ exports.createJobCommission = async (req, res) => {
         `Cannot create ${commission_type} commission. Corresponding setting is not enabled.`
       );
     }
+
+    if (recipient_user_id) {
+      const userCheck = await client.query(
+        `
+        SELECT users_id
+        FROM users
+        WHERE users_id = $1 AND is_deleted = false
+        `,
+        [recipient_user_id]
+      );
+
+      if (userCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Recipient user id is not valid.");
+      }
+    }
     const jobCommissionSettingsId =
       settingsResult.rows[0].job_commission_settings_id;
 
@@ -319,6 +335,24 @@ exports.updateJobCommission = async (req, res) => {
 
     const old = existingQ.rows[0];
 
+    const finalRecipient = recipient ?? old.recipient;
+    const finalRecipientUser =
+      finalRecipient === "other_user"
+        ? recipient_user_id ?? old.recipient_user_id
+        : null;
+
+    if (finalRecipient === "other_user" && finalRecipientUser) {
+      const userCheck = await client.query(
+        `SELECT users_id FROM users WHERE users_id = $1`,
+        [finalRecipientUser]
+      );
+
+      if (userCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Recipient user id is not valid.");
+      }
+    }
+
     let finalUnit = commission_unit ?? old.commission_unit;
     let finalValue = commission_value ?? old.commission_value;
 
@@ -400,38 +434,16 @@ exports.updateJobCommission = async (req, res) => {
     assign("commission_value", commission_value);
     assign("sort_order", sort_order);
 
-    const finalRecipient = recipient ?? old.recipient;
-    const oldRecipientUser = old.recipient_user_id;
-
     if (finalRecipient !== "other_user") {
-      if (recipient_user_id !== undefined) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "recipient_user_id is only allowed when recipient = other_user."
-        );
-      }
-
       fields.push(`recipient_user_id = $${i++}`);
       values.push(null);
     } else {
-      if (!oldRecipientUser && recipient_user_id === undefined) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "recipient_user_id is required when recipient is other_user."
-        );
-      }
-
       fields.push(`recipient_user_id = $${i++}`);
-      values.push(recipient_user_id ?? oldRecipientUser);
+      values.push(finalRecipientUser);
     }
 
-    fields.push(`updated_by = $${i}`);
+    fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    i++;
 
     fields.push(`updated_at = NOW()`);
 

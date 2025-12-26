@@ -251,10 +251,7 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       );
     }
 
-    const { header_name, sort_order, is_active } = req.body;
-
-    const updatingOtherFields =
-      header_name !== undefined || sort_order !== undefined;
+    const { header_name, sort_order } = req.body;
 
     const checkQuery = `
       SELECT * FROM integration_custom_field_header
@@ -275,18 +272,24 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       );
     }
 
-    const currentIsActive = checkResult.rows[0].is_active;
+    const checkActiveQuery = `
+      SELECT * FROM integration_custom_field_header
+      WHERE integration_custom_field_header_id = $1
+        AND (builder_id = $2 OR company_id = $3) AND is_active = true;
+    `;
+    const checkActiveResult = await client.query(checkActiveQuery, [
+      integration_custom_field_header_id,
+      builderId,
+      companyId,
+    ]);
 
-    if (
-      header_name === undefined &&
-      sort_order === undefined &&
-      is_active === undefined
-    ) {
-      return errorResponse(res, 400, "No fields provided to update.");
+    if (checkActiveResult.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "Inactive integration custom field header."
+      );
     }
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
 
     if (header_name) {
       const duplicateNameQuery = `
@@ -336,48 +339,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       }
     }
 
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active custom field header, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive custom field header, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the custom field header is currently inactive. Only 'is_active' can be changed (to true)."
-        );
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Custom field header is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
-
     const fields = [];
     const values = [];
     let i = 1;
@@ -390,11 +351,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
     if (sort_order !== undefined) {
       fields.push(`sort_order = $${i++}`);
       values.push(sort_order);
-    }
-
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${i++}`);
-      values.push(is_active);
     }
 
     if (fields.length === 0) {
@@ -430,6 +386,79 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
   } catch (error) {
     console.error("Error updating integration custom field header:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateIntegrationCustomFieldHeaderIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { builder_id, company_id, user_id } = req.user;
+    const { integration_custom_field_header_id } = req.params;
+    const { is_active } = req.body;
+
+    if (!integration_custom_field_header_id) {
+      return errorResponse(
+        res,
+        400,
+        "integration custom field header id is required"
+      );
+    }
+
+    if (typeof is_active !== "boolean") {
+      return errorResponse(
+        res,
+        400,
+        "is_active must be boolean (true or false)"
+      );
+    }
+
+    const existing = await client.query(
+      `
+      SELECT integration_custom_field_header_id
+      FROM integration_custom_field_header
+      WHERE integration_custom_field_header_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+      `,
+      [integration_custom_field_header_id, company_id, builder_id]
+    );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "integration custom field header not found"
+      );
+    }
+
+    const updated = await client.query(
+      `
+      UPDATE integration_custom_field_header
+      SET
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE integration_custom_field_header_id = $3
+      RETURNING *;
+      `,
+      [is_active, user_id, integration_custom_field_header_id]
+    );
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Integration custom field header status updated successfully."
+    );
+  } catch (error) {
+    console.error(
+      "Error updating integration custom field header is_active:",
+      error
+    );
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

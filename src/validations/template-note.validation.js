@@ -37,13 +37,17 @@ const updateTemplateNoteParamsSchema = Joi.object({
 const updateTemplateNoteSchema = Joi.object({
   name: Joi.string().trim().max(200).optional(),
   content: Joi.string().max(1000).optional(),
-  is_active: Joi.boolean().optional(),
+  // is_active: Joi.boolean().optional(),
 });
 
+const updateTemplateNoteIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
 module.exports = {
   createTemplateNoteSchema,
   getAllTemplateNotesSchema,
   deleteTemplateNoteSchema,
   updateTemplateNoteParamsSchema,
   updateTemplateNoteSchema,
+  updateTemplateNoteIsActiveSchema,
 };

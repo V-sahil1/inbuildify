@@ -14,8 +14,8 @@ exports.createChecklist = async (req, res) => {
     await client.query("BEGIN");
 
     const screenRes = await client.query(
-      `SELECT screen_id FROM screen WHERE screen_id = $1 AND builder_id = $2`,
-      [screen_id, builderId]
+      `SELECT screen_id FROM screen WHERE screen_id = $1`,
+      [screen_id]
     );
     if (screenRes.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -23,8 +23,8 @@ exports.createChecklist = async (req, res) => {
     }
 
     const funcRes = await client.query(
-      `SELECT functionality_id FROM functionality WHERE functionality_id = $1 AND builder_id = $2`,
-      [functionality_id, builderId]
+      `SELECT functionality_id FROM functionality WHERE functionality_id = $1`,
+      [functionality_id]
     );
     if (funcRes.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -244,8 +244,8 @@ exports.updateChecklist = async (req, res) => {
 
     if (screen_id) {
       const screenCheck = await client.query(
-        `SELECT screen_id FROM screen WHERE screen_id = $1 AND builder_id = $2;`,
-        [screen_id, builderId]
+        `SELECT screen_id FROM screen WHERE screen_id = $1;`,
+        [screen_id]
       );
       if (screenCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -255,8 +255,8 @@ exports.updateChecklist = async (req, res) => {
 
     if (functionality_id) {
       const funcCheck = await client.query(
-        `SELECT functionality_id FROM functionality WHERE functionality_id = $1 AND builder_id = $2;`,
-        [functionality_id, builderId]
+        `SELECT functionality_id FROM functionality WHERE functionality_id = $1;`,
+        [functionality_id]
       );
       if (funcCheck.rowCount === 0) {
         await client.query("ROLLBACK");

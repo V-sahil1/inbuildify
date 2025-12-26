@@ -6,6 +6,7 @@ const {
   getAllTemplateEmails,
   updateTemplateEmail,
   deleteTemplateEmail,
+  updateTemplateEmailIsActive,
 } = require("../controllers/template-email.controller");
 const {
   createTemplateEmailSchema,
@@ -13,6 +14,7 @@ const {
   updateTemplateEmailParamsSchema,
   updateTemplateEmailSchem,
   deleteTemplateEmailSchema,
+  updateTemplateEmailIsActiveSchema,
 } = require("../validations/template-email.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -49,4 +51,10 @@ router.delete(
   deleteTemplateEmail
 );
 
+router.put(
+  "/is-active/:id",
+  validateRequest(updateTemplateEmailParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateTemplateEmailIsActiveSchema, REQUEST_SOURCE.BODY),
+  updateTemplateEmailIsActive
+);
 module.exports = router;

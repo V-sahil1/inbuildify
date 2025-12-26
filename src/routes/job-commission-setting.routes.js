@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createJobCommissionSettings,
-  getJobCommissionSettings,
   updateJobCommissionSettings,
+  getUserJobCommissionSettings,
 } = require("../controllers/job-commission-setting.controller");
 const {
   createJobCommissionSettingSchema,
@@ -27,7 +27,7 @@ router.post(
   createJobCommissionSettings
 );
 
-router.get("/", getJobCommissionSettings);
+router.get("/", getUserJobCommissionSettings);
 
 router.put(
   "/:job_commission_settings_id",

@@ -70,52 +70,6 @@ exports.createJobCommissionSettings = async (req, res) => {
   }
 };
 
-exports.getJobCommissionSettings = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
-
-    const query = `
-      SELECT * 
-      FROM job_commission_settings
-      WHERE (builder_id = $1 OR company_id = $2)
-      LIMIT 1;
-    `;
-
-    const result = await client.query(query, [builderId, companyId]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No commission settings found for this user."
-      );
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Job commission settings fetched successfully."
-    );
-  } catch (err) {
-    console.error("Error fetching job commission settings:", err);
-    return errorResponse(res, 500, err.message || "Internal server error.");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateJobCommissionSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -202,6 +156,53 @@ exports.updateJobCommissionSettings = async (req, res) => {
   } catch (err) {
     console.error("Error updating job commission settings:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getUserJobCommissionSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM job_commission_settings
+      WHERE company_id = $1
+        AND builder_id = $2
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO job_commission_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Job commission settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching job commission settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

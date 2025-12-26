@@ -222,7 +222,7 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
     const { job_invoice_stage_payment_id } = req.params;
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id;
-    const { description, percentage, sort_order, active } = req.body;
+    const { description, percentage, sort_order } = req.body;
 
     const updatingOtherFields =
       description !== undefined ||
@@ -257,62 +257,27 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
       );
     }
 
+    const checkActiveQuery = `
+      SELECT 
+        jsp.job_invoice_stage_payment_id, 
+        jsp.job_invoice_settings_id,
+        jsp.active
+      FROM job_invoice_stage_payments jsp
+      INNER JOIN job_invoice_settings jis 
+        ON jsp.job_invoice_settings_id = jis.job_invoice_settings_id
+      WHERE jsp.job_invoice_stage_payment_id = $1
+        AND jis.builder_id = $2 AND active = true;
+    `;
+    const checkActiveResult = await client.query(checkActiveQuery, [
+      job_invoice_stage_payment_id,
+      builderId,
+    ]);
+
+    if (checkActiveResult.rowCount === 0) {
+      return errorResponse(res, 404, "Job invoice stage payment is inactive.");
+    }
+
     const jobInvoiceSettingsId = checkResult.rows[0].job_invoice_settings_id;
-    const currentIsActive = checkResult.rows[0].active;
-
-    if (
-      description === undefined &&
-      percentage === undefined &&
-      sort_order === undefined &&
-      active === undefined
-    ) {
-      return errorResponse(res, 400, "No fields provided to update.");
-    }
-
-    const requestedIsActiveTrue = active === true || active === "true";
-    const requestedIsActiveFalse = active === false || active === "false";
-
-    if (currentIsActive === true && active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active payment stage, 'active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive payment stage, 'active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'active' fields when the payment stage is currently inactive. Only 'active' can be changed (to true)."
-        );
-      }
-
-      if (active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Payment stage is already inactive. 'active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
 
     if (sort_order !== undefined) {
       const duplicateCheckQuery = `
@@ -353,10 +318,6 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
       fields.push(`sort_order = $${i++}`);
       values.push(sort_order);
     }
-    if (active !== undefined) {
-      fields.push(`active = $${i++}`);
-      values.push(active);
-    }
 
     fields.push(`updated_at = NOW()`);
 
@@ -383,6 +344,70 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
   } catch (err) {
     console.error("Error updating job invoice stage payment:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateJobInvoiceStagePaymentIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { job_invoice_stage_payment_id } = req.params;
+    const { active } = req.body;
+
+    if (!job_invoice_stage_payment_id) {
+      return errorResponse(
+        res,
+        400,
+        "job invoice stage payment id is required"
+      );
+    }
+
+    if (typeof active !== "boolean") {
+      return errorResponse(res, 400, "active must be boolean (true or false)");
+    }
+
+    const existingQuery = `
+      SELECT job_invoice_stage_payment_id
+      FROM job_invoice_stage_payments
+      WHERE job_invoice_stage_payment_id = $1;
+    `;
+
+    const existing = await client.query(existingQuery, [
+      job_invoice_stage_payment_id,
+    ]);
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "Job invoice stage payment not found");
+    }
+
+    const updateQuery = `
+      UPDATE job_invoice_stage_payments
+      SET
+        active = $1,
+        updated_at = NOW()
+      WHERE job_invoice_stage_payment_id = $2
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      active,
+      job_invoice_stage_payment_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "Job invoice stage payment status updated successfully."
+    );
+  } catch (error) {
+    console.error(
+      "Error updating job invoice stage payment active status:",
+      error
+    );
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

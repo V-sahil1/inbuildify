@@ -86,7 +86,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       const roleCheckQuery = `
         SELECT role_id
         FROM role
-        WHERE builder_id = $1 AND role_id = ANY($2::uuid[])
+        WHERE builder_id = $1 AND role_id = ANY($2::uuid[]) AND is_deleted = false
       `;
       const roleCheckResult = await client.query(roleCheckQuery, [
         builderId,

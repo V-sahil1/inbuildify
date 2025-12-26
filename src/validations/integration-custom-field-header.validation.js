@@ -23,22 +23,25 @@ const getAllIntegrationCustomFieldHeaderSchema = Joi.object({
 
 const deleteIntegrationCustomFieldHeaderSchema = Joi.object({
   integration_custom_field_header_id: Joi.string().uuid().required().messages({
-    "string.guid": " ID must be a valid UUID",
-    "any.required": " ID is required",
+    "string.guid": "integration custom field header ID must be a valid UUID",
+    "any.required": "integration custom field header ID is required",
   }),
 });
 
 const updateIntegrationCustomFieldHeaderParamsSchema = Joi.object({
   integration_custom_field_header_id: Joi.string().uuid().required().messages({
-    "string.guid": " ID must be a valid UUID",
-    "any.required": " ID is required",
+    "string.guid": "integration custom field header ID must be a valid UUID",
+    "any.required": "integration custom field header ID is required",
   }),
 });
 
 const updateIntegrationCustomFieldHeaderSchem = Joi.object({
   header_name: Joi.string().trim().max(150).optional(),
   sort_order: Joi.number().integer().default(0).min(0).optional(),
-  is_active: Joi.boolean(),
+});
+
+const updateIntegrationCustomFieldHeaderIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 module.exports = {
   createIntegrationCustomFieldHeaderSchema,
@@ -46,4 +49,5 @@ module.exports = {
   deleteIntegrationCustomFieldHeaderSchema,
   updateIntegrationCustomFieldHeaderParamsSchema,
   updateIntegrationCustomFieldHeaderSchem,
+  updateIntegrationCustomFieldHeaderIsActiveSchema,
 };

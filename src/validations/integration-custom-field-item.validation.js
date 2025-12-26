@@ -78,9 +78,10 @@ const updateIntegrationCustoFieldItemSchema = Joi.object({
     "number.integer": "sort_order must be an integer.",
     "number.min": "sort_order must be greater than or equal to 0.",
   }),
-  is_active: Joi.boolean().messages({
-    "boolean.base": "is_active must be a boolean.",
-  }),
+});
+
+const updateIntegrationCustomFieldItemIsActiveSchema = Joi.object({
+  is_active: Joi.boolean().required(),
 });
 
 module.exports = {
@@ -89,4 +90,5 @@ module.exports = {
   deleteIntegrationCustomFieldItemSchema,
   updateIntegrationCustoFieldItemSchema,
   updateIntegrationCustomFieldParamsSchema,
+  updateIntegrationCustomFieldItemIsActiveSchema,
 };
