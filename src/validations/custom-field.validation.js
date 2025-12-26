@@ -82,6 +82,7 @@ const createOptionSchema = Joi.object({
       })
     )
     .min(1)
+    .max(1)
     .required()
     .unique((a, b) => a.toLowerCase() === b.toLowerCase())
     .messages({

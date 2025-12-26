@@ -91,53 +91,6 @@ exports.createJobWorkflowSetting = async (req, res) => {
   }
 };
 
-exports.getJobWorkflowSetting = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
-
-    const query = `
-      SELECT 
-        *
-      FROM job_workflow_settings
-      WHERE (builder_id = $1 OR company_id = $2)
-      LIMIT 1;
-    `;
-
-    const result = await client.query(query, [builderId, companyId]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Job work settings not found for this user."
-      );
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Job work settings retrieved successfully."
-    );
-  } catch (err) {
-    console.error("Error fetching job work settings:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateJobColorSetting = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -238,6 +191,53 @@ exports.updateJobColorSetting = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating job workflow settings:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getUserJobWorkflowSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM job_workflow_settings
+      WHERE company_id = $1
+        AND builder_id = $2
+      LIMIT 1;
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO job_workflow_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING *;
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Job workflow settings fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching job workflow settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

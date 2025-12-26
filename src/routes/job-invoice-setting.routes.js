@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createJobInvoiceSetting,
-  getJobInvoiceSetting,
   updateJobInvoiceSetting,
+  getUserJobInvoiceSettings,
 } = require("../controllers/job-invoice-setting.controller");
 const {
   createJobInvocieSettingSchema,
@@ -27,7 +27,7 @@ router.post(
   createJobInvoiceSetting
 );
 
-router.get("/", getJobInvoiceSetting);
+router.get("/", getUserJobInvoiceSettings);
 
 router.put(
   "/:id",

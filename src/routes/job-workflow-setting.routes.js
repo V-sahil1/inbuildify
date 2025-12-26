@@ -3,8 +3,8 @@ const router = express.Router();
 
 const {
   createJobWorkflowSetting,
-  getJobWorkflowSetting,
   updateJobColorSetting,
+  getUserJobWorkflowSettings,
 } = require("../controllers/job-workflow-setting.controller");
 const {
   createJobWorkflowSettingSchema,
@@ -27,7 +27,7 @@ router.post(
   createJobWorkflowSetting
 );
 
-router.get("/", getJobWorkflowSetting);
+router.get("/", getUserJobWorkflowSettings);
 
 router.put(
   "/:id",
