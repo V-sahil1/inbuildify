@@ -8,41 +8,49 @@ exports.createScreen = async (req, res) => {
 
   try {
     const userId = req.user?.user_id || req.user?.users_id;
-    const builderId = req.user?.builder_id || null;
-    const companyId = req.user?.company_id || null;
-
     const { name } = req.body;
+
+    if (!name) {
+      return errorResponse(res, 400, "Screen name is required");
+    }
+
+    const duplicateCheckQuery = `
+      SELECT screen_id
+      FROM screen
+      WHERE LOWER(name) = LOWER($1)
+      LIMIT 1;
+    `;
+
+    const duplicateResult = await client.query(duplicateCheckQuery, [name]);
+
+    if (duplicateResult.rows.length > 0) {
+      return errorResponse(
+        res,
+        409,
+        "Screen with the same name already exists"
+      );
+    }
 
     const insertQuery = `
       INSERT INTO screen (
-        company_id,
-        builder_id,
         name,
         created_by,
         updated_by
       )
-      VALUES ($1, $2, $3, $4, $4)
+      VALUES ($1, $2, $2)
       RETURNING *;
     `;
 
-    const values = [companyId, builderId, name, userId];
+    const values = [name, userId];
 
     const result = await client.query(insertQuery, values);
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Surveyor created successfully."
+      "Screen created successfully."
     );
   } catch (error) {
-    if (error.code === "23505") {
-      return errorResponse(
-        res,
-        409,
-        "Screen with same name already exists for this scope"
-      );
-    }
-
     console.error("Error creating screen:", error);
     return errorResponse(res, 500, "Internal server error");
   } finally {
@@ -55,8 +63,6 @@ exports.getScreens = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderId = req.user.builder_id;
-
     const { page = 1, limit = 25 } = req.query;
 
     const limitValue = parseInt(limit, 10);
@@ -64,27 +70,20 @@ exports.getScreens = async (req, res) => {
     const offset = (pageValue - 1) * limitValue;
 
     const dataQuery = `
-      SELECT 
-        *
-      FROM screen s
-      WHERE s.builder_id = $1
-      ORDER BY s.created_at DESC
-      LIMIT $2 OFFSET $3;
+      SELECT *
+      FROM screen
+      ORDER BY created_at DESC
+      LIMIT $1 OFFSET $2;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [limitValue, offset]);
 
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM screen
-      WHERE builder_id = $1;
+      FROM screen;
     `;
 
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
@@ -115,7 +114,6 @@ exports.deleteScreen = async (req, res) => {
 
   try {
     const { screen_id } = req.params;
-    const builderId = req.user.builder_id;
 
     if (!screen_id) {
       return errorResponse(res, 400, "screen_id is required");
@@ -124,9 +122,9 @@ exports.deleteScreen = async (req, res) => {
     const checkQuery = `
       SELECT screen_id 
       FROM screen
-      WHERE screen_id = $1 AND builder_id = $2;
+      WHERE screen_id = $1;
     `;
-    const checkResult = await client.query(checkQuery, [screen_id, builderId]);
+    const checkResult = await client.query(checkQuery, [screen_id]);
 
     if (checkResult.rowCount === 0) {
       return errorResponse(
@@ -138,10 +136,10 @@ exports.deleteScreen = async (req, res) => {
 
     const deleteQuery = `
       DELETE FROM screen
-      WHERE screen_id = $1 AND builder_id = $2;
+      WHERE screen_id = $1;
     `;
 
-    await client.query(deleteQuery, [screen_id, builderId]);
+    await client.query(deleteQuery, [screen_id]);
 
     return successResponse(res, {}, "Screen deleted successfully.", 200);
   } catch (error) {
@@ -210,73 +208,6 @@ exports.updateScreen = async (req, res) => {
       );
     }
 
-    return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getAllScreens = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id; // may be null
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
-    const dataQuery = `
-      SELECT 
-       *
-      FROM screen
-      WHERE 
-        (
-        
-          (builder_id = $1)
-        )
-      ORDER BY name
-      LIMIT $2 OFFSET $3;
-    `;
-
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM screen
-      WHERE 
-        (
-          (builder_id = $1)
-        );
-    `;
-
-    const countResult = await client.query(countQuery, [builderId]);
-
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
-
-    return successResponse(
-      res,
-      {
-        screens: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
-      "Screens fetched successfully."
-    );
-  } catch (error) {
-    console.error("Error fetching screens:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();

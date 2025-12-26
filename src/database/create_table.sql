@@ -807,26 +807,26 @@ CREATE TABLE range (
 
 CREATE TABLE screen (
   screen_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+--   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+--   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_screen_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
-  CONSTRAINT uq_screen_scope UNIQUE (company_id, builder_id, name)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+--   CONSTRAINT chk_screen_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+--   CONSTRAINT uq_screen_scope UNIQUE (company_id, builder_id, name)
 );
 
 CREATE TABLE functionality (
   functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+--   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+--   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+--   CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 ); 
 
 CREATE TABLE construction_type(

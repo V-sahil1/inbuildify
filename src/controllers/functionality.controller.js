@@ -7,49 +7,35 @@ exports.createFunctionality = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const userId = req.user?.user_id || req.user?.users_id;
-    const builderId = req.user?.builder_id || null;
-    const companyId = req.user?.company_id || null;
-
     const { screen_id, name } = req.body;
+
+    if (!screen_id || !name) {
+      return errorResponse(res, 400, "screen_id and name are required");
+    }
 
     const validateScreenQuery = `
       SELECT screen_id
       FROM screen
-      WHERE screen_id = $1
-        AND (builder_id = $2 OR company_id = $3)
+      WHERE screen_id = $1;
     `;
-    const validateScreen = await client.query(validateScreenQuery, [
-      screen_id,
-      builderId,
-      companyId,
-    ]);
+
+    const validateScreen = await client.query(validateScreenQuery, [screen_id]);
 
     if (validateScreen.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Screen not found or not accessible in your scope."
-      );
+      return errorResponse(res, 404, "Screen not found.");
     }
 
     const duplicateCheckQuery = `
       SELECT functionality_id
       FROM functionality
       WHERE screen_id = $1
-        AND name = $2
-        AND (
-          (builder_id = $3 AND company_id IS NULL)
-          OR (company_id = $4)
-        )
+        AND LOWER(name) = LOWER($2)
       LIMIT 1;
     `;
 
     const duplicateResult = await client.query(duplicateCheckQuery, [
       screen_id,
       name.trim(),
-      builderId,
-      companyId,
     ]);
 
     if (duplicateResult.rowCount > 0) {
@@ -62,23 +48,19 @@ exports.createFunctionality = async (req, res) => {
 
     const insertQuery = `
       INSERT INTO functionality (
-        company_id,
-        builder_id,
         screen_id,
         name
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2)
       RETURNING *;
     `;
 
-    const values = [companyId, builderId, screen_id, name];
-
-    const result = await client.query(insertQuery, values);
+    const result = await client.query(insertQuery, [screen_id, name.trim()]);
 
     return successResponse(
       res,
-      result.rows[0],
-      "Functionality created successfully",
+      keysToCamelCase(result.rows[0]),
+      "Functionality created successfully.",
       201
     );
   } catch (error) {
@@ -94,7 +76,6 @@ exports.getFunctionalities = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderId = req.user.builder_id;
     const { page = 1, limit = 25 } = req.query;
 
     const limitValue = parseInt(limit, 10);
@@ -104,24 +85,18 @@ exports.getFunctionalities = async (req, res) => {
     const dataQuery = `
       SELECT *
       FROM functionality f
-      WHERE f.builder_id = $1
       ORDER BY f.created_at DESC
-      LIMIT $2 OFFSET $3;
+      LIMIT $1 OFFSET $2;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [limitValue, offset]);
 
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM functionality
-      WHERE builder_id = $1;
+      FROM functionality;
     `;
 
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
@@ -152,7 +127,6 @@ exports.deleteFunctionality = async (req, res) => {
 
   try {
     const { functionality_id } = req.params;
-    const builderId = req.user.builder_id;
 
     if (!functionality_id) {
       return errorResponse(res, 400, "Functionality ID is required.");
@@ -161,16 +135,12 @@ exports.deleteFunctionality = async (req, res) => {
     const existingFunctionality = await client.query(
       `SELECT functionality_id 
        FROM functionality 
-       WHERE functionality_id = $1 AND builder_id = $2`,
-      [functionality_id, builderId]
+       WHERE functionality_id = $1`,
+      [functionality_id]
     );
 
     if (existingFunctionality.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Functionality not found for this builder."
-      );
+      return errorResponse(res, 404, "Functionality not found.");
     }
 
     await client.query(
@@ -391,6 +361,53 @@ exports.getFunctionalitiesByScreen = async (req, res) => {
   } catch (error) {
     console.error("Error fetching functionalities:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getFunctionalitiesByScreen = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { screenId } = req.params;
+
+    if (!screenId) {
+      return errorResponse(res, 400, "screenId is required");
+    }
+
+    const screenCheckQuery = `
+      SELECT screen_id
+      FROM screen
+      WHERE screen_id = $1;
+    `;
+
+    const screenCheck = await client.query(screenCheckQuery, [screenId]);
+
+    if (screenCheck.rowCount === 0) {
+      return errorResponse(res, 404, "Screen not found");
+    }
+
+    const dataQuery = `
+      SELECT
+        functionality_id,
+        name
+      FROM functionality
+      WHERE screen_id = $1
+      ORDER BY created_at DESC;
+    `;
+
+    const result = await client.query(dataQuery, [screenId]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows),
+      "Functionalities fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching functionalities:", error);
+    return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
   }

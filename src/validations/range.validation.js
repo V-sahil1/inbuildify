@@ -22,11 +22,11 @@ const createRangeSchema = Joi.object({
     "any.required": "Name is required",
   }),
 
-  logo_image: Joi.string().uri().allow(null, "").messages({
+  logo_url: Joi.string().uri().allow(null, "").messages({
     "string.uri": "Logo URL must be a valid URL",
   }),
 
-  header_image: Joi.string().max(500).allow(null, "").optional(),
+  header_url: Joi.string().max(500).allow(null, "").optional(),
 
   user_id: Joi.array().items(Joi.string().uuid()).default([]),
 
@@ -71,11 +71,11 @@ const updateRangeSchema = Joi.object({
     "string.empty": "Name can not be empty",
   }),
 
-  logo_image: Joi.string().uri().allow(null, "").optional().messages({
+  logo_url: Joi.string().uri().allow(null, "").optional().messages({
     "string.uri": "Logo URL must be a valid URL",
   }),
 
-  header_image: Joi.string().max(500).allow(null, "").optional(),
+  header_url: Joi.string().max(500).allow(null, "").optional(),
 
   user_id: Joi.array().items(Joi.string().uuid()).default([]).optional(),
 

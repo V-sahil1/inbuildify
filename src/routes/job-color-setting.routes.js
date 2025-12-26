@@ -8,8 +8,8 @@ const {
 } = require("../validations/job-color-setting.validation");
 const {
   createJobColorSettings,
-  getJobColorSetting,
   updateJobColorSetting,
+  getUserJobColorSettings,
 } = require("../controllers/job-color-setting.controller");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -26,7 +26,7 @@ router.post(
   createJobColorSettings
 );
 
-router.get("/", getJobColorSetting);
+router.get("/", getUserJobColorSettings);
 
 router.put(
   "/:id",

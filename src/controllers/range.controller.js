@@ -72,8 +72,8 @@ exports.createRange = async (req, res) => {
     let { name, user_id, sort_order, bg_color, font_color, is_active } =
       req.body;
 
-    const logo_image = req.body.logo_image || null;
-    const header_image = req.body.header_image || null;
+    const logo_image = req.body.logo_url || null;
+    const header_image = req.body.header_url || null;
 
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
@@ -210,8 +210,8 @@ exports.updateRange = async (req, res) => {
 
     let { name, user_id, sort_order, bg_color, font_color } = req.body;
 
-    const logo_image = req.body.logo_image || null;
-    const header_image = req.body.header_image || null;
+    const logo_image = req.body.logo_url || null;
+    const header_image = req.body.header_url || null;
 
     await client.query("BEGIN");
 

@@ -37,8 +37,8 @@ router.get(
 router.post(
   "/",
   upload.fields([
-    { name: "logo_image", maxCount: 1 },
-    { name: "header_image", maxCount: 1 },
+    { name: "logo_url", maxCount: 1 },
+    { name: "header_url", maxCount: 1 },
   ]),
   handleMulterError,
   validateRequest(createRangeSchema, REQUEST_SOURCE.FORM_DATA),
@@ -47,8 +47,8 @@ router.post(
 router.put(
   "/:range_id",
   upload.fields([
-    { name: "logo_image", maxCount: 1 },
-    { name: "header_image", maxCount: 1 },
+    { name: "logo_url", maxCount: 1 },
+    { name: "header_url", maxCount: 1 },
   ]),
   handleMulterError,
   validateRequest(updateRangeParamsSchema, REQUEST_SOURCE.PARAMS),
