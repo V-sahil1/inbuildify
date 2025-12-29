@@ -29,24 +29,55 @@ exports.createClientType = async (req, res) => {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "client type already exists.");
     }
-    const finalSortOrder = sort_order ?? 1;
+    // 1️⃣ Determine final sort order
+    let finalSortOrder = sort_order;
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
 
-    const checkSortOrder = await client.query(
-      `SELECT 1 
-       FROM client_type
-       WHERE sort_order = $1
-       AND builder_id = $2
-     `,
-      [finalSortOrder, builderId]
-    );
+    // 2️⃣ Get maximum sort order for this builder/company
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+  FROM client_type
+  WHERE
+    (
+      (company_id = $1 AND $1 IS NOT NULL)
+      OR
+      (builder_id = $2 AND $2 IS NOT NULL)
+    )
+`;
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      companyId,
+      builderId,
+    ]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-    if (checkSortOrder.rowCount > 0) {
+    // 3️⃣ Validate sort order
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
-        409,
-        `Sort order ${finalSortOrder} already exists for this builder.`
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    // 4️⃣ Shift other records' sort_order if needed
+    const shiftSortOrderQuery = `
+  UPDATE client_type
+  SET sort_order = sort_order + 1
+  WHERE sort_order >= $1
+    AND (
+      (company_id = $2 AND $2 IS NOT NULL)
+      OR
+      (builder_id = $3 AND $3 IS NOT NULL)
+    )
+`;
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      companyId,
+      builderId,
+    ]);
 
     const insertQuery = `
       INSERT INTO client_type (
@@ -237,30 +268,79 @@ exports.updateClientType = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const duplicateSortQuery = `
-        SELECT 1 FROM client_type
-        WHERE sort_order = $1
-          AND (company_id = $2 OR company_id IS NULL)
-          AND (builder_id = $3 OR builder_id IS NULL)
-          AND client_type_id != $4
-      `;
-      const duplicateSort = await client.query(duplicateSortQuery, [
-        sort_order,
+    if (sort_order !== undefined && sort_order !== null) {
+      // Get the existing sort order
+      const existingResult = await client.query(
+        `SELECT sort_order FROM client_type WHERE client_type_id = $1`,
+        [id]
+      );
+      const existingSortOrder = existingResult.rows[0].sort_order;
+
+      // Get max sort order
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM client_type
+    WHERE
+      (
+        (company_id = $1 AND $1 IS NOT NULL)
+        OR
+        (builder_id = $2 AND $2 IS NOT NULL)
+      )
+  `;
+      const maxSortResult = await client.query(maxSortQuery, [
         companyId,
         builderId,
-        id,
       ]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      if (duplicateSort.rowCount > 0) {
+      // Validate new sort order
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
-          409,
-          `Sort order ${sort_order} already exists.`
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
         );
       }
+
+      // Shift other records
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE client_type
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND client_type_id != $3
+          AND (
+            (company_id = $4 AND $4 IS NOT NULL)
+            OR
+            (builder_id = $5 AND $5 IS NOT NULL)
+          )
+        `,
+            [existingSortOrder, sort_order, id, companyId, builderId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE client_type
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND client_type_id != $3
+          AND (
+            (company_id = $4 AND $4 IS NOT NULL)
+            OR
+            (builder_id = $5 AND $5 IS NOT NULL)
+          )
+        `,
+            [sort_order, existingSortOrder, id, companyId, builderId]
+          );
+        }
+      }
     }
+
     const updates = [];
     const values = [];
     let idx = 1;

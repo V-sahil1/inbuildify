@@ -49,15 +49,14 @@ exports.createSalesStage = async (req, res) => {
       );
     }
 
-    if (functionality_id.length > 0) {
+    if (Array.isArray(functionality_id) && functionality_id.length > 0) {
       const funcCheck = await client.query(
         `
-          SELECT functionality_id
-          FROM functionality
-          WHERE functionality_id = ANY($1)
-            AND builder_id = $2
-          `,
-        [functionality_id, builderId]
+      SELECT functionality_id
+      FROM functionality
+      WHERE functionality_id = ANY($1)
+    `,
+        [functionality_id]
       );
 
       if (funcCheck.rowCount !== functionality_id.length) {
@@ -70,24 +69,41 @@ exports.createSalesStage = async (req, res) => {
       }
     }
 
-    const finalSortOrder = sort_order ?? 1;
+    let finalSortOrder = sort_order;
 
-    // Check duplicate sort order
-    const checkSortOrder = await client.query(
-      `SELECT 1 
-   FROM sales_stage 
-   WHERE sales_process_id = $1 AND sort_order = $2`,
-      [sales_process_id, finalSortOrder]
-    );
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
 
-    if (checkSortOrder.rowCount > 0) {
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+  FROM sales_stage
+  WHERE sales_process_id = $1;
+`;
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      sales_process_id,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Sort order ${finalSortOrder} already exists for this sales process.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+  UPDATE sales_stage
+  SET sort_order = sort_order + 1
+  WHERE sort_order >= $1
+    AND sales_process_id = $2;
+`;
+
+    await client.query(shiftSortOrderQuery, [finalSortOrder, sales_process_id]);
 
     const insertQuery = `
       INSERT INTO sales_stage (
@@ -357,9 +373,8 @@ exports.updateSalesStage = async (req, res) => {
           SELECT functionality_id
           FROM functionality
           WHERE functionality_id = ANY($1)
-            AND builder_id = $2
           `,
-          [functionality_id, builderId]
+          [builderId]
         );
 
         if (funcCheck.rowCount !== functionality_id.length) {
@@ -373,18 +388,61 @@ exports.updateSalesStage = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const dupSort = await client.query(
-        `SELECT 1 FROM sales_stage 
-          WHERE sales_process_id = $1
-            AND sort_order = $2
-            AND sales_stage_id != $3`,
-        [salesProcessId, sort_order, sales_stage_id]
-      );
+    const existingSortQuery = `
+  SELECT sort_order
+  FROM sales_stage
+  WHERE sales_stage_id = $1
+  FOR UPDATE;
+`;
+    const existingResult = await client.query(existingSortQuery, [
+      sales_stage_id,
+    ]);
+    const existingSortOrder = existingResult.rows[0].sort_order;
 
-      if (dupSort.rowCount > 0) {
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM sales_stage
+    WHERE sales_process_id = $1
+  `;
+      const maxSortResult = await client.query(maxSortQuery, [salesProcessId]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Sort order already exists.");
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+        );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE sales_stage
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND sales_stage_id != $3
+          AND sales_process_id = $4
+        `,
+            [existingSortOrder, sort_order, sales_stage_id, salesProcessId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE sales_stage
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND sales_stage_id != $3
+          AND sales_process_id = $4
+        `,
+            [sort_order, existingSortOrder, sales_stage_id, salesProcessId]
+          );
+        }
       }
     }
 

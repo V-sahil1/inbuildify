@@ -127,21 +127,41 @@ exports.createRange = async (req, res) => {
       return errorResponse(res, 400, "Range name already exists.");
     }
 
-    const finalSort = sort_order ?? 1;
+    let finalSortOrder = sort_order;
 
-    const sortCheck = await client.query(
-      `SELECT 1 FROM range WHERE sort_order = $1 AND builder_id = $2`,
-      [finalSort, builderId]
-    );
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
 
-    if (sortCheck.rowCount > 0) {
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+  FROM range
+  WHERE builder_id = $1;
+`;
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      builderId,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
-        409,
-        `Sort order ${finalSort} already exists for this builder.`
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+  UPDATE range
+  SET sort_order = sort_order + 1
+  WHERE sort_order >= $1
+    AND builder_id = $2;
+`;
+
+    await client.query(shiftSortOrderQuery, [finalSortOrder, builderId]);
 
     const insertQuery = `
       INSERT INTO range (
@@ -169,7 +189,7 @@ exports.createRange = async (req, res) => {
       logo_image,
       header_image,
       userIdArray,
-      finalSort,
+      finalSortOrder,
       bg_color || null,
       font_color || null,
       is_active ?? true,
@@ -299,22 +319,53 @@ exports.updateRange = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const dupSort = await client.query(
-        `SELECT 1 FROM range 
-         WHERE builder_id = $1 
-         AND sort_order = $2 
-         AND range_id != $3`,
-        [builderId, sort_order, range_id]
-      );
+    const existingSortOrder = existingRange.sort_order;
 
-      if (dupSort.rowCount > 0) {
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM range
+    WHERE builder_id = $1
+  `;
+
+      const maxSortResult = await client.query(maxSortQuery, [builderId]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Sort order ${sort_order} already exists for this builder.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
         );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE range
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND range_id != $3
+          AND builder_id = $4
+        `,
+            [existingSortOrder, sort_order, range_id, builderId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE range
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND range_id != $3
+          AND builder_id = $4
+        `,
+            [sort_order, existingSortOrder, range_id, builderId]
+          );
+        }
       }
     }
 

@@ -33,18 +33,27 @@ const convertKeysToSnakeCase = (data, res) => {
 
 const camelToSnakeMiddleware = (req, res, next) => {
   try {
+    // Body: keep the existing validation logic
     if (req.body && typeof req.body === "object") {
-      console.log("BODY:", req.body);
-
       req.body = convertKeysToSnakeCase(req.body);
     }
 
+    // Query: convert all keys to snake_case but do NOT reject snake_case
     if (req.query && typeof req.query === "object") {
-      req.query = convertKeysToSnakeCase(req.query);
+      req.query = Object.keys(req.query).reduce((acc, key) => {
+        const snakeKey = camelToSnake(key);
+        acc[snakeKey] = req.query[key];
+        return acc;
+      }, {});
     }
 
+    // Params: just convert keys to snake_case without rejecting
     if (req.params && typeof req.params === "object") {
-      req.params = convertKeysToSnakeCase(req.params);
+      req.params = Object.keys(req.params).reduce((acc, key) => {
+        const snakeKey = camelToSnake(key);
+        acc[snakeKey] = req.params[key];
+        return acc;
+      }, {});
     }
 
     next();

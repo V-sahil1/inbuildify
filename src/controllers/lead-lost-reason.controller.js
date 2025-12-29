@@ -11,43 +11,68 @@ exports.createLeadLostReason = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
 
-    const { lost_reason, sort_order, is_active } = req.body;
+    let { lost_reason, sort_order, is_active } = req.body;
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
       `
-      SELECT lead_lost_reason_id 
-      FROM lead_lost_reason 
-      WHERE builder_id = $1
-        AND LOWER(lost_reason) = LOWER($2)
+        SELECT lead_lost_reason_id
+        FROM lead_lost_reason
+        WHERE builder_id = $1
+          AND LOWER(lost_reason) = LOWER($2)
       `,
       [builderId, lost_reason]
     );
 
-    if (duplicateCheck.rows.length > 0) {
+    if (duplicateCheck.rowCount > 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "Lost reason already exists.");
     }
 
-    const finalSortOrder = sort_order ?? 1;
+    if (sort_order === undefined || sort_order === null) {
+      sort_order = 1;
+    }
 
-    const checkSortOrder = await client.query(
-      `SELECT 1 
-   FROM lead_lost_reason
-   WHERE sort_order = $1
-     AND builder_id = $2
-     `,
-      [finalSortOrder, builderId]
-    );
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM lead_lost_reason
+      WHERE
+        (
+          (company_id = $1 AND $1 IS NOT NULL)
+          OR
+          (builder_id = $2 AND $2 IS NOT NULL)
+        )
+    `;
 
-    if (checkSortOrder.rowCount > 0) {
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      companyId,
+      builderId,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (sort_order < 1 || sort_order > maxSortOrder + 1) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
-        409,
-        `Sort order ${finalSortOrder} already exists for this builder.`
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE lead_lost_reason
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND (
+          (company_id = $2 AND $2 IS NOT NULL)
+          OR
+          (builder_id = $3 AND $3 IS NOT NULL)
+        )
+    `;
+
+    await client.query(shiftSortOrderQuery, [sort_order, companyId, builderId]);
 
     const insertQuery = `
       INSERT INTO lead_lost_reason (
@@ -62,6 +87,7 @@ exports.createLeadLostReason = async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *;
     `;
+
     const result = await client.query(insertQuery, [
       companyId,
       builderId,
@@ -252,30 +278,61 @@ exports.updateLeadLostReason = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const duplicateSortQuery = `
-        SELECT 1 FROM lead_lost_reason
-        WHERE sort_order = $1
-          AND (company_id = $2 OR company_id IS NULL)
-          AND (builder_id = $3 OR builder_id IS NULL)
-          AND lead_lost_reason_id != $4
-      `;
-      const duplicateSort = await client.query(duplicateSortQuery, [
-        sort_order,
-        companyId,
-        builderId,
-        id,
-      ]);
+    if (sort_order !== undefined && sort_order !== null) {
+      const existingSortOrderResult = await client.query(
+        `SELECT sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
+        [id]
+      );
+      const existingSortOrder = existingSortOrderResult.rows[0].sort_order;
 
-      if (duplicateSort.rowCount > 0) {
+      const maxSortOrderQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM lead_lost_reason
+    WHERE builder_id = $1
+  `;
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+        builderId,
+      ]);
+      const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
-          409,
-          `Sort order ${sort_order} already exists.`
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
         );
       }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE lead_lost_reason
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND lead_lost_reason_id != $3
+          AND builder_id = $4
+        `,
+            [existingSortOrder, sort_order, id, builderId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE lead_lost_reason
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND lead_lost_reason_id != $3
+          AND builder_id = $4
+        `,
+            [sort_order, existingSortOrder, id, builderId]
+          );
+        }
+      }
     }
+
     const updates = [];
     const values = [];
     let idx = 1;

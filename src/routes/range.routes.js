@@ -26,7 +26,6 @@ const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
-
 const upload = createUpload("range");
 
 router.get(

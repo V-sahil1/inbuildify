@@ -22,9 +22,9 @@ const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js
 
 const { REQUEST_SOURCE } = require("../config/constants");
 
+router.use(camelToSnakeMiddleware);
 router.use(authMiddleware);
 router.use(roleMiddleware);
-router.use(camelToSnakeMiddleware);
 
 router.post(
   "/",

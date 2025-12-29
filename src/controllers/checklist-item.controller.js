@@ -125,21 +125,41 @@ exports.createChecklistItem = async (req, res) => {
       );
     }
 
-    const sortCheckQuery = `
-      SELECT 1
-      FROM checklist_item
-      WHERE checklist_id = $1 AND sort = $2;
-    `;
-    const sortExists = await client.query(sortCheckQuery, [checklist_id, sort]);
+    let sortOrder = sort;
+    if (sortOrder === undefined || sortOrder === null) {
+      sortOrder = 1;
+    }
 
-    if (sortExists.rowCount > 0) {
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort), 0) AS max_sort_order
+  FROM checklist_item
+  WHERE checklist_id = $1;
+`;
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      checklist_id,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (sortOrder > maxSortOrder + 1 || sortOrder < 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
-        409,
-        `Sort order ${sort} already exists in this checklist.`
+        400,
+        `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+  UPDATE checklist_item
+  SET sort = sort + 1,
+      updated_at = NOW()
+  WHERE checklist_id = $1
+    AND sort >= $2;
+`;
+
+    await client.query(shiftSortOrderQuery, [checklist_id, sortOrder]);
 
     const insertQuery = `
       INSERT INTO checklist_item (
@@ -454,27 +474,58 @@ exports.updateChecklistItem = async (req, res) => {
       );
     }
 
-    if (sort !== undefined) {
-      const sortCheckQuery = `
-        SELECT 1 
-        FROM checklist_item
-        WHERE checklist_id = $1 
-        AND sort = $2
-        AND checklist_item_id != $3
-      `;
-      const sortExists = await client.query(sortCheckQuery, [
+    let existingSortOrder = item.sort;
+
+    if (sort !== undefined && sort !== null) {
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort), 0) AS max_sort
+    FROM checklist_item
+    WHERE checklist_id = $1;
+  `;
+
+      const maxSortResult = await client.query(maxSortQuery, [
         finalChecklistId,
-        sort,
-        checklist_item_id,
       ]);
 
-      if (sortExists.rowCount > 0) {
+      const maxSortOrder = maxSortResult.rows[0].max_sort;
+
+      if (sort < 1 || sort > maxSortOrder + 1) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
-          409,
-          `Sort order ${sort} already exists in this checklist.`
+          400,
+          `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`
         );
+      }
+
+      if (sort !== existingSortOrder) {
+        if (sort > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE checklist_item
+        SET sort = sort - 1,
+            updated_at = NOW()
+        WHERE sort > $1
+          AND sort <= $2
+          AND checklist_item_id != $3
+          AND checklist_id = $4;
+        `,
+            [existingSortOrder, sort, checklist_item_id, finalChecklistId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE checklist_item
+        SET sort = sort + 1,
+            updated_at = NOW()
+        WHERE sort >= $1
+          AND sort < $2
+          AND checklist_item_id != $3
+          AND checklist_id = $4;
+        `,
+            [sort, existingSortOrder, checklist_item_id, finalChecklistId]
+          );
+        }
       }
     }
 

@@ -20,6 +20,9 @@ const createUserRoleMappingSchema = Joi.object({
 });
 
 const getAllUserRoleMappingSchema = Joi.object({
+  assigned_by: Joi.string().uuid().optional().messages({
+    "string.guid": "role ID must be a valid UUID",
+  }),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

@@ -375,7 +375,6 @@ exports.updateConstructionType = async (req, res) => {
     let existingSortOrder = existingResult.rows[0].sort_order;
 
     if (sort_order !== undefined && sort_order !== null) {
-      // Get max sort_order
       const maxSortQuery = `
     SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
     FROM construction_type

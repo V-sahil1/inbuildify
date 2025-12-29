@@ -32,24 +32,39 @@ exports.createLeadSource = async (req, res) => {
       return errorResponse(res, 409, "Lead source already exists.");
     }
 
-    const finalSortOrder = sort_order ?? 1;
+    let finalSortOrder = sort_order;
 
-    const checkSortOrder = await client.query(
-      `SELECT 1 
-   FROM lead_source
-   WHERE sort_order = $1
-     AND builder_id = $2
-     `,
-      [finalSortOrder, builderId]
-    );
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
 
-    if (checkSortOrder.rowCount > 0) {
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+  FROM lead_source
+  WHERE builder_id = $1
+`;
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      builderId,
+    ]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       return errorResponse(
         res,
-        409,
-        `Sort order ${finalSortOrder} already exists for this builder.`
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+  UPDATE lead_source
+  SET sort_order = sort_order + 1
+  WHERE sort_order >= $1
+    AND builder_id = $2
+`;
+
+    await client.query(shiftSortOrderQuery, [finalSortOrder, builderId]);
 
     const insertQuery = `
       INSERT INTO lead_source 
@@ -62,7 +77,7 @@ exports.createLeadSource = async (req, res) => {
       name,
       companyId,
       builderId,
-      sort_order,
+      finalSortOrder,
       is_active,
       allow_change,
       userId,
@@ -182,9 +197,6 @@ exports.updateLeadSource = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const updatingOtherFields =
-      name || sort_order !== undefined || allow_change !== undefined;
-
     const checkQuery = `
       SELECT allow_change, is_active 
       FROM lead_source
@@ -248,27 +260,91 @@ exports.updateLeadSource = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const duplicateSortQuery = `
-        SELECT 1 FROM lead_source
-        WHERE sort_order = $1
-          AND (company_id = $2 OR company_id IS NULL)
-          AND (builder_id = $3 OR builder_id IS NULL)
-          AND lead_source_id != $4
-      `;
-      const duplicateSort = await client.query(duplicateSortQuery, [
-        sort_order,
+    const existingResult = await client.query(
+      `
+    SELECT sort_order
+    FROM lead_source
+    WHERE lead_source_id = $1
+  `,
+      [lead_source_id]
+    );
+
+    const existingSortOrder = existingResult.rows[0].sort_order;
+
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM lead_source
+    WHERE
+      (
+        (company_id = $1 AND $1 IS NOT NULL)
+        OR
+        (builder_id = $2 AND $2 IS NOT NULL)
+      )
+  `;
+
+      const maxSortResult = await client.query(maxSortQuery, [
         companyId,
         builderId,
-        lead_source_id,
       ]);
 
-      if (duplicateSort.rowCount > 0) {
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         return errorResponse(
           res,
-          409,
-          `Sort order ${sort_order} already exists.`
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
         );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+          UPDATE lead_source
+          SET sort_order = sort_order - 1
+          WHERE sort_order > $1
+            AND sort_order <= $2
+            AND lead_source_id != $3
+            AND (
+              (company_id = $4 AND $4 IS NOT NULL)
+              OR
+              (builder_id = $5 AND $5 IS NOT NULL)
+            )
+        `,
+            [
+              existingSortOrder,
+              sort_order,
+              lead_source_id,
+              companyId,
+              builderId,
+            ]
+          );
+        } else {
+          // move up
+          await client.query(
+            `
+          UPDATE lead_source
+          SET sort_order = sort_order + 1
+          WHERE sort_order >= $1
+            AND sort_order < $2
+            AND lead_source_id != $3
+            AND (
+              (company_id = $4 AND $4 IS NOT NULL)
+              OR
+              (builder_id = $5 AND $5 IS NOT NULL)
+            )
+        `,
+            [
+              sort_order,
+              existingSortOrder,
+              lead_source_id,
+              companyId,
+              builderId,
+            ]
+          );
+        }
       }
     }
 

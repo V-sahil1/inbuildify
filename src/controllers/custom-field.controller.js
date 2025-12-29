@@ -11,8 +11,7 @@ exports.createCustomField = async (req, res) => {
     const userId = req.user?.user_id;
     const companyId = req.user?.company_id;
 
-    const { module_id, field_name, field_type, sort_order, is_active } =
-      req.body;
+    let { module_id, field_name, field_type, sort_order, is_active } = req.body;
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -35,6 +34,7 @@ exports.createCustomField = async (req, res) => {
     }
 
     await client.query("BEGIN");
+
     const validateModule = await client.query(
       `SELECT module_id FROM custom_field_module WHERE module_id = $1`,
       [module_id]
@@ -48,6 +48,7 @@ exports.createCustomField = async (req, res) => {
         "Invalid module_id. Module not found in custom_field_module."
       );
     }
+
     const duplicateField = await client.query(
       `
       SELECT 1 
@@ -69,28 +70,50 @@ exports.createCustomField = async (req, res) => {
       );
     }
 
-    const finalSortOrder = sort_order ?? 0;
+    if (sort_order === undefined || sort_order === null) {
+      sort_order = 1;
+    }
 
-    const duplicateSort = await client.query(
-      `
-      SELECT 1 
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
       FROM custom_field
       WHERE module_id = $1
-        AND builder_id = $2
-        AND company_id = $3
-        AND sort_order = $4
-      `,
-      [module_id, builderId, companyId, finalSortOrder]
-    );
+        AND company_id = $2
+        AND builder_id = $3;
+    `;
 
-    if (duplicateSort.rowCount > 0) {
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      module_id,
+      companyId,
+      builderId,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (sort_order < 1 || sort_order > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "Sort order already exists — please choose another."
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE custom_field
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND module_id = $2
+        AND company_id = $3
+        AND builder_id = $4;
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      sort_order,
+      module_id,
+      companyId,
+      builderId,
+    ]);
 
     const insertQuery = `
       INSERT INTO custom_field (
@@ -114,7 +137,7 @@ exports.createCustomField = async (req, res) => {
       module_id,
       field_name.trim(),
       field_type.toLowerCase(),
-      finalSortOrder,
+      sort_order,
       is_active ?? true,
       userId || null,
       userId || null,
@@ -126,11 +149,7 @@ exports.createCustomField = async (req, res) => {
 
     return successResponse(
       res,
-      {
-        ...keysToCamelCase(result.rows[0]),
-        companyId,
-        module_id,
-      },
+      keysToCamelCase(result.rows[0]),
       "Custom field created successfully."
     );
   } catch (error) {
@@ -344,21 +363,64 @@ exports.updateCustomField = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined) {
-      const duplicateSort = await client.query(
-        `
-        SELECT 1
-        FROM custom_field
-        WHERE module_id = $1 
-          AND sort_order = $2
-          AND builder_id = $3
-          AND custom_field_id != $4;
-        `,
-        [moduleId, sort_order, builderId, id]
-      );
-      if (duplicateSort.rowCount > 0) {
+    let existingSortOrder = existing.sort_order;
+
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM custom_field
+    WHERE module_id = $1
+      AND company_id = $2
+      AND builder_id = $3;
+  `;
+
+      const maxSortResult = await client.query(maxSortQuery, [
+        moduleId,
+        companyId,
+        builderId,
+      ]);
+
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
         await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Sort order number already exists.");
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE custom_field
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND custom_field_id != $3
+          AND module_id = $4
+          AND company_id = $5
+          AND builder_id = $6;
+        `,
+            [existingSortOrder, sort_order, id, moduleId, companyId, builderId]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE custom_field
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND custom_field_id != $3
+          AND module_id = $4
+          AND company_id = $5
+          AND builder_id = $6;
+        `,
+            [sort_order, existingSortOrder, id, moduleId, companyId, builderId]
+          );
+        }
       }
     }
 

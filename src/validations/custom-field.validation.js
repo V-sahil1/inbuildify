@@ -26,7 +26,7 @@ const createCustomFieldSchema = Joi.object({
 });
 
 const getAllCustomFieldSchema = Joi.object({
-  module_id: Joi.string().uuid().required().messages({
+  module_id: Joi.string().uuid().optional().messages({
     "string.guid": "Custom field module ID must be a valid UUID",
     "any.required": "Custom field module ID is required",
   }),

@@ -29,29 +29,13 @@ exports.createUserRoleMapping = async (req, res) => {
       `
       SELECT role_id
       FROM role
-      WHERE builder_id = $1
-        AND role_id = $2
+      WHERE role_id = $1
       `,
-      [builderId, role_id]
+      [role_id]
     );
 
     if (roleResult.rowCount === 0) {
       return errorResponse(res, 404, "No role found for this builder.");
-    }
-
-    const roleActiveResult = await client.query(
-      `
-      SELECT role_id
-      FROM role
-      WHERE builder_id = $1
-        AND role_id = $2
-        AND is_active = true
-      `,
-      [builderId, role_id]
-    );
-
-    if (roleActiveResult.rowCount === 0) {
-      return errorResponse(res, 404, "Role is inactive.");
     }
 
     if (role_type_id) {
@@ -61,14 +45,9 @@ exports.createUserRoleMapping = async (req, res) => {
         FROM role_type
         WHERE role_type_id = $1
           AND role_id = $2
-          AND (
-            (company_id IS NULL AND builder_id IS NULL)
-            OR (company_id = $3 AND $3 IS NOT NULL)
-            OR (builder_id = $4 AND $4 IS NOT NULL)
-          )
         LIMIT 1
         `,
-        [role_type_id, role_id, companyId, builderId]
+        [role_type_id, role_id]
       );
 
       if (roleTypeResult.rowCount === 0) {
@@ -161,20 +140,36 @@ exports.getAllUserRoleMapping = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    let { page = 1, limit = 25 } = req.query;
+    let { page = 1, limit = 25, assigned_by } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
 
     const offset = (page - 1) * limit;
 
+    /* ---------------- FILTER LOGIC ---------------- */
+    const whereConditions = [];
+    const values = [];
+    let idx = 1;
+
+    if (assigned_by) {
+      whereConditions.push(`urm.assigned_by = $${idx++}`);
+      values.push(assigned_by);
+    }
+
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
+    /* ------------------------------------------------ */
+
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM user_role_mapping urm
       JOIN role r ON urm.role_id = r.role_id
-      WHERE r.builder_id = $1
+      ${whereClause}
     `;
 
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery, values);
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
@@ -190,13 +185,13 @@ exports.getAllUserRoleMapping = async (req, res) => {
       JOIN role r ON urm.role_id = r.role_id
       JOIN users u ON u.users_id = urm.user_id
       LEFT JOIN users ab ON ab.users_id = urm.assigned_by
-      WHERE r.builder_id = $1
+      ${whereClause}
       ORDER BY urm.assigned_at DESC
-      LIMIT $2 OFFSET $3;
+      LIMIT $${idx} OFFSET $${idx + 1};
     `;
 
     const dataResult = await client.query(dataQuery, [
-      builderId,
+      ...values,
       limit,
       offset,
     ]);
@@ -238,13 +233,9 @@ exports.deleteUserRoleMapping = async (req, res) => {
       FROM user_role_mapping urm
       JOIN role r ON urm.role_id = r.role_id
       WHERE urm.user_role_mapping_id = $1
-      AND r.builder_id = $2;
     `;
 
-    const findResult = await client.query(findQuery, [
-      user_role_mapping_id,
-      builderId,
-    ]);
+    const findResult = await client.query(findQuery, [user_role_mapping_id]);
 
     if (findResult.rowCount === 0) {
       return errorResponse(
@@ -327,29 +318,13 @@ exports.updateUserRoleMapping = async (req, res) => {
         `
         SELECT role_id
         FROM role
-        WHERE builder_id = $1
-          AND role_id = $2;
+        WHERE role_id = $2;
         `,
-        [builderId, finalRoleId]
+        [finalRoleId]
       );
 
       if (roleResult.rowCount === 0) {
-        return errorResponse(res, 404, "No role found for this builder.");
-      }
-
-      const roleActiveResult = await client.query(
-        `
-        SELECT role_id
-        FROM role
-        WHERE builder_id = $1
-          AND role_id = $2
-          AND is_active = true;
-        `,
-        [builderId, finalRoleId]
-      );
-
-      if (roleActiveResult.rowCount === 0) {
-        return errorResponse(res, 404, "Role is inactive.");
+        return errorResponse(res, 404, "No role found.");
       }
     }
 
@@ -360,14 +335,9 @@ exports.updateUserRoleMapping = async (req, res) => {
         FROM role_type
         WHERE role_type_id = $1
           AND role_id = $2
-          AND (
-            (company_id IS NULL AND builder_id IS NULL)
-            OR (company_id = $3 AND $3 IS NOT NULL)
-            OR (builder_id = $4 AND $4 IS NOT NULL)
-          )
         LIMIT 1;
         `,
-        [finalRoleTypeId, finalRoleId, companyId, builderId]
+        [finalRoleTypeId, finalRoleId]
       );
 
       if (roleTypeResult.rowCount === 0) {
