@@ -10,6 +10,8 @@ const {
 } = require("../controllers/user.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   getInvitedUserSchema,
@@ -22,16 +24,24 @@ const { REQUEST_SOURCE } = require("../config/constants");
 
 router.get(
   "/",
+  camelToSnakeMiddleware,
   validateRequest(getAllUserSchema, REQUEST_SOURCE.QUERY),
   authMiddleware,
   roleMiddleware,
   getAllUsers
 );
 
-router.get("/users", authMiddleware, roleMiddleware, getUsersByBuilderId);
-router.get("/profile", authMiddleware, getProfile);
+router.get(
+  "/users",
+  camelToSnakeMiddleware,
+  authMiddleware,
+  roleMiddleware,
+  getUsersByBuilderId
+);
+router.get("/profile", camelToSnakeMiddleware, authMiddleware, getProfile);
 router.get(
   "/invited-user",
+  camelToSnakeMiddleware,
   validateRequest(getInvitedUserSchema, REQUEST_SOURCE.QUERY),
   authMiddleware,
   roleMiddleware,
@@ -39,6 +49,7 @@ router.get(
 );
 router.post(
   "/invite-user",
+  camelToSnakeMiddleware,
   validateRequest(inviteUserSchema),
   authMiddleware,
   roleMiddleware,
@@ -46,6 +57,7 @@ router.post(
 );
 router.post(
   "/accept-invite",
+  camelToSnakeMiddleware,
   validateRequest(acceptInviteSchema),
   validateRequest(acceptInviteParamsSchema, REQUEST_SOURCE.QUERY),
   acceptInvite

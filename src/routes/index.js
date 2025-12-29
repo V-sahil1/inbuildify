@@ -1,5 +1,3 @@
-const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware");
-
 const countryRoutes = require("./country.routes");
 const stateRoutes = require("./state.routes");
 const authRoutes = require("./auth.routes");
@@ -112,8 +110,6 @@ const timezoneRoutes = require("./timezone.routes");
 const roleTypeRoutes = require("./role-type.routes");
 
 module.exports = function (app) {
-  app.use(camelToSnakeMiddleware);
-
   app.use("/country", countryRoutes);
   app.use("/state", stateRoutes);
   app.use("/auth", authRoutes);

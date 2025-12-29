@@ -6,11 +6,7 @@ const createRoleSchema = Joi.object({
     "any.required": "Role name is required.",
   }),
 
-  type: Joi.string().trim().min(2).max(100).optional(),
-
   description: Joi.string().optional(),
-
-  is_active: Joi.boolean().default(true),
 });
 
 const getAllRoleSchema = Joi.object({
@@ -56,15 +52,10 @@ const updateRoleSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-const updateRoleIsActiveSchema = Joi.object({
-  is_active: Joi.boolean().required(),
-});
-
 module.exports = {
   createRoleSchema,
   getAllRoleSchema,
   deleteRoleSchema,
   updateRoleIdParamsSchema,
   updateRoleSchema,
-  updateRoleIsActiveSchema,
 };

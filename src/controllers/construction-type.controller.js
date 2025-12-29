@@ -65,30 +65,44 @@ exports.createConstructionType = async (req, res) => {
       sort_order = 1;
     }
 
-    const sortOrderCheckQuery = `
-      SELECT construction_type_id
-      FROM construction_type
-      WHERE sort_order = $1
-        AND (
-          (company_id = $2 AND $2 IS NOT NULL)
-          AND (builder = $3 AND $3 IS NOT NULL)
-        )
-      LIMIT 1;
-    `;
+    const maxSortOrderQuery = `
+  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+  FROM construction_type
+  WHERE
+    (
+      (company_id = $1 AND $1 IS NOT NULL)
+      OR
+      (builder_id = $2 AND $2 IS NOT NULL)
+    )
+`;
 
-    const sortOrderCheckResult = await client.query(sortOrderCheckQuery, [
-      sort_order,
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
       companyId,
-      builder,
+      builderId,
     ]);
 
-    if (sortOrderCheckResult.rowCount > 0) {
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (sort_order > maxSortOrder + 1 || sort_order < 1) {
       return errorResponse(
         res,
-        409,
-        `sort_order '${sort_order}' already exists. Please choose another value.`
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+  UPDATE construction_type
+  SET sort_order = sort_order + 1
+  WHERE sort_order >= $1
+    AND (
+      (company_id = $2 AND $2 IS NOT NULL)
+      OR
+      (builder_id = $3 AND $3 IS NOT NULL)
+    )
+`;
+
+    await client.query(shiftSortOrderQuery, [sort_order, companyId, builderId]);
 
     if (dwelling_type.length > 0) {
       const dwellingCheckQuery = `
@@ -358,29 +372,81 @@ exports.updateConstructionType = async (req, res) => {
       }
     }
 
+    let existingSortOrder = existingResult.rows[0].sort_order;
+
     if (sort_order !== undefined && sort_order !== null) {
-      const sortOrderCheckQuery = `
-        SELECT construction_type_id
-        FROM construction_type
-        WHERE sort_order = $1
-          AND construction_type_id != $2
-          AND builder_id = $3
-          AND company_id = $4
-        LIMIT 1;
-      `;
-      const sortOrderCheckResult = await client.query(sortOrderCheckQuery, [
-        sort_order,
-        construction_type_id,
-        builderId,
+      // Get max sort_order
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM construction_type
+    WHERE
+      (
+        (company_id = $1 AND $1 IS NOT NULL)
+        OR
+        (builder_id = $2 AND $2 IS NOT NULL)
+      )
+  `;
+      const maxSortResult = await client.query(maxSortQuery, [
         companyId,
+        builderId,
       ]);
 
-      if (sortOrderCheckResult.rowCount > 0) {
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
         return errorResponse(
           res,
-          409,
-          `sort_order '${sort_order}' already exists. Please choose another value.`
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
         );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+        UPDATE construction_type
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND construction_type_id != $3
+          AND (
+            (company_id = $4 AND $4 IS NOT NULL)
+            OR
+            (builder_id = $5 AND $5 IS NOT NULL)
+          )
+        `,
+            [
+              existingSortOrder,
+              sort_order,
+              construction_type_id,
+              companyId,
+              builderId,
+            ]
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE construction_type
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND construction_type_id != $3
+          AND (
+            (company_id = $4 AND $4 IS NOT NULL)
+            OR
+            (builder_id = $5 AND $5 IS NOT NULL)
+          )
+        `,
+            [
+              sort_order,
+              existingSortOrder,
+              construction_type_id,
+              companyId,
+              builderId,
+            ]
+          );
+        }
       }
     }
 

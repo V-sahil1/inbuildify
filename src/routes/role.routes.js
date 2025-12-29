@@ -6,7 +6,6 @@ const {
   getAllRole,
   deleteRole,
   updateRole,
-  updateRoleIsActive,
 } = require("../controllers/role.controller");
 const {
   createRoleSchema,
@@ -14,16 +13,18 @@ const {
   deleteRoleSchema,
   updateRoleIdParamsSchema,
   updateRoleSchema,
-  updateRoleIsActiveSchema,
 } = require("../validations/role.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
 
 router.post(
   "/",
@@ -49,12 +50,4 @@ router.put(
   validateRequest(updateRoleSchema, REQUEST_SOURCE.BODY),
   updateRole
 );
-
-router.put(
-  "/is-active/:role_id",
-  validateRequest(updateRoleIdParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateRoleIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateRoleIsActive
-);
-
 module.exports = router;

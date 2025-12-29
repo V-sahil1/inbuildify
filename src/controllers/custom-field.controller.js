@@ -158,33 +158,40 @@ exports.getAllCustomFields = async (req, res) => {
       );
     }
 
-    const { page = 1, limit = 25 } = req.query;
+    const { page = 1, limit = 25, module_id } = req.query;
 
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
+    let whereClause = `WHERE cf.builder_id = $1 AND cf.company_id = $2`;
+    const params = [builderId, companyId];
+
+    if (module_id) {
+      whereClause += ` AND cf.custom_field_module_id = $3`;
+      params.push(module_id);
+    }
+
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM custom_field
-      WHERE builder_id = $1 AND company_id = $2;
+      FROM custom_field cf
+      ${whereClause};
     `;
-    const countResult = await client.query(countQuery, [builderId, companyId]);
+    const countResult = await client.query(countQuery, params);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
     const dataQuery = `
-      SELECT 
-        *
-      FROM custom_field
-      WHERE builder_id = $1 AND company_id = $2
-      ORDER BY sort_order ASC
-      LIMIT $3 OFFSET $4;
+      SELECT *
+      FROM custom_field cf
+      ${whereClause}
+      ORDER BY cf.sort_order ASC
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
     `;
 
     const dataResult = await client.query(dataQuery, [
-      builderId,
-      companyId,
+      ...params,
       limitValue,
       offset,
     ]);
@@ -203,8 +210,8 @@ exports.getAllCustomFields = async (req, res) => {
       "Custom fields fetched successfully."
     );
   } catch (error) {
-    console.error("Error fetching custom fields:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
+    console.error(error);
+    return errorResponse(res, 500, error.message);
   } finally {
     client.release();
   }

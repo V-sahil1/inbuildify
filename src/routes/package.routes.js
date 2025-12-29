@@ -16,10 +16,13 @@ const {
 } = require("../validations/package.validation");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
 
 router.post("/", validateRequest(createPackageSchema), createPackage);
 router.post(

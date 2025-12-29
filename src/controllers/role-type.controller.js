@@ -7,7 +7,7 @@ exports.createRoleType = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { company_id, builder_id } = req.user;
+    const userId = req.user?.user_id;
     const { type_name, role_id } = req.body;
 
     if (!type_name || !role_id) {
@@ -18,53 +18,46 @@ exports.createRoleType = async (req, res) => {
       SELECT role_id
       FROM role
       WHERE role_id = $1
-        AND is_active = TRUE
       LIMIT 1
     `;
     const roleCheckResult = await client.query(roleCheckQuery, [role_id]);
 
     if (roleCheckResult.rowCount === 0) {
-      return errorResponse(res, 400, "Invalid or inactive role_id");
+      return errorResponse(res, 400, "Invalid role_id");
     }
 
     const duplicateCheckQuery = `
       SELECT role_type_id
       FROM role_type
-      WHERE type_name = $1
+      WHERE LOWER(type_name) = LOWER($1)
         AND role_id = $2
-        AND (
-          (company_id = $3 AND $3 IS NOT NULL)
-          OR
-          (builder_id = $4 AND $4 IS NOT NULL)
-        )
       LIMIT 1
     `;
     const duplicateResult = await client.query(duplicateCheckQuery, [
-      type_name,
+      type_name.trim(),
       role_id,
-      company_id,
-      builder_id,
     ]);
 
     if (duplicateResult.rowCount > 0) {
-      return errorResponse(res, 409, "Role type already exists for this scope");
+      return errorResponse(res, 409, "Role type already exists for this role");
     }
 
     const insertQuery = `
       INSERT INTO role_type (
-        company_id,
-        builder_id,
+        role_id,
         type_name,
-        role_id
+        created_by,
+        updated_by
       )
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
+
     const insertResult = await client.query(insertQuery, [
-      company_id,
-      builder_id,
-      type_name,
       role_id,
+      type_name.trim(),
+      userId || null,
+      userId || null,
     ]);
 
     return successResponse(
@@ -85,7 +78,81 @@ exports.getRoleTypes = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { company_id, builder_id } = req.user;
+    const { role, page = 1, limit = 25 } = req.query;
+
+    if (!role) {
+      return errorResponse(res, 400, "role (role_id) is required");
+    }
+
+    const limitValue = parseInt(limit, 10);
+    const pageValue = parseInt(page, 10);
+    const offset = (pageValue - 1) * limitValue;
+
+    if (role) {
+      const roleCheck = await client.query(
+        `SELECT role_id FROM role WHERE role_id = $1 LIMIT 1`,
+        [role]
+      );
+
+      if (roleCheck.rowCount === 0) {
+        return errorResponse(res, 400, "Invalid role_id");
+      }
+    }
+
+    const dataQuery = `
+      SELECT
+        role_type_id,
+        role_id,
+        type_name,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
+      FROM role_type
+      WHERE role_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const dataResult = await client.query(dataQuery, [
+      role,
+      limitValue,
+      offset,
+    ]);
+
+    const countQuery = `
+      SELECT COUNT(*)::int AS total
+      FROM role_type
+      WHERE role_id = $1
+    `;
+    const countResult = await client.query(countQuery, [role]);
+
+    return successResponse(
+      res,
+      {
+        roleType: keysToCamelCase(dataResult.rows),
+        pagination: {
+          total: countResult.rows[0].total,
+          page: pageValue,
+          limit: limitValue,
+          totalPages: Math.ceil(countResult.rows[0].total / limitValue),
+        },
+      },
+      "Role types fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching role types:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getAllRoleTypes = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
     const { page = 1, limit = 25 } = req.query;
 
     const limitValue = parseInt(limit, 10);
@@ -94,63 +161,30 @@ exports.getRoleTypes = async (req, res) => {
 
     const dataQuery = `
       SELECT
-        rt.role_type_id,
-        rt.type_name,
-        rt.role_id,
-        rt.company_id,
-        rt.builder_id,
-        rt.created_at,
-        rt.updated_at
-      FROM role_type rt
-      WHERE
-        (
-          (rt.company_id IS NULL AND rt.builder_id IS NULL) -- GLOBAL
-          OR
-          (rt.company_id = $1 AND $1 IS NOT NULL)
-          OR
-          (rt.builder_id = $2 AND $2 IS NOT NULL)
-        )
-      ORDER BY rt.type_name
-      LIMIT $3 OFFSET $4;
+       *
+      FROM role_type
+      ORDER BY created_at DESC
+      LIMIT $1 OFFSET $2
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      company_id,
-      builder_id,
-      limitValue,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [limitValue, offset]);
 
     const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM role_type rt
-      WHERE
-        (
-          (rt.company_id IS NULL AND rt.builder_id IS NULL)
-          OR
-          (rt.company_id = $1 AND $1 IS NOT NULL)
-          OR
-          (rt.builder_id = $2 AND $2 IS NOT NULL)
-        );
+      SELECT COUNT(*)::int AS total
+      FROM role_type
     `;
 
-    const countResult = await client.query(countQuery, [
-      company_id,
-      builder_id,
-    ]);
-
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const countResult = await client.query(countQuery);
 
     return successResponse(
       res,
       {
-        roleTypes: keysToCamelCase(dataResult.rows),
+        data: keysToCamelCase(dataResult.rows),
         pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
+          total: countResult.rows[0].total,
+          page: pageValue,
           limit: limitValue,
+          totalPages: Math.ceil(countResult.rows[0].total / limitValue),
         },
       },
       "Role types fetched successfully"

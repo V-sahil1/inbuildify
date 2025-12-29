@@ -10,6 +10,8 @@ const {
 } = require("../controllers/master-price-list-category.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   getAllMasterPriceListCategoriesSchema,
@@ -23,6 +25,7 @@ const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
 
 router.get(
   "/",

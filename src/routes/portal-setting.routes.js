@@ -15,6 +15,8 @@ const {
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
 const { REQUEST_SOURCE } = require("../config/constants");
@@ -28,6 +30,7 @@ router.post(
   "/",
   upload.single("default_facade_image"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createPortalSettingsSchema, REQUEST_SOURCE.FORM_DATA),
   createPortalSettings
 );
@@ -38,6 +41,7 @@ router.put(
   "/:id",
   upload.single("default_facade_image"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updatePortalSettingParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.BODY),
   updatePortalSettings

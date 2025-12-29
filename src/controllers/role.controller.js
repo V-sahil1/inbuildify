@@ -7,14 +7,8 @@ exports.createRole = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderId = req.user.builder_id;
-    const userId = req.user.user_id;
-    const companyId = req.user?.company_id;
-    const { name, type, description, is_active } = req.body;
-
-    if (!companyId) {
-      return errorResponse(res, 400, "Company ID not found.");
-    }
+    const userId = req.user?.user_id;
+    const { name, description } = req.body;
 
     if (!name) {
       return errorResponse(res, 400, "Role name is required.");
@@ -23,8 +17,8 @@ exports.createRole = async (req, res) => {
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM role WHERE LOWER(name) = LOWER($1) AND builder_id = $2`,
-      [name.trim(), builderId]
+      `SELECT 1 FROM role WHERE LOWER(name) = LOWER($1)`,
+      [name.trim()]
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -34,26 +28,18 @@ exports.createRole = async (req, res) => {
 
     const insertQuery = `
       INSERT INTO role (
-        company_id,
-        builder_id,
         name,
-        type,
         description,
-        is_active,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
     `;
 
     const values = [
-      companyId,
-      builderId,
       name.trim(),
-      type || null,
       description || null,
-      is_active ?? true,
       userId || null,
       userId || null,
     ];
@@ -91,23 +77,17 @@ exports.getAllRole = async (req, res) => {
       SELECT 
        *
       FROM role r
-      WHERE r.builder_id = $1
       ORDER BY r.created_at DESC
-      LIMIT $2 OFFSET $3;
+      LIMIT $1 OFFSET $2;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [limitValue, offset]);
 
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM role
-      WHERE builder_id = $1;
     `;
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
@@ -138,18 +118,17 @@ exports.deleteRole = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const builderId = req.user.builder_id;
 
     if (!id) {
       return errorResponse(res, 400, "Role ID is required.");
     }
     const existingRole = await client.query(
-      `SELECT role_id FROM role WHERE role_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      `SELECT role_id FROM role WHERE role_id = $1`,
+      [id]
     );
 
     if (existingRole.rowCount === 0) {
-      return errorResponse(res, 404, "Role not found for this builder.");
+      return errorResponse(res, 404, "Role not found.");
     }
 
     await client.query(`DELETE FROM role WHERE role_id = $1`, [id]);
@@ -283,71 +262,6 @@ exports.updateRole = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating role:", error);
-    return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.updateRoleIsActive = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const userId = req.user?.user_id;
-    const { role_id } = req.params;
-    const { is_active } = req.body;
-
-    if (!role_id) {
-      return errorResponse(res, 400, "Role id is required");
-    }
-
-    if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)"
-      );
-    }
-
-    const existing = await client.query(
-      `
-      SELECT role_id
-      FROM role
-      WHERE role_id = $1
-        AND builder_id = $2
-      `,
-      [role_id, builderId]
-    );
-
-    if (existing.rowCount === 0) {
-      return errorResponse(res, 404, "role not found for this builder");
-    }
-
-    const updateQuery = `
-      UPDATE role
-      SET
-        is_active = $1,
-        updated_by = $2,
-        updated_at = NOW()
-      WHERE role_id = $3
-      RETURNING *;
-    `;
-
-    const updated = await client.query(updateQuery, [
-      is_active,
-      userId,
-      role_id,
-    ]);
-
-    return successResponse(
-      res,
-      keysToCamelCase(updated.rows[0]),
-      "role status updated successfully."
-    );
-  } catch (error) {
-    console.error("Error updating role is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();

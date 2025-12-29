@@ -26,6 +26,10 @@ const createCustomFieldSchema = Joi.object({
 });
 
 const getAllCustomFieldSchema = Joi.object({
+  module_id: Joi.string().uuid().required().messages({
+    "string.guid": "Custom field module ID must be a valid UUID",
+    "any.required": "Custom field module ID is required",
+  }),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

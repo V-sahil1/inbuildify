@@ -16,6 +16,7 @@ const {
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 
 const { REQUEST_SOURCE } = require("../config/constants");
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
@@ -36,12 +37,14 @@ router.post(
     { name: "induction_pack_image", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createSupplierContactSchema, REQUEST_SOURCE.FORM_DATA),
   createSupplierDocument
 );
 
 router.get(
   "/",
+  camelToSnakeMiddleware,
   validateRequest(getAllSupplierDocumentSchema, REQUEST_SOURCE.QUERY),
   getAllSupplierDocuments
 );
@@ -57,6 +60,7 @@ router.put(
     { name: "induction_pack_image", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updateSupplierDocumentParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSupplierDocumentSchema, REQUEST_SOURCE.FORM_DATA),
   updateSupplierDocument

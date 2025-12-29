@@ -11,10 +11,10 @@ const {
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 
 const { REQUEST_SOURCE } = require("../config/constants");
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
-const { isPlainObject } = require("lodash");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -25,6 +25,7 @@ router.post(
   "/",
   upload.single("file_image"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createTaskAttachmentSchema, REQUEST_SOURCE.FORM_DATA),
   createTaskAttachment
 );

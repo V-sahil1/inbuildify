@@ -20,7 +20,7 @@ const {
   updateRangeActiveSchema,
 } = require("../validations/range.validation.js");
 
-// const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 const { REQUEST_SOURCE } = require("../config/constants");
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
@@ -31,6 +31,7 @@ const upload = createUpload("range");
 
 router.get(
   "/",
+  camelToSnakeMiddleware,
   validateRequest(getAllRangesSchema, REQUEST_SOURCE.QUERY),
   getAllRanges
 );
@@ -41,6 +42,7 @@ router.post(
     { name: "header_url", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createRangeSchema, REQUEST_SOURCE.FORM_DATA),
   createRange
 );
@@ -51,18 +53,21 @@ router.put(
     { name: "header_url", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updateRangeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRangeSchema, REQUEST_SOURCE.FORM_DATA),
   updateRange
 );
 router.delete(
   "/:range_id",
+  camelToSnakeMiddleware,
   validateRequest(deleteRangeSchema.params, REQUEST_SOURCE.PARAMS),
   deleteRange
 );
 
 router.put(
   "/is-active/:range_id",
+  camelToSnakeMiddleware,
   validateRequest(updateRangeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRangeActiveSchema, REQUEST_SOURCE.BODY),
   updateRangeActive

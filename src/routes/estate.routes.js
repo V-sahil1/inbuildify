@@ -18,6 +18,8 @@ const {
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
 const { REQUEST_SOURCE } = require("../config/constants");
@@ -31,18 +33,21 @@ router.post(
   "/",
   upload.single("estate_logo"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createEstateSchema, REQUEST_SOURCE.FORM_DATA),
   createEstate
 );
 
 router.get(
   "/",
+  camelToSnakeMiddleware,
   validateRequest(getAllEstateSchema, REQUEST_SOURCE.QUERY),
   getAllEstate
 );
 
 router.delete(
   "/:estate_id",
+  camelToSnakeMiddleware,
   validateRequest(deleteEstateSchema, REQUEST_SOURCE.PARAMS),
   deleteEstate
 );
@@ -51,6 +56,7 @@ router.put(
   "/:estate_id",
   upload.single("estate_logo"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updateEstateParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateEstateSchema, REQUEST_SOURCE.BODY),
   updateEstate
