@@ -897,7 +897,6 @@ CREATE TABLE checklist_item (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-
 CREATE TYPE show_reference_id_in_pdf_type AS ENUM (
     'document_id',
     'job_id',
