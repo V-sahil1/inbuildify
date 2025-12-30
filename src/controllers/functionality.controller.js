@@ -83,8 +83,14 @@ exports.getFunctionalities = async (req, res) => {
     const offset = (pageValue - 1) * limitValue;
 
     const dataQuery = `
-      SELECT *
+      SELECT 
+        f.functionality_id,
+        f.name AS functionality_name,
+        json_build_object('id', s.screen_id, 'name', s.name) AS screen,
+        f.created_at,
+        f.updated_at
       FROM functionality f
+      JOIN screen s ON s.screen_id = f.screen_id
       ORDER BY f.created_at DESC
       LIMIT $1 OFFSET $2;
     `;

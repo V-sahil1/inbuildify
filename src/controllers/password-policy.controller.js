@@ -83,55 +83,6 @@ exports.createPasswordPolicy = async (req, res) => {
   }
 };
 
-exports.getPasswordPolicyByUser = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId) {
-      return errorResponse(res, 400, "Builder ID not found in user context.");
-    }
-
-    await client.query("BEGIN");
-
-    // Get only this builder's password policy
-    const policyQuery = `
-      SELECT *
-      FROM password_policy
-      WHERE builder_id = $1 AND company_id = $2
-      LIMIT 1;
-    `;
-    const policyResult = await client.query(policyQuery, [
-      builderId,
-      companyId,
-    ]);
-
-    await client.query("COMMIT");
-
-    if (policyResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No password policy found for this builder."
-      );
-    }
-    return successResponse(
-      res,
-      keysToCamelCase(policyResult.rows[0]),
-      "Password policy fetched successfully."
-    );
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error egtting pssword policy:", error);
-    return errorResponse(res, 500, error.message || "Internal server error");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updatePasswordPolicy = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -140,7 +91,10 @@ exports.updatePasswordPolicy = async (req, res) => {
     const builderId = req.user.builder_id;
     const userId = req.user.user_id;
     const companyId = req.user?.company_id;
-    const { password_policy_id } = req.params;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
 
     const {
       expires_in_days,
@@ -149,41 +103,6 @@ exports.updatePasswordPolicy = async (req, res) => {
       password_history_count,
       enforce_strong_password,
     } = req.body;
-
-    const updatingOtherFields =
-      expires_in_days !== undefined ||
-      invalid_attempt_limit !== undefined ||
-      alert_before_expiry_days !== undefined ||
-      password_history_count !== undefined ||
-      enforce_strong_password !== undefined;
-
-    if (!password_policy_id) {
-      return errorResponse(res, 400, "password_policy_id is required.");
-    }
-
-    await client.query("BEGIN");
-
-    const exist = await client.query(
-      `SELECT * FROM password_policy 
-       WHERE password_policy_id = $1 AND builder_id = $2`,
-      [password_policy_id, builderId]
-    );
-
-    if (exist.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Password policy not found.");
-    }
-
-    const existActive = await client.query(
-      `SELECT * FROM password_policy 
-       WHERE password_policy_id = $1 AND builder_id = $2 AND is_active = true`,
-      [password_policy_id, builderId]
-    );
-
-    if (existActive.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "inactive password policy.");
-    }
 
     const fields = [];
     const values = [];
@@ -216,7 +135,6 @@ exports.updatePasswordPolicy = async (req, res) => {
     }
 
     if (fields.length === 0) {
-      await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
@@ -231,19 +149,20 @@ exports.updatePasswordPolicy = async (req, res) => {
     fields.push(`updated_at = NOW()`);
 
     const updateQuery = `
-      UPDATE password_policy 
+      UPDATE password_policy
       SET ${fields.join(", ")}
-      WHERE password_policy_id = $${idx}
-      AND builder_id = $${idx + 1}
-      AND company_id = $${idx + 2}
+      WHERE builder_id = $${idx} 
+        AND company_id = $${idx + 1} 
+        AND is_active = true
       RETURNING *;
     `;
-
-    values.push(password_policy_id, builderId, companyId);
+    values.push(builderId, companyId);
 
     const result = await client.query(updateQuery, values);
 
-    await client.query("COMMIT");
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "password policy not found.");
+    }
 
     return successResponse(
       res,
@@ -251,9 +170,8 @@ exports.updatePasswordPolicy = async (req, res) => {
       "Password policy updated successfully."
     );
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error updating password policy:", error);
-    return errorResponse(res, 500, error.message);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -266,11 +184,11 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id;
-    const { password_policy_id } = req.params;
+    const companyId = req.user?.company_id;
     const { is_active } = req.body;
 
-    if (!password_policy_id) {
-      return errorResponse(res, 400, "Password policy id is required");
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized");
     }
 
     if (typeof is_active !== "boolean") {
@@ -283,19 +201,20 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
 
     const existing = await client.query(
       `
-      SELECT password_policy_id
+      SELECT *
       FROM password_policy
-      WHERE password_policy_id = $1
-        AND builder_id = $2
+      WHERE builder_id = $1
+        AND company_id = $2
+      LIMIT 1
       `,
-      [password_policy_id, builderId]
+      [builderId, companyId]
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "password policy not found for this builder"
+        "Password policy not found for this builder"
       );
     }
 
@@ -305,20 +224,22 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
         is_active = $1,
         updated_by = $2,
         updated_at = NOW()
-      WHERE password_policy_id = $3
+      WHERE builder_id = $3
+        AND company_id = $4
       RETURNING *;
     `;
 
     const updated = await client.query(updateQuery, [
       is_active,
       userId,
-      password_policy_id,
+      builderId,
+      companyId,
     ]);
 
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "password policy status updated successfully."
+      "Password policy status updated successfully."
     );
   } catch (error) {
     console.error("Error updating password policy is_active:", error);

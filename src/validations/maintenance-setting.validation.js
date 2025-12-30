@@ -29,12 +29,22 @@ const updateMaintenanceSettingSchema = Joi.object({
   task_date_enabled: Joi.boolean(),
   repair_cost_enabled: Joi.boolean(),
   hours_spent_enabled: Joi.boolean(),
-  maintenance_start_date: Joi.date().allow(null).optional(),
-  handover_date: Joi.date().allow(null).optional(),
-  maintenance_period_days: Joi.number().integer().min(0).optional().allow(null),
+  maintenance_start_date: Joi.string()
+    .trim()
+    .max(100)
+    .valid("handover_date", "occupancy_permit_date")
+    .default("handover_date")
+    .optional(),
+  maintenance_period_days: Joi.number()
+    .integer()
+    .min(0)
+    .max(565)
+    .optional()
+    .allow(null),
   maintenance_duration_days: Joi.number()
     .integer()
     .min(0)
+    .max(365)
     .optional()
     .allow(null),
   supervisor_roles: Joi.array()

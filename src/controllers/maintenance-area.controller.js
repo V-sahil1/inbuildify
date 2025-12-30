@@ -21,6 +21,25 @@ exports.createMaintenanceArea = async (req, res) => {
       );
     }
 
+    const settingsQuery = `
+      SELECT area_enabled
+      FROM maintenance_settings
+      WHERE builder_id = $1 AND company_id = $2
+      LIMIT 1
+    `;
+    const settingsResult = await client.query(settingsQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    if (settingsResult.rowCount === 0 || !settingsResult.rows[0].area_enabled) {
+      return errorResponse(
+        res,
+        403,
+        "Maintenance areas are not enabled for this builder."
+      );
+    }
+
     const checkQuery = `
       SELECT maintenance_area_id
       FROM maintenance_area
@@ -77,6 +96,25 @@ exports.getAllMaintenanceAreas = async (req, res) => {
       );
     }
 
+    const settingsQuery = `
+      SELECT area_enabled
+      FROM maintenance_settings
+      WHERE builder_id = $1 AND company_id = $2
+      LIMIT 1
+    `;
+    const settingsResult = await client.query(settingsQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    if (settingsResult.rowCount === 0 || !settingsResult.rows[0].area_enabled) {
+      return errorResponse(
+        res,
+        403,
+        "Maintenance areas are not enabled for this builder."
+      );
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 25;
     const offset = (page - 1) * limit;
@@ -107,7 +145,7 @@ exports.getAllMaintenanceAreas = async (req, res) => {
     return successResponse(
       res,
       {
-        maintenanceArea: dataResult.rows,
+        maintenanceArea: keysToCamelCase(dataResult.rows),
         pagination: {
           totalRecords,
           currentPage: page,
@@ -143,6 +181,25 @@ exports.deleteMaintenanceArea = async (req, res) => {
         res,
         400,
         "Invalid user context. Missing builder or company ID."
+      );
+    }
+
+    const settingsQuery = `
+      SELECT area_enabled
+      FROM maintenance_settings
+      WHERE builder_id = $1 AND company_id = $2
+      LIMIT 1
+    `;
+    const settingsResult = await client.query(settingsQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    if (settingsResult.rowCount === 0 || !settingsResult.rows[0].area_enabled) {
+      return errorResponse(
+        res,
+        403,
+        "Maintenance areas are not enabled for this builder."
       );
     }
 
@@ -208,6 +265,25 @@ exports.updateMaintenanceArea = async (req, res) => {
     }
 
     const { name } = req.body;
+
+    const settingsQuery = `
+      SELECT area_enabled
+      FROM maintenance_settings
+      WHERE builder_id = $1 AND company_id = $2
+      LIMIT 1
+    `;
+    const settingsResult = await client.query(settingsQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    if (settingsResult.rowCount === 0 || !settingsResult.rows[0].area_enabled) {
+      return errorResponse(
+        res,
+        403,
+        "Maintenance areas are not enabled for this builder."
+      );
+    }
 
     const ownershipQuery = `
       SELECT maintenance_area_id
@@ -280,7 +356,7 @@ exports.updateMaintenanceArea = async (req, res) => {
 
     return successResponse(
       res,
-      updateResult.rows[0],
+      keysToCamelCase(updateResult.rows[0]),
       "Maintenance area updated successfully."
     );
   } catch (error) {

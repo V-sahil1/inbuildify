@@ -8,7 +8,6 @@ const {
 } = require("../controllers/job-setting.controller");
 const {
   createJobSettingsSchema,
-  updateJobSettingParamsSchema,
   updateJobSettingSchema,
 } = require("../validations/job-setting.validation");
 
@@ -32,8 +31,7 @@ router.post(
 router.get("/", getUserJobSettings);
 
 router.put(
-  "/:job_settings_id",
-  validateRequest(updateJobSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateJobSettingSchema, REQUEST_SOURCE.BODY),
   updateJobSettings
 );

@@ -56,13 +56,39 @@ exports.createChecklist = async (req, res) => {
       );
     }
 
-    const insertRes = await client.query(
-      `INSERT INTO checklist
-       (builder_id, name, screen_id, functionality_id, is_active, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, COALESCE($5, TRUE), $6, $6)
-       RETURNING *`,
-      [builderId, name, screen_id, functionality_id, is_active, createdBy]
-    );
+    const insertQuery = `
+      WITH inserted AS (
+        INSERT INTO checklist
+          (builder_id, name, screen_id, functionality_id, is_active, created_by, updated_by)
+        VALUES
+          ($1, $2, $3, $4, COALESCE($5, TRUE), $6, $6)
+        RETURNING checklist_id, name, screen_id, functionality_id, is_active
+      )
+      SELECT
+        i.checklist_id,
+        i.name,
+        i.is_active,
+        json_build_object(
+          'id', s.screen_id,
+          'name', s.name
+        ) AS screen,
+        json_build_object(
+          'id', f.functionality_id,
+          'name', f.name
+        ) AS functionality
+      FROM inserted i
+      JOIN screen s ON s.screen_id = i.screen_id
+      JOIN functionality f ON f.functionality_id = i.functionality_id;
+    `;
+
+    const insertRes = await client.query(insertQuery, [
+      builderId,
+      name,
+      screen_id,
+      functionality_id,
+      is_active,
+      createdBy,
+    ]);
 
     await client.query("COMMIT");
 
@@ -93,10 +119,23 @@ exports.getAllChecklist = async (req, res) => {
     const offset = (pageValue - 1) * limitValue;
 
     const dataQuery = `
-      SELECT 
-       *
+      SELECT
+        c.checklist_id,
+        c.name,
+        c.is_active,
+        json_build_object(
+          'id', s.screen_id,
+          'name', s.name
+        ) AS screen,
+        json_build_object(
+          'id', f.functionality_id,
+          'name', f.name
+        ) AS functionality
       FROM checklist c
-      WHERE c.builder_id = $1 AND c.is_deleted = false
+      LEFT JOIN screen s ON s.screen_id = c.screen_id
+      LEFT JOIN functionality f ON f.functionality_id = c.functionality_id
+      WHERE c.builder_id = $1
+        AND c.is_deleted = false
       ORDER BY c.created_at DESC
       LIMIT $2 OFFSET $3;
     `;
@@ -110,8 +149,10 @@ exports.getAllChecklist = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM checklist
-      WHERE builder_id = $1 AND is_deleted = false;
+      WHERE builder_id = $1
+        AND is_deleted = false;
     `;
+
     const countResult = await client.query(countQuery, [builderId]);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
@@ -127,7 +168,7 @@ exports.getAllChecklist = async (req, res) => {
           limit: limitValue,
         },
       },
-      "checklist fetched successfully."
+      "Checklist fetched successfully."
     );
   } catch (error) {
     console.error("Error fetching checklist:", error);
@@ -268,7 +309,7 @@ exports.updateChecklist = async (req, res) => {
       }
     }
 
-    const finalName = name || existing.name;
+    const finalName = name;
 
     if (name || functionality_id) {
       const duplicateCheckQuery = `
@@ -283,7 +324,7 @@ exports.updateChecklist = async (req, res) => {
 
       const duplicateResult = await client.query(duplicateCheckQuery, [
         functionality_id,
-        finalName.trim(),
+        finalName,
         checklist_id,
         builderId,
       ]);
@@ -337,13 +378,38 @@ exports.updateChecklist = async (req, res) => {
 
     const finalValues = [checklist_id, builderId, ...values];
 
-    const result = await client.query(updateQuery, finalValues);
+    await client.query(updateQuery, finalValues);
+
+    const fetchQuery = `
+      SELECT
+        c.checklist_id,
+        c.name,
+        c.is_active,
+        json_build_object(
+          'id', s.screen_id,
+          'name', s.name
+        ) AS screen,
+        json_build_object(
+          'id', f.functionality_id,
+          'name', f.name
+        ) AS functionality
+      FROM checklist c
+      LEFT JOIN screen s ON s.screen_id = c.screen_id
+      LEFT JOIN functionality f ON f.functionality_id = c.functionality_id
+      WHERE c.checklist_id = $1
+        AND c.builder_id = $2;
+    `;
+
+    const finalResult = await client.query(fetchQuery, [
+      checklist_id,
+      builderId,
+    ]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(finalResult.rows[0]),
       "Checklist updated successfully."
     );
   } catch (err) {
@@ -403,7 +469,7 @@ exports.updateChecklistIsActive = async (req, res) => {
         updated_by = $2,
         updated_at = NOW()
       WHERE checklist_id = $3
-      RETURNING *;
+      RETURNING checklist_id, is_active;
     `;
 
     const updated = await client.query(updateQuery, [

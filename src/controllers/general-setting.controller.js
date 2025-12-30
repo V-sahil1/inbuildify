@@ -108,130 +108,13 @@ exports.createGeneralSetting = async (req, res) => {
   }
 };
 
-exports.getAllGeneralSettings = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user.builder_id;
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
-    const query = `
-      SELECT 
-        id,
-        company_id,
-        builder_id,
-        notification_referral_partner,
-        pdf_password_protected,
-        pdf_password,
-        round_of_cost,
-        negative_value_show,
-        negative_value_color,
-        show_reference_id_in_pdf,
-        job_id_label
-      FROM general_settings
-      WHERE builder_id = $1
-        LIMIT $2 OFFSET $3
-    `;
-
-    const result = await client.query(query, [builderId, limitValue, offset]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM general_settings
-      WHERE builder_id = $1
-    `;
-    const countResult = await client.query(countQuery, [builderId]);
-    const total = parseInt(countResult.rows[0].total, 10);
-
-    return successResponse(
-      res,
-      {
-        generalSettings: keysToCamelCase(result.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages: Math.ceil(total / limitValue),
-          totalRecords: total,
-          limit: limitValue,
-        },
-      },
-      "General settings fetched successfully."
-    );
-  } catch (error) {
-    console.error("Error fetching general settings:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getGeneralSettingByUser = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId) {
-      return errorResponse(res, 400, "Builder ID not found in user context.");
-    }
-
-    if (!companyId) {
-      return errorResponse(res, 400, "Company ID not found.");
-    }
-
-    await client.query("BEGIN");
-
-    const getQuery = `
-      SELECT *
-      FROM general_settings
-      WHERE company_id = $1 AND builder_id = $2
-      LIMIT 1;
-    `;
-
-    const result = await client.query(getQuery, [companyId, builderId]);
-
-    await client.query("COMMIT");
-
-    if (result.rowCount === 0) {
-      return successResponse(
-        res,
-        {},
-        "No general settings found. Please create one."
-      );
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "General settings fetched successfully."
-    );
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Error fetching general settings:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateGeneralSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const { id } = req.params;
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
-
-    if (!id) {
-      return errorResponse(res, 400, "General setting ID is required.");
-    }
 
     if (!companyId) {
       return errorResponse(res, 400, "Company ID not found.");
@@ -267,10 +150,14 @@ exports.updateGeneralSettings = async (req, res) => {
 
     await client.query("BEGIN");
 
+    // 🔹 Fetch builder's own record (ID REMOVED)
     const existing = await client.query(
-      `SELECT pdf_password_protected FROM general_settings 
-       WHERE id = $1 AND builder_id = $2;`,
-      [id, builderId]
+      `
+      SELECT pdf_password_protected
+      FROM general_settings
+      WHERE builder_id = $1
+      `,
+      [builderId]
     );
 
     if (existing.rowCount === 0) {
@@ -345,14 +232,15 @@ exports.updateGeneralSettings = async (req, res) => {
     fields.push(`company_id = $${index++}`);
     values.push(companyId);
 
+    // 🔹 Update builder's own record (ID REMOVED)
     const updateQuery = `
       UPDATE general_settings
       SET ${fields.join(", ")}
-      WHERE id = $${index}
+      WHERE builder_id = $${index}
       RETURNING *;
     `;
 
-    values.push(id);
+    values.push(builderId);
 
     const result = await client.query(updateQuery, values);
     await client.query("COMMIT");

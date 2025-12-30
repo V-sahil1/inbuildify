@@ -19,13 +19,6 @@ const createJobSettingsSchema = Joi.object({
   report_include_date: Joi.boolean().optional(),
 });
 
-const updateJobSettingParamsSchema = Joi.object({
-  job_settings_id: Joi.string().uuid().required().messages({
-    "string.guid": "ID must be a valid UUID",
-    "any.required": "ID is required",
-  }),
-});
-
 const updateJobSettingSchema = Joi.object({
   auto_move_to_maintenance: Joi.boolean().optional(),
   auto_mark_completed: Joi.boolean().optional(),
@@ -47,6 +40,5 @@ const updateJobSettingSchema = Joi.object({
 
 module.exports = {
   createJobSettingsSchema,
-  updateJobSettingParamsSchema,
   updateJobSettingSchema,
 };

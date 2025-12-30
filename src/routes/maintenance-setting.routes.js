@@ -32,8 +32,7 @@ router.post(
 router.get("/", getUserMaintenanceSettings);
 
 router.put(
-  "/:maintenance_settings_id",
-  validateRequest(updateMaintenanceSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateMaintenanceSettingSchema, REQUEST_SOURCE.BODY),
   updateMaintenanceSettings
 );

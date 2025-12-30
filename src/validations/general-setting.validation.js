@@ -45,28 +45,6 @@ const createGeneralSettigSchema = Joi.object({
   job_id_label: Joi.string().max(100).allow(null, "").optional(),
 });
 
-const getAllGeneralSettingSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    "number.base": "Page must be a number",
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be greater than 0",
-  }),
-
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
-    "number.base": "Limit must be a number",
-    "number.integer": "Limit must be an integer",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit must not exceed 100",
-  }),
-});
-
-const updateGeneralSettingIdParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "ID must be a valid UUID",
-    "any.required": "ID is required",
-  }),
-});
-
 const updateGeneralSettingsSchema = Joi.object({
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
@@ -108,7 +86,5 @@ const updateGeneralSettingsSchema = Joi.object({
 
 module.exports = {
   createGeneralSettigSchema,
-  updateGeneralSettingIdParamsSchema,
   updateGeneralSettingsSchema,
-  getAllGeneralSettingSchema,
 };

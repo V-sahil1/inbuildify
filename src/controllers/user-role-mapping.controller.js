@@ -35,7 +35,7 @@ exports.createUserRoleMapping = async (req, res) => {
     );
 
     if (roleResult.rowCount === 0) {
-      return errorResponse(res, 404, "No role found for this builder.");
+      return errorResponse(res, 404, "No role found.");
     }
 
     if (role_type_id) {
@@ -54,7 +54,7 @@ exports.createUserRoleMapping = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid role_type_id or role_type not accessible for this role."
+          "Invalid role_type_id or role_type not linked to this role."
         );
       }
     }
@@ -87,9 +87,10 @@ exports.createUserRoleMapping = async (req, res) => {
           (role_type_id = $3)
           OR (role_type_id IS NULL AND $3 IS NULL)
         )
+        AND builder_id = $4
       LIMIT 1
       `,
-      [role_id, user_id, role_type_id]
+      [role_id, user_id, role_type_id, builderId]
     );
 
     if (duplicateResult.rowCount > 0) {
@@ -99,20 +100,70 @@ exports.createUserRoleMapping = async (req, res) => {
     const insertResult = await client.query(
       `
       INSERT INTO user_role_mapping (
+        company_id,
+        builder_id,
         user_id,
         role_id,
         role_type_id,
         assigned_by
       )
-      VALUES ($1, $2, $3, $4)
-      RETURNING *;
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING user_role_mapping_id;
       `,
-      [user_id, role_id, role_type_id, assigned_by]
+      [companyId, builderId, user_id, role_id, role_type_id, assigned_by]
     );
+
+    const mappingId = insertResult.rows[0].user_role_mapping_id;
+
+    const responseQuery = `
+      SELECT 
+        urm.user_role_mapping_id,
+
+        urm.user_id,
+        u.name AS user_name,
+
+        urm.role_id,
+        r.name AS role_name,
+
+        urm.role_type_id,
+        rt.type_name AS role_type_name,
+
+        urm.assigned_by,
+        ab.name AS assigned_by_name,
+
+        urm.assigned_at
+      FROM user_role_mapping urm
+      LEFT JOIN users u ON u.users_id = urm.user_id
+      LEFT JOIN role r ON r.role_id = urm.role_id
+      LEFT JOIN role_type rt ON rt.role_type_id = urm.role_type_id
+      LEFT JOIN users ab ON ab.users_id = urm.assigned_by
+      WHERE urm.user_role_mapping_id = $1
+    `;
+
+    const responseResult = await client.query(responseQuery, [mappingId]);
+    const row = responseResult.rows[0];
+
+    const formattedResponse = {
+      userRoleMappingId: row.user_role_mapping_id,
+
+      user: row.user_id ? { id: row.user_id, name: row.user_name } : null,
+
+      role: row.role_id ? { id: row.role_id, name: row.role_name } : null,
+
+      roleType: row.role_type_id
+        ? { id: row.role_type_id, name: row.role_type_name }
+        : null,
+
+      assignedBy: row.assigned_by
+        ? { id: row.assigned_by, name: row.assigned_by_name }
+        : null,
+
+      assignedAt: row.assigned_at,
+    };
 
     return successResponse(
       res,
-      keysToCamelCase(insertResult.rows[0]),
+      formattedResponse,
       "Role mapping created successfully."
     );
   } catch (error) {
@@ -146,10 +197,9 @@ exports.getAllUserRoleMapping = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    /* ---------------- FILTER LOGIC ---------------- */
-    const whereConditions = [];
-    const values = [];
-    let idx = 1;
+    const whereConditions = [`urm.builder_id = $1`];
+    const values = [builderId];
+    let idx = 2;
 
     if (assigned_by) {
       whereConditions.push(`urm.assigned_by = $${idx++}`);
@@ -160,12 +210,14 @@ exports.getAllUserRoleMapping = async (req, res) => {
       whereConditions.length > 0
         ? `WHERE ${whereConditions.join(" AND ")}`
         : "";
-    /* ------------------------------------------------ */
 
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM user_role_mapping urm
-      JOIN role r ON urm.role_id = r.role_id
+      LEFT JOIN role r ON urm.role_id = r.role_id
+      LEFT JOIN users u ON u.users_id = urm.user_id
+      LEFT JOIN role_type rt ON rt.role_type_id = urm.role_type_id
+      LEFT JOIN users ab ON ab.users_id = urm.assigned_by
       ${whereClause}
     `;
 
@@ -176,14 +228,24 @@ exports.getAllUserRoleMapping = async (req, res) => {
     const dataQuery = `
       SELECT 
         urm.user_role_mapping_id,
+
         urm.user_id,
+        u.name AS user_name,
+
         urm.role_id,
+        r.name AS role_name,
+
         urm.role_type_id,
+        rt.type_name AS role_type_name,
+
         urm.assigned_by,
+        ab.name AS assigned_by_name,
+
         urm.assigned_at
       FROM user_role_mapping urm
-      JOIN role r ON urm.role_id = r.role_id
-      JOIN users u ON u.users_id = urm.user_id
+      LEFT JOIN role r ON urm.role_id = r.role_id
+      LEFT JOIN users u ON u.users_id = urm.user_id
+      LEFT JOIN role_type rt ON rt.role_type_id = urm.role_type_id
       LEFT JOIN users ab ON ab.users_id = urm.assigned_by
       ${whereClause}
       ORDER BY urm.assigned_at DESC
@@ -196,12 +258,30 @@ exports.getAllUserRoleMapping = async (req, res) => {
       offset,
     ]);
 
+    const formattedResult = dataResult.rows.map((row) => ({
+      userRoleMappingId: row.user_role_mapping_id,
+
+      user: row.user_id ? { id: row.user_id, name: row.user_name } : null,
+
+      role: row.role_id ? { id: row.role_id, name: row.role_name } : null,
+
+      roleType: row.role_type_id
+        ? { id: row.role_type_id, name: row.role_type_name }
+        : null,
+
+      assignedBy: row.assigned_by
+        ? { id: row.assigned_by, name: row.assigned_by_name }
+        : null,
+
+      assignedAt: row.assigned_at,
+    }));
+
     return successResponse(
       res,
       {
-        userRoleMapping: keysToCamelCase(dataResult.rows),
+        userRoleMapping: formattedResult,
         records: total,
-        curruntPage: page,
+        currentPage: page,
         limit,
         totalPages,
       },
@@ -232,10 +312,13 @@ exports.deleteUserRoleMapping = async (req, res) => {
       SELECT urm.user_role_mapping_id
       FROM user_role_mapping urm
       JOIN role r ON urm.role_id = r.role_id
-      WHERE urm.user_role_mapping_id = $1
+      WHERE urm.user_role_mapping_id = $1 AND urm.builder_id = $2
     `;
 
-    const findResult = await client.query(findQuery, [user_role_mapping_id]);
+    const findResult = await client.query(findQuery, [
+      user_role_mapping_id,
+      builderId,
+    ]);
 
     if (findResult.rowCount === 0) {
       return errorResponse(
@@ -255,11 +338,7 @@ exports.deleteUserRoleMapping = async (req, res) => {
       user_role_mapping_id,
     ]);
 
-    return successResponse(
-      res,
-      keysToCamelCase(deleteResult.rows[0]),
-      "User role mapping deleted successfully."
-    );
+    return successResponse(res, {}, "User role mapping deleted successfully.");
   } catch (error) {
     console.error("Delete User Role Mapping Error:", error);
     return errorResponse(res, 500, "Internal Server Error.");
@@ -292,9 +371,10 @@ exports.updateUserRoleMapping = async (req, res) => {
       `
       SELECT *
       FROM user_role_mapping
-      WHERE user_role_mapping_id = $1;
+      WHERE user_role_mapping_id = $1
+        AND builder_id = $2;
       `,
-      [user_role_mapping_id]
+      [user_role_mapping_id, builderId]
     );
 
     if (existingResult.rowCount === 0) {
@@ -318,7 +398,7 @@ exports.updateUserRoleMapping = async (req, res) => {
         `
         SELECT role_id
         FROM role
-        WHERE role_id = $2;
+        WHERE role_id = $1;
         `,
         [finalRoleId]
       );
@@ -354,7 +434,8 @@ exports.updateUserRoleMapping = async (req, res) => {
         `
         SELECT users_id
         FROM users
-        WHERE users_id = $1 AND is_deleted = false;
+        WHERE users_id = $1
+          AND is_deleted = false;
         `,
         [finalUserId]
       );
@@ -377,46 +458,99 @@ exports.updateUserRoleMapping = async (req, res) => {
           (role_type_id = $3)
           OR (role_type_id IS NULL AND $3 IS NULL)
         )
-        AND user_role_mapping_id <> $4
+        AND builder_id = $4
+        AND user_role_mapping_id <> $5
       LIMIT 1;
       `,
-      [finalRoleId, finalUserId, finalRoleTypeId, user_role_mapping_id]
+      [
+        finalRoleId,
+        finalUserId,
+        finalRoleTypeId,
+        builderId,
+        user_role_mapping_id,
+      ]
     );
 
     if (duplicateResult.rowCount > 0) {
       return errorResponse(res, 409, "This role mapping already exists.");
     }
 
-    const fields = [];
-    const values = [];
-    let idx = 1;
-
-    fields.push(`user_id = $${idx++}`);
-    values.push(finalUserId);
-
-    fields.push(`role_id = $${idx++}`);
-    values.push(finalRoleId);
-
-    fields.push(`role_type_id = $${idx++}`);
-    values.push(finalRoleTypeId);
-
-    fields.push(`assigned_by = $${idx++}`);
-    values.push(finalAssignedBy);
-
-    const updateQuery = `
+    const updateResult = await client.query(
+      `
       UPDATE user_role_mapping
-      SET ${fields.join(", ")}
-      WHERE user_role_mapping_id = $${idx}
-      RETURNING *;
+      SET
+        user_id = $1,
+        role_id = $2,
+        role_type_id = $3,
+        assigned_by = $4,
+        company_id = $5
+      WHERE user_role_mapping_id = $6
+      RETURNING user_role_mapping_id;
+      `,
+      [
+        finalUserId,
+        finalRoleId,
+        finalRoleTypeId,
+        finalAssignedBy,
+        companyId,
+        user_role_mapping_id,
+      ]
+    );
+
+    const updatedMappingId = updateResult.rows[0].user_role_mapping_id;
+
+    const responseQuery = `
+      SELECT 
+        urm.user_role_mapping_id,
+
+        urm.user_id,
+        u.name AS user_name,
+
+        urm.role_id,
+        r.name AS role_name,
+
+        urm.role_type_id,
+        rt.type_name AS role_type_name,
+
+        urm.assigned_by,
+        ab.name AS assigned_by_name,
+
+        urm.assigned_at
+      FROM user_role_mapping urm
+      LEFT JOIN users u ON u.users_id = urm.user_id
+      LEFT JOIN role r ON r.role_id = urm.role_id
+      LEFT JOIN role_type rt ON rt.role_type_id = urm.role_type_id
+      LEFT JOIN users ab ON ab.users_id = urm.assigned_by
+      WHERE urm.user_role_mapping_id = $1
     `;
 
-    values.push(user_role_mapping_id);
+    const responseResult = await client.query(responseQuery, [
+      updatedMappingId,
+    ]);
 
-    const updateResult = await client.query(updateQuery, values);
+    const row = responseResult.rows[0];
+
+    const formattedResponse = {
+      userRoleMappingId: row.user_role_mapping_id,
+
+      user: row.user_id ? { id: row.user_id, name: row.user_name } : null,
+
+      role: row.role_id ? { id: row.role_id, name: row.role_name } : null,
+
+      roleType: row.role_type_id
+        ? { id: row.role_type_id, name: row.role_type_name }
+        : null,
+
+      assignedBy: row.assigned_by
+        ? { id: row.assigned_by, name: row.assigned_by_name }
+        : null,
+
+      assignedAt: row.assigned_at,
+    };
 
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      formattedResponse,
       "User role mapping updated successfully."
     );
   } catch (error) {

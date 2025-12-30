@@ -2,15 +2,11 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createSalesModuleSettings,
-  getSalesModuleSettings,
   updateSalesModuleSettings,
   getSalesModuleSetting,
 } = require("../controllers/sales-module-setting.controller");
 const {
-  createSalesModuleSettingsSchema,
   updateSalesModuleSettingSchema,
-  updateSalesModuleSettingIdParamsSchema,
 } = require("../validations/sales-module-setting.validation");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -24,22 +20,11 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createSalesModuleSettingsSchema, REQUEST_SOURCE.BODY),
-  createSalesModuleSettings
-);
-
 router.get("/fetch", getSalesModuleSetting);
 
-router.get("/", getSalesModuleSettings);
-
 router.put(
-  "/:id",
-  validateRequest(
-    updateSalesModuleSettingIdParamsSchema,
-    REQUEST_SOURCE.PARAMS
-  ),
+  "/",
+
   validateRequest(updateSalesModuleSettingSchema, REQUEST_SOURCE.BODY),
   updateSalesModuleSettings
 );

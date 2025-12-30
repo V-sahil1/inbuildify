@@ -232,7 +232,11 @@ exports.updateLeadSource = async (req, res) => {
       return errorResponse(res, 404, "Inactive lead source.");
     }
 
-    if (!name && !sort_order && !allow_change) {
+    if (
+      name === undefined &&
+      sort_order === undefined &&
+      allow_change === undefined
+    ) {
       return errorResponse(
         res,
         400,

@@ -183,7 +183,6 @@ exports.updateMaintenanceSettings = async (req, res) => {
       repair_cost_enabled,
       hours_spent_enabled,
       maintenance_start_date,
-      handover_date,
       maintenance_period_days,
       maintenance_duration_days,
       supervisor_roles,
@@ -199,46 +198,33 @@ exports.updateMaintenanceSettings = async (req, res) => {
 
     await client.query("BEGIN");
 
-    const existingQuery = `
-      SELECT * FROM maintenance_settings
+    const existingResult = await client.query(
+      `
+      SELECT *
+      FROM maintenance_settings
       WHERE builder_id = $1 AND company_id = $2
-    `;
-    const existingResult = await client.query(existingQuery, [
-      builderId,
-      companyId,
-    ]);
+      `,
+      [builderId, companyId]
+    );
 
     if (existingResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Maintenance settings not found.");
     }
 
-    function isValidDate(dateString) {
-      const date = new Date(dateString);
-      return (
-        !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString
-      );
-    }
-
-    if (maintenance_start_date && !isValidDate(maintenance_start_date)) {
-      return errorResponse(res, 400, `Invalid date: ${maintenance_start_date}`);
-    }
-
-    if (handover_date && !isValidDate(handover_date)) {
-      return errorResponse(res, 400, `Invalid date: ${handover_date}`);
-    }
-
     const currentSettings = existingResult.rows[0];
 
     if (
-      currentSettings.supplier_enabled === false &&
-      supplier_enabled === true
+      maintenance_start_date !== undefined &&
+      !["handover_date", "occupancy_permit_date"].includes(
+        maintenance_start_date
+      )
     ) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "Cannot enable supplier because it is already disabled."
+        "maintenance_start_date must be 'handover_date' or 'occupancy_permit_date'."
       );
     }
 
@@ -272,41 +258,21 @@ exports.updateMaintenanceSettings = async (req, res) => {
     }
 
     if (Array.isArray(supervisor_roles) && supervisor_roles.length > 0) {
-      const roleCheckQuery = `
-        SELECT role_id FROM role
-        WHERE role_id = ANY($1::uuid[]) AND (builder_id = $2 OR builder_id IS NULL)
-      `;
-      const roleCheckResult = await client.query(roleCheckQuery, [
-        supervisor_roles,
-        builderId,
-      ]);
+      const roleCheck = await client.query(
+        `
+        SELECT role_id
+        FROM role
+        WHERE role_id = ANY($1::uuid[])
+        `,
+        [supervisor_roles]
+      );
 
-      if (roleCheckResult.rows.length !== supervisor_roles.length) {
+      if (roleCheck.rowCount !== supervisor_roles.length) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "One or more supervisor_roles are invalid for this builder."
-        );
-      }
-    }
-
-    if (Array.isArray(supervisor_roles) && supervisor_roles.length > 0) {
-      const roleCheckQuery = `
-        SELECT role_id FROM role
-        WHERE role_id = ANY($1::uuid[]) AND (builder_id = $2 OR builder_id IS NULL) AND is_active = true
-      `;
-      const roleCheckResult = await client.query(roleCheckQuery, [
-        supervisor_roles,
-        builderId,
-      ]);
-
-      if (roleCheckResult.rows.length !== supervisor_roles.length) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "One or more supervisor_roles are inactive."
+          "One or more supervisor_roles are invalid."
         );
       }
     }
@@ -347,10 +313,6 @@ exports.updateMaintenanceSettings = async (req, res) => {
       fields.push(`maintenance_start_date = $${i++}`);
       values.push(maintenance_start_date);
     }
-    if (handover_date !== undefined) {
-      fields.push(`handover_date = $${i++}`);
-      values.push(handover_date);
-    }
     if (maintenance_period_days !== undefined) {
       fields.push(`maintenance_period_days = $${i++}`);
       values.push(maintenance_period_days);
@@ -375,14 +337,16 @@ exports.updateMaintenanceSettings = async (req, res) => {
 
     values.push(builderId, companyId);
 
-    const updateQuery = `
+    const updateResult = await client.query(
+      `
       UPDATE maintenance_settings
       SET ${fields.join(", ")}
       WHERE builder_id = $${i} AND company_id = $${i + 1}
       RETURNING *;
-    `;
+      `,
+      values
+    );
 
-    const updateResult = await client.query(updateQuery, values);
     await client.query("COMMIT");
 
     return successResponse(
@@ -393,7 +357,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating maintenance settings:", error);
-    return errorResponse(res, 500, "Internal server error.", error.message);
+    return errorResponse(res, 500, error.message || "Internal server error.");
   } finally {
     client.release();
   }

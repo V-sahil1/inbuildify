@@ -118,7 +118,6 @@ exports.updateJobSettings = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { job_settings_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
@@ -145,10 +144,12 @@ exports.updateJobSettings = async (req, res) => {
     await client.query("BEGIN");
 
     const checkRecord = await client.query(
-      `SELECT auto_archive_after_completion, auto_archive_after_days 
-       FROM job_settings 
-       WHERE job_settings_id = $1 AND (builder_id = $2 OR company_id = $3)`,
-      [job_settings_id, builderId, companyId]
+      `
+      SELECT auto_archive_after_completion, auto_archive_after_days
+      FROM job_settings
+      WHERE builder_id = $1 OR company_id = $2
+      `,
+      [builderId, companyId]
     );
 
     if (checkRecord.rowCount === 0) {
@@ -160,7 +161,6 @@ exports.updateJobSettings = async (req, res) => {
 
     if (auto_archive_after_completion === true) {
       const otherFields = ["auto_archive_after_days"];
-
       const isOtherFieldProvided = otherFields.some(
         (field) => req.body[field] !== undefined
       );
@@ -267,11 +267,11 @@ exports.updateJobSettings = async (req, res) => {
     const updateQuery = `
       UPDATE job_settings
       SET ${fields.join(", ")}
-      WHERE job_settings_id = $${i}
+      WHERE builder_id = $${i} OR company_id = $${i + 1}
       RETURNING *;
     `;
 
-    values.push(job_settings_id);
+    values.push(builderId, companyId);
 
     const result = await client.query(updateQuery, values);
 

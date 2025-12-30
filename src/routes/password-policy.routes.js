@@ -3,7 +3,6 @@ const router = express.Router();
 
 const {
   createPasswordPolicy,
-  getPasswordPolicyByUser,
   updatePasswordPolicy,
   updatePasswordPolicyIsActive,
   getPasswordPolicy,
@@ -32,22 +31,18 @@ router.post(
   createPasswordPolicy
 );
 
-router.get("/", getPasswordPolicyByUser);
-
 router.put(
-  "/:password_policy_id",
-  validateRequest(updatePasswordPolicyIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updatePasswordPolicySchema, REQUEST_SOURCE.BODY),
   updatePasswordPolicy
 );
 
 router.put(
-  "/is-active/:password_policy_id",
-  validateRequest(updatePasswordPolicyIdParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/is-active",
   validateRequest(updatePasswordPolicyIsActiveSchema, REQUEST_SOURCE.BODY),
   updatePasswordPolicyIsActive
 );
 
-router.get("/user", getPasswordPolicy);
+router.get("/", getPasswordPolicy);
 
 module.exports = router;
