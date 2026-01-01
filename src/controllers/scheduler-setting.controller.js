@@ -79,45 +79,6 @@ exports.createSchedulerSettings = async (req, res) => {
   }
 };
 
-exports.getSchedulerSettings = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    const query = `
-      SELECT *
-      FROM scheduler_settings
-      WHERE (builder_id IS NOT NULL AND builder_id = $1)
-         OR (company_id IS NOT NULL AND company_id = $2)
-      LIMIT 1;
-    `;
-
-    const result = await client.query(query, [builderId, companyId]);
-
-    if (result.rows.length === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Scheduler settings not found for this builder/company."
-      );
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Scheduler settings fetched successfully."
-    );
-  } catch (error) {
-    console.error("Error fetching scheduler settings:", error);
-    return errorResponse(res, 500, "Internal server error.", error.message);
-  } finally {
-    client.release();
-  }
-};
-
 exports.updateSchedulerSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -126,7 +87,6 @@ exports.updateSchedulerSettings = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
-    const { scheduler_settings_id } = req.params;
 
     let { receiver_of_replies } = req.body;
     receiver_of_replies = receiver_of_replies || undefined;
@@ -134,15 +94,10 @@ exports.updateSchedulerSettings = async (req, res) => {
     const checkQuery = `
       SELECT *
       FROM scheduler_settings
-      WHERE scheduler_settings_id = $1
-        AND ((builder_id IS NOT NULL AND builder_id = $2)
-          OR (company_id IS NOT NULL AND company_id = $3))
+      WHERE (builder_id = $1 OR company_id = $2)
+      LIMIT 1
     `;
-    const checkResult = await client.query(checkQuery, [
-      scheduler_settings_id,
-      builderId,
-      companyId,
-    ]);
+    const checkResult = await client.query(checkQuery, [builderId, companyId]);
 
     if (checkResult.rows.length === 0) {
       return errorResponse(
@@ -188,13 +143,13 @@ exports.updateSchedulerSettings = async (req, res) => {
         updated_by = $2,
         updated_at = NOW()
       WHERE scheduler_settings_id = $3
-      RETURNING *;
+      RETURNING receiver_of_replies;
     `;
 
     const updateValues = [
       finalReceiverOfReplies,
       userId,
-      scheduler_settings_id,
+      existing.scheduler_settings_id,
     ];
 
     const result = await client.query(updateQuery, updateValues);
@@ -207,6 +162,60 @@ exports.updateSchedulerSettings = async (req, res) => {
   } catch (error) {
     console.error("Error updating scheduler settings:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.getSchedulerSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id, user_id } = req.user;
+
+    if (!company_id && !builder_id) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid user context. Missing company or builder ID."
+      );
+    }
+
+    let result = await client.query(
+      `
+      SELECT receiver_of_replies
+      FROM scheduler_settings
+      WHERE company_id = $1 AND builder_id = $2
+      LIMIT 1
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO scheduler_settings (
+          company_id,
+          builder_id,
+          created_by,
+          updated_by
+        )
+        VALUES ($1, $2, $3, $3)
+        RETURNING receiver_of_replies
+        `,
+        [company_id, builder_id, user_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Scheduler settings fetched successfully."
+    );
+  } catch (error) {
+    console.error("Error fetching scheduler settings:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

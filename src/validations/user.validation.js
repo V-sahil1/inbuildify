@@ -26,20 +26,10 @@ const passwordRule = Joi.string().min(6).max(100).required().messages({
 
 const inviteUserSchema = Joi.object({
   email: emailRule,
-  role: Joi.string()
-    .valid(
-      "super_admin",
-      "admin",
-      "project_owner",
-      "service_provider",
-      "client"
-    )
-    .required()
-    .messages({
-      "string.base": "Role must be a string",
-      "any.only":
-        "Role must be one of: super_admin, admin, project_owner, service_provider, client",
-    }),
+  role_id: Joi.string().uuid().required().messages({
+    "string.guid": "Role ID must be a valid UUID",
+    "any.required": "Role ID is required",
+  }),
 });
 
 const acceptInviteSchema = Joi.object({

@@ -32,8 +32,7 @@ router.post(
 router.get("/", getUserJobWorkflowSettings);
 
 router.put(
-  "/:id",
-  validateRequest(updateJobWorkflowSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateJobWorkflowSettingSchema, REQUEST_SOURCE.BODY),
   updateJobColorSetting
 );

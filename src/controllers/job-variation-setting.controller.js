@@ -300,14 +300,12 @@ exports.updateJobVariationSettings = async (req, res) => {
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id;
 
-    const { id } = req.params;
-
     const existing = await client.query(
       `
       SELECT * FROM job_variation_settings
-      WHERE job_variation_settings_id = $1 AND builder_id = $2
+      WHERE builder_id = $1
       `,
-      [id, builderId]
+      [builderId]
     );
 
     if (existing.rowCount === 0) {
@@ -518,8 +516,24 @@ exports.updateJobVariationSettings = async (req, res) => {
         notify_after_contract_group_ids = $17,
         updated_by = $18,
         updated_at = NOW()
-      WHERE job_variation_settings_id = $19
-      RETURNING *;
+      WHERE builder_id = $19
+      RETURNING  allow_notes_in_variation,
+      allow_cost_adjustment,
+      show_notes_in_variation_by_default,
+      drawing_changes_required,
+      notify_signed_variation,
+      notify_signed_variation_only_after_contract_prepared,
+      allowed_move_job_to_construction_with_pending_variation,
+      make_requested_by_and_delayed_days_mandatory,
+      send_mail_when_variation_self_approved,
+      contract_based_variation_header,
+      contract_based_variation_header_title,
+      pre_contract_header,
+      post_contract_header,
+      notify_signed_variation_user_ids,
+      notify_signed_variation_group_ids,
+      notify_after_contract_user_ids,
+      notify_after_contract_group_ids;
     `;
 
     const values = [
@@ -541,7 +555,7 @@ exports.updateJobVariationSettings = async (req, res) => {
       notify_after_contract_user_ids,
       notify_after_contract_group_ids,
       userId,
-      id,
+      builderId,
     ];
 
     const updated = await client.query(updateQuery, values);
@@ -571,7 +585,23 @@ exports.getUserJobVariationSettings = async (req, res) => {
 
     let result = await client.query(
       `
-      SELECT *
+      SELECT  allow_notes_in_variation,
+      allow_cost_adjustment,
+      show_notes_in_variation_by_default,
+      drawing_changes_required,
+      notify_signed_variation,
+      notify_signed_variation_only_after_contract_prepared,
+      allowed_move_job_to_construction_with_pending_variation,
+      make_requested_by_and_delayed_days_mandatory,
+      send_mail_when_variation_self_approved,
+      contract_based_variation_header,
+      contract_based_variation_header_title,
+      pre_contract_header,
+      post_contract_header,
+      notify_signed_variation_user_ids,
+      notify_signed_variation_group_ids,
+      notify_after_contract_user_ids,
+      notify_after_contract_group_ids
       FROM job_variation_settings
       WHERE company_id = $1
         AND builder_id = $2
@@ -590,7 +620,23 @@ exports.getUserJobVariationSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING *;
+        RETURNING  allow_notes_in_variation,
+      allow_cost_adjustment,
+      show_notes_in_variation_by_default,
+      drawing_changes_required,
+      notify_signed_variation,
+      notify_signed_variation_only_after_contract_prepared,
+      allowed_move_job_to_construction_with_pending_variation,
+      make_requested_by_and_delayed_days_mandatory,
+      send_mail_when_variation_self_approved,
+      contract_based_variation_header,
+      contract_based_variation_header_title,
+      pre_contract_header,
+      post_contract_header,
+      notify_signed_variation_user_ids,
+      notify_signed_variation_group_ids,
+      notify_after_contract_user_ids,
+      notify_after_contract_group_ids;
         `,
         [company_id, builder_id, user_id]
       );

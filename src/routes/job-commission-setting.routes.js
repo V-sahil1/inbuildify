@@ -32,11 +32,7 @@ router.post(
 router.get("/", getUserJobCommissionSettings);
 
 router.put(
-  "/:job_commission_settings_id",
-  validateRequest(
-    updateJobCommissionSettingParamsSchema,
-    REQUEST_SOURCE.PARAMS
-  ),
+  "/",
   validateRequest(updateJobCommissionSettingSchema, REQUEST_SOURCE.BODY),
   updateJobCommissionSettings
 );

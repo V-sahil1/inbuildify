@@ -8,7 +8,6 @@ const {
 } = require("../controllers/scheduler-setting.controller");
 const {
   createSchedulerSettingsSchema,
-  updateSchedulerSettingParamsSchema,
   updateSchedulerSettingSchema,
 } = require("../validations/scheduler-setting.validation");
 
@@ -32,8 +31,7 @@ router.post(
 router.get("/", getSchedulerSettings);
 
 router.put(
-  "/:scheduler_settings_id",
-  validateRequest(updateSchedulerSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateSchedulerSettingSchema, REQUEST_SOURCE.BODY),
   updateSchedulerSettings
 );

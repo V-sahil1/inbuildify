@@ -51,20 +51,10 @@ const createUserSchema = Joi.object({
   name: nameRule,
   email: emailRule,
   password: passwordRule,
-  role: Joi.string()
-    .valid(
-      "super_admin",
-      "admin",
-      "project_owner",
-      "service_provider",
-      "client"
-    )
-    .default("client")
-    .messages({
-      "string.base": "Role must be a string",
-      "any.only":
-        "Role must be one of: super_admin, admin, project_owner, service_provider, client",
-    }),
+  role_id: Joi.string().uuid().required().messages({
+    "string.guid": "role ID must be a valid UUID",
+    "any.required": "role ID is required",
+  }),
   phone: phoneRule,
 });
 

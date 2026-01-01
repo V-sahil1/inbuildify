@@ -31,8 +31,7 @@ router.post(
 router.get("/", getUserJobColorSettings);
 
 router.put(
-  "/:id",
-  validateRequest(updateJobColorSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateJobColorSettingSchema, REQUEST_SOURCE.BODY),
   updateJobColorSetting
 );

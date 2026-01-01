@@ -8,7 +8,7 @@ exports.createRole = async (req, res) => {
 
   try {
     const userId = req.user?.user_id;
-    const { name, description } = req.body;
+    const { name } = req.body;
 
     if (!name) {
       return errorResponse(res, 400, "Role name is required.");
@@ -29,20 +29,14 @@ exports.createRole = async (req, res) => {
     const insertQuery = `
       INSERT INTO role (
         name,
-        description,
         created_by,
         updated_by
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3)
       RETURNING *;
     `;
 
-    const values = [
-      name.trim(),
-      description || null,
-      userId || null,
-      userId || null,
-    ];
+    const values = [name.trim(), userId || null, userId || null];
 
     const result = await client.query(insertQuery, values);
     await client.query("COMMIT");
@@ -66,7 +60,6 @@ exports.getAllRole = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderId = req.user.builder_id;
     const { page = 1, limit = 25 } = req.query;
 
     const limitValue = parseInt(limit, 10);

@@ -32,8 +32,7 @@ router.post(
 router.get("/", getUserJobInvoiceSettings);
 
 router.put(
-  "/:id",
-  validateRequest(updateJobInvoiceSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateJobInvoiceSettingSchema, REQUEST_SOURCE.BODY),
   updateJobInvoiceSetting
 );

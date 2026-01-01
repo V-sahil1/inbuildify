@@ -75,7 +75,6 @@ exports.updateJobCommissionSettings = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { job_commission_settings_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
@@ -92,14 +91,10 @@ exports.updateJobCommissionSettings = async (req, res) => {
 
     const checkQuery = `
       SELECT * FROM job_commission_settings 
-      WHERE job_commission_settings_id = $1 
-      AND (builder_id = $2 OR company_id = $3);
+      WHERE (builder_id = $1 OR company_id = $2)
+      LIMIT 1;
     `;
-    const checkResult = await client.query(checkQuery, [
-      job_commission_settings_id,
-      builderId,
-      companyId,
-    ]);
+    const checkResult = await client.query(checkQuery, [builderId, companyId]);
 
     if (checkResult.rowCount === 0) {
       return errorResponse(
@@ -135,12 +130,11 @@ exports.updateJobCommissionSettings = async (req, res) => {
     const updateQuery = `
       UPDATE job_commission_settings 
       SET ${fields.join(", ")} 
-      WHERE job_commission_settings_id = $${i++} 
-      AND (builder_id = $${i++} OR company_id = $${i})
-      RETURNING *;
+      WHERE (builder_id = $${i++} OR company_id = $${i})
+      RETURNING define_outgoing_commission, define_incoming_commission;
     `;
 
-    values.push(job_commission_settings_id, builderId, companyId);
+    values.push(builderId, companyId);
 
     const updateResult = await client.query(updateQuery, values);
 
@@ -170,7 +164,7 @@ exports.getUserJobCommissionSettings = async (req, res) => {
 
     let result = await client.query(
       `
-      SELECT *
+      SELECT define_outgoing_commission, define_incoming_commission
       FROM job_commission_settings
       WHERE company_id = $1
         AND builder_id = $2
@@ -189,7 +183,7 @@ exports.getUserJobCommissionSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING *;
+        RETURNING define_outgoing_commission, define_incoming_commission;
         `,
         [company_id, builder_id, user_id]
       );

@@ -163,31 +163,42 @@ exports.getAllJobCommissions = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
-    let { page = 1, limit = 25 } = req.query;
+    let { page = 1, limit = 25, commission_type } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
 
     const offset = (page - 1) * limit;
 
+    const conditions = [`jc.builder_id = $1`];
+    const values = [builderId];
+    let paramIndex = 2;
+
+    if (commission_type) {
+      conditions.push(`jc.commission_type = $${paramIndex++}`);
+      values.push(commission_type);
+    }
+
+    const whereClause = conditions.join(" AND ");
+
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM job_commission jc
-      WHERE jc.builder_id = $1;
+      WHERE ${whereClause};
     `;
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery, values);
     const totalRecords = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(totalRecords / limit);
 
     const dataQuery = `
-      SELECT 
-        *
+      SELECT *
       FROM job_commission jc
-      WHERE jc.builder_id = $1
+      WHERE ${whereClause}
       ORDER BY jc.sort_order ASC
-      LIMIT $2 OFFSET $3;
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1};
     `;
 
-    const result = await client.query(dataQuery, [builderId, limit, offset]);
+    const dataValues = [...values, limit, offset];
+    const result = await client.query(dataQuery, dataValues);
 
     return successResponse(
       res,

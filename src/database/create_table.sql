@@ -728,7 +728,26 @@ CREATE TABLE company (
   CONSTRAINT fk_timezone FOREIGN KEY (timezone_id) REFERENCES timezones(timezone_id) ON DELETE CASCADE,
 );
 
-CREATE TYPE users_role_enum AS ENUM ('super_admin', 'admin', 'project_owner', 'service_provider', 'client');
+-- CREATE TYPE users_role_enum AS ENUM ('super_admin', 'admin', 'project_owner', 'service_provider', 'client');
+
+-- CREATE TABLE users (
+--   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   builder_id UUID NOT NULL, 
+--   name VARCHAR(100) NOT NULL,
+--   email VARCHAR(100) UNIQUE NOT NULL,
+--   password VARCHAR(255) NOT NULL,
+--   is_verified BOOLEAN DEFAULT FALSE,
+--   is_deleted BOOLEAN DEFAULT FALSE,
+--   role users_role_enum[] NOT NULL,
+--   root_user BOOLEAN DEFAULT FALSE,
+--   otp VARCHAR(10),
+--   expires_at TIMESTAMP,
+--   reset_password_token VARCHAR(255),
+--   reset_token_expires_at TIMESTAMP,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+-- );
 
 CREATE TABLE users (
   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -738,7 +757,7 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL,
   is_verified BOOLEAN DEFAULT FALSE,
   is_deleted BOOLEAN DEFAULT FALSE,
-  role users_role_enum[] NOT NULL,
+  role_id UUID REFERENCES role(role_id),
   root_user BOOLEAN DEFAULT FALSE,
   otp VARCHAR(10),
   expires_at TIMESTAMP,
@@ -759,6 +778,17 @@ CREATE TABLE users_token (
   FOREIGN KEY (user_id) REFERENCES users(users_id) ON DELETE CASCADE
 );
 
+CREATE TABLE invites (
+  invite_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) NOT NULL,
+  invite_token TEXT NOT NULL UNIQUE,
+  builder_id UUID NOT NULL,
+  role_id UUID NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  invited_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+);
+
 CREATE TABLE user_group (
   user_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -769,6 +799,17 @@ CREATE TABLE user_group (
   updated_by_id UUID NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE invites (
+  invite_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) NOT NULL,
+  invite_token TEXT NOT NULL UNIQUE,
+  builder_id UUID NOT NULL,
+  role_id UUID NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  invited_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 );
 
 CREATE TABLE dwelling_type (

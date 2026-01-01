@@ -96,7 +96,6 @@ exports.updateJobColorSetting = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
@@ -119,12 +118,21 @@ exports.updateJobColorSetting = async (req, res) => {
 
     await client.query("BEGIN");
 
+    // Fetch the record for this builder or company
     const checkRecord = await client.query(
-      `SELECT 1 FROM job_workflow_settings WHERE job_workflow_settings_id = $1 AND (builder_id = $2 OR company_id = $3)`,
-      [id, builderId, companyId]
+      `
+      SELECT job_workflow_settings_id
+      FROM job_workflow_settings
+      WHERE (builder_id = $1 OR company_id = $2)
+      LIMIT 1
+      `,
+      [builderId, companyId]
     );
 
-    if (checkRecord.rowCount === 0) {
+    const jobWorkflowSettingsIdToUpdate =
+      checkRecord.rows[0] && checkRecord.rows[0].job_workflow_settings_id;
+
+    if (!jobWorkflowSettingsIdToUpdate) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
@@ -132,6 +140,7 @@ exports.updateJobColorSetting = async (req, res) => {
         "Job workflow settings not found for this user."
       );
     }
+
     const fields = [];
     const values = [];
     let i = 1;
@@ -172,11 +181,14 @@ exports.updateJobColorSetting = async (req, res) => {
       UPDATE job_workflow_settings
       SET ${fields.join(", ")}
       WHERE job_workflow_settings_id = $${i}
-      RETURNING 
-       *;
+      RETURNING  show_all_tasks_to_all_roles,
+      include_weekend_date,
+      include_holiday_date,
+      recalculate_estimated_end_dates_future_tasks,
+      recalculate_estimated_dates_based_on_actual_changes;
     `;
 
-    values.push(id);
+    values.push(jobWorkflowSettingsIdToUpdate);
 
     const result = await client.query(updateQuery, values);
 
@@ -205,7 +217,11 @@ exports.getUserJobWorkflowSettings = async (req, res) => {
 
     let result = await client.query(
       `
-      SELECT *
+      SELECT show_all_tasks_to_all_roles,
+      include_weekend_date,
+      include_holiday_date,
+      recalculate_estimated_end_dates_future_tasks,
+      recalculate_estimated_dates_based_on_actual_changes
       FROM job_workflow_settings
       WHERE company_id = $1
         AND builder_id = $2
@@ -224,7 +240,11 @@ exports.getUserJobWorkflowSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING *;
+        RETURNING show_all_tasks_to_all_roles,
+      include_weekend_date,
+      include_holiday_date,
+      recalculate_estimated_end_dates_future_tasks,
+      recalculate_estimated_dates_based_on_actual_changes
         `,
         [company_id, builder_id, user_id]
       );

@@ -97,7 +97,6 @@ exports.updateJobColorSetting = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
@@ -121,8 +120,12 @@ exports.updateJobColorSetting = async (req, res) => {
     await client.query("BEGIN");
 
     const checkRecord = await client.query(
-      `SELECT 1 FROM job_color_settings WHERE job_color_settings_id = $1 AND (builder_id = $2 OR company_id = $3)`,
-      [id, builderId, companyId]
+      `
+      SELECT 1
+      FROM job_color_settings
+      WHERE (builder_id = $1 OR company_id = $2)
+      `,
+      [builderId, companyId]
     );
 
     if (checkRecord.rowCount === 0) {
@@ -133,6 +136,7 @@ exports.updateJobColorSetting = async (req, res) => {
         "Job color settings not found for this user."
       );
     }
+
     const fields = [];
     const values = [];
     let i = 1;
@@ -170,12 +174,15 @@ exports.updateJobColorSetting = async (req, res) => {
     const updateQuery = `
       UPDATE job_color_settings
       SET ${fields.join(", ")}
-      WHERE job_color_settings_id = $${i}
-      RETURNING 
-       *;
+      WHERE (builder_id = $${i} OR company_id = $${i + 1})
+      RETURNING hide_color_item_images,
+        hide_color_item_price,
+        exit_color_code,
+        page_orientation_portrait,
+        header_text;
     `;
 
-    values.push(id);
+    values.push(builderId, companyId);
 
     const result = await client.query(updateQuery, values);
 
@@ -223,7 +230,11 @@ exports.getUserJobColorSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING *;
+        RETURNING  hide_color_item_images,
+        hide_color_item_price,
+        exit_color_code,
+        page_orientation_portrait,
+        header_text
         `,
         [company_id, builder_id, user_id]
       );

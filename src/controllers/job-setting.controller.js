@@ -164,14 +164,6 @@ exports.updateJobSettings = async (req, res) => {
       const isOtherFieldProvided = otherFields.some(
         (field) => req.body[field] !== undefined
       );
-
-      if (isOtherFieldProvided) {
-        return errorResponse(
-          res,
-          400,
-          "When auto_archive_after_completion is set to true, no other fields can be updated."
-        );
-      }
     }
 
     if (
@@ -268,7 +260,7 @@ exports.updateJobSettings = async (req, res) => {
       UPDATE job_settings
       SET ${fields.join(", ")}
       WHERE builder_id = $${i} OR company_id = $${i + 1}
-      RETURNING *;
+      RETURNING auto_move_to_maintenance, auto_mark_completed, auto_archive_after_completion, auto_archive_after_days, milestone_status_check_days, report_custom_days, report_status_filter, report_include_date;
     `;
 
     values.push(builderId, companyId);
@@ -319,7 +311,7 @@ exports.getUserJobSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING *;
+        RETURNING auto_move_to_maintenance, auto_mark_completed, auto_archive_after_completion, auto_archive_after_days, milestone_status_check_days, report_custom_days, report_status_filter, report_include_date;;
         `,
         [company_id, builder_id, user_id]
       );

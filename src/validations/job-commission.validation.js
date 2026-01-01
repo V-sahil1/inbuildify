@@ -56,6 +56,7 @@ const createJobCommissionSchema = Joi.object({
 });
 
 const getAllJobCommissionsSchema = Joi.object({
+  commission_type: Joi.string().trim().max(50).valid("incoming", "outgoing"),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

@@ -32,8 +32,7 @@ router.post(
 router.get("/", getUserJobVariationSettings);
 
 router.put(
-  "/:id",
-  validateRequest(updateJobVariationSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateJobVariationSettingSchema, REQUEST_SOURCE.BODY),
   updateJobVariationSettings
 );

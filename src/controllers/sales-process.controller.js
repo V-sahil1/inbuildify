@@ -31,6 +31,22 @@ exports.createSalesProcess = async (req, res) => {
         "Sales process with this name already exists for this builder."
       );
     }
+
+    /* 🔹 FIXED LOGIC: reset other defaults */
+    if (is_default) {
+      await client.query(
+        `
+    UPDATE sales_process
+    SET is_default = false,
+        updated_by = $1,
+        updated_at = NOW()
+    WHERE builder_id = $2
+      AND company_id = $3;
+    `,
+        [userId, builderId, companyId]
+      );
+    }
+
     const insertQuery = `
       INSERT INTO sales_process (
         company_id,

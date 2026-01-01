@@ -166,45 +166,6 @@ exports.createPortalSettings = async (req, res) => {
   }
 };
 
-exports.getPortalSettings = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(res, 400, "builder_id or company_id is required");
-    }
-
-    const query = `
-      SELECT 
-       *
-      FROM portal_settings
-      WHERE builder_id = $1 OR company_id = $2
-      LIMIT 1;
-    `;
-
-    const result = await client.query(query, [builderId, companyId]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Portal settings not found for this user");
-    }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Portal settings fetched successfully"
-    );
-  } catch (error) {
-    console.error("Error fetching portal settings:", error);
-    return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
 exports.updatePortalSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -482,6 +443,51 @@ exports.updatePortalSettings = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating portal settings:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getPortalSettings = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { company_id, builder_id } = req.user;
+
+    if (!company_id && !builder_id) {
+      return errorResponse(res, 400, "Invalid user context.");
+    }
+
+    let result = await client.query(
+      `
+      SELECT *
+      FROM portal_settings
+      WHERE company_id = $1 AND builder_id = $2
+      LIMIT 1
+      `,
+      [company_id, builder_id]
+    );
+
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `
+        INSERT INTO portal_settings (company_id, builder_id)
+        VALUES ($1, $2)
+        RETURNING *
+        `,
+        [company_id, builder_id]
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Portal settings fetched successfully."
+    );
+  } catch (error) {
+    console.error("Error fetching portal settings:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

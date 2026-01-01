@@ -13,11 +13,24 @@ exports.getUsersByBuilderId = async (req, res) => {
   const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
+
   try {
     const query = `
-        SELECT users_id, builder_id, name, email, is_verified, role::TEXT[], created_at, updated_at FROM users 
-        WHERE builder_id = $1 AND is_deleted = false;
-      `;
+      SELECT 
+        u.users_id,
+        u.builder_id,
+        u.name,
+        u.email,
+        u.is_verified,
+        u.role_id,
+        r.name AS role_name,
+        u.created_at,
+        u.updated_at
+      FROM users u
+      LEFT JOIN role r ON u.role_id = r.role_id
+      WHERE u.builder_id = $1 AND u.is_deleted = false;
+    `;
+
     const result = await client.query(query, [builderId]);
 
     const userData = result.rows.map((user) => ({
@@ -26,10 +39,14 @@ exports.getUsersByBuilderId = async (req, res) => {
       name: user.name,
       email: user.email,
       isVerified: user.is_verified,
-      role: user.role,
+      role: {
+        roleId: user.role_id,
+        roleName: user.role_name,
+      },
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     }));
+
     return successResponse(res, userData, "Users fetched successfully.");
   } catch (error) {
     console.error("Get users error:", error);
@@ -46,7 +63,31 @@ exports.getProfile = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const userQuery = `SELECT u.name, u.email, u.role::TEXT[], u.builder_id, u.users_id, u.is_verified, u.root_user, u.created_at, u.updated_at, b.name as builder_name, b.logo, b.slogan, b.firm_name, b.abn_number, b.license_number, b.phone_number FROM users u LEFT JOIN builder b ON u.builder_id = b.builder_id WHERE u.users_id = $1;`;
+    const userQuery = `
+      SELECT 
+        u.name,
+        u.email,
+        u.role_id,
+        r.name AS role_name,
+        u.builder_id,
+        u.users_id,
+        u.is_verified,
+        u.root_user,
+        u.created_at,
+        u.updated_at,
+        b.name AS builder_name,
+        b.logo,
+        b.slogan,
+        b.firm_name,
+        b.abn_number,
+        b.license_number,
+        b.phone_number
+      FROM users u
+      LEFT JOIN builder b ON u.builder_id = b.builder_id
+      LEFT JOIN role r ON u.role_id = r.role_id
+      WHERE u.users_id = $1;
+    `;
+
     const userResult = await client.query(userQuery, [userId]);
 
     if (userResult.rowCount === 0) {
@@ -60,7 +101,10 @@ exports.getProfile = async (req, res) => {
       {
         name: userData.name,
         email: userData.email,
-        role: userData.role,
+        role: {
+          roleId: userData.role_id,
+          roleName: userData.role_name,
+        },
         builderId: userData.builder_id,
         builderName: userData.builder_name,
         logo: userData.logo,
@@ -411,7 +455,7 @@ exports.getAllUsers = async (req, res) => {
         email,
         is_verified,
         is_deleted,
-        role,
+        role_id,
         root_user,
         created_at,
         updated_at

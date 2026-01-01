@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   registerUser,
+  verifyEmailOtp,
   loginUser,
   forgotPassword,
   resetPassword,
@@ -13,6 +14,7 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   createUserSchema,
+  verifyEmailSchema,
   loginUserSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -20,6 +22,11 @@ const {
 } = require("../validations/auth.validation");
 
 router.post("/register", validateRequest(createUserSchema), registerUser);
+router.post(
+  "/verify-emailOtp",
+  validateRequest(verifyEmailSchema),
+  verifyEmailOtp
+);
 router.post("/login", validateRequest(loginUserSchema), loginUser);
 router.post(
   "/forgot-password",

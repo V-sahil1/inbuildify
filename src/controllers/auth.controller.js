@@ -14,7 +14,7 @@ const {
 } = require("../utils/common");
 
 exports.registerUser = async (req, res) => {
-  const { name, email, password, role = "super_admin" } = req.body;
+  const { name, email, password, role_id } = req.body;
   const lowerCaseEmail = email.toLowerCase();
 
   const pool = getPool();
@@ -41,8 +41,7 @@ exports.registerUser = async (req, res) => {
       const otp = generateOtp();
       const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      // const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-      const emailSent = true;
+      const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
 
       if (emailSent) {
         await client.query(
@@ -63,12 +62,22 @@ exports.registerUser = async (req, res) => {
       }
     }
 
+    // 🔹 Validate role_id
+    if (!role_id) {
+      return errorResponse(res, 400, "role_id is required.");
+    }
+
+    const roleCheck = await client.query(
+      `SELECT 1 FROM role WHERE role_id = $1;`,
+      [role_id]
+    );
+
+    if (roleCheck.rowCount === 0) {
+      return errorResponse(res, 400, "Invalid role_id provided.");
+    }
+
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    console.log("otp", otp);
-
-    // const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-    // console.log("emailsend:", emailSent);
 
     const emailSent = true;
     if (!emailSent) {
@@ -86,16 +95,16 @@ exports.registerUser = async (req, res) => {
 
       await client.query(
         `INSERT INTO users (
-          role, builder_id, name, email, password, 
+          role_id, builder_id, name, email, password,
           root_user, otp, expires_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
         [
-          ["super_admin"],
+          role_id,
           builderId,
           name,
           lowerCaseEmail,
           encrypt(password),
-          role === "admin",
+          false, // keeping existing logic intact
           otp,
           expiresAt,
         ]
@@ -116,6 +125,68 @@ exports.registerUser = async (req, res) => {
   }
 };
 
+exports.verifyEmailOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return errorResponse(res, 400, "Email and OTP are required.");
+  }
+
+  const lowerCaseEmail = email.toLowerCase();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const userQuery = `
+      SELECT users_id, otp, expires_at, is_verified
+      FROM users
+      WHERE LOWER(email) = $1;
+    `;
+
+    const result = await client.query(userQuery, [lowerCaseEmail]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    const user = result.rows[0];
+
+    if (user.is_verified) {
+      return errorResponse(res, 400, "Email already verified.");
+    }
+
+    // ✅ OTP check
+    if (user.otp !== otp) {
+      return errorResponse(res, 400, "Invalid OTP.");
+    }
+
+    // ✅ OTP expiry check
+    if (user.expires_at && new Date(user.expires_at) < new Date()) {
+      return errorResponse(res, 400, "OTP has expired.");
+    }
+
+    // ✅ OTP is valid → mark email verified
+    await client.query(
+      `
+      UPDATE users
+      SET is_verified = true,
+          otp = NULL,
+          expires_at = NULL,
+          updated_at = NOW()
+      WHERE users_id = $1;
+      `,
+      [user.users_id]
+    );
+
+    return successResponse(res, null, "Email verified successfully.");
+  } catch (error) {
+    console.error("Verify email OTP error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
 exports.loginUser = async (req, res) => {
   // Data is already validated by Joi middleware
   const { email, password } = req.body;
@@ -126,7 +197,7 @@ exports.loginUser = async (req, res) => {
 
   try {
     const userQuery = `
-      SELECT users_id, password, is_verified, otp, expires_at, role
+      SELECT users_id, password, is_verified, otp, expires_at, role_id
       FROM users 
       WHERE LOWER(email) = $1;
     `;
