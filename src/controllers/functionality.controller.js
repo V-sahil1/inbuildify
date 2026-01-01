@@ -76,47 +76,21 @@ exports.getFunctionalities = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
     const dataQuery = `
       SELECT 
         f.functionality_id,
         f.name AS functionality_name,
-        json_build_object('id', s.screen_id, 'name', s.name) AS screen,
-        f.created_at,
-        f.updated_at
+        json_build_object('id', s.screen_id, 'name', s.name) AS screen
       FROM functionality f
       JOIN screen s ON s.screen_id = f.screen_id
-      ORDER BY f.created_at DESC
-      LIMIT $1 OFFSET $2;
+      ORDER BY f.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [limitValue, offset]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM functionality;
-    `;
-
-    const countResult = await client.query(countQuery);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery);
 
     return successResponse(
       res,
-      {
-        functionalities: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+      keysToCamelCase(dataResult.rows),
       "Functionalities fetched successfully."
     );
   } catch (error) {

@@ -12,40 +12,65 @@ exports.createUserGroup = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
-    const { name, is_active = true } = req.body;
 
-    if (!name || !name.trim()) {
+    const { name, is_active = true, users_id = [] } = req.body;
+
+    if (!Array.isArray(users_id)) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Group name is required.");
+      return errorResponse(res, 400, "users_id must be an array.");
     }
 
     const userCheckQuery = `
-      SELECT users_id 
-      FROM users 
-      WHERE users_id = $1 AND  is_deleted = false;
+      SELECT users_id
+      FROM users
+      WHERE users_id = $1 AND is_deleted = false AND is_verified = true;
     `;
     const userCheckResult = await client.query(userCheckQuery, [userId]);
-    if (userCheckResult.rows.length === 0) {
+
+    if (userCheckResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 403, "User is not valid or inactive.");
+      return errorResponse(res, 403, "User is not valid or not verify.");
     }
 
-    const checkDuplicateQuery = `
-      SELECT user_group_id 
-      FROM user_group 
-      WHERE LOWER(name) = LOWER($1) 
-        AND builder_id = $2
-      LIMIT 1;
-    `;
-    const duplicate = await client.query(checkDuplicateQuery, [
-      name.trim(),
+    if (users_id.length > 0) {
+      const usersValidationQuery = `
+        SELECT users_id
+        FROM users
+        WHERE users_id = ANY($1::uuid[])
+          AND is_verified = true;
+      `;
+
+      const usersValidationResult = await client.query(usersValidationQuery, [
+        users_id,
+      ]);
+
+      if (usersValidationResult.rowCount !== users_id.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more users are inavlid or not verify."
+        );
+      }
+    }
+
+    const dupCheckQuery = `
+  SELECT 1
+  FROM user_group
+  WHERE builder_id = $1
+    AND LOWER(name) = LOWER($2)
+  LIMIT 1;
+`;
+    const dupCheckResult = await client.query(dupCheckQuery, [
       builderId,
+      name.trim(),
     ]);
-    if (duplicate.rows.length > 0) {
+
+    if (dupCheckResult.rowCount > 0) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
-        409,
+        400,
         "A user group with this name already exists for this builder."
       );
     }
@@ -55,17 +80,24 @@ exports.createUserGroup = async (req, res) => {
         company_id,
         builder_id,
         name,
+        users_id,
         is_active,
         created_by_id,
         updated_by_id
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING company_id,
+        builder_id,
+        name,
+        users_id,
+        is_active;
     `;
 
     const insertResult = await client.query(insertQuery, [
-      companyId,
-      builderId,
+      companyId || null,
+      builderId || null,
       name.trim(),
+      users_id,
       is_active,
       userId,
       userId,
@@ -81,11 +113,6 @@ exports.createUserGroup = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating user group:", error);
-
-    if (error.code === "23505") {
-      return errorResponse(res, 409, "User group name must be unique.");
-    }
-
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -106,17 +133,7 @@ exports.getAllUserGroups = async (req, res) => {
 
     let baseQuery = `
       SELECT 
-        user_group_id,
-        company_id,
-        builder_id,
-        name,
-        is_active,
-        created_by_id,
-        updated_by_id,
-        created_at,
-        updated_at,
-        created_by_id,
-        updated_by_id
+        *
       FROM user_group 
       WHERE builder_id = $1
     `;
@@ -182,7 +199,7 @@ exports.updateUserGroup = async (req, res) => {
   const builderId = req.user.builder_id;
   const userId = req.user.user_id;
 
-  const { name, is_active } = req.body;
+  const { name, is_active, users_id } = req.body;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -191,7 +208,11 @@ exports.updateUserGroup = async (req, res) => {
     await client.query("BEGIN");
 
     const checkGroup = await client.query(
-      `SELECT * FROM user_group WHERE user_group_id = $1 AND builder_id = $2 FOR UPDATE`,
+      `SELECT * 
+       FROM user_group 
+       WHERE user_group_id = $1 
+         AND builder_id = $2 
+       FOR UPDATE`,
       [id, builderId]
     );
 
@@ -209,7 +230,7 @@ exports.updateUserGroup = async (req, res) => {
     const statusInBody = req.body.is_active !== undefined;
     const requestedStatus = is_active;
 
-    const fieldsToCheck = ["name"];
+    const fieldsToCheck = ["name", "users_id"];
 
     const updatingOtherFields = fieldsToCheck.some(
       (field) => req.body[field] !== undefined
@@ -221,43 +242,92 @@ exports.updateUserGroup = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To deactivate an active user group, 'is_active' must be the only field provided in the request."
+          "To deactivate an active user group, only 'is_active' is allowed."
         );
       }
     }
 
     if (currentStatus === false) {
-      if (statusInBody && requestedStatus === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive user group, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
       const performingActivation = statusInBody && requestedStatus === true;
+
+      if (performingActivation && updatingOtherFields) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "To activate an inactive user group, only 'is_active' is allowed."
+        );
+      }
 
       if (updatingOtherFields && !performingActivation) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           403,
-          "Cannot update non-'is_active' fields when the user group is currently Inactive. Only 'is_active' can be changed (to true/Active)."
+          "Cannot update fields when the user group is inactive."
         );
       }
 
       if (statusInBody && requestedStatus === false) {
         await client.query("ROLLBACK");
+        return errorResponse(res, 403, "User group is already inactive.");
+      }
+    }
+
+    if (name !== undefined) {
+      const dupCheck = await client.query(
+        `
+        SELECT 1
+        FROM user_group
+        WHERE LOWER(name) = LOWER($1)
+          AND builder_id = $2
+          AND user_group_id != $3
+          AND is_active = true
+        LIMIT 1;
+        `,
+        [name.trim(), builderId, id]
+      );
+
+      if (dupCheck.rowCount > 0) {
+        await client.query("ROLLBACK");
         return errorResponse(
           res,
-          403,
-          "User group is already Inactive. 'is_active' can only be updated to true (Active) from this state."
+          400,
+          "A user group with this name already exists."
         );
       }
     }
+
+    if (users_id !== undefined) {
+      if (!Array.isArray(users_id)) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "users_id must be an array.");
+      }
+
+      if (users_id.length > 0) {
+        const usersValidationQuery = `
+          SELECT users_id
+          FROM users
+          WHERE users_id = ANY($1::uuid[])
+            AND is_deleted = false
+            AND is_verified = true;
+        `;
+
+        const usersValidationResult = await client.query(usersValidationQuery, [
+          users_id,
+        ]);
+
+        if (usersValidationResult.rowCount !== users_id.length) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            400,
+            "One or more users are invalid or not verified."
+          );
+        }
+      }
+    }
+
     const updateFields = [];
     const updateValues = [];
     let i = 1;
@@ -267,16 +337,14 @@ exports.updateUserGroup = async (req, res) => {
       updateValues.push(value);
     };
 
-    if (name) push("name", name);
+    if (name !== undefined) push("name", name);
+
+    if (users_id !== undefined) push("users_id", users_id);
 
     if (statusInBody) {
       if (typeof is_active !== "boolean") {
         await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "The 'is_active' field must be a boolean (true or false)."
-        );
+        return errorResponse(res, 400, "'is_active' must be a boolean value.");
       }
       push("is_active", is_active);
     }
@@ -284,25 +352,22 @@ exports.updateUserGroup = async (req, res) => {
     push("updated_by_id", userId);
     updateFields.push("updated_at = NOW()");
 
-    if (updateFields.length <= 2) {
-      const hasActualUpdate = name || statusInBody;
-      if (!hasActualUpdate) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "At least one field (name or is_active) is required to update."
-        );
-      }
+    if (updateFields.length === 2) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "At least one field is required to update."
+      );
     }
 
-    updateValues.push(id);
-    updateValues.push(builderId);
+    updateValues.push(id, builderId);
 
     const updateQuery = `
       UPDATE user_group
       SET ${updateFields.join(", ")}
-      WHERE user_group_id = $${i++} AND builder_id = $${i}
+      WHERE user_group_id = $${i++}
+        AND builder_id = $${i}
       RETURNING *;
     `;
 
@@ -323,11 +388,64 @@ exports.updateUserGroup = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Update user group error:", error);
-    return errorResponse(
-      res,
-      500,
-      "Failed to update user group due to an internal error."
+    return errorResponse(res, 500, "Internal server error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateUserGroupIsActive = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+    const { id } = req.params;
+
+    if (!id) {
+      return errorResponse(res, 400, "user_group_id is required");
+    }
+
+    const existing = await client.query(
+      `
+      SELECT user_group_id, is_active
+      FROM user_group
+      WHERE user_group_id = $1
+        AND (builder_id = $2 OR company_id = $3)
+      `,
+      [id, builderId || null, companyId || null]
     );
+
+    if (existing.rowCount === 0) {
+      return errorResponse(res, 404, "User group not found");
+    }
+
+    const currentIsActive = existing.rows[0].is_active;
+    const newIsActive = !currentIsActive; // ✅ TOGGLE
+
+    /* ---------- UPDATE ---------- */
+    const updateQuery = `
+      UPDATE user_group
+      SET
+        is_active = $1,
+        updated_by_id = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_group_id = $3
+      RETURNING user_group_id, is_active;
+    `;
+
+    const updated = await client.query(updateQuery, [newIsActive, userId, id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      "User group status updated successfully."
+    );
+  } catch (error) {
+    console.error("Error updating user_group is_active:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

@@ -5,6 +5,7 @@ const {
   createUserGroup,
   getAllUserGroups,
   updateUserGroup,
+  updateUserGroupIsActive,
 } = require("../controllers/user-group.controller");
 const {
   createUserGroupSchema,
@@ -42,4 +43,11 @@ router.put(
   validateRequest(updateUserGroupSchema, REQUEST_SOURCE.BODY),
   updateUserGroup
 );
+
+router.put(
+  "/is-active/:id",
+  validateRequest(updateUserGroupParamsSchema, REQUEST_SOURCE.PARAMS),
+  updateUserGroupIsActive
+);
+
 module.exports = router;

@@ -30,28 +30,61 @@ const convertKeysToSnakeCase = (data, res) => {
 
   return data;
 };
-
 const camelToSnakeMiddleware = (req, res, next) => {
   try {
-    // Body: keep the existing validation logic
-    if (req.body && typeof req.body === "object") {
+    if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
       req.body = convertKeysToSnakeCase(req.body);
     }
 
-    // Query: convert all keys to snake_case but do NOT reject snake_case
+    if (req.files) {
+      /**
+       * Normalize files into:
+       * [
+       *   { fieldname, location }
+       * ]
+       */
+      const normalizedFiles = [];
+
+      // multer.array() OR multer.single()
+      if (Array.isArray(req.files)) {
+        normalizedFiles.push(...req.files);
+      }
+
+      // multer.fields()
+      else if (typeof req.files === "object") {
+        Object.values(req.files).forEach((files) => {
+          if (Array.isArray(files)) {
+            normalizedFiles.push(...files);
+          }
+        });
+      }
+
+      // Map files into req.body
+      normalizedFiles.forEach((file) => {
+        const key = camelToSnake(file.fieldname);
+        const value = file.location ?? null;
+
+        // Do not overwrite valid body values
+        if (
+          req.body[key] === undefined ||
+          req.body[key] === null ||
+          req.body[key] === ""
+        ) {
+          req.body[key] = value;
+        }
+      });
+    }
+
     if (req.query && typeof req.query === "object") {
       req.query = Object.keys(req.query).reduce((acc, key) => {
-        const snakeKey = camelToSnake(key);
-        acc[snakeKey] = req.query[key];
+        acc[camelToSnake(key)] = req.query[key];
         return acc;
       }, {});
     }
 
-    // Params: just convert keys to snake_case without rejecting
     if (req.params && typeof req.params === "object") {
       req.params = Object.keys(req.params).reduce((acc, key) => {
-        const snakeKey = camelToSnake(key);
-        acc[snakeKey] = req.params[key];
+        acc[camelToSnake(key)] = req.params[key];
         return acc;
       }, {});
     }
@@ -60,7 +93,7 @@ const camelToSnakeMiddleware = (req, res, next) => {
   } catch (err) {
     return res.status(400).json({
       success: false,
-      message: err.message,
+      message: "Invalid request payload",
     });
   }
 };

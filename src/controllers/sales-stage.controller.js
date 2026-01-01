@@ -574,3 +574,104 @@ exports.updateSalesStageIsActive = async (req, res) => {
     client.release();
   }
 };
+
+exports.getSalesStagesBySalesProcessId = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    const { sales_process_id, page = 1, limit = 25 } = req.query;
+
+    if (!sales_process_id) {
+      return errorResponse(res, 400, "Sales process ID is required.");
+    }
+
+    if (!builderId && !companyId) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID."
+      );
+    }
+
+    const limitValue = parseInt(limit, 10);
+    const pageValue = parseInt(page, 10);
+    const offsetValue = (pageValue - 1) * limitValue;
+
+    await client.query("BEGIN");
+
+    /* ---------- CHECK SALES PROCESS OWNERSHIP ---------- */
+    const processCheck = await client.query(
+      `
+      SELECT 1
+      FROM sales_process
+      WHERE sales_process_id = $1
+        AND (builder_id = $2 OR company_id = $3)
+      `,
+      [sales_process_id, builderId, companyId]
+    );
+
+    if (processCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Sales process not found for this user.");
+    }
+
+    /* ---------- COUNT QUERY ---------- */
+    const countResult = await client.query(
+      `
+      SELECT COUNT(*)::int AS total
+      FROM sales_stage
+      WHERE sales_process_id = $1
+      `,
+      [sales_process_id]
+    );
+
+    const totalRecords = countResult.rows[0].total;
+
+    /* ---------- DATA QUERY ---------- */
+    const stagesResult = await client.query(
+      `
+      SELECT
+        sales_stage_id,
+        sales_process_id,
+        stage_name,
+        functionality_id,
+        category,
+        sort_order,
+        is_active,
+        created_at,
+        updated_at
+      FROM sales_stage
+      WHERE sales_process_id = $1
+      ORDER BY sort_order ASC
+      LIMIT $2 OFFSET $3
+      `,
+      [sales_process_id, limitValue, offsetValue]
+    );
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      {
+        records: keysToCamelCase(stagesResult.rows),
+        pagination: {
+          totalRecords,
+          currentPage: pageValue,
+          totalPages: Math.ceil(totalRecords / limitValue),
+          limit: limitValue,
+        },
+      },
+      "Sales stages fetched successfully."
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error fetching sales stages:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

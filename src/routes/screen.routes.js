@@ -14,7 +14,6 @@ const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js
 const { REQUEST_SOURCE } = require("../config/constants");
 const {
   createScreenSchema,
-  getScreenSchema,
   deleteScreenSchema,
   updateScreenParamsSchema,
   updateScreenSchema,
@@ -30,11 +29,7 @@ router.post(
   createScreen
 );
 
-router.get(
-  "/",
-  validateRequest(getScreenSchema, REQUEST_SOURCE.QUERY),
-  getScreens
-);
+router.get("/", getScreens);
 
 router.delete(
   "/:screen_id",

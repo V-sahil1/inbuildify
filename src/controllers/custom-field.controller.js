@@ -187,7 +187,7 @@ exports.getAllCustomFields = async (req, res) => {
     const params = [builderId, companyId];
 
     if (module_id) {
-      whereClause += ` AND cf.custom_field_module_id = $3`;
+      whereClause += ` AND cf.module_id = $3`;
       params.push(module_id);
     }
 

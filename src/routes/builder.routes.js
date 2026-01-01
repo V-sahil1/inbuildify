@@ -1,35 +1,30 @@
 const express = require("express");
 const router = express.Router();
 const {
-  createBuilder,
-  getBuilders,
-  getBuilderById,
-  updateBuilder,
-  deleteBuilder,
+  upsertBuilder,
+  getMyBuilderProfile,
 } = require("../controllers/builder.controller");
+
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 const { createUpload, handleMulterError } = require("../utils/s3Upload");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { REQUEST_SOURCE } = require("../config/constants");
-const { updateBuilderSchema } = require("../validations/builder.validation");
+const { upsertBuilderSchema } = require("../validations/builder.validation");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 const upload = createUpload("builder-logo");
 
-router.post("/", createBuilder);
-router.get("/", getBuilders);
-router.get("/:id", getBuilderById);
-router.put(
+router.get("/", getMyBuilderProfile);
+router.post(
   "/",
-  upload.single("image"),
+  upload.single("logo"),
   handleMulterError,
   camelToSnakeMiddleware,
-  validateRequest(updateBuilderSchema, REQUEST_SOURCE.FORM_DATA),
-  updateBuilder
+  validateRequest(upsertBuilderSchema, REQUEST_SOURCE.FORM_DATA),
+  upsertBuilder
 );
-router.delete("/:id", deleteBuilder);
 
 module.exports = router;

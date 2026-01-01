@@ -59,6 +59,16 @@ exports.createJobCommission = async (req, res) => {
       );
     }
 
+    if (commission_type === "incoming") {
+      if (recipient || recipient_user_id) {
+        return errorResponse(
+          res,
+          400,
+          "Recipient and recipient user cannot be defined for incoming commission."
+        );
+      }
+    }
+
     if (recipient_user_id) {
       const userCheck = await client.query(
         `
@@ -78,19 +88,31 @@ exports.createJobCommission = async (req, res) => {
       settingsResult.rows[0].job_commission_settings_id;
 
     if (sort_order === undefined || sort_order === null) {
-      sort_order = 1;
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+    FROM job_commission
+    WHERE job_commission_settings_id = $1
+      AND commission_type = $2
+  `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        jobCommissionSettingsId,
+        commission_type,
+      ]);
+      sort_order = maxSortResult.rows[0].max_sort + 1;
     }
 
+    // Duplicate sort check per commission_type
     const duplicateQuery = `
   SELECT job_commission_id 
   FROM job_commission 
   WHERE job_commission_settings_id = $1 
-    AND sort_order = $2;
+    AND sort_order = $2
+    AND commission_type = $3
 `;
-
     const duplicateResult = await client.query(duplicateQuery, [
       jobCommissionSettingsId,
       sort_order,
+      commission_type,
     ]);
 
     if (duplicateResult.rowCount > 0) {
@@ -98,7 +120,7 @@ exports.createJobCommission = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Sort order ${sort_order} already exists for this commission setting.`
+        `Sort order ${sort_order} already exists for ${commission_type} commission.`
       );
     }
 
@@ -277,8 +299,8 @@ exports.updateJobCommission = async (req, res) => {
   const builderId = req.user?.builder_id;
   const userId = req.user?.users_id;
 
+  // Remove commission_type from request body
   const {
-    commission_type,
     name,
     recipient,
     recipient_user_id,
@@ -307,7 +329,6 @@ exports.updateJobCommission = async (req, res) => {
     }
 
     if (
-      commission_type === undefined &&
       name === undefined &&
       recipient === undefined &&
       recipient_user_id === undefined &&
@@ -320,21 +341,8 @@ exports.updateJobCommission = async (req, res) => {
 
     const settings = settingsResult.rows[0];
 
-    if (
-      (commission_type === "outgoing" &&
-        !settings.define_outgoing_commission) ||
-      (commission_type === "incoming" && !settings.define_incoming_commission)
-    ) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        `Cannot update to ${commission_type}. Corresponding setting is disabled.`
-      );
-    }
-
     const existingQ = await client.query(
-      `SELECT commission_unit, commission_value, recipient, recipient_user_id 
+      `SELECT commission_type, commission_unit, commission_value, recipient, recipient_user_id 
        FROM job_commission WHERE job_commission_id = $1`,
       [job_commission_id]
     );
@@ -345,6 +353,45 @@ exports.updateJobCommission = async (req, res) => {
     }
 
     const old = existingQ.rows[0];
+    const commission_type = old.commission_type; // keep existing type
+
+    // --- START: Incoming/outgoing validation (same as create API) ---
+    if (commission_type === "incoming") {
+      if (recipient || recipient_user_id) {
+        return errorResponse(
+          res,
+          400,
+          "Recipient and recipient user cannot be defined for incoming commission."
+        );
+      }
+    }
+
+    if (commission_type === "outgoing") {
+      if (!recipient) {
+        return errorResponse(
+          res,
+          400,
+          "Recipient is required for outgoing commission."
+        );
+      }
+
+      if (recipient === "other_user" && !recipient_user_id) {
+        return errorResponse(
+          res,
+          400,
+          "recipient_user_id is required when recipient is 'other_user'."
+        );
+      }
+
+      if (recipient !== "other_user" && recipient_user_id) {
+        return errorResponse(
+          res,
+          400,
+          "recipient_user_id is allowed only when recipient is 'other_user'."
+        );
+      }
+    }
+    // --- END: Incoming/outgoing validation ---
 
     const finalRecipient = recipient ?? old.recipient;
     const finalRecipientUser =
@@ -408,24 +455,46 @@ exports.updateJobCommission = async (req, res) => {
 
     const jobCommissionSettingsId = settings.job_commission_settings_id;
 
-    if (sort_order !== undefined) {
-      const duplicateSort = await client.query(
-        `SELECT job_commission_id FROM job_commission
-         WHERE job_commission_settings_id = $1 
-         AND sort_order = $2 
-         AND job_commission_id <> $3`,
-        [jobCommissionSettingsId, sort_order, job_commission_id]
-      );
-
-      if (duplicateSort.rowCount > 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          `Sort order ${sort_order} already exists.`
-        );
-      }
+    // --- START: Sort order assignment (like create API) ---
+    let finalSortOrder = sort_order;
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        FROM job_commission
+        WHERE job_commission_settings_id = $1
+          AND commission_type = $2
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        jobCommissionSettingsId,
+        commission_type,
+      ]);
+      finalSortOrder = maxSortResult.rows[0].max_sort + 1;
     }
+
+    // Duplicate check per type
+    const duplicateSort = await client.query(
+      `SELECT job_commission_id FROM job_commission
+       WHERE job_commission_settings_id = $1 
+         AND sort_order = $2 
+         AND commission_type = $3
+         AND job_commission_id <> $4`,
+      [
+        jobCommissionSettingsId,
+        finalSortOrder,
+        commission_type,
+        job_commission_id,
+      ]
+    );
+
+    if (duplicateSort.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Sort order ${finalSortOrder} already exists for ${commission_type} commission.`
+      );
+    }
+    // --- END: Sort order assignment ---
 
     let i = 1;
     const fields = [];
@@ -438,12 +507,12 @@ exports.updateJobCommission = async (req, res) => {
       }
     };
 
-    assign("commission_type", commission_type);
+    // commission_type removed: cannot be updated
     assign("name", name);
     assign("recipient", recipient);
     assign("commission_unit", commission_unit);
     assign("commission_value", commission_value);
-    assign("sort_order", sort_order);
+    assign("sort_order", finalSortOrder);
 
     if (finalRecipient !== "other_user") {
       fields.push(`recipient_user_id = $${i++}`);

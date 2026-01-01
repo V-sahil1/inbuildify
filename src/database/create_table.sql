@@ -679,20 +679,60 @@ CREATE TABLE timezones (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
+-- CREATE TABLE builder (
+--   builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   name VARCHAR(100) NOT NULL,
+--   email VARCHAR(100) UNIQUE NOT NULL,
+--   logo VARCHAR(500) DEFAULT 'https://cdn.dribbble.com/userupload/5245642/file/original-430a2e28de5df4e1932405b3a9f783e7.png?resize=752x&vertical=center',
+--   slogan VARCHAR(500),
+--   firm_name VARCHAR(250),
+--   license_number VARCHAR(100),
+--   abn_number VARCHAR(100),
+--   phone_number VARCHAR(20),
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
+
+BUILDER TABLE
 CREATE TABLE builder (
-  builder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  logo VARCHAR(500) DEFAULT 'https://cdn.dribbble.com/userupload/5245642/file/original-430a2e28de5df4e1932405b3a9f783e7.png?resize=752x&vertical=center',
-  slogan VARCHAR(500),
-  firm_name VARCHAR(250),
-  license_number VARCHAR(100),
-  abn_number VARCHAR(100),
-  phone_number VARCHAR(20),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  builder_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150),
+  phone_number VARCHAR(50),
+  abn_number VARCHAR(20),
+  acn_number VARCHAR(20),
+  hia_membership_no VARCHAR(100),
+  registration_number VARCHAR(100),
+  registered_building_practitioner BOOLEAN DEFAULT FALSE,
+  practitioner_reg_no VARCHAR(100),
+  licensed_builder_name VARCHAR(150),
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  bank_name VARCHAR(150),
+  account_name VARCHAR(150),
+  account_number VARCHAR(50),
+  account_bsb VARCHAR(20),
+  logo VARCHAR(500),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+BUILDER INSURER TABLE
+CREATE TABLE builder_insurer (
+  builder_insurer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
+  insurer_name VARCHAR(150) NOT NULL,
+  insured_name VARCHAR(150),
+  phone_number VARCHAR(50),
+  address_line1 VARCHAR(255),
+  address_line2 VARCHAR(255),
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+  zip_code VARCHAR(20),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_builder_insurer UNIQUE (builder_id)
+);
 CREATE TABLE address (
   address_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
@@ -793,7 +833,8 @@ CREATE TABLE user_group (
   user_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  name VARCHAR(100) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  users_id UUID[] DEFAULT '{}',
   is_active BOOLEAN DEFAULT TRUE,
   created_by_id UUID NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
   updated_by_id UUID NOT NULL REFERENCES users(users_id) ON DELETE CASCADE,
@@ -1467,6 +1508,64 @@ CREATE TABLE job_commission_sub_stage (
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process (
+    job_process_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process_stage_functionality (
+    functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_workflow BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE job_process_stage (
+    stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_process_id UUID NOT NULL REFERENCES job_process(job_process_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    functionality_id UUID NOT NULL REFERENCES job_process_stage_functionality(functionality_id),
+    sort_order INT NOT NULL,
+    dependent_stage_id UUID REFERENCES stage(stage_id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process_sub_stage (
+    sub_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_process_stage_id UUID NOT NULL REFERENCES job_process_stage(stage_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process_task_dependency (
+    task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
+    predecessor_task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
+    PRIMARY KEY (task_id, predecessor_task_id)
+);
+
+ALTER TABLE task
+ADD COLUMN sub_stage_id UUID REFERENCES sub_stage(sub_stage_id) ON DELETE CASCADE,
+ADD COLUMN sort_order INT,
+ADD COLUMN no_of_days INT,
+ADD COLUMN notify BOOLEAN DEFAULT FALSE,
+ADD COLUMN milestone BOOLEAN DEFAULT FALSE,
+ADD COLUMN attachment_mandatory BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE job_process_subtask (
+    subtask_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE maintenance_settings (                                                         

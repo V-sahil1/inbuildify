@@ -7,41 +7,19 @@ exports.getAllTimezones = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
     const dataQuery = `
       SELECT
         *
       FROM timezones
-      ORDER BY utc_offset_minutes, display_name
-      LIMIT $1 OFFSET $2;
+      ORDER BY utc_offset_minutes, display_name;
     `;
 
-    const dataResult = await client.query(dataQuery, [limitValue, offset]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM timezones;
-    `;
-
-    const countResult = await client.query(countQuery);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery);
 
     return successResponse(
       res,
       {
         timezones: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
       },
       "Timezones fetched successfully."
     );

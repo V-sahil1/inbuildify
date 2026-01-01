@@ -33,11 +33,7 @@ router.post(
   createFunctionality
 );
 
-router.get(
-  "/",
-  validateRequest(getFunctionalitiesSchema, REQUEST_SOURCE.QUERY),
-  getFunctionalities
-);
+router.get("/", getFunctionalities);
 
 router.get(
   "/:screenId",

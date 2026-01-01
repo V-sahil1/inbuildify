@@ -1,6 +1,6 @@
 const Joi = require("joi");
 
-const createCompanySchema = Joi.object({
+const upsertCompanySchema = Joi.object({
   name: Joi.string().max(150).required().messages({
     "any.required": "Company name is required",
   }),
@@ -29,4 +29,4 @@ const createCompanySchema = Joi.object({
   company_logo: Joi.string().max(500).allow(null, "").optional(),
 });
 
-module.exports = { createCompanySchema };
+module.exports = { upsertCompanySchema };

@@ -1,6 +1,13 @@
 const Joi = require("joi");
 
 const createUserGroupSchema = Joi.object({
+  users_id: Joi.array()
+    .items(Joi.string().uuid())
+    .default([])
+    .optional()
+    .messages({
+      "string.guid": "user type ID must be a valid UUID",
+    }),
   name: Joi.string().trim().max(100).required().messages({
     "string.empty": "Group name is required.",
     "string.max": "Group name must be at most 100 characters long.",
@@ -40,16 +47,15 @@ const updateUserGroupSchema = Joi.object({
   name: Joi.string().trim().max(100).optional().messages({
     "string.max": "Group name must be at most 100 characters long.",
   }),
-
-  is_active: Joi.boolean().optional().messages({
-    "boolean.base": "is_active must be a boolean value (true/false).",
-  }),
-})
-  .or("name", "is_active")
-  .messages({
-    "object.missing":
-      "At least one field (name or is_active) is required to update.",
-  });
+  users_id: Joi.array()
+    .items(Joi.string().uuid())
+    .default([])
+    .optional()
+    .messages({
+      "string.guid": "dwelling type ID must be a valid UUID",
+    }),
+  is_active: Joi.boolean().optional(),
+});
 
 module.exports = {
   createUserGroupSchema,

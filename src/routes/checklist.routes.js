@@ -57,7 +57,6 @@ router.put(
 router.put(
   "/is-active/:checklist_id",
   validateRequest(updateChecklistParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateChecklistIsActiveSchema, REQUEST_SOURCE.BODY),
   updateChecklistIsActive
 );
 

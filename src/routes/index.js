@@ -56,6 +56,7 @@ const houseLandPackageSettingRoutes = require("./house-land-package-setting.rout
 const jobSettingRoutes = require("./job.setting.routes");
 const jobColorSettingRoutes = require("./job-color-setting.routes");
 const jobColorColumnRoutes = require("./job-color-column.routes");
+const jobColorColumnSectionRoutes = require("./job-color-column-section.routes");
 const jobWorkflowSettingRoutes = require("./job-workflow-setting.routes");
 const jobInvoiceSettingRoutes = require("./job-invoice-setting.routes");
 const jobInvoiceStagePaymentRoutes = require("./job-invoice-stage-payment.routes");
@@ -168,6 +169,7 @@ module.exports = function (app) {
   app.use("/job-setting", jobSettingRoutes);
   app.use("/job-color-setting", jobColorSettingRoutes);
   app.use("/job-color-column", jobColorColumnRoutes);
+  app.use("/job-color-column-section", jobColorColumnSectionRoutes);
   app.use("/job-workflow-setting", jobWorkflowSettingRoutes);
   app.use("/job-invoice-setting", jobInvoiceSettingRoutes);
   app.use("/job-invoice-stage-payment", jobInvoiceStagePaymentRoutes);

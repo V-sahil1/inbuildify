@@ -11,7 +11,15 @@ const createJobCommissionSchema = Joi.object({
       "customer",
       "other_user"
     )
-    .required(),
+    .when("commission_type", {
+      is: "outgoing",
+      then: Joi.required().messages({
+        "any.required": "recipient is required for outgoing commission.",
+      }),
+      otherwise: Joi.forbidden().messages({
+        "any.unknown": "recipient cannot be defined for incoming commission.",
+      }),
+    }),
   recipient_user_id: Joi.alternatives().conditional("recipient", {
     is: "other_user",
     then: Joi.string().uuid().required().messages({
@@ -86,13 +94,6 @@ const updateJobCommissionParamsSchema = Joi.object({
 });
 
 const updateJobCommissionSchema = Joi.object({
-  commission_type: Joi.string()
-    .valid("outgoing", "incoming")
-    .optional()
-    .messages({
-      "any.only": "Commission type must be 'outgoing' or 'incoming'.",
-    }),
-
   name: Joi.string().max(150).optional().messages({
     "string.max": "Name cannot exceed 150 characters.",
   }),

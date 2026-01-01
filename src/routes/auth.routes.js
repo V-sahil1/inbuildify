@@ -11,6 +11,8 @@ const {
 } = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
   createUserSchema,
@@ -21,7 +23,12 @@ const {
   refreshTokenSchema,
 } = require("../validations/auth.validation");
 
-router.post("/register", validateRequest(createUserSchema), registerUser);
+router.post(
+  "/register",
+  camelToSnakeMiddleware,
+  validateRequest(createUserSchema),
+  registerUser
+);
 router.post(
   "/verify-emailOtp",
   validateRequest(verifyEmailSchema),

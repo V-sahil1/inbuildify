@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   createSalesStage,
   getAllSalesStages,
+  getSalesStagesBySalesProcessId,
   deleteSalesStage,
   updateSalesStage,
   updateSalesStageIsActive,
@@ -11,6 +12,7 @@ const {
 const {
   createSalesStageSchema,
   getAllSalesStageSchema,
+  getSalesStageBySalesProcessIdSchema,
   deleteSalesStageSchema,
   updateSalesStageIdParamsSchema,
   updateSalesStageSchema,
@@ -40,6 +42,11 @@ router.get(
   getAllSalesStages
 );
 
+router.get(
+  "/process",
+  validateRequest(getSalesStageBySalesProcessIdSchema, REQUEST_SOURCE.QUERY),
+  getSalesStagesBySalesProcessId
+);
 router.delete(
   "/:sales_stage_id",
   validateRequest(deleteSalesStageSchema, REQUEST_SOURCE.PARAMS),

@@ -433,23 +433,15 @@ exports.updateChecklistIsActive = async (req, res) => {
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id;
     const { checklist_id } = req.params;
-    const { is_active } = req.body;
 
     if (!checklist_id) {
       return errorResponse(res, 400, "checklist_id is required");
     }
 
-    if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)"
-      );
-    }
-
+    /* ---------- CHECK EXISTING RECORD ---------- */
     const existing = await client.query(
       `
-      SELECT checklist_id
+      SELECT checklist_id, is_active
       FROM checklist
       WHERE checklist_id = $1
         AND builder_id = $2
@@ -462,6 +454,10 @@ exports.updateChecklistIsActive = async (req, res) => {
       return errorResponse(res, 404, "Checklist not found for this builder");
     }
 
+    const currentIsActive = existing.rows[0].is_active;
+    const newIsActive = !currentIsActive; // ✅ TOGGLE
+
+    /* ---------- UPDATE ---------- */
     const updateQuery = `
       UPDATE checklist
       SET
@@ -473,7 +469,7 @@ exports.updateChecklistIsActive = async (req, res) => {
     `;
 
     const updated = await client.query(updateQuery, [
-      is_active,
+      newIsActive,
       userId,
       checklist_id,
     ]);

@@ -1,71 +1,37 @@
 const Joi = require("joi");
 
-const imageRule = Joi.alternatives().try(
-  Joi.string().uri().max(500).trim().messages({
-    'string.base': 'Image must be a string',
-    'string.uri': 'Image must be a valid URL',
-    'string.max': 'Image URL must not exceed 500 characters'
-  }),
-  Joi.object({
-    fieldname: Joi.string().valid('image').required(),
-    originalname: Joi.string().required(),
-    mimetype: Joi.string().required(),
-    size: Joi.number().max(10 * 1024 * 1024).required(),
-    location: Joi.string().uri().required()
-  }).unknown(true)
-).optional();
-
-const updateBuilderSchema = Joi.object({
-  name: Joi.string().optional().trim().min(3).max(250).messages({
-    'string.base': 'Name must be a string',
-    'string.empty': 'Name is required',
-    'any.required': 'Name is required',
-    'string.min': 'Name must be at least 3 characters long',
-    'string.max': 'Name must be at most 250 characters long'
-  }),
-  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow("").messages({
-    'string.base': 'Phone number must be a string',
-    'string.empty': 'Phone number is required',
-    'any.required': 'Phone number is required',
-    'string.pattern.base': 'Phone number must be a valid phone number'
-  }),
-  slogan: Joi.string().optional().trim().min(3).max(250).messages({
-    'string.base': 'Slogan must be a string',
-    'string.empty': 'Slogan is required',
-    'any.required': 'Slogan is required',
-    'string.min': 'Slogan must be at least 3 characters long',
-    'string.max': 'Slogan must be at most 250 characters long'
-  }),
-  firm_name: Joi.string().optional().trim().min(3).max(250).messages({
-    'string.base': 'Firm name must be a string',
-    'string.empty': 'Firm name is required',
-    'any.required': 'Firm name is required',
-    'string.min': 'Firm name must be at least 3 characters long',
-    'string.max': 'Firm name must be at most 250 characters long'
-  }),
-  abn_number: Joi.string()
-    .pattern(/^\d{11}$/)
-    .optional()
-    .messages({
-      'string.base': 'ABN number must be a string',
-      'string.empty': 'ABN number is required',
-      'any.required': 'ABN number is required',
-      'string.pattern.base': 'ABN number must be exactly 11 digits with no spaces or symbols'
-    }),
-  license_number: Joi.string()
-    .pattern(/^[A-Za-z0-9\-]{5,20}$/)
-    .optional()
-    .messages({
-      'string.base': 'License number must be a string',
-      'string.empty': 'License number is required',
-      'any.required': 'License number is required',
-      'string.pattern.base': 'License number must be alphanumeric (letters, numbers, -) and 5–20 characters long'
-    }),
-  image: imageRule.optional(),
-}).min(1).messages({
-  'object.min': 'At least one field is required to update'
+const addressSchema = Joi.object({
+  address_line1: Joi.string().max(255).required(),
+  address_line2: Joi.string().max(255).allow(null, ""),
+  city: Joi.string().max(100).allow(null, ""),
+  state_id: Joi.string().uuid().allow(null),
+  country_id: Joi.string().uuid().allow(null),
+  zip_code: Joi.string().max(20).allow(null, ""),
 });
 
-module.exports = {
-  updateBuilderSchema
-};
+const insurerSchema = Joi.object({
+  insurer_name: Joi.string().max(150).required(),
+  insured_name: Joi.string().max(150).allow(null, ""),
+  phone_number: Joi.string().max(50).allow(null, ""),
+  state_id: Joi.string().uuid().allow(null),
+  country_id: Joi.string().uuid().allow(null),
+  zip_code: Joi.string().max(20).allow(null, ""),
+});
+
+const upsertBuilderSchema = Joi.object({
+  company_id: Joi.string().uuid().required(),
+  builder_name: Joi.string().max(150).required(),
+  email: Joi.string().email().allow(null, ""),
+  phone_number: Joi.string().max(50).allow(null, ""),
+  abn_number: Joi.string().max(20).allow(null, ""),
+  acn_number: Joi.string().max(20).allow(null, ""),
+  hia_membership_no: Joi.string().max(100).allow(null, ""),
+  registration_number: Joi.string().max(100).allow(null, ""),
+  registered_building_practitioner: Joi.boolean(),
+  practitioner_reg_no: Joi.string().max(100).allow(null, ""),
+  licensed_builder_name: Joi.string().max(150).allow(null, ""),
+  address: addressSchema.optional(),
+  insurer: insurerSchema.optional(),
+}).min(1);
+
+module.exports = { upsertBuilderSchema };
