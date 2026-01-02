@@ -77,10 +77,7 @@ exports.getProfile = async (req, res) => {
         u.updated_at,
         b.name AS builder_name,
         b.logo,
-        b.slogan,
-        b.firm_name,
         b.abn_number,
-        b.license_number,
         b.phone_number
       FROM users u
       LEFT JOIN builder b ON u.builder_id = b.builder_id

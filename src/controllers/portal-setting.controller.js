@@ -178,7 +178,6 @@ exports.updatePortalSettings = async (req, res) => {
   };
 
   try {
-    const { id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const updatedBy = req.user?.user_id;
@@ -198,17 +197,17 @@ exports.updatePortalSettings = async (req, res) => {
 
     const checkQuery = `
       SELECT * FROM portal_settings 
-      WHERE portal_settings_id = $1 AND (builder_id = $2 OR company_id = $3)
+      WHERE builder_id = $1 OR company_id = $2
       LIMIT 1;
     `;
-    const existing = await client.query(checkQuery, [id, builderId, companyId]);
+    const existing = await client.query(checkQuery, [builderId, companyId]);
 
     if (existing.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         404,
-        "Portal settings not found or you are not authorized to update it."
+        "Portal settings not found. Please create portal settings first."
       );
     }
 
@@ -308,6 +307,7 @@ exports.updatePortalSettings = async (req, res) => {
       ) && !isLoginCredsTrue;
 
     let oldFacadeImageUrl = existingData.default_facade_image;
+    const portalSettingsId = existingData.portal_settings_id;
 
     if (shouldResetAll) {
       if (oldFacadeImageUrl) {
@@ -335,7 +335,7 @@ exports.updatePortalSettings = async (req, res) => {
         WHERE portal_settings_id = $1;
       `;
 
-      await client.query(resetQuery, [id, updatedBy]);
+      await client.query(resetQuery, [portalSettingsId, updatedBy]);
 
       if (
         Object.prototype.hasOwnProperty.call(
@@ -349,13 +349,12 @@ exports.updatePortalSettings = async (req, res) => {
               WHERE portal_settings_id = $1;
             `;
         await client.query(pubPackageQuery, [
-          id,
+          portalSettingsId,
           requestBody.publish_packages_to_agent_portal,
         ]);
       }
 
       const finalResult = await client.query(checkQuery, [
-        id,
         builderId,
         companyId,
       ]);
@@ -429,7 +428,7 @@ exports.updatePortalSettings = async (req, res) => {
       RETURNING *;
     `;
 
-    values.push(id, builderId, companyId);
+    values.push(portalSettingsId, builderId, companyId);
 
     const updateResult = await client.query(updateQuery, values);
     await client.query("COMMIT");
@@ -472,11 +471,11 @@ exports.getPortalSettings = async (req, res) => {
     if (result.rowCount === 0) {
       result = await client.query(
         `
-        INSERT INTO portal_settings (company_id, builder_id)
-        VALUES ($1, $2)
+        INSERT INTO portal_settings (company_id, builder_id, created_by, updated_by)
+        VALUES ($1, $2, $3, $4)
         RETURNING *
         `,
-        [company_id, builder_id]
+        [company_id, builder_id, req.user.user_id, req.user.user_id]
       );
     }
 

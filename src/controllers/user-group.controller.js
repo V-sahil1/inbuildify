@@ -90,7 +90,11 @@ exports.createUserGroup = async (req, res) => {
         builder_id,
         name,
         users_id,
-        is_active;
+        is_active,
+        created_by_id,
+        updated_by_id,
+        created_at,
+        updated_at;
     `;
 
     const insertResult = await client.query(insertQuery, [
@@ -103,13 +107,39 @@ exports.createUserGroup = async (req, res) => {
       userId,
     ]);
 
+    let usersDetails = [];
+    if (users_id.length > 0) {
+      const usersQuery = `
+        SELECT users_id, name
+        FROM users
+        WHERE users_id = ANY($1::uuid[])
+          AND is_deleted = false
+          AND is_verified = true
+      `;
+      const usersResult = await client.query(usersQuery, [users_id]);
+      usersDetails = usersResult.rows.map((user) => ({
+        id: user.users_id,
+        name: user.name,
+      }));
+    }
+
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      keysToCamelCase(insertResult.rows[0]),
-      "User group created successfully."
-    );
+    const response = {
+      ...keysToCamelCase({
+        company_id: insertResult.rows[0].company_id,
+        builder_id: insertResult.rows[0].builder_id,
+        name: insertResult.rows[0].name,
+        is_active: insertResult.rows[0].is_active,
+        created_by_id: insertResult.rows[0].created_by_id,
+        updated_by_id: insertResult.rows[0].updated_by_id,
+        created_at: insertResult.rows[0].created_at,
+        updated_at: insertResult.rows[0].updated_at,
+      }),
+      users: usersDetails,
+    };
+
+    return successResponse(res, response, "User group created successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating user group:", error);
@@ -133,7 +163,16 @@ exports.getAllUserGroups = async (req, res) => {
 
     let baseQuery = `
       SELECT 
-        *
+        user_group_id,
+        company_id,
+        builder_id,
+        name,
+        users_id,
+        is_active,
+        created_by_id,
+        updated_by_id,
+        created_at,
+        updated_at
       FROM user_group 
       WHERE builder_id = $1
     `;
@@ -173,10 +212,45 @@ exports.getAllUserGroups = async (req, res) => {
 
     const total = parseInt(countResult.rows[0].total, 10);
 
+    const userGroupsWithUsers = await Promise.all(
+      result.rows.map(async (group) => {
+        let usersDetails = [];
+        if (group.users_id && group.users_id.length > 0) {
+          const usersQuery = `
+            SELECT users_id, name
+            FROM users
+            WHERE users_id = ANY($1::uuid[])
+              AND is_deleted = false
+              AND is_verified = true
+          `;
+          const usersResult = await client.query(usersQuery, [group.users_id]);
+          usersDetails = usersResult.rows.map((user) => ({
+            id: user.users_id,
+            name: user.name,
+          }));
+        }
+
+        return {
+          ...keysToCamelCase({
+            user_group_id: group.user_group_id,
+            company_id: group.company_id,
+            builder_id: group.builder_id,
+            name: group.name,
+            is_active: group.is_active,
+            created_by_id: group.created_by_id,
+            updated_by_id: group.updated_by_id,
+            created_at: group.created_at,
+            updated_at: group.updated_at,
+          }),
+          users: usersDetails,
+        };
+      })
+    );
+
     return successResponse(
       res,
       {
-        userGroups: keysToCamelCase(result.rows),
+        userGroups: userGroupsWithUsers,
         pagination: {
           totalRecords: total,
           currentPage: pageValue,
@@ -368,7 +442,16 @@ exports.updateUserGroup = async (req, res) => {
       SET ${updateFields.join(", ")}
       WHERE user_group_id = $${i++}
         AND builder_id = $${i}
-      RETURNING *;
+      RETURNING user_group_id,
+        company_id,
+        builder_id,
+        name,
+        users_id,
+        is_active,
+        created_by_id,
+        updated_by_id,
+        created_at,
+        updated_at;
     `;
 
     const result = await client.query(updateQuery, updateValues);
@@ -378,13 +461,43 @@ exports.updateUserGroup = async (req, res) => {
       return errorResponse(res, 400, "Failed to update user group.");
     }
 
+    const updatedGroup = result.rows[0];
+    let usersDetails = [];
+    if (updatedGroup.users_id && updatedGroup.users_id.length > 0) {
+      const usersQuery = `
+        SELECT users_id, name
+        FROM users
+        WHERE users_id = ANY($1::uuid[])
+          AND is_deleted = false
+          AND is_verified = true
+      `;
+      const usersResult = await client.query(usersQuery, [
+        updatedGroup.users_id,
+      ]);
+      usersDetails = usersResult.rows.map((user) => ({
+        id: user.users_id,
+        name: user.name,
+      }));
+    }
+
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "User group updated successfully."
-    );
+    const response = {
+      ...keysToCamelCase({
+        user_group_id: updatedGroup.user_group_id,
+        company_id: updatedGroup.company_id,
+        builder_id: updatedGroup.builder_id,
+        name: updatedGroup.name,
+        is_active: updatedGroup.is_active,
+        created_by_id: updatedGroup.created_by_id,
+        updated_by_id: updatedGroup.updated_by_id,
+        created_at: updatedGroup.created_at,
+        updated_at: updatedGroup.updated_at,
+      }),
+      users: usersDetails,
+    };
+
+    return successResponse(res, response, "User group updated successfully.");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Update user group error:", error);
@@ -423,9 +536,8 @@ exports.updateUserGroupIsActive = async (req, res) => {
     }
 
     const currentIsActive = existing.rows[0].is_active;
-    const newIsActive = !currentIsActive; // ✅ TOGGLE
+    const newIsActive = !currentIsActive;
 
-    /* ---------- UPDATE ---------- */
     const updateQuery = `
       UPDATE user_group
       SET

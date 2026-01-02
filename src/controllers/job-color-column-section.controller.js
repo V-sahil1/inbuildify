@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createJobColorColumnSection = async (req, res) => {
   const pool = getPool();
@@ -12,7 +13,7 @@ exports.createJobColorColumnSection = async (req, res) => {
 
     const { section_name, sort_order } = req.body;
 
-    const attachments = req.body.attachment || null;
+    const attachments = (req.body.image ?? req.body.attachments_pdf) || null;
 
     if (!section_name) {
       return errorResponse(res, 400, "Section name is required.");
@@ -172,19 +173,15 @@ exports.getJobColorColumnSections = async (req, res) => {
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
-    return successResponse(
-      res,
-      {
-        sections: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
+    return successResponse(res, {
+      JobColorColumnSections: keysToCamelCase(dataResult.rows),
+      pagination: {
+        currentPage: pageValue,
+        totalPages,
+        totalRecords,
+        limit: limitValue,
       },
-      "Job color column sections fetched successfully."
-    );
+    });
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
@@ -293,7 +290,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
     const { job_color_column_section_id } = req.params;
 
     let { section_name, sort_order } = req.body;
-    const attachments = req.body.attachment || null;
+    const attachments = (req.body.image ?? req.body.attachments_pdf) || null;
 
     if (!job_color_column_section_id) {
       return errorResponse(res, 400, "Section ID is required.");

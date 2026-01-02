@@ -57,31 +57,44 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
       );
     }
 
-    const finalSortOrder = sort_order ?? 0;
-    const sortCheckQuery = `
-      SELECT s.document_common_subfolder_id
-      FROM document_common_subfolder s
-      INNER JOIN document_common_folder f
-        ON f.document_common_folder_id = s.document_common_folder_id
-      WHERE f.builder_id = $1
-        AND s.document_common_folder_id = $2
-        AND s.sort_order = $3
-      LIMIT 1
+    let finalSortOrder = sort_order;
+
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
+
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM document_common_subfolder
+      WHERE document_common_folder_id = $1;
     `;
-    const sortCheck = await client.query(sortCheckQuery, [
-      builderId,
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
       document_common_folder_id,
-      finalSortOrder,
     ]);
 
-    if (sortCheck.rows.length > 0) {
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Sort order ${finalSortOrder} already exists for this folder.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
       );
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE document_common_subfolder
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND document_common_folder_id = $2;
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      document_common_folder_id,
+    ]);
 
     const insertQuery = `
       INSERT INTO document_common_subfolder (
@@ -213,7 +226,7 @@ exports.deleteDocumentCommonSubfolder = async (req, res) => {
     const { document_common_subfolder_id } = req.params;
 
     const checkQuery = `
-      SELECT s.document_common_subfolder_id
+      SELECT s.document_common_subfolder_id, s.sort_order, s.document_common_folder_id
       FROM document_common_subfolder s
       INNER JOIN document_common_folder f
         ON f.document_common_folder_id = s.document_common_folder_id
@@ -233,11 +246,22 @@ exports.deleteDocumentCommonSubfolder = async (req, res) => {
       );
     }
 
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const folderId = checkResult.rows[0].document_common_folder_id;
+
     const deleteQuery = `
       DELETE FROM document_common_subfolder
       WHERE document_common_subfolder_id = $1
     `;
     await client.query(deleteQuery, [document_common_subfolder_id]);
+
+    const shiftSortOrderQuery = `
+      UPDATE document_common_subfolder
+      SET sort_order = sort_order - 1
+      WHERE sort_order > $1
+        AND document_common_folder_id = $2;
+    `;
+    await client.query(shiftSortOrderQuery, [deletedSortOrder, folderId]);
 
     return successResponse(
       res,
@@ -313,29 +337,64 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
       }
     }
 
-    if (
-      sort_order !== undefined &&
-      sort_order !== null &&
-      sort_order !== existingData.sort_order
-    ) {
-      const duplicateSortOrderQuery = `
-        SELECT document_common_subfolder_id
+    const oldSortOrder = existingData.sort_order;
+    let newSortOrder = sort_order;
+
+    if (newSortOrder !== undefined && newSortOrder !== null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
         FROM document_common_subfolder
         WHERE document_common_folder_id = $1
-          AND sort_order = $2
-          AND document_common_subfolder_id <> $3
       `;
-      const duplicateSortOrderResult = await client.query(
-        duplicateSortOrderQuery,
-        [document_common_folder_id, sort_order, document_common_subfolder_id]
-      );
+      const maxSortResult = await client.query(maxSortQuery, [
+        document_common_folder_id,
+      ]);
+      const maxSort = maxSortResult.rows[0].max_sort;
 
-      if (duplicateSortOrderResult.rows.length > 0) {
+      if (newSortOrder < 1 || newSortOrder > maxSort) {
         return errorResponse(
           res,
           400,
-          "A subfolder with this sort order already exists in this folder."
+          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`
         );
+      }
+
+      if (newSortOrder !== oldSortOrder) {
+        if (newSortOrder > oldSortOrder) {
+          await client.query(
+            `
+            UPDATE document_common_subfolder
+            SET sort_order = sort_order - 1
+            WHERE document_common_folder_id = $1
+              AND sort_order > $2
+              AND sort_order <= $3
+              AND document_common_subfolder_id != $4
+          `,
+            [
+              document_common_folder_id,
+              oldSortOrder,
+              newSortOrder,
+              document_common_subfolder_id,
+            ]
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE document_common_subfolder
+            SET sort_order = sort_order + 1
+            WHERE document_common_folder_id = $1
+              AND sort_order >= $2
+              AND sort_order < $3
+              AND document_common_subfolder_id != $4
+          `,
+            [
+              document_common_folder_id,
+              newSortOrder,
+              oldSortOrder,
+              document_common_subfolder_id,
+            ]
+          );
+        }
       }
     }
 
@@ -348,9 +407,9 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
       values.push(name.trim());
     }
 
-    if (sort_order !== undefined) {
+    if (newSortOrder !== undefined && newSortOrder !== oldSortOrder) {
       fields.push(`sort_order = $${paramIndex++}`);
-      values.push(sort_order);
+      values.push(newSortOrder);
     }
 
     if (fields.length === 0) {

@@ -48,8 +48,8 @@ router.post(
 router.put(
   "/:range_id",
   upload.fields([
-    { name: "logo_url", maxCount: 1 },
-    { name: "header_url", maxCount: 1 },
+    { name: "logoUrl", maxCount: 1 },
+    { name: "headerUrl", maxCount: 1 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,

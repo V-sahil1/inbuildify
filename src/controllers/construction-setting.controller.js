@@ -257,6 +257,7 @@ exports.getConstructionSettings = async (req, res) => {
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
+  const userId = req.user?.user_id;
 
   try {
     if (!builderId) {
@@ -267,7 +268,7 @@ exports.getConstructionSettings = async (req, res) => {
       return errorResponse(res, 400, "Company ID not found.");
     }
 
-    const result = await client.query(
+    let result = await client.query(
       `
         SELECT *
         FROM construction_settings
@@ -277,18 +278,29 @@ exports.getConstructionSettings = async (req, res) => {
       [builderId, companyId]
     );
 
+    // Auto-create construction settings if not found
     if (result.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No construction settings found for this builder."
+      result = await client.query(
+        `
+        INSERT INTO construction_settings (
+          builder_id, 
+          company_id, 
+          created_by, 
+          updated_by
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+        `,
+        [builderId, companyId, userId, userId]
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction settings retrieved successfully."
+      result.rowCount === 0
+        ? "Construction settings created and retrieved successfully."
+        : "Construction settings retrieved successfully."
     );
   } catch (err) {
     console.error("Error fetching construction settings:", err);
@@ -481,41 +493,27 @@ exports.updateConstructionSettings = async (req, res) => {
 
     if (admin_coordinator_roles.length > 0) {
       const adminCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1) AND builder_id = $2`,
-        [admin_coordinator_roles, builderId]
+        `SELECT role_id FROM role WHERE role_id = ANY($1)`,
+        [admin_coordinator_roles]
       );
       if (adminCheck.rowCount !== admin_coordinator_roles.length) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Invalid admin coordinator roles");
       }
-      const adminActiveCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1) AND builder_id = $2 AND is_active = true`,
-        [admin_coordinator_roles, builderId]
-      );
-      if (adminActiveCheck.rowCount !== admin_coordinator_roles.length) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive admin coordinator roles");
-      }
+
       addField("admin_coordinator_roles", admin_coordinator_roles);
     }
 
     if (site_supervisor_roles.length > 0) {
       const supervisorCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1) AND builder_id = $2`,
-        [site_supervisor_roles, builderId]
+        `SELECT role_id FROM role WHERE role_id = ANY($1)`,
+        [site_supervisor_roles]
       );
       if (supervisorCheck.rowCount !== site_supervisor_roles.length) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Invalid site supervisor roles");
       }
-      const supervisorActiveCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1) AND builder_id = $2 AND is_active = true`,
-        [site_supervisor_roles, builderId]
-      );
-      if (supervisorActiveCheck.rowCount !== site_supervisor_roles.length) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive site supervisor roles");
-      }
+
       addField("site_supervisor_roles", site_supervisor_roles);
     }
 

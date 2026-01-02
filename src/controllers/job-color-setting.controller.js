@@ -2,6 +2,69 @@ const getPool = require("../config/database");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+const DEFAULT_JOB_COLOR_COLUMNS = [
+  {
+    column_name: "Colour",
+    display_option: "show_as_separate_column",
+    sort_order: 1,
+    width: null,
+  },
+  {
+    column_name: "Description",
+    display_option: "show_in_existing_items_column",
+    sort_order: null,
+    width: null,
+  },
+  {
+    column_name: "Code",
+    display_option: "show_in_existing_items_column",
+    sort_order: null,
+    width: null,
+  },
+  {
+    column_name: "Images",
+    display_option: "show_as_separate_column",
+    sort_order: 2,
+    width: 20,
+  },
+  {
+    column_name: "Specification",
+    display_option: "show_in_existing_items_column",
+    sort_order: null,
+    width: null,
+  },
+  {
+    column_name: "Item Name",
+    display_option: "show_as_separate_column",
+    sort_order: 4,
+    width: 20,
+  },
+  {
+    column_name: "Items",
+    display_option: "show_as_separate_column",
+    sort_order: 5,
+    width: 20,
+  },
+  {
+    column_name: "Feature",
+    display_option: "show_in_existing_items_column",
+    sort_order: null,
+    width: null,
+  },
+  {
+    column_name: "Supplier",
+    display_option: "show_in_existing_items_column",
+    sort_order: null,
+    width: null,
+  },
+  {
+    column_name: "Cost",
+    display_option: "show_as_separate_column",
+    sort_order: 6,
+    width: 20,
+  },
+];
+
 exports.createJobColorSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -209,6 +272,8 @@ exports.getUserJobColorSettings = async (req, res) => {
   try {
     const { company_id, builder_id, user_id } = req.user;
 
+    await client.query("BEGIN");
+
     let result = await client.query(
       `
       SELECT *
@@ -220,6 +285,7 @@ exports.getUserJobColorSettings = async (req, res) => {
       [company_id, builder_id]
     );
 
+    // 👉 Create settings if not exist
     if (result.rowCount === 0) {
       result = await client.query(
         `
@@ -230,15 +296,50 @@ exports.getUserJobColorSettings = async (req, res) => {
           updated_by
         )
         VALUES ($1, $2, $3, $3)
-        RETURNING  hide_color_item_images,
-        hide_color_item_price,
-        exit_color_code,
-        page_orientation_portrait,
-        header_text
+        RETURNING *
         `,
         [company_id, builder_id, user_id]
       );
     }
+
+    const jobColorSettingsId = result.rows[0].job_color_settings_id;
+
+    // 👉 CHECK default columns exist or not
+    const columnCheck = await client.query(
+      `
+      SELECT 1
+      FROM job_color_columns
+      WHERE job_color_settings_id = $1
+      LIMIT 1
+      `,
+      [jobColorSettingsId]
+    );
+
+    // 👉 Insert defaults only once
+    if (columnCheck.rowCount === 0) {
+      const insertColumnQuery = `
+        INSERT INTO job_color_columns (
+          job_color_settings_id,
+          column_name,
+          display_option,
+          sort_order,
+          width
+        )
+        VALUES ($1, $2, $3, $4, $5)
+      `;
+
+      for (const col of DEFAULT_JOB_COLOR_COLUMNS) {
+        await client.query(insertColumnQuery, [
+          jobColorSettingsId,
+          col.column_name,
+          col.display_option,
+          col.sort_order,
+          col.width,
+        ]);
+      }
+    }
+
+    await client.query("COMMIT");
 
     return successResponse(
       res,
@@ -246,6 +347,7 @@ exports.getUserJobColorSettings = async (req, res) => {
       "Job color settings fetched successfully"
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error fetching job color settings:", error);
     return errorResponse(res, 500, error.message || "Internal server error");
   } finally {

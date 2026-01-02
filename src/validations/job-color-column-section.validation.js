@@ -1,9 +1,23 @@
 const Joi = require("joi");
 
 const createJobColorColumnSectionSchema = Joi.object({
-  section_name: Joi.string().trim().max(150).required(),
-  attachment: Joi.string().max(500).allow(null, "").optional(),
-  sort_order: Joi.number().integer().min(1).default(1).optional(),
+  section_name: Joi.string()
+    .trim()
+    .valid("attach_pdf_beginning", "attach_pdf_end")
+    .required()
+    .messages({
+      "string.empty": "Section name is required",
+      "any.only":
+        "Section name must be either 'attach_pdf_beginning' or 'attach_pdf_end'",
+      "any.required": "Section name is required",
+    }),
+  attachments_pdf: Joi.string().max(500).allow(null, "").optional(),
+  image: Joi.string().max(500).allow(null, "").optional(),
+  sort_order: Joi.number().integer().min(1).default(1).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+    "number.min": "Sort order must be at least 1",
+  }),
 });
 
 const getJobColorColumnSectionsSchema = Joi.object({
@@ -36,10 +50,26 @@ const updateJobColorColumnSectionParamsSchema = Joi.object({
 });
 
 const updateJobColorColumnSectionSchema = Joi.object({
-  section_name: Joi.string().trim().max(150).optional(),
-  attachment: Joi.string().max(500).allow(null, "").optional(),
-  sort_order: Joi.number().integer().min(1).default(1).optional(),
-});
+  section_name: Joi.string()
+    .trim()
+    .valid("attach_pdf_beginning", "attach_pdf_end")
+    .optional()
+    .messages({
+      "any.only":
+        "Section name must be either 'attach_pdf_beginning' or 'attach_pdf_end'",
+    }),
+  attachments_pdf: Joi.string().max(500).allow(null, "").optional(),
+  image: Joi.string().max(500).allow(null, "").optional(),
+  sort_order: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+    "number.min": "Sort order must be at least 1",
+  }),
+})
+  .min(1)
+  .messages({
+    "object.min": "At least one field must be provided for update",
+  });
 module.exports = {
   createJobColorColumnSectionSchema,
   getJobColorColumnSectionsSchema,

@@ -75,6 +75,21 @@ const camelToSnakeMiddleware = (req, res, next) => {
       });
     }
 
+    // Handle single file upload (req.file)
+    if (req.file) {
+      const key = camelToSnake(req.file.fieldname);
+      const value = req.file.location ?? null;
+
+      // Do not overwrite valid body values
+      if (
+        req.body[key] === undefined ||
+        req.body[key] === null ||
+        req.body[key] === ""
+      ) {
+        req.body[key] = value;
+      }
+    }
+
     if (req.query && typeof req.query === "object") {
       req.query = Object.keys(req.query).reduce((acc, key) => {
         acc[camelToSnake(key)] = req.query[key];

@@ -7,6 +7,7 @@ exports.createConstructionStage = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
@@ -87,33 +88,68 @@ exports.createConstructionStage = async (req, res) => {
     }
 
     if (sort_order === undefined || sort_order === null) {
-      sort_order = 1;
-    }
+      // Get the maximum sort order for this construction type and assign next
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        FROM construction_stage
+        WHERE construction_type_id = $1
+          AND (
+            (company_id = $2 AND $2 IS NOT NULL)
+            OR (builder_id = $3 AND $3 IS NOT NULL)
+          )
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        construction_type_id,
+        companyId,
+        builderId,
+      ]);
+      const maxSort = maxSortResult.rows[0].max_sort;
+      sort_order = maxSort + 1;
+    } else {
+      // Validate that the requested sort_order is within valid range
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        FROM construction_stage
+        WHERE construction_type_id = $1
+          AND (
+            (company_id = $2 AND $2 IS NOT NULL)
+            OR (builder_id = $3 AND $3 IS NOT NULL)
+          )
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        construction_type_id,
+        companyId,
+        builderId,
+      ]);
+      const maxSort = maxSortResult.rows[0].max_sort;
 
-    const sortOrderCheckQuery = `
-      SELECT construction_stage
-      FROM construction_stage
-      WHERE sort_order = $1
-        AND construction_type_id = $2
-        AND (
-          (company_id = $3 AND $3 IS NOT NULL)
-          OR (builder_id = $4 AND $4 IS NOT NULL)
-        )
-      LIMIT 1;
-    `;
-    const sortOrderCheckResult = await client.query(sortOrderCheckQuery, [
-      sort_order,
-      construction_type_id,
-      companyId,
-      builderId,
-    ]);
+      if (sort_order < 1 || sort_order > maxSort + 1) {
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`
+        );
+      }
 
-    if (sortOrderCheckResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        409,
-        `sort_order '${sort_order}' already exists. Please choose another value.`
-      );
+      // Shift existing records down if inserting at a specific position
+      if (sort_order <= maxSort) {
+        const shiftQuery = `
+          UPDATE construction_stage
+          SET sort_order = sort_order + 1
+          WHERE construction_type_id = $1
+            AND (
+              (company_id = $2 AND $2 IS NOT NULL)
+              OR (builder_id = $3 AND $3 IS NOT NULL)
+            )
+            AND sort_order >= $4
+        `;
+        await client.query(shiftQuery, [
+          construction_type_id,
+          companyId,
+          builderId,
+          sort_order,
+        ]);
+      }
     }
 
     const validInspectionValues = [
@@ -160,12 +196,15 @@ exports.createConstructionStage = async (req, res) => {
       userId,
     ]);
 
+    await client.query("COMMIT");
+
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
       "Construction stage created successfully."
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Create Construction Stage Error:", error);
     return errorResponse(res, 500, "Internal server error.");
   } finally {
@@ -257,19 +296,23 @@ exports.deleteConstructionStage = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
     const builderId = req.user?.builder_id;
     const { construction_stage } = req.params;
 
     if (!builderId) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 403, "Unauthorized. Builder login required.");
     }
 
     if (!construction_stage) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 400, "Construction stage ID is required.");
     }
 
+    // Get the construction stage details including sort order and construction type
     const checkQuery = `
-      SELECT construction_stage
+      SELECT construction_stage, sort_order, construction_type_id
       FROM construction_stage
       WHERE construction_stage = $1
         AND builder_id = $2;
@@ -281,6 +324,7 @@ exports.deleteConstructionStage = async (req, res) => {
     ]);
 
     if (checkResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         404,
@@ -288,6 +332,10 @@ exports.deleteConstructionStage = async (req, res) => {
       );
     }
 
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const constructionTypeId = checkResult.rows[0].construction_type_id;
+
+    // Delete the construction stage
     const deleteQuery = `
       DELETE FROM construction_stage
       WHERE construction_stage = $1
@@ -297,8 +345,26 @@ exports.deleteConstructionStage = async (req, res) => {
 
     await client.query(deleteQuery, [construction_stage, builderId]);
 
+    // Shift up sort orders of records that come after the deleted one
+    const shiftQuery = `
+      UPDATE construction_stage
+      SET sort_order = sort_order - 1
+      WHERE builder_id = $1
+        AND construction_type_id = $2
+        AND sort_order > $3
+    `;
+
+    await client.query(shiftQuery, [
+      builderId,
+      constructionTypeId,
+      deletedSortOrder,
+    ]);
+
+    await client.query("COMMIT");
+
     return successResponse(res, {}, "Construction stage deleted successfully.");
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting construction stage:", error);
     return errorResponse(
       res,
@@ -315,16 +381,19 @@ exports.updateConstructionStage = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
     const { construction_stage } = req.params;
 
     if (!builderId) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 403, "Unauthorized. Builder login required.");
     }
 
     if (!construction_stage) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 400, "Construction stage ID is required.");
     }
 
@@ -351,12 +420,17 @@ exports.updateConstructionStage = async (req, res) => {
     ]);
 
     if (existingResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         404,
         "Construction stage not found or access denied."
       );
     }
+
+    const existingData = existingResult.rows[0];
+    const oldSortOrder = existingData.sort_order;
+    const constructionTypeId = existingData.construction_type_id;
 
     if (stage_name) {
       const duplicateStageQuery = `
@@ -378,36 +452,11 @@ exports.updateConstructionStage = async (req, res) => {
       ]);
 
       if (duplicateStageResult.rowCount > 0) {
+        await client.query("ROLLBACK");
         return errorResponse(
           res,
           409,
           "Construction stage with this name already exists."
-        );
-      }
-    }
-
-    if (sort_order !== undefined) {
-      const sortOrderCheckQuery = `
-        SELECT construction_stage
-        FROM construction_stage
-        WHERE sort_order = $1
-          AND construction_stage != $2
-          AND construction_type_id = $3
-          AND builder_id = $4
-        LIMIT 1;
-      `;
-      const sortOrderCheckResult = await client.query(sortOrderCheckQuery, [
-        sort_order,
-        construction_stage,
-        existingResult.rows[0].construction_type_id,
-        builderId,
-      ]);
-
-      if (sortOrderCheckResult.rowCount > 0) {
-        return errorResponse(
-          res,
-          409,
-          `sort_order '${sort_order}' already exists. Please choose another value.`
         );
       }
     }
@@ -429,6 +478,79 @@ exports.updateConstructionStage = async (req, res) => {
     }
 
     if (sort_order !== undefined) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        FROM construction_stage
+        WHERE construction_type_id = $1
+          AND (
+            (company_id = $2 AND $2 IS NOT NULL)
+            OR (builder_id = $3 AND $3 IS NOT NULL)
+          )
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        constructionTypeId,
+        companyId,
+        builderId,
+      ]);
+      const maxSort = maxSortResult.rows[0].max_sort;
+
+      if (sort_order < 1 || sort_order > maxSort + 1) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`
+        );
+      }
+
+      if (sort_order !== oldSortOrder) {
+        if (sort_order > oldSortOrder) {
+          // Moving down: shift records between old+1 and new position down
+          const shiftDownQuery = `
+            UPDATE construction_stage
+            SET sort_order = sort_order + 1
+            WHERE construction_type_id = $1
+              AND (
+                (company_id = $2 AND $2 IS NOT NULL)
+                OR (builder_id = $3 AND $3 IS NOT NULL)
+              )
+              AND sort_order > $4
+              AND sort_order <= $5
+              AND construction_stage != $6
+          `;
+          await client.query(shiftDownQuery, [
+            constructionTypeId,
+            companyId,
+            builderId,
+            oldSortOrder,
+            sort_order,
+            construction_stage,
+          ]);
+        } else {
+          // Moving up: shift records between new and old-1 position up
+          const shiftUpQuery = `
+            UPDATE construction_stage
+            SET sort_order = sort_order - 1
+            WHERE construction_type_id = $1
+              AND (
+                (company_id = $2 AND $2 IS NOT NULL)
+                OR (builder_id = $3 AND $3 IS NOT NULL)
+              )
+              AND sort_order >= $4
+              AND sort_order < $5
+              AND construction_stage != $6
+          `;
+          await client.query(shiftUpQuery, [
+            constructionTypeId,
+            companyId,
+            builderId,
+            sort_order,
+            oldSortOrder,
+            construction_stage,
+          ]);
+        }
+      }
+
       updateFields.push(`sort_order = $${idx}`);
       values.push(sort_order);
       idx++;
@@ -464,6 +586,7 @@ exports.updateConstructionStage = async (req, res) => {
     updateFields.push(`updated_at = NOW()`);
 
     if (updateFields.length === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 400, "No fields provided to update.");
     }
 
@@ -481,12 +604,15 @@ exports.updateConstructionStage = async (req, res) => {
       builderId,
     ]);
 
+    await client.query("COMMIT");
+
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
       "Construction stage updated successfully."
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Update Construction Stage Error:", error);
     return errorResponse(res, 500, error.message || "Internal server error.");
   } finally {

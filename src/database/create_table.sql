@@ -1375,8 +1375,8 @@ CREATE TABLE job_color_columns (
 CREATE TABLE job_color_column_sections (
     job_color_column_section_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     job_color_settings_id UUID NOT NULL REFERENCES job_color_settings(job_color_settings_id) ON DELETE CASCADE,
-    section_name VARCHAR(150) NOT NULL,
-    attachments TEXT,
+    section_name VARCHAR(150) CHECK (section_name IN('attach_pdf_beginning', 'attach_pdf_end')),
+    attachments VARCHAR(500),
     sort_order INT DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()  
@@ -1452,6 +1452,19 @@ CREATE TABLE job_variation_settings (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT chk_job_variation_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
     CONSTRAINT uq_job_variation_scope UNIQUE (company_id, builder_id)
+);
+
+CREATE TABLE job_variation_approval(
+  job_variation_approval_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
+  amount DECIMAL(15,2) NOT NULL,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_job_variation_approval_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE job_commission_settings (
@@ -1552,13 +1565,20 @@ CREATE TABLE job_process_task_dependency (
     PRIMARY KEY (task_id, predecessor_task_id)
 );
 
-ALTER TABLE task
-ADD COLUMN sub_stage_id UUID REFERENCES sub_stage(sub_stage_id) ON DELETE CASCADE,
-ADD COLUMN sort_order INT,
-ADD COLUMN no_of_days INT,
-ADD COLUMN notify BOOLEAN DEFAULT FALSE,
-ADD COLUMN milestone BOOLEAN DEFAULT FALSE,
-ADD COLUMN attachment_mandatory BOOLEAN DEFAULT FALSE;
+-- CREATE TABLE job_task(
+--   job_task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   job_id UUID NOT NULL REFERENCES job(job_id) ON DELETE CASCADE,
+--   task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
+--   sub_stage_id UUID REFERENCES job_process_sub_stage(sub_stage_id) ON DELETE CASCADE,
+--   task_name VARCHAR(200) NOT NULL,
+--   sort_order INT,
+--   no_of_days INT,
+--   notify BOOLEAN DEFAULT FALSE,
+--   milestone BOOLEAN DEFAULT FALSE,
+--   attachment_mandatory BOOLEAN DEFAULT FALSE,
+--   created_at TIMESTAMPTZ DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ DEFAULT NOW()
+-- );
 
 CREATE TABLE job_process_subtask (
     subtask_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

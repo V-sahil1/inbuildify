@@ -265,8 +265,10 @@ exports.deleteConstructionType = async (req, res) => {
     const { construction_type_id } = req.params;
     const { user_id } = req.user;
 
+    await client.query("BEGIN");
+
     const checkQuery = `
-      SELECT construction_type_id
+      SELECT construction_type_id, sort_order
       FROM construction_type
       WHERE construction_type_id = $1
         AND builder_id = $2;
@@ -278,12 +280,15 @@ exports.deleteConstructionType = async (req, res) => {
     ]);
 
     if (checkResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         404,
         "Construction type not found or access denied."
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
 
     const deleteQuery = `
       DELETE FROM construction_type
@@ -294,8 +299,20 @@ exports.deleteConstructionType = async (req, res) => {
 
     await client.query(deleteQuery, [construction_type_id, builderId]);
 
+    const shiftQuery = `
+      UPDATE construction_type
+      SET sort_order = sort_order - 1
+      WHERE builder_id = $1
+        AND sort_order > $2
+    `;
+
+    await client.query(shiftQuery, [builderId, deletedSortOrder]);
+
+    await client.query("COMMIT");
+
     return successResponse(res, {}, "Construction type deleted successfully.");
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Error deleting construction type:", err);
     return errorResponse(
       res,

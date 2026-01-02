@@ -245,25 +245,26 @@ exports.updateConstructionOption = async (req, res) => {
     const checkNameQuery = `
       SELECT construction_option_id
       FROM construction_option
-      WHERE construction_option_id = $1
-        AND company_id = $2
-        AND builder_id = $3
-        AND option_name != $4
+      WHERE company_id = $1
+        AND builder_id = $2
+        AND option_name = $3
+        AND construction_option_id != $4
       LIMIT 1;
     `;
 
     const checkNameResult = await client.query(checkNameQuery, [
-      id,
       companyId,
       builderId,
       option_name,
+      id,
     ]);
 
-    if (checkNameResult.rowCount < 0) {
+    if (checkNameResult.rowCount > 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
-        404,
-        "constrution option already exist with this option name."
+        409,
+        "Construction option already exists with this option name."
       );
     }
 

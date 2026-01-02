@@ -38,11 +38,10 @@ router.post(
 router.get("/", getPortalSettings);
 
 router.put(
-  "/:id",
-  upload.single("default_facade_image"),
+  "/",
+  upload.single("defaultFacadeImage"),
   handleMulterError,
   camelToSnakeMiddleware,
-  validateRequest(updatePortalSettingParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.BODY),
   updatePortalSettings
 );

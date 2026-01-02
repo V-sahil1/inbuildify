@@ -32,8 +32,7 @@ router.post(
 router.get("/", getConstructionSettings);
 
 router.put(
-  "/:id",
-  validateRequest(updateConstructionSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateConstructionSettingSchema, REQUEST_SOURCE.BODY),
   updateConstructionSettings
 );

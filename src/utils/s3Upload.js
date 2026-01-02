@@ -84,7 +84,6 @@ const deleteFromS3 = async (fileUrl) => {
 };
 
 const handleMulterError = (error, req, res, next) => {
-  console.log("🚀 ~ handleMulterError ~ req:", req);
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({

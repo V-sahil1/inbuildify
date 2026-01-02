@@ -44,75 +44,58 @@ exports.createDocumentCommonFolder = async (req, res) => {
     }
 
     let finalSortOrder = sort_order;
-    if (finalSortOrder === undefined) {
-      const defaultSortCheckQuery = `
-    SELECT document_common_folder_id
-    FROM document_common_folder
-    WHERE sort_order = 0 AND (builder_id = $1 OR company_id = $2)
-  `;
-      const defaultSortCheckResult = await client.query(defaultSortCheckQuery, [
-        builderId,
-        companyId,
-      ]);
-      if (defaultSortCheckResult.rowCount > 0) {
-        return errorResponse(
-          res,
-          400,
-          "Default sort order 0 already exists. Please provide a custom sort_order."
-        );
-      }
-      finalSortOrder = 0;
-    } else {
-      const uniqueSortQuery = `
-    SELECT document_common_folder_id
-    FROM document_common_folder
-    WHERE sort_order = $1 AND (builder_id = $2 OR company_id = $3)
-  `;
-      const uniqueSortResult = await client.query(uniqueSortQuery, [
-        finalSortOrder,
-        builderId,
-        companyId,
-      ]);
-      if (uniqueSortResult.rowCount > 0) {
-        return errorResponse(
-          res,
-          400,
-          `Sort order ${finalSortOrder} already exists for this builder/company.`
-        );
-      }
+
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
     }
+
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM document_common_folder
+      WHERE builder_id = $1 OR company_id = $2;
+    `;
+
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+      return errorResponse(
+        res,
+        400,
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+      );
+    }
+
+    const shiftSortOrderQuery = `
+      UPDATE document_common_folder
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND (builder_id = $2 OR company_id = $3);
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      builderId,
+      companyId,
+    ]);
 
     if (role_ids.length > 0) {
       const roleCheckQuery = `
         SELECT role_id
         FROM role
-        WHERE builder_id = $1 AND role_id = ANY($2::uuid[]) AND is_deleted = false
+        WHERE  role_id = ANY($1::uuid[])
       `;
-      const roleCheckResult = await client.query(roleCheckQuery, [
-        builderId,
-        role_ids,
-      ]);
+      const roleCheckResult = await client.query(roleCheckQuery, [role_ids]);
       if (roleCheckResult.rowCount !== role_ids.length) {
         return errorResponse(
           res,
           400,
           "One or more role IDs are invalid for this builder."
         );
-      }
-    }
-
-    if (role_ids.length > 0) {
-      const roleCheckQuery = `
-        SELECT role_id
-        FROM role
-        WHERE builder_id = $1 AND role_id = ANY($2::uuid[]) AND is_active = true
-      `;
-      const roleCheckResult = await client.query(roleCheckQuery, [
-        builderId,
-        role_ids,
-      ]);
-      if (roleCheckResult.rowCount !== role_ids.length) {
-        return errorResponse(res, 400, "One or more role IDs are inactive.");
       }
     }
 
@@ -143,7 +126,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       companyId,
       builderId,
       name,
-      sort_order || 0,
+      finalSortOrder,
       notify,
       share_to_customer,
       is_locked,
@@ -251,7 +234,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     }
 
     const ownershipQuery = `
-      SELECT document_common_folder_id
+      SELECT document_common_folder_id, sort_order
       FROM document_common_folder
       WHERE document_common_folder_id = $1
         AND (builder_id = $2 OR company_id = $3)
@@ -270,6 +253,8 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
       );
     }
 
+    const deletedSortOrder = ownershipResult.rows[0].sort_order;
+
     const deleteQuery = `
       DELETE FROM document_common_folder
       WHERE document_common_folder_id = $1
@@ -282,6 +267,18 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     if (deleteResult.rowCount === 0) {
       return errorResponse(res, 404, "Folder not found or already deleted.");
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE document_common_folder
+      SET sort_order = sort_order - 1
+      WHERE sort_order > $1
+        AND (builder_id = $2 OR company_id = $3);
+    `;
+    await client.query(shiftSortOrderQuery, [
+      deletedSortOrder,
+      builderId,
+      companyId,
+    ]);
 
     return successResponse(
       res,
@@ -366,22 +363,71 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       values.push(name);
     }
 
-    if (sort_order !== undefined) {
-      const sortCheck = await client.query(
-        `SELECT document_common_folder_id
-         FROM document_common_folder
-         WHERE sort_order = $1 AND (builder_id = $2 OR company_id = $3) AND document_common_folder_id != $4`,
-        [sort_order, builderId, companyId, document_common_folder_id]
-      );
-      if (sortCheck.rowCount > 0) {
+    const existingFolder = ownershipResult.rows[0];
+    const oldSortOrder = existingFolder.sort_order;
+    let newSortOrder = sort_order;
+
+    if (newSortOrder !== undefined && newSortOrder !== null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        FROM document_common_folder
+        WHERE builder_id = $1 OR company_id = $2
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        builderId,
+        companyId,
+      ]);
+      const maxSort = maxSortResult.rows[0].max_sort;
+
+      if (newSortOrder < 1 || newSortOrder > maxSort) {
         return errorResponse(
           res,
           400,
-          `Sort order ${sort_order} already exists.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`
         );
       }
-      fields.push(`sort_order = $${i++}`);
-      values.push(sort_order);
+
+      if (newSortOrder !== oldSortOrder) {
+        if (newSortOrder > oldSortOrder) {
+          await client.query(
+            `
+            UPDATE document_common_folder
+            SET sort_order = sort_order - 1
+            WHERE (builder_id = $1 OR company_id = $2)
+              AND sort_order > $3
+              AND sort_order <= $4
+              AND document_common_folder_id != $5
+          `,
+            [
+              builderId,
+              companyId,
+              oldSortOrder,
+              newSortOrder,
+              document_common_folder_id,
+            ]
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE document_common_folder
+            SET sort_order = sort_order + 1
+            WHERE (builder_id = $1 OR company_id = $2)
+              AND sort_order >= $3
+              AND sort_order < $4
+              AND document_common_folder_id != $5
+          `,
+            [
+              builderId,
+              companyId,
+              newSortOrder,
+              oldSortOrder,
+              document_common_folder_id,
+            ]
+          );
+        }
+        fields.push(`sort_order = $${i++}`);
+        values.push(newSortOrder);
+      }
     }
 
     if (notify !== undefined) {
@@ -403,23 +449,14 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       }
       if (role_ids.length > 0) {
         const validRoles = await client.query(
-          `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = ANY($2::uuid[])`,
-          [builderId, role_ids]
+          `SELECT role_id FROM role WHERE role_id = ANY($1::uuid[])`,
+          [role_ids]
         );
         if (validRoles.rowCount !== role_ids.length) {
           return errorResponse(res, 400, "One or more role ids are invalid.");
         }
       }
 
-      if (role_ids.length > 0) {
-        const validRoles = await client.query(
-          `SELECT role_id FROM role WHERE builder_id = $1 AND role_id = ANY($2::uuid[]) AND is_active = true`,
-          [builderId, role_ids]
-        );
-        if (validRoles.rowCount !== role_ids.length) {
-          return errorResponse(res, 400, "One or more role ids inactive.");
-        }
-      }
       fields.push(`role_ids = $${i++}`);
       values.push(role_ids);
     }

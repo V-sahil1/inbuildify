@@ -15,23 +15,24 @@ const {
   updateJobColorColumnSectionSchema,
 } = require("../validations/job-color-column-section.validation.js");
 
+const { createUpload, handleMulterError } = require("../utils/s3Upload");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
-const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
 const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
+
 const upload = createUpload("job-color-column-section");
 
 router.post(
   "/",
-  upload.single("attachment"),
-  camelToSnakeMiddleware,
+  upload.single("attachmentsPdf"),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createJobColorColumnSectionSchema, REQUEST_SOURCE.FORM_DATA),
   createJobColorColumnSection
 );
@@ -51,14 +52,14 @@ router.delete(
 
 router.put(
   "/:job_color_column_section_id",
-  upload.single("attachment"),
-  handleMulterError,
+  upload.single("attachmentsPdf"),
   camelToSnakeMiddleware,
+  handleMulterError,
   validateRequest(
     updateJobColorColumnSectionParamsSchema,
     REQUEST_SOURCE.PARAMS
   ),
-  validateRequest(updateJobColorColumnSectionSchema, REQUEST_SOURCE.BODY),
+  validateRequest(updateJobColorColumnSectionSchema, REQUEST_SOURCE.FORM_DATA),
   updateJobColorColumnSection
 );
 
