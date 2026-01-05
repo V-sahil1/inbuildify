@@ -30,17 +30,33 @@ async function upsertBuilder(builderId, payload, logoUrl) {
       await client.query(
         `
         INSERT INTO builder (
-          builder_id, company_id, name, email, phone_number,
-          abn_number, acn_number, hia_membership_no, registration_number,
-          registered_building_practitioner, practitioner_reg_no,
-          licensed_builder_name, address_id, logo
+          builder_id,
+          company_id,
+          name,
+          email,
+          phone_number,
+          abn_number,
+          acn_number,
+          hia_membership_no,
+          registration_number,
+          registered_building_practitioner,
+          practitioner_reg_no,
+          licensed_builder_name,
+          bank_name,
+          account_name,
+          account_number,
+          account_bsb,
+          address_id,
+          logo
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+        )
         `,
         [
           builderId,
           payload.company_id,
-          payload.builder_name,
+          payload.name,
           payload.email,
           payload.phone_number,
           payload.abn_number,
@@ -50,6 +66,10 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           payload.registered_building_practitioner,
           payload.practitioner_reg_no,
           payload.licensed_builder_name,
+          payload.bank_name,
+          payload.account_name,
+          payload.account_number,
+          payload.account_bsb,
           addressId || null,
           logoUrl || null,
         ]
@@ -83,15 +103,24 @@ async function upsertBuilder(builderId, payload, logoUrl) {
       await client.query(
         `
         INSERT INTO builder_insurer (
-          builder_id, insurer_name, insured_name, phone_number,
-          state_id, country_id, zip_code
+          builder_id,
+          insurer_name,
+          insured_name,
+          phone_number,
+          address_line1,
+          address_line2,
+          state_id,
+          country_id,
+          zip_code
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         ON CONFLICT (builder_id)
         DO UPDATE SET
           insurer_name = EXCLUDED.insurer_name,
           insured_name = EXCLUDED.insured_name,
           phone_number = EXCLUDED.phone_number,
+          address_line1 = EXCLUDED.address_line1,
+          address_line2 = EXCLUDED.address_line2,
           state_id = EXCLUDED.state_id,
           country_id = EXCLUDED.country_id,
           zip_code = EXCLUDED.zip_code,
@@ -102,6 +131,8 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           payload.insurer.insurer_name,
           payload.insurer.insured_name,
           payload.insurer.phone_number,
+          payload.insurer.address_line1,
+          payload.insurer.address_line2,
           payload.insurer.state_id,
           payload.insurer.country_id,
           payload.insurer.zip_code,
@@ -111,8 +142,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
 
     await client.query("COMMIT");
 
-    builder = await getBuilderProfile(builderId);
-    return builder;
+    return await getBuilderProfile(builderId);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

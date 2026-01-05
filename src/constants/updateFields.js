@@ -1,6 +1,6 @@
 // builderUpdateFields
 module.exports.BUILDER_UPDATE_FIELDS = {
-  builder_name: "name",
+  name: "name",
   email: "email",
   phone_number: "phone_number",
   abn_number: "abn_number",
@@ -10,10 +10,13 @@ module.exports.BUILDER_UPDATE_FIELDS = {
   registered_building_practitioner: "registered_building_practitioner",
   practitioner_reg_no: "practitioner_reg_no",
   licensed_builder_name: "licensed_builder_name",
+  bank_name: "bank_name",
+  account_name: "account_name",
+  account_number: "account_number",
+  account_bsb: "account_bsb",
   address_id: "address_id",
   logo: "logo",
 };
-
 
 // addressUpdateFields
 module.exports.ADDRESS_UPDATE_FIELDS = {
