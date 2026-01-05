@@ -727,7 +727,6 @@ CREATE TABLE builder_insurer (
   address_line1 VARCHAR(255),
   address_line2 VARCHAR(255),
   state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
-  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
   zip_code VARCHAR(20),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -803,6 +802,8 @@ CREATE TABLE users (
   expires_at TIMESTAMP,
   reset_password_token VARCHAR(255),
   reset_token_expires_at TIMESTAMP,
+  otp_resend_count INTEGER DEFAULT 0,
+  last_otp_sent_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
@@ -947,6 +948,7 @@ CREATE TABLE construction_stage(
   CONSTRAINT chk_construction_stage_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
   CONSTRAINT uq_construction_stage_stage_name UNIQUE (company_id, builder_id, stage_name)
 );
+
 
 CREATE TABLE checklist (
   checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1813,7 +1815,7 @@ CREATE TABLE scheduler_email (
     no_of_action_days INT CHECK (no_of_action_days >= 0),
     no_record_message BOOLEAN DEFAULT FALSE,
     no_record_message_body TEXT,
-    attach_files BOOLEAN DEFAULT FALSE,
+    attach_files VARCHAR(500),
     is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2324,6 +2326,54 @@ CREATE TABLE construction_option(
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
     CONSTRAINT uq_construction_option_option_name UNIQUE (company_id, builder_id, option_name)
+);
+
+CREATE TABLE construction_checklist(
+  construction_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  construction_type_id UUID REFERENCES construction_type(construction_type_id) ON DELETE CASCADE,
+  construction_stage_id UUID REFERENCES construction_stage(construction_stage) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  supplier_type_id UUID REFERENCES supplier_type(supplier_type_id) ON DELETE CASCADE,
+  sort_order INT DEFAULT 1,
+  data_required BOOLEAN DEFAULT TRUE,
+  supplier BOOLEAN DEFAULT TRUE,
+  claim BOOLEAN DEFAULT FALSE,
+  dependent BOOLEAN DEFAULT FALSE,
+  no_of_days INT DEFAULT 1,                 -- if data require is true 
+  notify BOOLEAN DEFAULT FALSE,
+  milestone BOOLEAN DEFAULT FALSE,
+  attachment_mandatory BOOLEAN DEFAULT FALSE,
+  attachment_mandatory_name VARCHAR(255),             -- if attachment mandatory is true
+  construction_option_id UUID REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+)
+
+
+CREATE TABLE construction_inspection_checklist(
+  construction_inspection_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  construction_type_id UUID REFERENCES construction_type(construction_type_id) ON DELETE CASCADE,
+  construction_stage_id UUID REFERENCES construction_stage(construction_stage) ON DELETE CASCADE,
+  field_name VARCHAR(255) NOT NULL CHECK(field_name IN ('checklist', 'section')),
+  description VARCHAR(500) NOT NULL,
+  sort_order INT DEFAULT 1,
+  construction_option_id UUID REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,    -- if checklist in field_name
+  section_id UUID REFERENCES construction_inspection_checklist(construction_inspection_checklist_id) ON DELETE CASCADE,      -- if checklist in field_name
+  add_all_existing_jobs BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE appointment(

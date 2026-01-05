@@ -139,6 +139,10 @@ const getInvitedUserSchema = Joi.object({
   offset: Joi.number().optional().default(0).max(25),
 });
 
+const resendOtpSchema = Joi.object({
+  email: emailRule,
+});
+
 module.exports = {
   createUserSchema,
   loginUserSchema,
@@ -151,4 +155,5 @@ module.exports = {
   acceptInviteSchema,
   acceptInviteParamsSchema,
   getInvitedUserSchema,
+  resendOtpSchema,
 };

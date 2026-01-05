@@ -5,7 +5,6 @@ const addressSchema = Joi.object({
   address_line2: Joi.string().max(255).allow(null, ""),
   city: Joi.string().max(100).allow(null, ""),
   state_id: Joi.string().uuid().allow(null),
-  country_id: Joi.string().uuid().allow(null),
   zip_code: Joi.string().max(20).allow(null, ""),
 });
 
@@ -16,7 +15,6 @@ const insurerSchema = Joi.object({
   address_line1: Joi.string().max(255).allow(null, ""),
   address_line2: Joi.string().max(255).allow(null, ""),
   state_id: Joi.string().uuid().allow(null),
-  country_id: Joi.string().uuid().allow(null),
   zip_code: Joi.string().max(20).allow(null, ""),
 });
 

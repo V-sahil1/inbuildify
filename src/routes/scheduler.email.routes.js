@@ -6,6 +6,7 @@ const {
   getAllSchedulerEmail,
   deleteSchedulerEmail,
   updateSchedulerEmail,
+  getSchedulerEmails,
 } = require("../controllers/scheduler-email.controller");
 const {
   createSchedulerEmailSchema,
@@ -19,23 +20,35 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 
+const { createUpload, handleMulterError } = require("../utils/s3Upload");
+
 const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
-router.use(camelToSnakeMiddleware);
+
+const upload = createUpload("scheduler-email");
 
 router.post(
   "/",
-  validateRequest(createSchedulerEmailSchema, REQUEST_SOURCE.BODY),
+  upload.single("attachFiles"),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(createSchedulerEmailSchema, REQUEST_SOURCE.FORM_DATA),
   createSchedulerEmail
 );
 
+// router.get(
+//   "/",
+//   validateRequest(getAllSchedulerEmailSchema, REQUEST_SOURCE.QUERY),
+//   getAllSchedulerEmail
+// );
+
 router.get(
   "/",
-  validateRequest(getAllSchedulerEmailSchema, REQUEST_SOURCE.QUERY),
-  getAllSchedulerEmail
+  getSchedulerEmails
 );
+
 
 router.delete(
   "/:scheduler_email_id",
@@ -45,6 +58,9 @@ router.delete(
 
 router.put(
   "/:scheduler_email_id",
+  upload.single("attachFiles"),
+  handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updateSchedulerEmailParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSchedulerEmailSchema, REQUEST_SOURCE.BODY),
   updateSchedulerEmail

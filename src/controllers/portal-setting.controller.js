@@ -3,6 +3,20 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
+const filterPortalSettingsResponse = (data) => {
+  const { 
+    portal_settings_id, 
+    company_id, 
+    builder_id, 
+    created_by, 
+    updated_by, 
+    created_at, 
+    updated_at, 
+    ...filteredData 
+  } = data;
+  return filteredData;
+};
+
 exports.createPortalSettings = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -155,7 +169,7 @@ exports.createPortalSettings = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(filterPortalSettingsResponse(result.rows[0])),
       "Portal settings created successfully."
     );
   } catch (error) {
@@ -362,7 +376,7 @@ exports.updatePortalSettings = async (req, res) => {
 
       return successResponse(
         res,
-        keysToCamelCase(finalResult.rows[0]),
+        keysToCamelCase(filterPortalSettingsResponse(finalResult.rows[0])),
         "Portal settings reset and updated successfully due to login credentials being disabled."
       );
     }
@@ -435,7 +449,7 @@ exports.updatePortalSettings = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      keysToCamelCase(filterPortalSettingsResponse(updateResult.rows[0])),
       "Portal settings updated successfully."
     );
   } catch (err) {
@@ -481,7 +495,7 @@ exports.getPortalSettings = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(filterPortalSettingsResponse(result.rows[0])),
       "Portal settings fetched successfully."
     );
   } catch (error) {

@@ -74,7 +74,9 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       (req.method === "POST" && req.originalUrl.includes("/company")) ||
       (req.method === "POST" && req.originalUrl.includes("/address")) ||
       (req.method === "GET" && req.originalUrl.includes("/state")) ||
-      (req.method === "GET" && req.originalUrl.includes("/country"));
+      (req.method === "GET" && req.originalUrl.includes("/country")) ||
+      (req.method === "GET" && req.originalUrl.includes("/user/profile")) ||
+      (req.method === "POST" && req.originalUrl.includes("/auth/logout"));
 
     // ❌ Company does not exist
     if (!isCompanyExists) {

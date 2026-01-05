@@ -53,7 +53,6 @@ exports.registerUser = async (req, res) => {
           res,
           {
             message: "A new OTP has been sent to your email.",
-            link: `/verify-email?email=${lowerCaseEmail}`,
           },
           "OTP sent successfully."
         );
@@ -79,7 +78,8 @@ exports.registerUser = async (req, res) => {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const emailSent = true;
+    const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
+    
     if (!emailSent) {
       return errorResponse(res, 500, "Failed to send verification email.");
     }
@@ -155,17 +155,14 @@ exports.verifyEmailOtp = async (req, res) => {
       return errorResponse(res, 400, "Email already verified.");
     }
 
-    // ✅ OTP check
     if (user.otp !== otp) {
       return errorResponse(res, 400, "Invalid OTP.");
     }
 
-    // ✅ OTP expiry check
     if (user.expires_at && new Date(user.expires_at) < new Date()) {
       return errorResponse(res, 400, "OTP has expired.");
     }
 
-    // ✅ OTP is valid → mark email verified
     await client.query(
       `
       UPDATE users
@@ -314,7 +311,7 @@ exports.forgotPassword = async (req, res) => {
       );
       return successResponse(
         res,
-        { link: resetLink },
+        null,
         "Password reset email sent."
       );
     } else {
@@ -517,4 +514,93 @@ async function sendVerificationEmail(
     console.error("Email sending error:", error);
     return false;
   }
-}
+};
+
+exports.resendOtp = async (req, res) => {
+  const { email } = req.body;
+  const lowerCaseEmail = email.toLowerCase();
+
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    // Check if user exists and is not verified
+    const userQuery = `
+      SELECT u.users_id, u.is_verified, u.otp_resend_count, u.last_otp_sent_at, u.expires_at, b.email 
+      FROM users u 
+      JOIN builder b ON u.builder_id = b.builder_id 
+      WHERE LOWER(b.email) = $1;
+    `;
+    const userResult = await client.query(userQuery, [lowerCaseEmail]);
+
+    if (userResult.rowCount === 0) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.is_verified) {
+      return errorResponse(res, 400, "User is already verified.");
+    }
+
+    // Check rate limiting
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    
+    // Reset count if it's been more than an hour
+    let resendCount = user.otp_resend_count || 0;
+    let lastOtpSentAt = user.last_otp_sent_at;
+
+    if (lastOtpSentAt && new Date(lastOtpSentAt) < oneHourAgo) {
+      resendCount = 0; // Reset count after 1 hour
+    }
+
+    // Check if user has exceeded the 4 resend limit
+    if (resendCount >= 4) {
+      const nextAvailableTime = new Date(new Date(lastOtpSentAt).getTime() + 60 * 60 * 1000);
+      const timeRemaining = Math.ceil((nextAvailableTime - now) / (1000 * 60)); // minutes
+      
+      return errorResponse(
+        res, 
+        429, 
+        `Maximum OTP resend limit reached. Please try again after ${timeRemaining} minutes.`
+      );
+    }
+
+    // Generate new OTP
+    const otp = generateOtp();
+    const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    // Send OTP email
+    const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
+
+    if (!emailSent) {
+      return errorResponse(res, 500, "Failed to send OTP email.");
+    }
+
+    // Update user record with new OTP and increment resend count
+    await client.query(
+      `UPDATE users 
+       SET otp = $1, expires_at = $2, otp_resend_count = $3, last_otp_sent_at = $4 
+       WHERE users_id = $5`,
+      [otp, newExpiresAt, resendCount + 1, now, user.users_id]
+    );
+
+    return successResponse(
+      res,
+      {
+        message: "A new OTP has been sent to your email.",
+        otpResendCount: resendCount + 1,
+        maxResendAllowed: 4,
+        remainingResends: 4 - (resendCount + 1)
+      },
+      "OTP resent successfully."
+    );
+
+  } catch (error) {
+    console.error("Error resending OTP:", error);
+    return errorResponse(res, 500, error.message || "Failed to resend OTP.");
+  } finally {
+    client.release();
+  }
+};

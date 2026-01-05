@@ -8,6 +8,7 @@ const {
   resetPassword,
   refreshToken,
   logoutUser,
+  resendOtp,
 } = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -21,6 +22,7 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema,
   refreshTokenSchema,
+  resendOtpSchema,
 } = require("../validations/auth.validation");
 
 router.post(
@@ -30,9 +32,14 @@ router.post(
   registerUser
 );
 router.post(
-  "/verify-emailOtp",
+  "/verify-email",
   validateRequest(verifyEmailSchema),
   verifyEmailOtp
+);
+router.post(
+  "/resend-otp",
+  validateRequest(resendOtpSchema),
+  resendOtp
 );
 router.post("/login", validateRequest(loginUserSchema), loginUser);
 router.post(

@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createSchedulerEmail = async (req, res) => {
   const pool = getPool();
@@ -22,9 +23,9 @@ exports.createSchedulerEmail = async (req, res) => {
       no_of_action_days,
       no_record_message,
       no_record_message_body,
-      attach_files,
       is_active,
     } = req.body;
+    const attach_files = req.files?.location || req.body.attach_files || null;
 
     const duplicateQuery = `
       SELECT scheduler_email_id
@@ -54,7 +55,7 @@ exports.createSchedulerEmail = async (req, res) => {
       const checkNotificationUsersQuery = `
     SELECT users_id 
     FROM users
-    WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
+    WHERE users_id = ANY($1::uuid[]) AND is_deleted = false AND is_verified = true
   `;
       const validNotificationUsers = await client.query(
         checkNotificationUsersQuery,
@@ -77,7 +78,7 @@ exports.createSchedulerEmail = async (req, res) => {
       const checkReplyToUsersQuery = `
     SELECT users_id 
     FROM users
-    WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
+    WHERE users_id = ANY($1::uuid[]) AND is_deleted = false AND is_verified = true
   `;
       const validReplyToUsers = await client.query(checkReplyToUsersQuery, [
         reply_to_users,
@@ -138,9 +139,12 @@ exports.createSchedulerEmail = async (req, res) => {
 
     const result = await client.query(insertQuery, values);
 
+    // Filter out sensitive fields from response
+    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(filtered),
       "Scheduler email created successfully."
     );
   } catch (error) {
@@ -183,6 +187,12 @@ exports.getAllSchedulerEmail = async (req, res) => {
 
     const dataResult = await client.query(dataQuery, params);
 
+    // Filter out sensitive fields from response
+    const filteredDataResult = dataResult.rows.map(row => {
+      const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+      return filtered;
+    });
+
     let countParams = [builderId, companyId];
     let countWhere = `WHERE (builder_id = $1 OR company_id = $2)`;
 
@@ -205,7 +215,7 @@ exports.getAllSchedulerEmail = async (req, res) => {
     return successResponse(
       res,
       {
-        schedulerEmails: keysToCamelCase(dataResult.rows),
+        schedulerEmails: keysToCamelCase(filteredDataResult),
         pagination: {
           currentPage: pageValue,
           totalPages,
@@ -289,9 +299,10 @@ exports.updateSchedulerEmail = async (req, res) => {
       no_of_action_days,
       no_record_message,
       no_record_message_body,
-      attach_files,
       is_active,
     } = req.body;
+
+    const attach_files = req.file?.location || req.body.attach_files || null;
 
     const checkQuery = `
       SELECT *
@@ -492,6 +503,21 @@ exports.updateSchedulerEmail = async (req, res) => {
     if (no_record_message === false) {
       no_record_message_body = null;
     }
+
+    // --- S3 Deletion Logic for attach_files ---
+    let oldAttachFilesUrl = existing.attach_files;
+    if (Object.prototype.hasOwnProperty.call(req.body, "attach_files")) {
+      const newImage = req.body.attach_files || null;
+
+      if (
+        existing.attach_files && // If there is an existing image
+        existing.attach_files !== newImage // AND the new image is different (including null)
+      ) {
+        await deleteFromS3(existing.attach_files);
+      }
+      oldAttachFilesUrl = newImage; // Update tracking variable for the return data
+    }
+
     const updateQuery = `
       UPDATE scheduler_email
       SET
@@ -532,13 +558,221 @@ exports.updateSchedulerEmail = async (req, res) => {
 
     const result = await client.query(updateQuery, updateValues);
 
+    // Filter out sensitive fields from response
+    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(filtered),
       "Scheduler email updated successfully."
     );
   } catch (error) {
     console.error("Error updating scheduler email:", error);
+    return errorResponse(res, 500, "Internal server error.", error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.getSchedulerEmails = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    // Define static 15 records template
+    const staticRecords = [
+      {
+        name: 'Daily Report Summary',
+        frequency: 'daily',
+        subject: 'Daily Report Summary',
+        messageBody: 'This is a daily report summary containing all project updates, task completions, and important notifications for today.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Weekly Progress Update',
+        frequency: 'weekly',
+        subject: 'Weekly Progress Update',
+        messageBody: 'Weekly progress update showing completed tasks, milestones achieved, and upcoming priorities for the week.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'Monthly Performance Review',
+        frequency: 'monthly',
+        subject: 'Monthly Performance Review',
+        messageBody: 'Monthly performance review with detailed analytics, KPI tracking, and performance metrics for all projects.',
+        noOfActionDays: 30
+      },
+      {
+        name: 'Project Status Update',
+        frequency: 'daily',
+        subject: 'Project Status Update',
+        messageBody: 'Current project status including timeline, budget, resource allocation, and potential risks.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Team Notification',
+        frequency: 'daily',
+        subject: 'Team Notification',
+        messageBody: 'Team notifications including member updates, task assignments, and collaboration alerts.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Task Completion Report',
+        frequency: 'weekly',
+        subject: 'Task Completion Report',
+        messageBody: 'Weekly task completion report showing finished tasks, pending items, and completion rates.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'Deadline Reminder',
+        frequency: 'daily',
+        subject: 'Deadline Reminder',
+        messageBody: 'Daily reminder for upcoming deadlines, task due dates, and critical project milestones.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Meeting Schedule',
+        frequency: 'weekly',
+        subject: 'Meeting Schedule',
+        messageBody: 'Weekly meeting schedule with agenda, participants, and action items from previous meetings.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'Budget Overview',
+        frequency: 'monthly',
+        subject: 'Budget Overview',
+        messageBody: 'Monthly budget overview showing expenditures, remaining budget, and financial forecasts.',
+        noOfActionDays: 30
+      },
+      {
+        name: 'Resource Allocation',
+        frequency: 'weekly',
+        subject: 'Resource Allocation',
+        messageBody: 'Weekly resource allocation report showing team assignments, equipment usage, and availability.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'Quality Check Report',
+        frequency: 'daily',
+        subject: 'Quality Check Report',
+        messageBody: 'Daily quality control report including inspections, compliance checks, and quality metrics.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Safety Inspection',
+        frequency: 'weekly',
+        subject: 'Safety Inspection',
+        messageBody: 'Weekly safety inspection report with hazard assessments, safety compliance, and incident reports.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'Client Communication',
+        frequency: 'daily',
+        subject: 'Client Communication',
+        messageBody: 'Daily client communication summary including emails, meetings, and project updates shared with clients.',
+        noOfActionDays: 1
+      },
+      {
+        name: 'Vendor Update',
+        frequency: 'weekly',
+        subject: 'Vendor Update',
+        messageBody: 'Weekly vendor update showing supplier performance, deliveries, and procurement activities.',
+        noOfActionDays: 7
+      },
+      {
+        name: 'System Maintenance',
+        frequency: 'monthly',
+        subject: 'System Maintenance',
+        messageBody: 'Monthly system maintenance report including updates, backups, and technical performance metrics.',
+        noOfActionDays: 30
+      }
+    ];
+
+    const existingRecordsQuery = `
+      SELECT scheduler_email_id
+      FROM scheduler_email
+      WHERE (company_id = $1 OR builder_id = $2)
+    `;
+    const existingRecordsResult = await client.query(existingRecordsQuery, [companyId, builderId]);
+
+    if (existingRecordsResult.rowCount === 0) {
+      const insertQuery = `
+        INSERT INTO scheduler_email (
+          company_id, builder_id, name, frequency, send_to_all_active_users,
+          notification_recipient_users, reply_to_users, subject, message_body,
+          no_of_action_days, no_record_message, no_record_message_body,
+          attach_files, is_active, created_by, updated_by
+        ) VALUES 
+        ${staticRecords.map((_, index) => 
+          `($${index * 16 + 1}, $${index * 16 + 2}, $${index * 16 + 3}, $${index * 16 + 4}, $${index * 16 + 5}, $${index * 16 + 6}, $${index * 16 + 7}, $${index * 16 + 8}, $${index * 16 + 9}, $${index * 16 + 10}, $${index * 16 + 11}, $${index * 16 + 12}, $${index * 16 + 13}, $${index * 16 + 14}, $${index * 16 + 15}, $${index * 16 + 16})`
+        ).join(', ')}
+        RETURNING *;
+      `;
+
+      const insertValues = [];
+      staticRecords.forEach(record => {
+        insertValues.push(
+          companyId,
+          builderId,
+          record.name,
+          record.frequency,
+          true,
+          [],
+          [],
+          record.subject,
+          record.messageBody,
+          record.noOfActionDays,
+          false,
+          null, 
+          true, 
+          userId, 
+          userId
+        );
+      });
+
+      const insertResult = await client.query(insertQuery, insertValues);
+
+      // Filter out sensitive fields from response
+      const filteredResults = insertResult.rows.map(row => {
+        const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+        return filtered;
+      });
+
+      return successResponse(
+        res,
+        keysToCamelCase(filteredResults),
+        "15 default scheduler emails created and fetched successfully."
+      );
+    } else {
+      const query = `
+        SELECT *
+        FROM scheduler_email
+        WHERE (company_id = $1 OR builder_id = $2)
+        ORDER BY created_at ASC
+        LIMIT 15
+      `;
+      
+      const result = await client.query(query, [companyId, builderId]);
+
+      // Filter out sensitive fields from response
+      const filteredResults = result.rows.map(row => {
+        const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+        return filtered;
+      });
+
+      return successResponse(
+        res,
+        keysToCamelCase(filteredResults),
+        "Scheduler emails fetched successfully."
+      );
+    }
+
+  } catch (error) {
+    console.error("Error fetching scheduler emails:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {
     client.release();

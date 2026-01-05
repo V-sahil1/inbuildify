@@ -20,7 +20,8 @@ const createSchedulerEmailSchema = Joi.object({
         "You cannot provide no_record_message_body when no_record_message is false.",
     }),
   }),
-  attach_files: Joi.boolean().default(false),
+  attach_files: Joi.string().allow(null, "").optional(),
+  attachFiles: Joi.string().allow(null, "").optional(),
   is_active: Joi.boolean().default(true),
 });
 
@@ -79,7 +80,8 @@ const updateSchedulerEmailSchema = Joi.object({
         "You cannot provide no_record_message_body when no_record_message is false.",
     }),
   }),
-  attach_files: Joi.boolean(),
+  attach_files: Joi.string().allow(null, "").optional(),
+  attachFiles: Joi.string().allow(null, "").optional(),
   is_active: Joi.boolean(),
 });
 

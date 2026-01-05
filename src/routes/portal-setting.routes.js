@@ -28,7 +28,7 @@ const upload = createUpload("portal-setting");
 
 router.post(
   "/",
-  upload.single("default_facade_image"),
+  upload.single("defaultFacadeImage"),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createPortalSettingsSchema, REQUEST_SOURCE.FORM_DATA),

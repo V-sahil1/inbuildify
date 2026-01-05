@@ -21,7 +21,8 @@ module.exports.validateRequest =
         dataToValidate = {
           ...req.body,
           ...(req.file && {
-            image: req.file.location || req.file.path,
+            // Use the fieldname from the uploaded file
+            [req.file.fieldname]: req.file.location || req.file.path,
           }),
         };
         break;

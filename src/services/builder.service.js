@@ -110,10 +110,9 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           address_line1,
           address_line2,
           state_id,
-          country_id,
           zip_code
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         ON CONFLICT (builder_id)
         DO UPDATE SET
           insurer_name = EXCLUDED.insurer_name,
@@ -122,7 +121,6 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           address_line1 = EXCLUDED.address_line1,
           address_line2 = EXCLUDED.address_line2,
           state_id = EXCLUDED.state_id,
-          country_id = EXCLUDED.country_id,
           zip_code = EXCLUDED.zip_code,
           updated_at = NOW()
         `,
@@ -134,7 +132,6 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           payload.insurer.address_line1,
           payload.insurer.address_line2,
           payload.insurer.state_id,
-          payload.insurer.country_id,
           payload.insurer.zip_code,
         ]
       );
@@ -166,7 +163,6 @@ async function getBuilderProfile(builderId) {
           'address_line2', a.address_line2,
           'city', a.city,
           'state_id', a.state_id,
-          'country_id', a.country_id,
           'zip_code', a.zip_code
         ) AS address,
         jsonb_build_object(
@@ -174,8 +170,9 @@ async function getBuilderProfile(builderId) {
           'insurer_name', bi.insurer_name,
           'insured_name', bi.insured_name,
           'phone_number', bi.phone_number,
+          'address_line1', bi.address_line1,
+          'address_line2', bi.address_line2,
           'state_id', bi.state_id,
-          'country_id', bi.country_id,
           'zip_code', bi.zip_code
         ) AS insurer
       FROM builder b

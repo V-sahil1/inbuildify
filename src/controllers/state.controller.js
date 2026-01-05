@@ -29,3 +29,25 @@ exports.getState = async (req, res) => {
     client.release();
   }
 };
+
+exports.getAllStates = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const query = `
+      SELECT s.*, c.name as country_name 
+      FROM state s 
+      JOIN country c ON s.country_id = c.country_id 
+      WHERE c.name = 'australia'
+      ORDER BY s.name;
+    `;
+    const result = await client.query(query);
+
+    successResponse(res, keysToCamelCase(result.rows), "All states fetched successfully.");
+  } catch (error) {
+    errorResponse(res, 500, error.message);
+  } finally {
+    client.release();
+  }
+};
