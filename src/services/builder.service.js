@@ -1,29 +1,8 @@
 const getPool = require("../config/database");
 const { deleteFromS3 } = require("../utils/s3Upload");
-
-async function insertAddress(client, address) {
-  if (!address) return null;
-
-  const result = await client.query(
-    `
-    INSERT INTO address (
-      address_line1, address_line2, city, state_id, country_id, zip_code
-    )
-    VALUES ($1,$2,$3,$4,$5,$6)
-    RETURNING address_id
-    `,
-    [
-      address.address_line1,
-      address.address_line2,
-      address.city,
-      address.state_id,
-      address.country_id,
-      address.zip_code,
-    ]
-  );
-
-  return result.rows[0].address_id;
-}
+const { buildDynamicUpdate } = require("../utils/buildDynamicUpdate");
+const { BUILDER_UPDATE_FIELDS } = require("../constants/updateFields");
+const { upsertAddress } = require("./address.service");
 
 async function upsertBuilder(builderId, payload, logoUrl) {
   const pool = getPool();
@@ -32,19 +11,23 @@ async function upsertBuilder(builderId, payload, logoUrl) {
   try {
     await client.query("BEGIN");
 
-    const existing = await client.query(
+    const existingRes = await client.query(
       `SELECT * FROM builder WHERE builder_id = $1`,
       [builderId]
     );
 
+    const exists = existingRes.rowCount > 0;
+    const oldLogo = exists ? existingRes.rows[0].logo : null;
+    const existingAddressId = exists ? existingRes.rows[0].address_id : null;
+
+    // 🔹 Address handling
     const addressId = payload.address
-      ? await insertAddress(client, payload.address)
-      : null;
+      ? await upsertAddress(client, existingAddressId, payload.address)
+      : undefined;
 
-    let builder;
-
-    if (existing.rowCount === 0) {
-      const result = await client.query(
+    if (!exists) {
+      // CREATE
+      await client.query(
         `
         INSERT INTO builder (
           builder_id, company_id, name, email, phone_number,
@@ -53,7 +36,6 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           licensed_builder_name, address_id, logo
         )
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-        RETURNING *
         `,
         [
           builderId,
@@ -68,53 +50,29 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           payload.registered_building_practitioner,
           payload.practitioner_reg_no,
           payload.licensed_builder_name,
-          addressId,
-          logoUrl,
+          addressId || null,
+          logoUrl || null,
         ]
       );
-
-      builder = result.rows[0];
     } else {
-      const oldLogo = existing.rows[0].logo;
+      // UPDATE (DYNAMIC)
+      const updatePayload = {
+        ...payload,
+        ...(addressId && { address_id: addressId }),
+        ...(logoUrl && { logo: logoUrl }),
+      };
 
-      const result = await client.query(
-        `
-        UPDATE builder
-        SET
-          name = $2,
-          email = $3,
-          phone_number = $4,
-          abn_number = $5,
-          acn_number = $6,
-          hia_membership_no = $7,
-          registration_number = $8,
-          registered_building_practitioner = $9,
-          practitioner_reg_no = $10,
-          licensed_builder_name = $11,
-          address_id = COALESCE($12, address_id),
-          logo = COALESCE($13, logo),
-          updated_at = NOW()
-        WHERE builder_id = $1
-        RETURNING *
-        `,
-        [
-          builderId,
-          payload.builder_name,
-          payload.email,
-          payload.phone_number,
-          payload.abn_number,
-          payload.acn_number,
-          payload.hia_membership_no,
-          payload.registration_number,
-          payload.registered_building_practitioner,
-          payload.practitioner_reg_no,
-          payload.licensed_builder_name,
-          addressId,
-          logoUrl,
-        ]
-      );
+      const updateQuery = buildDynamicUpdate({
+        table: "builder",
+        idColumn: "builder_id",
+        idValue: builderId,
+        payload: updatePayload,
+        fieldMap: BUILDER_UPDATE_FIELDS,
+      });
 
-      builder = result.rows[0];
+      if (updateQuery) {
+        await client.query(updateQuery.query, updateQuery.values);
+      }
 
       if (logoUrl && oldLogo && oldLogo !== logoUrl) {
         await deleteFromS3(oldLogo);
@@ -162,7 +120,6 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     client.release();
   }
 }
-
 
 async function getBuilderProfile(builderId) {
   const pool = getPool();
