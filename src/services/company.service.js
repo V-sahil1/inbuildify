@@ -112,6 +112,18 @@ async function upsertCompany(builderId, payload, client) {
     ];
 
     const insertResult = await client.query(insertQuery, values);
+    const company = insertResult.rows[0];
+
+    // LINK COMPANY → BUILDER
+    await client.query(
+      `
+    UPDATE builder
+    SET company_id = $1, updated_at = NOW()
+    WHERE builder_id = $2
+    `,
+      [company.company_id, builderId]
+    );
+
     return mapTimezone(insertResult.rows[0]);
   }
 

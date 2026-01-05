@@ -47,7 +47,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
       const result = await client.query(
         `
         INSERT INTO builder (
-          builder_id, company_id, builder_name, email, phone_number,
+          builder_id, company_id, name, email, phone_number,
           abn_number, acn_number, hia_membership_no, registration_number,
           registered_building_practitioner, practitioner_reg_no,
           licensed_builder_name, address_id, logo
@@ -81,7 +81,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
         `
         UPDATE builder
         SET
-          builder_name = $2,
+          name = $2,
           email = $3,
           phone_number = $4,
           abn_number = $5,
@@ -152,6 +152,8 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     }
 
     await client.query("COMMIT");
+
+    builder = await getBuilderProfile(builderId);
     return builder;
   } catch (err) {
     await client.query("ROLLBACK");
