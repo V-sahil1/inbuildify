@@ -194,7 +194,7 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
     return successResponse(
       res,
       {
-        folders: dataResult.rows,
+        folders: keysToCamelCase(dataResult.rows),
         pagination: {
           totalRecords,
           currentPage: page,

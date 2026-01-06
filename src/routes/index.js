@@ -49,6 +49,7 @@ const userRoleMappingRoutes = require("./user-role-mapping.routes");
 const userPasswordHistoryRoutes = require("./user-password-history.routes");
 const salesModuleSettingRoutes = require("./sales-module-setting.routes");
 const salesProcessRoutes = require("./sales-process.routes");
+const salesProcessStageFunctionalityRoutes = require("./sales-process-stage-functionality.routes");
 const salesStageRoutes = require("./sales-stage.routes");
 const leadLostReasonRoutes = require("./lead-lost-reason.routes");
 const clientTypeRoutes = require("./client-type.routes");
@@ -165,6 +166,7 @@ module.exports = function (app) {
   app.use("/user-password-history", userPasswordHistoryRoutes);
   app.use("/sales-module-setting", salesModuleSettingRoutes);
   app.use("/sales-proccess", salesProcessRoutes);
+  app.use("/sales-proccess-stage-functionality", salesProcessStageFunctionalityRoutes);
   app.use("/sales-stage", salesStageRoutes);
   app.use("/lead-lost-reason", leadLostReasonRoutes);
   app.use("/client-type", clientTypeRoutes);

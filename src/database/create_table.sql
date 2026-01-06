@@ -1202,6 +1202,11 @@ CREATE TABLE sales_process (
     CONSTRAINT uq_sales_process_scope UNIQUE (company_id, builder_id, name)
 );
 
+CREATE TABLE sales_process_stage_functionality (
+    functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
 CREATE TABLE sales_stage (
     sales_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     sales_process_id UUID NOT NULL REFERENCES sales_process(sales_process_id) ON DELETE CASCADE,
@@ -1216,6 +1221,7 @@ CREATE TABLE sales_stage (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_stage_per_process UNIQUE (sales_process_id, stage_name)
 );
+
 
 CREATE TABLE lead_source (  
     lead_source_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1344,6 +1350,65 @@ CREATE TABLE job_settings (
     CONSTRAINT chk_job_settings_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
     CONSTRAINT uq_job_settings_scope UNIQUE (company_id, builder_id)
 );
+
+CREATE TABLE job_process_stage_functionality (
+    functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_workflow BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE job_process_stage (
+    stage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    functionality_id UUID NOT NULL REFERENCES job_process_stage_functionality(functionality_id),
+    sort_order INT NOT NULL,
+    dependent_stage_id UUID REFERENCES job_stage(stage_id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (company_id, builder_id, name)
+);
+
+
+CREATE TABLE job_process_sub_stage (
+    sub_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    stage_id UUID NOT NULL REFERENCES job_process_stage(stage_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process_task (
+    job_process_task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    sub_stage_id UUID NOT NULL REFERENCES job_process_sub_stage(sub_stage_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    sort_order INT NOT NULL,
+    no_of_days INT,
+    assignee_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    notify BOOLEAN DEFAULT FALSE,
+    milestone BOOLEAN DEFAULT FALSE,
+    attachment_mandatory BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_process_task_dependency (
+    task_id UUID NOT NULL REFERENCES job_process_task(job_process_task_id) ON DELETE CASCADE,
+    predecessor_task_id UUID NOT NULL REFERENCES job_process_task(job_process_task_id) ON DELETE CASCADE,
+    PRIMARY KEY (task_id, predecessor_task_id)
+);
+
+CREATE TABLE job_process_subtask (
+    job_process_subtask_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    job_process_task_id UUID NOT NULL REFERENCES job_process_task(job_process_task_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    sort_order INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 
 CREATE TABLE job_color_settings (
     job_color_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1810,6 +1875,7 @@ CREATE TABLE scheduler_email (
     send_to_all_active_users BOOLEAN DEFAULT FALSE,
     notification_recipient_users UUID[] DEFAULT '{}', --REFERENCES users(users_id) ON DELETE SET NULL,
     reply_to_users UUID[] DEFAULT '{}',        --REFERENCES users(users_id) ON DELETE SET NULL,
+    exclude_recipients UUID[] DEFAULT '{}',    --  when send_to_all_active_users is true
     subject VARCHAR(255) NOT NULL,
     message_body TEXT NOT NULL,
     no_of_action_days INT CHECK (no_of_action_days >= 0),

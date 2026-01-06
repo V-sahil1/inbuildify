@@ -1,77 +1,91 @@
 const Joi = require("joi");
 
-const createJobProcessSchema = Joi.object({
-  name: Joi.string().trim().max(200).required().messages({
-    "string.empty": "Name is required",
-    "string.max": "Name must be at most 200 characters long",
-    "any.required": "Name is required",
-  }),
-  description: Joi.string().max(500).optional().allow("").messages({
-    "string.max": "Description must be at most 500 characters long",
-  }),
-  is_active: Joi.boolean().default(true).optional(),
+const uuid = Joi.string().uuid();
+
+/* =========================================================
+   STAGE
+========================================================= */
+
+exports.stageParamsSchema = Joi.object({
+  stageId: uuid.required(),
 });
 
-const getJobProcessesSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).optional().messages({
-    "number.base": "Page must be a number",
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be at least 1",
-  }),
-  limit: Joi.number()
-    .integer()
-    .min(1)
-    .max(100)
-    .default(25)
-    .optional()
-    .messages({
-      "number.base": "Limit must be a number",
-      "number.integer": "Limit must be an integer",
-      "number.min": "Limit must be at least 1",
-      "number.max": "Limit must not exceed 100",
-    }),
+exports.createStageSchema = Joi.object({
+  name: Joi.string().max(200).required(),
+  functionality_id: uuid.required(),
+  sort_order: Joi.number().integer().min(1).required(),
+  dependent_stage_id: uuid.allow(null),
 });
 
-const deleteJobProcessSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "Job process ID must be a valid UUID",
-    "any.required": "Job process ID is required",
-  }),
+exports.updateStageSchema = Joi.object({
+  name: Joi.string().max(200).optional(),
+  sort_order: Joi.number().integer().min(1).optional(),
+  dependent_stage_id: uuid.allow(null),
 });
 
-const updateJobProcessSchema = Joi.object({
-  name: Joi.string().trim().max(200).optional().messages({
-    "string.empty": "Name cannot be empty",
-    "string.max": "Name must be at most 200 characters long",
-  }),
-  description: Joi.string().max(500).optional().allow("").messages({
-    "string.max": "Description must be at most 500 characters long",
-  }),
-})
-  .min(1)
-  .messages({
-    "object.min": "At least one field must be provided for update",
-  });
+/* =========================================================
+   SUB-STAGE
+========================================================= */
 
-const updateJobProcessParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "Job process ID must be a valid UUID",
-    "any.required": "Job process ID is required",
-  }),
+exports.subStageParamsSchema = Joi.object({
+  subStageId: uuid.required(),
 });
 
-const toggleJobProcessIsActiveParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "Job process ID must be a valid UUID",
-    "any.required": "Job process ID is required",
-  }),
+exports.createSubStageSchema = Joi.object({
+  name: Joi.string().max(200).required(),
+  sort_order: Joi.number().integer().min(1).required(),
 });
 
-module.exports = {
-  createJobProcessSchema,
-  getJobProcessesSchema,
-  deleteJobProcessSchema,
-  updateJobProcessSchema,
-  updateJobProcessParamsSchema,
-  toggleJobProcessIsActiveParamsSchema,
-};
+exports.updateSubStageSchema = Joi.object({
+  name: Joi.string().max(200).optional(),
+  sort_order: Joi.number().integer().min(1).optional(),
+});
+
+/* =========================================================
+   TASK
+========================================================= */
+
+exports.taskParamsSchema = Joi.object({
+  taskId: uuid.required(),
+});
+
+exports.createTaskSchema = Joi.object({
+  name: Joi.string().max(200).required(),
+  description: Joi.string().allow(null),
+  sort_order: Joi.number().integer().min(1).required(),
+  no_of_days: Joi.number().integer().allow(null),
+  assignee_id: uuid.allow(null),
+  notify: Joi.boolean().default(false),
+  milestone: Joi.boolean().default(false),
+  attachment_mandatory: Joi.boolean().default(false),
+  predecessor_task_ids: Joi.array().items(uuid).default([]),
+});
+
+exports.updateTaskSchema = Joi.object({
+  name: Joi.string().max(200).optional(),
+  description: Joi.string().allow(null),
+  sort_order: Joi.number().integer().min(1).optional(),
+  no_of_days: Joi.number().integer().allow(null),
+  assignee_id: uuid.allow(null),
+  notify: Joi.boolean().optional(),
+  milestone: Joi.boolean().optional(),
+  attachment_mandatory: Joi.boolean().optional(),
+});
+
+/* =========================================================
+   SUB-TASK
+========================================================= */
+
+exports.subTaskParamsSchema = Joi.object({
+  subTaskId: uuid.required(),
+});
+
+exports.createSubTaskSchema = Joi.object({
+  name: Joi.string().max(200).required(),
+  sort_order: Joi.number().integer().min(1).required(),
+});
+
+exports.updateSubTaskSchema = Joi.object({
+  name: Joi.string().max(200).optional(),
+  sort_order: Joi.number().integer().min(1).optional(),
+});

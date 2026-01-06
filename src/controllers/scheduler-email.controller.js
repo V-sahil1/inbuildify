@@ -294,13 +294,24 @@ exports.updateSchedulerEmail = async (req, res) => {
       send_to_all_active_users,
       notification_recipient_users,
       reply_to_users,
+      exclude_recipients,
       subject,
       message_body,
       no_of_action_days,
       no_record_message,
       no_record_message_body,
-      is_active,
     } = req.body;
+
+    // Validate exclude_recipients field
+    if (exclude_recipients !== undefined) {
+      if (send_to_all_active_users === false) {
+        return errorResponse(res, 400, "exclude_recipients field can only be used when send_to_all_active_users is true");
+      }
+      
+      if (!Array.isArray(exclude_recipients)) {
+        return errorResponse(res, 400, "exclude_recipients must be an array of user IDs");
+      }
+    }
 
     const attach_files = req.file?.location || req.body.attach_files || null;
 
@@ -310,6 +321,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       WHERE scheduler_email_id = $1
         AND ((builder_id IS NOT NULL AND builder_id = $2)
           OR (company_id IS NOT NULL AND company_id = $3))
+          AND is_active = true
     `;
     const checkResult = await client.query(checkQuery, [
       scheduler_email_id,
@@ -326,68 +338,6 @@ exports.updateSchedulerEmail = async (req, res) => {
     }
 
     const existing = checkResult.rows[0];
-    const currentIsActive = existing.is_active;
-
-    const updatingOtherFields =
-      name !== undefined ||
-      frequency !== undefined ||
-      send_to_all_active_users !== undefined ||
-      (notification_recipient_users &&
-        notification_recipient_users.length > 0) ||
-      (reply_to_users && reply_to_users.length > 0) ||
-      subject !== undefined ||
-      message_body !== undefined ||
-      no_of_action_days !== undefined ||
-      no_record_message !== undefined ||
-      no_record_message_body !== undefined ||
-      attach_files !== undefined;
-
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
-
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active scheduler email, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive scheduler email, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        if (is_active === undefined || requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Cannot update non-'is_active' fields when the scheduler email is currently inactive. Only 'is_active' can be changed (to true)."
-          );
-        }
-      }
-
-      if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
-          return errorResponse(
-            res,
-            403,
-            "Scheduler email is already inactive. 'is_active' can only be updated to true from this state."
-          );
-        }
-      }
-    }
 
     if (
       !name &&
@@ -401,8 +351,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       no_of_action_days === undefined &&
       no_record_message === undefined &&
       no_record_message_body === undefined &&
-      attach_files === undefined &&
-      is_active === undefined
+      attach_files === undefined
     ) {
       return errorResponse(
         res,
@@ -487,6 +436,25 @@ exports.updateSchedulerEmail = async (req, res) => {
       }
     }
 
+     if (exclude_recipients && exclude_recipients.length > 0) {
+      const checkReplyToUsersQuery = `
+        SELECT users_id 
+        FROM users
+        WHERE users_id = ANY($1::uuid[]) AND is_deleted = false AND is_verified = true
+      `;
+      const validReplyToUsers = await client.query(checkReplyToUsersQuery, [
+        exclude_recipients,
+      ]);
+
+      if (validReplyToUsers.rows.length !== exclude_recipients.length) {
+        return errorResponse(
+          res,
+          400,
+          "One or more provided exclude recipients are invalid."
+        );
+      }
+    }
+
     if (
       no_record_message === undefined &&
       no_record_message_body !== undefined
@@ -526,13 +494,13 @@ exports.updateSchedulerEmail = async (req, res) => {
         send_to_all_active_users = COALESCE($3, send_to_all_active_users),
         notification_recipient_users = COALESCE($4::uuid[], notification_recipient_users),
         reply_to_users = COALESCE($5::uuid[], reply_to_users),
-        subject = COALESCE($6, subject),
-        message_body = COALESCE($7, message_body),
-        no_of_action_days = COALESCE($8, no_of_action_days),
-        no_record_message = COALESCE($9, no_record_message),
-        no_record_message_body = $10,
-        attach_files = COALESCE($11, attach_files),
-        is_active = COALESCE($12, is_active),
+        exclude_recipients = COALESCE($6::uuid[], exclude_recipients),
+        subject = COALESCE($7, subject),
+        message_body = COALESCE($8, message_body),
+        no_of_action_days = COALESCE($9, no_of_action_days),
+        no_record_message = COALESCE($10, no_record_message),
+        no_record_message_body = $11,
+        attach_files = COALESCE($12, attach_files),
         updated_by = $13,
         updated_at = NOW()
       WHERE scheduler_email_id = $14
@@ -545,20 +513,19 @@ exports.updateSchedulerEmail = async (req, res) => {
       send_to_all_active_users,
       notification_recipient_users,
       reply_to_users,
+      exclude_recipients,
       subject,
       message_body,
       no_of_action_days,
       no_record_message,
       no_record_message_body,
       attach_files,
-      is_active,
       userId,
       scheduler_email_id,
     ];
 
     const result = await client.query(updateQuery, updateValues);
 
-    // Filter out sensitive fields from response
     const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
 
     return successResponse(
@@ -703,12 +670,12 @@ exports.getSchedulerEmails = async (req, res) => {
       const insertQuery = `
         INSERT INTO scheduler_email (
           company_id, builder_id, name, frequency, send_to_all_active_users,
-          notification_recipient_users, reply_to_users, subject, message_body,
+          notification_recipient_users, reply_to_users, exclude_recipients, subject, message_body,
           no_of_action_days, no_record_message, no_record_message_body,
           attach_files, is_active, created_by, updated_by
         ) VALUES 
         ${staticRecords.map((_, index) => 
-          `($${index * 16 + 1}, $${index * 16 + 2}, $${index * 16 + 3}, $${index * 16 + 4}, $${index * 16 + 5}, $${index * 16 + 6}, $${index * 16 + 7}, $${index * 16 + 8}, $${index * 16 + 9}, $${index * 16 + 10}, $${index * 16 + 11}, $${index * 16 + 12}, $${index * 16 + 13}, $${index * 16 + 14}, $${index * 16 + 15}, $${index * 16 + 16})`
+          `($${index * 17 + 1}, $${index * 17 + 2}, $${index * 17 + 3}, $${index * 17 + 4}, $${index * 17 + 5}, $${index * 17 + 6}, $${index * 17 + 7}, $${index * 17 + 8}, $${index * 17 + 9}, $${index * 17 + 10}, $${index * 17 + 11}, $${index * 17 + 12}, $${index * 17 + 13}, $${index * 17 + 14}, $${index * 17 + 15}, $${index * 17 + 16}, $${index * 17 + 17})`
         ).join(', ')}
         RETURNING *;
       `;
@@ -723,11 +690,13 @@ exports.getSchedulerEmails = async (req, res) => {
           true,
           [],
           [],
+          [], // exclude_recipients
           record.subject,
           record.messageBody,
           record.noOfActionDays,
           false,
           null, 
+          null, // attach_files
           true, 
           userId, 
           userId
@@ -774,6 +743,68 @@ exports.getSchedulerEmails = async (req, res) => {
   } catch (error) {
     console.error("Error fetching scheduler emails:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
+  } finally {
+    client.release();
+  }
+};
+
+exports.toggleSchedulerEmailStatus = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+    const { scheduler_email_id } = req.params;
+
+    const checkQuery = `
+      SELECT *
+      FROM scheduler_email
+      WHERE scheduler_email_id = $1
+        AND ((builder_id IS NOT NULL AND builder_id = $2)
+          OR (company_id IS NOT NULL AND company_id = $3))
+    `;
+    const checkResult = await client.query(checkQuery, [
+      scheduler_email_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (checkResult.rows.length === 0) {
+      return errorResponse(
+        res,
+        404,
+        "Scheduler email not found or you are not authorized to update it."
+      );
+    }
+
+    const currentStatus = checkResult.rows[0].is_active;
+    const newStatus = !currentStatus;
+
+    const updateQuery = `
+      UPDATE scheduler_email
+      SET 
+        is_active = $1,
+        updated_by = $2,
+        updated_at = NOW()
+      WHERE scheduler_email_id = $3
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [newStatus, userId, scheduler_email_id]);
+
+    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+
+    return successResponse(
+      res,
+      keysToCamelCase(filtered),
+      `Scheduler email ${newStatus ? 'activated' : 'deactivated'} successfully.`
+    );
+
+  } catch (error) {
+    console.error("Error toggling scheduler email status:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }

@@ -27,3 +27,14 @@ module.exports.ADDRESS_UPDATE_FIELDS = {
   country_id: "country_id",
   zip_code: "zip_code",
 };
+
+// insurerUpdateFields
+module.exports.INSURER_UPDATE_FIELDS = {
+  insurer_name: "insurer_name",
+  insured_name: "insured_name",
+  phone_number: "phone_number",
+  address_line1: "address_line1",
+  address_line2: "address_line2",
+  state_id: "state_id",
+  zip_code: "zip_code",
+};

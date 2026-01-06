@@ -497,16 +497,18 @@ async function sendVerificationEmail(
   try {
     if (resetPasswordToken) {
       subject = "CRMSimplify - Password Reset Request";
-      verificationLink = `${process.env.FRONTED_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
+      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
       text = `You requested a password reset. Use the following link to reset your password:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
     } else if (inviteToken) {
       subject = "Invitation to Join";
-      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTED_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
+      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
       text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
     } else {
       subject = "OTP for Email Verification";
-      verificationLink = `${process.env.FRONTED_BASE_URL}/auth/verify-email?email=${email}`;
+      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/verify-email?email=${email}`;
+      console.log("🚀 ~ sendVerificationEmail ~ verificationLink:", verificationLink)
       text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+      console.log("🚀 ~ sendVerificationEmail ~ text:", text)
     }
 
     return await sendEmail(email, subject, text);

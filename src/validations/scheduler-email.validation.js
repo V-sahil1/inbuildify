@@ -72,6 +72,9 @@ const updateSchedulerEmailSchema = Joi.object({
   message_body: Joi.string().optional(),
   no_of_action_days: Joi.number().integer().min(0).optional(),
   no_record_message: Joi.boolean(),
+  exclude_recipients: Joi.array().items(Joi.string().uuid()).default([]).messages({
+    "string.guid": "User ID must be a valid UUID",
+  }),
   no_record_message_body: Joi.when("no_record_message", {
     is: true,
     then: Joi.string().optional(),

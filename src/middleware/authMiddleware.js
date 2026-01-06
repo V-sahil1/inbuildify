@@ -43,8 +43,6 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
 
     req.user = result.rows[0];
 
-    console.info({ requestId, message: "✅ JWT authentication successful" });
-
     if (!req.user || !req.user.builder_id) {
       return errorResponse(
         res,

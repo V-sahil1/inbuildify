@@ -1,7 +1,7 @@
 const getPool = require("../config/database");
 const { deleteFromS3 } = require("../utils/s3Upload");
 const { buildDynamicUpdate } = require("../utils/buildDynamicUpdate");
-const { BUILDER_UPDATE_FIELDS } = require("../constants/updateFields");
+const { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } = require("../constants/updateFields");
 const { upsertAddress } = require("./address.service");
 
 async function upsertBuilder(builderId, payload, logoUrl) {
@@ -100,41 +100,55 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     }
 
     if (payload.insurer) {
-      await client.query(
-        `
-        INSERT INTO builder_insurer (
-          builder_id,
-          insurer_name,
-          insured_name,
-          phone_number,
-          address_line1,
-          address_line2,
-          state_id,
-          zip_code
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-        ON CONFLICT (builder_id)
-        DO UPDATE SET
-          insurer_name = EXCLUDED.insurer_name,
-          insured_name = EXCLUDED.insured_name,
-          phone_number = EXCLUDED.phone_number,
-          address_line1 = EXCLUDED.address_line1,
-          address_line2 = EXCLUDED.address_line2,
-          state_id = EXCLUDED.state_id,
-          zip_code = EXCLUDED.zip_code,
-          updated_at = NOW()
-        `,
-        [
-          builderId,
-          payload.insurer.insurer_name,
-          payload.insurer.insured_name,
-          payload.insurer.phone_number,
-          payload.insurer.address_line1,
-          payload.insurer.address_line2,
-          payload.insurer.state_id,
-          payload.insurer.zip_code,
-        ]
+      const insurerRes = await client.query(
+        `SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1`,
+        [builderId]
       );
+
+      if (insurerRes.rowCount === 0) {
+        // CREATE insurer
+        await client.query(
+          `
+          INSERT INTO builder_insurer (
+            builder_id,
+            insurer_name,
+            insured_name,
+            phone_number,
+            address_line1,
+            address_line2,
+            state_id,
+            zip_code
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+          `,
+          [
+            builderId,
+            payload.insurer.insurer_name,
+            payload.insurer.insured_name,
+            payload.insurer.phone_number,
+            payload.insurer.address_line1,
+            payload.insurer.address_line2,
+            payload.insurer.state_id,
+            payload.insurer.zip_code,
+          ]
+        );
+      } else {
+        // UPDATE insurer (dynamic)
+        const insurerUpdateQuery = buildDynamicUpdate({
+          table: "builder_insurer",
+          idColumn: "builder_id",
+          idValue: builderId,
+          payload: payload.insurer,
+          fieldMap: INSURER_UPDATE_FIELDS,
+        });
+
+        if (insurerUpdateQuery) {
+          await client.query(
+            insurerUpdateQuery.query,
+            insurerUpdateQuery.values
+          );
+        }
+      }
     }
 
     await client.query("COMMIT");
@@ -163,6 +177,7 @@ async function getBuilderProfile(builderId) {
           'address_line2', a.address_line2,
           'city', a.city,
           'state_id', a.state_id,
+          'country_id', a.country_id,
           'zip_code', a.zip_code
         ) AS address,
         jsonb_build_object(

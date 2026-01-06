@@ -53,7 +53,7 @@ exports.createSalesStage = async (req, res) => {
       const funcCheck = await client.query(
         `
       SELECT functionality_id
-      FROM functionality
+      FROM sales_process_stage_functionality
       WHERE functionality_id = ANY($1)
     `,
         [functionality_id]
@@ -371,7 +371,7 @@ exports.updateSalesStage = async (req, res) => {
         const funcCheck = await client.query(
           `
           SELECT functionality_id
-          FROM functionality
+          FROM sales_process_stage_functionality
           WHERE functionality_id = ANY($1)
           `,
           [builderId]

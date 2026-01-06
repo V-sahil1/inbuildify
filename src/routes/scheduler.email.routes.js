@@ -7,6 +7,7 @@ const {
   deleteSchedulerEmail,
   updateSchedulerEmail,
   getSchedulerEmails,
+  toggleSchedulerEmailStatus,
 } = require("../controllers/scheduler-email.controller");
 const {
   createSchedulerEmailSchema,
@@ -64,6 +65,12 @@ router.put(
   validateRequest(updateSchedulerEmailParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSchedulerEmailSchema, REQUEST_SOURCE.BODY),
   updateSchedulerEmail
+);
+
+router.put(
+  "/is-active/:scheduler_email_id",
+  validateRequest(deleteSchedulerEmailSchema, REQUEST_SOURCE.PARAMS),
+  toggleSchedulerEmailStatus
 );
 
 module.exports = router;

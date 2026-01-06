@@ -182,7 +182,7 @@ exports.updateIntegrationSettings = async (req, res) => {
 
     if (assign_leads_if_assignee_not_found) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_active = true`,
         [assign_leads_if_assignee_not_found]
       );
 
@@ -197,7 +197,7 @@ exports.updateIntegrationSettings = async (req, res) => {
 
     if (always_assign_leads_to) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_active = true`,
         [always_assign_leads_to]
       );
 
