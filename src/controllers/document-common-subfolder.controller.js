@@ -430,7 +430,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
     `;
 
     const updateResult = await client.query(updateQuery, values);
-    const updatedRecord = updateResult.rows[0];
+    const updatedRecord = keysToCamelCase(updateResult.rows[0]);
 
     return successResponse(
       res,

@@ -3,10 +3,10 @@ const router = express.Router();
 
 const {
   createTemplateEmail,
-  getAllTemplateEmails,
   updateTemplateEmail,
   deleteTemplateEmail,
   updateTemplateEmailIsActive,
+  getTemplateEmails
 } = require("../controllers/template-email.controller");
 const {
   createTemplateEmailSchema,
@@ -36,8 +36,7 @@ router.post(
 
 router.get(
   "/",
-  validateRequest(getAllTemplateEmailSchema, REQUEST_SOURCE.QUERY),
-  getAllTemplateEmails
+  getTemplateEmails
 );
 
 router.put(

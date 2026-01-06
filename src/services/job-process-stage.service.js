@@ -9,6 +9,57 @@ const {
 async function createStage(companyId, builderId, payload) {
   const pool = getPool();
 
+  // Check for duplicate stage name within same company/builder
+  const duplicateCheck = await pool.query(
+    `
+    SELECT stage_id 
+    FROM job_process_stage
+    WHERE company_id = $1 
+      AND builder_id = $2 
+      AND name = $3
+    `,
+    [companyId, builderId, payload.name]
+  );
+
+  if (duplicateCheck.rows.length > 0) {
+    throw new Error(`Stage with name ${payload.name} already exists for this company/builder`);
+  }
+
+  // Get max sort_order for existing stages to shift
+  const maxSortOrderQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM job_process_stage
+    WHERE company_id = $1 
+      AND builder_id = $2
+  `;
+  const maxSortOrderResult = await pool.query(maxSortOrderQuery, [companyId, builderId]);
+  const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+  // Determine final sort order
+  let finalSortOrder;
+  if (payload.sort_order !== undefined) {
+    finalSortOrder = payload.sort_order;
+  } else {
+    finalSortOrder = maxSortOrder + 1;
+  }
+
+  // Validate sort order range
+  if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+    throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+  }
+
+  // If sort_order is provided, shift all stages >= provided sort_order
+  if (payload.sort_order !== undefined) {
+    const shiftSortOrderQuery = `
+      UPDATE job_process_stage
+      SET sort_order = sort_order + 1
+      WHERE company_id = $1 
+        AND builder_id = $2 
+        AND sort_order >= $3
+    `;
+    await pool.query(shiftSortOrderQuery, [companyId, builderId, payload.sort_order]);
+  }
+
   const result = await pool.query(
     `
     INSERT INTO job_process_stage
@@ -21,7 +72,7 @@ async function createStage(companyId, builderId, payload) {
       builderId,
       payload.name,
       payload.functionality_id,
-      payload.sort_order,
+      finalSortOrder,
       payload.dependent_stage_id || null,
     ]
   );
@@ -32,8 +83,91 @@ async function createStage(companyId, builderId, payload) {
 /**
  * UPDATE STAGE
  */
-async function updateStage(stageId, payload) {
+async function updateStage(stageId, payload, builderId, companyId) {
+  console.log("🚀 ~ updateStage ~ stageId, payload, builderId, companyId:", stageId, payload, builderId, companyId)
   const pool = getPool();
+
+  // Check if stage exists and belongs to builder
+  const checkQuery = await pool.query(
+    `
+    SELECT stage_id, builder_id, company_id, name, sort_order
+    FROM job_process_stage
+    WHERE stage_id = $1 AND builder_id = $2 AND company_id = $3
+    `,
+    [stageId, builderId, companyId]
+  );
+
+  console.log("🚀 ~ updateStage ~ checkQuery.rows:", checkQuery.rows)
+  if (checkQuery.rows.length === 0) {
+    throw new Error("Stage not found");
+  }
+
+  const existingStage = checkQuery.rows[0];
+
+  // Check for duplicate name (excluding current stage)
+  if (payload.name && payload.name !== existingStage.name) {
+    const duplicateCheck = await pool.query(
+      `
+      SELECT stage_id 
+      FROM job_process_stage
+      WHERE company_id = $1 
+        AND builder_id = $2 
+        AND name = $3
+        AND stage_id != $4
+      `,
+      [existingStage.company_id, existingStage.builder_id, payload.name, stageId]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      throw new Error(`Stage with name ${payload.name} already exists for this company/builder`);
+    }
+  }
+
+  // Handle sort order shifting if sort_order is being updated
+  if (payload.sort_order !== undefined && payload.sort_order !== existingStage.sort_order) {
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM job_process_stage
+      WHERE company_id = $1 
+        AND builder_id = $2
+    `;
+    const maxSortOrderResult = await pool.query(maxSortOrderQuery, [existingStage.company_id, existingStage.builder_id]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    // Validate sort order range
+    if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
+      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+    }
+
+    // Shift sort orders based on movement direction
+    if (payload.sort_order > existingStage.sort_order) {
+      // Moving down: decrement sort_order for stages between old and new position
+      await pool.query(
+        `
+        UPDATE job_process_stage
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND stage_id != $3
+          AND builder_id = $4
+        `,
+        [existingStage.sort_order, payload.sort_order, stageId, existingStage.builder_id]
+      );
+    } else {
+      // Moving up: increment sort_order for stages between new and old position
+      await pool.query(
+        `
+        UPDATE job_process_stage
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND stage_id != $3
+          AND builder_id = $4
+        `,
+        [payload.sort_order, existingStage.sort_order, stageId, existingStage.builder_id]
+      );
+    }
+  }
 
   const result = await pool.query(
     `
@@ -59,8 +193,41 @@ async function updateStage(stageId, payload) {
 /**
  * DELETE STAGE
  */
-async function deleteStage(stageId) {
+async function deleteStage(stageId, builderId) {
   const pool = getPool();
+  
+  // Check if stage belongs to the builder before deleting
+  const checkQuery = await pool.query(
+    `
+    SELECT stage_id, builder_id, sort_order
+    FROM job_process_stage
+    WHERE stage_id = $1
+    `,
+    [stageId]
+  );
+
+  if (checkQuery.rows.length === 0) {
+    throw new Error("Stage not found");
+  }
+
+  const stageBuilderId = checkQuery.rows[0].builder_id;
+  if (stageBuilderId !== builderId) {
+    throw new Error("You can only delete your own stages");
+  }
+
+  const existingSortOrder = checkQuery.rows[0].sort_order;
+
+  // Shift sort order: decrement sort_order for all stages > deleted stage
+  await pool.query(
+    `
+    UPDATE job_process_stage
+    SET sort_order = sort_order - 1
+    WHERE builder_id = $1 
+      AND sort_order > $2
+    `,
+    [builderId, existingSortOrder]
+  );
+
   await pool.query(`DELETE FROM job_process_stage WHERE stage_id = $1`, [
     stageId,
   ]);

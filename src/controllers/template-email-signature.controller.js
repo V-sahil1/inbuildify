@@ -87,30 +87,32 @@ exports.getTemplateEmailSignature = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
 
-    const getQuery = `
-      SELECT *
-      FROM template_email_signature
-      WHERE 
-        (builder_id IS NOT NULL AND builder_id = $1)
-        OR (company_id IS NOT NULL AND company_id = $2)
-      LIMIT 1
-    `;
+    let result = await client.query(
+      `SELECT * FROM template_email_signature
+       WHERE (builder_id IS NOT NULL AND builder_id = $1)
+          OR (company_id IS NOT NULL AND company_id = $2)
+       LIMIT 1`,
+      [builderId, companyId]
+    );
 
-    const result = await client.query(getQuery, [builderId, companyId]);
-
-    if (result.rows.length === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No email signature found for this builder/company."
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `INSERT INTO template_email_signature 
+           (builder_id, company_id, include_email_signature, signature_content, created_by, updated_by)
+           VALUES ($1, $2, false, '', $3, $3)
+           RETURNING *`,
+        [builderId, companyId, userId]
       );
     }
 
+    const { includeEmailSignature, signatureContent } = keysToCamelCase(result.rows[0]);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
-      "Template email signature retrieved successfully."
+      { includeEmailSignature, signatureContent },
+      result.rowCount === 0 ? "Default template email signature created." : "Template email signature retrieved successfully."
     );
   } catch (error) {
     console.error("Error fetching template email signature:", error);

@@ -66,6 +66,7 @@ const jobCommissionsettingRoutes = require("./job-commission-setting.routes");
 const jobCommissionRoutes = require("./job-commission.routes");
 const jobCommissionSubStageRoutes = require("./job-commission-sub-stage.routes");
 const jobProcessRoutes = require("./job-process.routes");
+const jobProcessStageFunctionalityRoutes = require("./job-process-stage-functionality.routes");
 const jobVariationApprovalRoutes = require("./job-variation-approval.routes");
 const maintenanceSettingRoutes = require("./maintenance-setting.routes");
 const maintenanceAreaRoutes = require("./maintenance-area.routes");
@@ -183,6 +184,7 @@ module.exports = function (app) {
   app.use("/job-commission", jobCommissionRoutes);
   app.use("/job-commission-sub-stage", jobCommissionSubStageRoutes);
   app.use("/job-process", jobProcessRoutes);
+  app.use("/job-process-stage-functionality", jobProcessStageFunctionalityRoutes);
   app.use("/job-variation-approval", jobVariationApprovalRoutes);
   app.use("/maintenance-setting", maintenanceSettingRoutes);
   app.use("/maintenance-area", maintenanceAreaRoutes);

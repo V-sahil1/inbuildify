@@ -3,13 +3,7 @@ const Joi = require("joi");
 const createTemplateEmailSignatureSchema = Joi.object({
   include_email_signature: Joi.boolean().default(false),
   signature_content: Joi.alternatives().conditional("include_email_signature", {
-    // is: true,
-    // then: Joi.string().trim().required().messages({
-    //   "any.required":
-    //     "Signature content is required when include_email_signature is true.",
-    //   "string.empty":
-    //     "Signature content cannot be empty when include_email_signature is true.",
-    // }),
+  
     otherwise: Joi.forbidden().messages({
       "any.unknown":
         "Signature content is not allowed when include_email_signature is false.",

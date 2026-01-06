@@ -7,7 +7,7 @@ const uuid = Joi.string().uuid();
 ========================================================= */
 
 exports.stageParamsSchema = Joi.object({
-  stageId: uuid.required(),
+  stage_id: uuid.required(),
 });
 
 exports.createStageSchema = Joi.object({
@@ -20,6 +20,7 @@ exports.createStageSchema = Joi.object({
 exports.updateStageSchema = Joi.object({
   name: Joi.string().max(200).optional(),
   sort_order: Joi.number().integer().min(1).optional(),
+  functionality_id: uuid.optional(),
   dependent_stage_id: uuid.allow(null),
 });
 

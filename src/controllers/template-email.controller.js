@@ -155,73 +155,197 @@ exports.createTemplateEmail = async (req, res) => {
   }
 };
 
-exports.getAllTemplateEmails = async (req, res) => {
+exports.getTemplateEmails = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id;
-    const { page = 1, limit = 25 } = req.query;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
 
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized access.");
+    }
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
+    /* ✅ Static default templates */
+    const staticTemplates = [
+      {
+        name: "1st Follow-up",
+        type: "customized",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "2nd Follow-up",
+        type: "customized",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Acknowledgment mail to customer",
+        type: "standard",
+        subject: "[Logged User Name][jobAddress][First Name]",
+        email_content:
+          "<b>Maintenance task completed. Thank you for choosing us.</b>",
+        additional_users: [
+          "4ee3de64-552b-492f-95f9-529fbde1c590",
+          "7a41ccd7-b0c6-4ed8-bcee-9d4c00cbdd56",
+        ],
+        additional_groups: [],
+      },
+      {
+        name: "Agent Summary report",
+        type: "standard",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Appointment booked with Customer",
+        type: "standard",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Appointment Booked with ReferralPartner",
+        type: "standard",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Appointment Cancellation",
+        type: "customized",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Appointment with client",
+        type: "customized",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Book Color Appointment",
+        type: "customized",
+        subject: null,
+        email_content: "",
+        additional_users: [],
+        additional_groups: [],
+      },
+      {
+        name: "Book Supplier",
+        type: "customized",
+        subject: null,
+        email_content:
+          "Please don't delete {SupplierResponseLink} if you want supplier response.",
+        additional_users: [],
+        additional_groups: [],
+      },
+    ];
+
+    /* ✅ Check existing templates */
+    const existingQuery = `
+      SELECT template_email_id
       FROM template_email
-      WHERE (builder_id = $1 OR company_id = $2)
+      WHERE (company_id = $1 OR builder_id = $2)
     `;
-    const countResult = await client.query(countQuery, [builderId, companyId]);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-
-    const dataQuery = `
-      SELECT 
-        template_email_id,
-        company_id,
-        builder_id,
-        name,
-        type,
-        subject,
-        email_content,
-        additional_recipient_users,
-        additional_recipient_groups,
-        is_active,
-        created_by,
-        updated_by,
-        created_at,
-        updated_at
-      FROM template_email
-      WHERE (builder_id = $1 OR company_id = $2)
-      ORDER BY created_at DESC
-      LIMIT $3 OFFSET $4
-    `;
-    const result = await client.query(dataQuery, [
-      builderId,
+    const existingResult = await client.query(existingQuery, [
       companyId,
-      limitValue,
-      offset,
+      builderId,
     ]);
 
-    const response = {
-      records: keysToCamelCase(result.rows),
-      pagination: {
-        currentPage: pageValue,
-        totalPages: Math.ceil(totalRecords / limitValue),
-        totalRecords,
-        limit: limitValue,
-      },
-    };
+    /* ✅ Insert defaults if not exist */
+    if (existingResult.rowCount === 0) {
+      const insertQuery = `
+        INSERT INTO template_email (
+          company_id,
+          builder_id,
+          name,
+          type,
+          subject,
+          email_content,
+          additional_recipient_users,
+          additional_recipient_groups,
+          is_active,
+          created_by,
+          updated_by
+        ) VALUES
+        ${staticTemplates
+          .map(
+            (_, i) =>
+              `($${i * 11 + 1}, $${i * 11 + 2}, $${i * 11 + 3}, $${i * 11 + 4},
+                $${i * 11 + 5}, $${i * 11 + 6}, $${i * 11 + 7}, $${i * 11 + 8},
+                $${i * 11 + 9}, $${i * 11 + 10}, $${i * 11 + 11})`
+          )
+          .join(", ")}
+        RETURNING *;
+      `;
+
+      const insertValues = [];
+      staticTemplates.forEach((t) => {
+        insertValues.push(
+          companyId,
+          builderId,
+          t.name,
+          t.type,
+          t.subject,
+          t.email_content,
+          t.additional_users,
+          t.additional_groups,
+          true,
+          userId,
+          userId
+        );
+      });
+
+      const insertResult = await client.query(insertQuery, insertValues);
+
+      const filtered = insertResult.rows.map(
+        ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
+      );
+
+      return successResponse(
+        res,
+        keysToCamelCase(filtered),
+        "Default email templates created and fetched successfully."
+      );
+    }
+
+    /* ✅ Fetch existing templates */
+    const fetchQuery = `
+      SELECT *
+      FROM template_email
+      WHERE (company_id = $1 OR builder_id = $2)
+      ORDER BY created_at ASC
+    `;
+    const result = await client.query(fetchQuery, [companyId, builderId]);
+
+    const filtered = result.rows.map(
+      ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
+    );
 
     return successResponse(
       res,
-      response,
+      keysToCamelCase(filtered),
       "Template emails fetched successfully."
     );
   } catch (error) {
-    console.error("Get Template Emails Error:", error);
-    return errorResponse(res, 500, "Failed to fetch template emails.");
+    console.error("Error fetching template emails:", error);
+    return errorResponse(res, 500, "Internal server error.");
   } finally {
     client.release();
   }

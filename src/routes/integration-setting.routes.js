@@ -32,8 +32,7 @@ router.post(
 router.get("/", getUserIntegrationSettings);
 
 router.put(
-  "/:integration_settings_id",
-  validateRequest(updateIntegrationSettingParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateIntegrationSettingSchema, REQUEST_SOURCE.BODY),
   updateIntegrationSettings
 );

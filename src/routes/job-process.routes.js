@@ -28,7 +28,7 @@ router.get(
 );
 
 router.put(
-  "/stages/:stageId",
+  "/stages/:stage_id",
   camelToSnakeMiddleware,
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateStageSchema, REQUEST_SOURCE.BODY),

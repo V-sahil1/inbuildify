@@ -11,7 +11,7 @@ const taskService = require("../services/job-process-task.service");
 
 exports.createStage = async (req, res) => {
   try {
-    const { companyId, builderId } = req.user;
+    const { company_id: companyId, builder_id: builderId } = req.user;
 
     const stage = await stageService.createStage(
       companyId,
@@ -27,9 +27,12 @@ exports.createStage = async (req, res) => {
 
 exports.updateStage = async (req, res) => {
   try {
+    const { company_id: companyId, builder_id: builderId } = req.user;
     const stage = await stageService.updateStage(
-      req.params.stageId,
-      req.body
+      req.params.stage_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(stage), "Stage updated");
   } catch (err) {
@@ -39,7 +42,8 @@ exports.updateStage = async (req, res) => {
 
 exports.deleteStage = async (req, res) => {
   try {
-    await stageService.deleteStage(req.params.stageId);
+    const { builder_id: builderId } = req.user;
+    await stageService.deleteStage(req.params.stageId, builderId);
     return successResponse(res, null, "Stage deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -48,7 +52,7 @@ exports.deleteStage = async (req, res) => {
 
 exports.getStages = async (req, res) => {
   try {
-    const { companyId, builderId } = req.user;
+    const { company_id: companyId, builder_id: builderId } = req.user;
 
     const stages = await stageService.getStages(companyId, builderId);
     return successResponse(res, keysToCamelCase(stages));
@@ -201,7 +205,7 @@ exports.getSubTasks = async (req, res) => {
 
 exports.getJobProcess = async (req, res) => {
   try {
-    const { companyId, builderId } = req.user;
+    const { company_id: companyId, builder_id: builderId } = req.user;
 
     const data = await stageService.getJobProcess(companyId, builderId);
     return successResponse(res, data);

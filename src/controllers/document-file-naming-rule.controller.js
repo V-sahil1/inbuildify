@@ -11,7 +11,7 @@ exports.createDocumentFileNamingRule = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
 
-    const { file_type, folder_ids = [], naming_format } = req.body;
+    const { file_type, folder_ids = [] } = req.body;
 
     const duplicateCheckQuery = `
       SELECT document_file_naming_rule_id
@@ -68,11 +68,10 @@ exports.createDocumentFileNamingRule = async (req, res) => {
         builder_id,
         file_type,
         folder_ids,
-        naming_format,
         created_by,
         updated_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -81,16 +80,38 @@ exports.createDocumentFileNamingRule = async (req, res) => {
       builderId,
       file_type.trim(),
       folder_ids,
-      naming_format.trim(),
       userId,
       userId,
     ];
 
     const insertResult = await client.query(insertQuery, insertValues);
 
+    // Get folder details for response
+    let folderNames = [];
+    if (folder_ids && folder_ids.length > 0) {
+      const folderQuery = `
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', dcf.document_common_folder_id,
+            'name', dcf.name
+          )
+        )
+        FROM document_common_folder dcf
+        WHERE dcf.document_common_folder_id = ANY($1)
+      `;
+      const folderResult = await client.query(folderQuery, [folder_ids]);
+      folderNames = folderResult.rows[0]?.jsonb_agg || [];
+    }
+
+    const responseData = {
+      ...keysToCamelCase(insertResult.rows[0]),
+      folderIds: folder_ids || [],
+      folderNames: folderNames
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(insertResult.rows[0]),
+      responseData,
       "Document file naming rule created successfully."
     );
   } catch (error) {
@@ -129,12 +150,20 @@ exports.getAllDocumentFileNamingRules = async (req, res) => {
         company_id,
         builder_id,
         file_type,
-        folder_ids,
-        naming_format,
         created_by,
         updated_by,
         created_at,
-        updated_at
+        updated_at,
+        (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', dcf.document_common_folder_id,
+              'name', dcf.name
+            )
+          )
+          FROM document_common_folder dcf
+          WHERE dcf.document_common_folder_id = ANY(document_file_naming_rule.folder_ids)
+        ) AS folder_names
       FROM document_file_naming_rule
       WHERE 
         (builder_id IS NOT NULL AND builder_id = $1)
@@ -251,7 +280,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       );
     }
 
-    const { file_type, folder_ids, naming_format } = req.body;
+    const { file_type, folder_ids } = req.body;
 
     const checkQuery = `
       SELECT * FROM document_file_naming_rule 
@@ -332,11 +361,6 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       values.push(folder_ids);
     }
 
-    if (naming_format !== undefined) {
-      fields.push(`naming_format = $${i++}`);
-      values.push(naming_format.trim());
-    }
-
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
     }
@@ -365,13 +389,160 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       );
     }
 
+    // Get folder details for response
+    let folderNames = [];
+    if (folder_ids && folder_ids.length > 0) {
+      const folderQuery = `
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', dcf.document_common_folder_id,
+            'name', dcf.name
+          )
+        )
+        FROM document_common_folder dcf
+        WHERE dcf.document_common_folder_id = ANY($1)
+      `;
+      const folderResult = await client.query(folderQuery, [folder_ids]);
+      folderNames = folderResult.rows[0]?.jsonb_agg || [];
+    }
+
+    const responseData = {
+      ...keysToCamelCase(updateResult.rows[0]),
+      folderIds: folder_ids || [],
+      folderNames: folderNames
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      responseData,
       "Document file naming rule updated successfully."
     );
   } catch (err) {
     console.error("Error updating document file naming rule:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+};
+
+exports.createNamingFormat = async (req, res) => {
+const pool = getPool();
+const client = await pool.connect();
+
+try {
+await client.query('BEGIN');
+
+const builderId = req.user?.builder_id;
+const companyId = req.user?.company_id;
+const userId = req.user?.users_id;
+
+if (!builderId && !companyId) {
+await client.query('ROLLBACK');
+return errorResponse(
+res,
+401,
+"Unauthorized: Missing builder or company ID."
+);
+}
+
+const { naming_format } = req.body;
+
+if (!naming_format || naming_format.trim() === '') {
+await client.query('ROLLBACK');
+return errorResponse(res, 400, "naming_format is required.");
+}
+
+// Delete existing naming format for this user
+await client.query(
+`
+DELETE FROM document_file_naming_format
+WHERE (builder_id = $1 OR company_id = $2)
+`,
+[builderId, companyId]
+);
+
+// Insert new naming format
+const insertQuery = `
+INSERT INTO document_file_naming_format
+(builder_id, company_id, naming_format, created_by, updated_by)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+`;
+
+const result = await client.query(insertQuery, [
+builderId,
+companyId,
+naming_format.trim(),
+userId,
+userId,
+]);
+
+await client.query('COMMIT');
+
+return successResponse(
+res,
+keysToCamelCase(result.rows[0]),
+"Naming format created successfully."
+);
+} catch (err) {
+await client.query('ROLLBACK');
+console.error("Error creating naming format:", err);
+return errorResponse(res, 500, err.message || "Internal Server Error.");
+} finally {
+client.release();
+}
+};
+
+exports.getNamingFormat = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID."
+      );
+    }
+
+    const query = `
+      SELECT 
+        document_file_naming_format_id,
+        naming_format,
+        created_by,
+        created_at,
+        updated_by,
+        updated_at
+      FROM document_file_naming_format
+      WHERE (builder_id = $1 OR company_id = $2)
+      ORDER BY created_at DESC
+      LIMIT 1;
+    `;
+
+    const result = await client.query(query, [
+      builderId,
+      companyId,
+    ]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "No document file naming rule found for this user."
+      );
+    }
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Naming format retrieved successfully."
+    );
+  } catch (err) {
+    console.error("Error getting naming format:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error.");
   } finally {
     client.release();

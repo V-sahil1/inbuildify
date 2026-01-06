@@ -150,8 +150,6 @@ exports.updateIntegrationSettings = async (req, res) => {
       );
     }
 
-    const { integration_settings_id } = req.params;
-
     const {
       automatically_send_welcome_email,
       rea_hl_enabled,
@@ -163,26 +161,28 @@ exports.updateIntegrationSettings = async (req, res) => {
     } = req.body;
 
     const checkQuery = `
-      SELECT * FROM integration_settings 
-      WHERE integration_settings_id = $1 
-      AND (builder_id = $2 OR company_id = $3)
+      SELECT integration_settings_id
+      FROM integration_settings
+      WHERE builder_id = $1 OR company_id = $2
+      LIMIT 1
     `;
     const checkResult = await client.query(checkQuery, [
-      integration_settings_id,
       builderId,
       companyId,
     ]);
+
     if (checkResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "No integration settings found for this builder or company."
+        "Integration settings not found."
       );
     }
 
     if (assign_leads_if_assignee_not_found) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_active = true`,
+        `SELECT users_id FROM users 
+         WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
         [assign_leads_if_assignee_not_found]
       );
 
@@ -197,7 +197,8 @@ exports.updateIntegrationSettings = async (req, res) => {
 
     if (always_assign_leads_to) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_active = true`,
+        `SELECT users_id FROM users 
+         WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
         [always_assign_leads_to]
       );
 
@@ -214,38 +215,36 @@ exports.updateIntegrationSettings = async (req, res) => {
     const values = [];
     let i = 1;
 
-    if (automatically_send_welcome_email !== undefined) {
-      fields.push(`automatically_send_welcome_email = $${i++}`);
-      values.push(automatically_send_welcome_email);
-    }
-    if (rea_hl_enabled !== undefined) {
-      fields.push(`rea_hl_enabled = $${i++}`);
-      values.push(rea_hl_enabled);
-    }
-    if (canibuild_enabled !== undefined) {
-      fields.push(`canibuild_enabled = $${i++}`);
-      values.push(canibuild_enabled);
-    }
-    if (website_hl_enabled !== undefined) {
-      fields.push(`website_hl_enabled = $${i++}`);
-      values.push(website_hl_enabled);
-    }
-    if (google_enabled !== undefined) {
-      fields.push(`google_enabled = $${i++}`);
-      values.push(google_enabled);
-    }
-    if (assign_leads_if_assignee_not_found !== undefined) {
-      fields.push(`assign_leads_if_assignee_not_found = $${i++}`);
-      values.push(assign_leads_if_assignee_not_found);
-    }
-    if (always_assign_leads_to !== undefined) {
-      fields.push(`always_assign_leads_to = $${i++}`);
-      values.push(always_assign_leads_to);
-    }
+    const addField = (field, value) => {
+      fields.push(`${field} = $${i++}`);
+      values.push(value);
+    };
+
+    if (automatically_send_welcome_email !== undefined)
+      addField("automatically_send_welcome_email", automatically_send_welcome_email);
+
+    if (rea_hl_enabled !== undefined)
+      addField("rea_hl_enabled", rea_hl_enabled);
+
+    if (canibuild_enabled !== undefined)
+      addField("canibuild_enabled", canibuild_enabled);
+
+    if (website_hl_enabled !== undefined)
+      addField("website_hl_enabled", website_hl_enabled);
+
+    if (google_enabled !== undefined)
+      addField("google_enabled", google_enabled);
+
+    if (assign_leads_if_assignee_not_found !== undefined)
+      addField("assign_leads_if_assignee_not_found", assign_leads_if_assignee_not_found);
+
+    if (always_assign_leads_to !== undefined)
+      addField("always_assign_leads_to", always_assign_leads_to);
 
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
     }
+
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
@@ -254,18 +253,12 @@ exports.updateIntegrationSettings = async (req, res) => {
     const updateQuery = `
       UPDATE integration_settings
       SET ${fields.join(", ")}
-      WHERE integration_settings_id = $${i++}
-      AND (builder_id = $${i++} OR company_id = $${i})
+      WHERE builder_id = $${i++} OR company_id = $${i}
       RETURNING *;
     `;
-
-    values.push(integration_settings_id, builderId, companyId);
+    values.push(builderId, companyId);
 
     const updateResult = await client.query(updateQuery, values);
-
-    if (updateResult.rowCount === 0) {
-      return errorResponse(res, 400, "Failed to update integration settings.");
-    }
 
     return successResponse(
       res,
@@ -279,6 +272,7 @@ exports.updateIntegrationSettings = async (req, res) => {
     client.release();
   }
 };
+
 
 exports.getUserIntegrationSettings = async (req, res) => {
   const pool = getPool();

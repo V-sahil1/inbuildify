@@ -6,6 +6,8 @@ const {
   getAllDocumentFileNamingRules,
   deleteDocumentFileNamingRule,
   updateDocumentFileNamingRule,
+  getNamingFormat,
+  createNamingFormat,
 } = require("../controllers/document-file-naming-rule.controller");
 const {
   createDocumentFileNamingRuleSchema,
@@ -13,6 +15,7 @@ const {
   deleteDocumentFileNamingRuleSchema,
   updateDocumentFileNamingRuleParamsSchema,
   updateDocumentFileNamingRuleSchema,
+  updateNamingFormatSchema,
 } = require("../validations/document-file-naming-rule.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -52,6 +55,17 @@ router.put(
   ),
   validateRequest(updateDocumentFileNamingRuleSchema, REQUEST_SOURCE.BODY),
   updateDocumentFileNamingRule
+);
+
+router.post(
+  "/naming-format",
+  validateRequest(updateNamingFormatSchema, REQUEST_SOURCE.BODY),
+  createNamingFormat
+);
+
+router.get(
+  "/naming-format",
+  getNamingFormat
 );
 
 module.exports = router;

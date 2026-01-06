@@ -178,10 +178,31 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
     const totalPages = Math.ceil(totalRecords / limit);
 
     const dataQuery = `
-      SELECT *
-      FROM document_common_folder
-      WHERE builder_id = $1 OR company_id = $2
-      ORDER BY sort_order, created_at
+      SELECT 
+        dcf.*,
+        (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', r.role_id,
+              'name', r.name
+            )
+          )
+          FROM role r
+          WHERE r.role_id = ANY(dcf.role_ids)
+        ) AS roles,
+        (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', u.users_id,
+              'name', u.name
+            )
+          )
+          FROM users u
+          WHERE u.users_id = ANY(dcf.user_ids)
+        ) AS users
+      FROM document_common_folder dcf
+      WHERE dcf.builder_id = $1 OR dcf.company_id = $2
+      ORDER BY dcf.sort_order, dcf.created_at
       LIMIT $3 OFFSET $4
     `;
     const dataResult = await client.query(dataQuery, [
@@ -502,7 +523,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
 
     return successResponse(
       res,
-      result.rows[0],
+      keysToCamelCase(result.rows[0]),
       "Document common folder updated successfully."
     );
   } catch (error) {

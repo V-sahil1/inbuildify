@@ -18,11 +18,7 @@ const createDocumentFileNamingRuleSchema = Joi.object({
       "array.base": "Folder IDs must be an array of UUIDs.",
     }),
 
-  naming_format: Joi.string().trim().max(255).required().messages({
-    "string.base": "Naming format must be a string.",
-    "string.empty": "Naming format is required.",
-    "any.required": "Naming format is required.",
-  }),
+
 });
 
 const getAllDocumentFileNamingRulesSchema = Joi.object({
@@ -70,9 +66,13 @@ const updateDocumentFileNamingRuleSchema = Joi.object({
     .messages({
       "array.base": "Folder IDs must be an array of UUIDs.",
     }),
+});
 
-  naming_format: Joi.string().trim().max(255).optional().messages({
+const updateNamingFormatSchema = Joi.object({
+  naming_format: Joi.string().trim().max(255).required().messages({
     "string.base": "Naming format must be a string.",
+    "string.empty": "Naming format is required.",
+    "any.required": "Naming format is required.",
   }),
 });
 
@@ -82,4 +82,5 @@ module.exports = {
   deleteDocumentFileNamingRuleSchema,
   updateDocumentFileNamingRuleParamsSchema,
   updateDocumentFileNamingRuleSchema,
+  updateNamingFormatSchema,
 };

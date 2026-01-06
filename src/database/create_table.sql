@@ -1354,7 +1354,7 @@ CREATE TABLE job_settings (
 CREATE TABLE job_process_stage_functionality (
     functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    is_workflow BOOLEAN DEFAULT FALSE
+    is_workflow BOOLEAN DEFAULT FALSE 
 );
 
 CREATE TABLE job_process_stage (
@@ -1364,7 +1364,7 @@ CREATE TABLE job_process_stage (
     name VARCHAR(200) NOT NULL,
     functionality_id UUID NOT NULL REFERENCES job_process_stage_functionality(functionality_id),
     sort_order INT NOT NULL,
-    dependent_stage_id UUID REFERENCES job_stage(stage_id),
+    dependent_stage_id UUID REFERENCES job_process_stage(stage_id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (company_id, builder_id, name)
@@ -1387,7 +1387,7 @@ CREATE TABLE job_process_task (
     description TEXT,
     sort_order INT NOT NULL,
     no_of_days INT,
-    assignee_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    assignee_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
     notify BOOLEAN DEFAULT FALSE,
     milestone BOOLEAN DEFAULT FALSE,
     attachment_mandatory BOOLEAN DEFAULT FALSE,
@@ -1730,7 +1730,6 @@ CREATE TABLE document_file_naming_rule (
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
     file_type VARCHAR(150) NOT NULL,
     folder_ids UUID[] DEFAULT '{}',      --refrence from document_common_folder.document_common_folder_id
-    naming_format VARCHAR(255) NOT NULL,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1739,6 +1738,17 @@ CREATE TABLE document_file_naming_rule (
     CONSTRAINT uq_document_file_naming_rule UNIQUE (company_id, builder_id, file_type)
 );
 
+CREATE TABLE document_file_naming_format(
+  document_file_naming_format_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  naming_format VARCHAR(255),
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_document_file_naming_format_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
 CREATE TYPE document_mapping_type_enum AS ENUM (
     'signed_quotation',
     'signed_color',
