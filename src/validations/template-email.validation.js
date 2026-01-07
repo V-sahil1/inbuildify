@@ -28,6 +28,8 @@ const createTemplateEmailSchema = Joi.object({
 });
 
 const getAllTemplateEmailSchema = Joi.object({
+  name: Joi.string().max(200).optional(),
+  type: Joi.string().valid("standard", "customized").optional(),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -50,9 +52,7 @@ const updateTemplateEmailParamsSchema = Joi.object({
 });
 
 const updateTemplateEmailSchem = Joi.object({
-  name: Joi.string().min(3).max(200).optional(),
 
-  type: Joi.string().max(50).valid("standard", "customized"),
   subject: Joi.string().allow(null, "").max(255).optional(),
   email_content: Joi.string().optional(),
   additional_recipient_users: Joi.array()

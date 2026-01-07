@@ -55,7 +55,6 @@ router.put(
 router.put(
   "/is-active/:template_note_id",
   validateRequest(updateTemplateNoteParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateTemplateNoteIsActiveSchema, REQUEST_SOURCE.BODY),
   updateTemplateNoteIsActive
 );
 module.exports = router;

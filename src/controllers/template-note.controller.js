@@ -358,23 +358,14 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
     const userId = req.user?.users_id;
 
     const { template_note_id } = req.params;
-    const { is_active } = req.body;
 
     if (!template_note_id) {
       return errorResponse(res, 400, "template_note_id is required");
     }
 
-    if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)"
-      );
-    }
-
     const existing = await client.query(
       `
-      SELECT template_note_id
+      SELECT template_note_id, is_active
       FROM template_note
       WHERE template_note_id = $1
         AND (
@@ -389,6 +380,9 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
       return errorResponse(res, 404, "Template note not found in your scope");
     }
 
+    const currentStatus = existing.rows[0].is_active;
+    const newStatus = !currentStatus; 
+
     const updateQuery = `
       UPDATE template_note
       SET
@@ -400,7 +394,7 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
     `;
 
     const result = await client.query(updateQuery, [
-      is_active,
+      newStatus,
       userId,
       template_note_id,
     ]);
@@ -408,7 +402,7 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Template note status updated successfully"
+      `Template note status updated successfully to ${newStatus ? 'active' : 'inactive'}`
     );
   } catch (error) {
     console.error("Error updating template note is_active:", error);

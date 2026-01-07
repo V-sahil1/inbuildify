@@ -1,20 +1,22 @@
 const Joi = require("joi");
 
+const headerRule = Joi.string().uuid().optional().messages({
+  "string.guid": "header ID must be a valid UUID",
+});
+
+const valueRule = Joi.string().max(255).optional().allow(null, "").messages({
+  "string.max": "value must be less than or equal to 255 characters.",
+});
+
 const createIntegrationCustomFieldItemSchema = Joi.object({
-  header1_id: Joi.string().uuid().required().messages({
-    "any.required": "header1_id is required.",
-    "string.guid": "header1_id must be a valid UUID.",
-  }),
-  header2_id: Joi.string().uuid().required().messages({
-    "any.required": "header2_id is required.",
-    "string.guid": "header2_id must be a valid UUID.",
-  }),
-  value1: Joi.string().max(255).optional().allow(null, "").messages({
-    "string.max": "value1 must be less than or equal to 255 characters.",
-  }),
-  value2: Joi.string().max(255).optional().allow(null, "").messages({
-    "string.max": "value2 must be less than or equal to 255 characters.",
-  }),
+  header1_id: headerRule,
+  header2_id: headerRule,
+ 
+
+  value1: valueRule,
+  value2: valueRule,
+ 
+  
   assignee_user_id: Joi.string().uuid().optional().allow(null, "").messages({
     "string.guid": "assignee_user_id must be a valid UUID.",
   }),
@@ -58,18 +60,13 @@ const updateIntegrationCustomFieldParamsSchema = Joi.object({
 });
 
 const updateIntegrationCustoFieldItemSchema = Joi.object({
-  header1_id: Joi.string().uuid().optional().messages({
-    "string.guid": "header1_id must be a valid UUID.",
-  }),
-  header2_id: Joi.string().uuid().optional().messages({
-    "string.guid": "header2_id must be a valid UUID.",
-  }),
-  value1: Joi.string().max(255).optional().allow(null, "").messages({
-    "string.max": "value1 must be less than or equal to 255 characters.",
-  }),
-  value2: Joi.string().max(255).optional().allow(null, "").messages({
-    "string.max": "value2 must be less than or equal to 255 characters.",
-  }),
+   header1_id: headerRule,
+  header2_id: headerRule,
+ 
+  value1: valueRule,
+  value2: valueRule,
+
+  
   assignee_user_id: Joi.string().uuid().optional().allow(null, "").messages({
     "string.guid": "assignee_user_id must be a valid UUID.",
   }),

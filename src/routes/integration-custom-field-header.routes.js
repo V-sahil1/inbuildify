@@ -6,7 +6,6 @@ const {
   getAllIntegrationCustomFieldHeader,
   deleteIntegrationCustomFieldHeader,
   updateIntegrationCustomFieldHeader,
-  updateIntegrationCustomFieldHeaderIsActive,
 } = require("../controllers/integration-custom-field-header.controller");
 const {
   createIntegrationCustomFieldHeaderSchema,
@@ -14,7 +13,6 @@ const {
   deleteIntegrationCustomFieldHeaderSchema,
   updateIntegrationCustomFieldHeaderParamsSchema,
   updateIntegrationCustomFieldHeaderSchem,
-  updateIntegrationCustomFieldHeaderIsActiveSchema,
 } = require("../validations/integration-custom-field-header.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -65,16 +63,5 @@ router.put(
   updateIntegrationCustomFieldHeader
 );
 
-router.put(
-  "/is-active/:integration_custom_field_header_id",
-  validateRequest(
-    updateIntegrationCustomFieldHeaderParamsSchema,
-    REQUEST_SOURCE.PARAMS
-  ),
-  validateRequest(
-    updateIntegrationCustomFieldHeaderIsActiveSchema,
-    REQUEST_SOURCE.BODY
-  ),
-  updateIntegrationCustomFieldHeaderIsActive
-);
+
 module.exports = router;

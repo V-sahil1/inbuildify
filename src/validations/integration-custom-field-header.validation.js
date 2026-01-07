@@ -2,8 +2,6 @@ const Joi = require("joi");
 
 const createIntegrationCustomFieldHeaderSchema = Joi.object({
   header_name: Joi.string().trim().max(150).required(),
-  sort_order: Joi.number().integer().default(0).min(0).optional(),
-  is_active: Joi.boolean().default(true),
 });
 
 const getAllIntegrationCustomFieldHeaderSchema = Joi.object({
@@ -37,17 +35,13 @@ const updateIntegrationCustomFieldHeaderParamsSchema = Joi.object({
 
 const updateIntegrationCustomFieldHeaderSchem = Joi.object({
   header_name: Joi.string().trim().max(150).optional(),
-  sort_order: Joi.number().integer().default(0).min(0).optional(),
 });
 
-const updateIntegrationCustomFieldHeaderIsActiveSchema = Joi.object({
-  is_active: Joi.boolean().required(),
-});
+
 module.exports = {
   createIntegrationCustomFieldHeaderSchema,
   getAllIntegrationCustomFieldHeaderSchema,
   deleteIntegrationCustomFieldHeaderSchema,
   updateIntegrationCustomFieldHeaderParamsSchema,
   updateIntegrationCustomFieldHeaderSchem,
-  updateIntegrationCustomFieldHeaderIsActiveSchema,
 };

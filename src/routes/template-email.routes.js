@@ -55,7 +55,6 @@ router.delete(
 router.put(
   "/is-active/:id",
   validateRequest(updateTemplateEmailParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateTemplateEmailIsActiveSchema, REQUEST_SOURCE.BODY),
   updateTemplateEmailIsActive
 );
 module.exports = router;

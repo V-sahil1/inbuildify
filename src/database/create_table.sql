@@ -1364,7 +1364,7 @@ CREATE TABLE job_process_stage (
     name VARCHAR(200) NOT NULL,
     functionality_id UUID NOT NULL REFERENCES job_process_stage_functionality(functionality_id),
     sort_order INT NOT NULL,
-    dependent_stage_id UUID REFERENCES job_process_stage(stage_id),
+    dependent_stage_id UUID REFERENCES job_process_stage(stage_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (company_id, builder_id, name)
@@ -1632,21 +1632,6 @@ CREATE TABLE job_process_task_dependency (
     PRIMARY KEY (task_id, predecessor_task_id)
 );
 
--- CREATE TABLE job_task(
---   job_task_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   job_id UUID NOT NULL REFERENCES job(job_id) ON DELETE CASCADE,
---   task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
---   sub_stage_id UUID REFERENCES job_process_sub_stage(sub_stage_id) ON DELETE CASCADE,
---   task_name VARCHAR(200) NOT NULL,
---   sort_order INT,
---   no_of_days INT,
---   notify BOOLEAN DEFAULT FALSE,
---   milestone BOOLEAN DEFAULT FALSE,
---   attachment_mandatory BOOLEAN DEFAULT FALSE,
---   created_at TIMESTAMPTZ DEFAULT NOW(),
---   updated_at TIMESTAMPTZ DEFAULT NOW()
--- );
-
 CREATE TABLE job_process_subtask (
     subtask_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     task_id UUID NOT NULL REFERENCES task(task_id) ON DELETE CASCADE,
@@ -1799,8 +1784,6 @@ CREATE TABLE integration_custom_field_header (
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
     header_name VARCHAR(150) NOT NULL,     -- e.g. "Lead Type", "Job Type"
-    sort_order INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1818,8 +1801,6 @@ CREATE TABLE integration_custom_field_item (
     value1 VARCHAR(255),  -- e.g. "Residential"
     value2 VARCHAR(255),  -- e.g. "Plumbing"
     assignee_user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
-    sort_order INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -1872,6 +1853,20 @@ CREATE TABLE template_note (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT chk_template_note_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+    CONSTRAINT uq_template_note_name UNIQUE (company_id, builder_id, name)
+);
+
+CREATE TABLE template_pdf (
+    template_pdf_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+    builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    template_json JSONB NOT NULL,
+    created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_template_pdf_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
     CONSTRAINT uq_template_note_name UNIQUE (company_id, builder_id, name)
 );
 

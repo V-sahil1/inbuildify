@@ -36,7 +36,7 @@ router.put(
 );
 
 router.delete(
-  "/stages/:stageId",
+  "/stages/:stage_id",
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.deleteStage
 );
@@ -44,20 +44,21 @@ router.delete(
 /* ================= SUB-STAGE ================= */
 
 router.post(
-  "/stages/:stageId/sub-stages",
+  "/stages/:stage_id/sub-stages",
   camelToSnakeMiddleware,
+   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.createSubStageSchema, REQUEST_SOURCE.BODY),
   controller.createSubStage
 );
 
 router.get(
-  "/stages/:stageId/sub-stages",
+  "/stages/:stage_id/sub-stages",
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.getSubStages
 );
 
 router.put(
-  "/sub-stages/:subStageId",
+  "/sub-stages/:sub_stage_id",
   camelToSnakeMiddleware,
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateSubStageSchema, REQUEST_SOURCE.BODY),
@@ -65,7 +66,7 @@ router.put(
 );
 
 router.delete(
-  "/sub-stages/:subStageId",
+  "/sub-stages/:sub_stage_id",
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.deleteSubStage
 );
@@ -73,14 +74,14 @@ router.delete(
 /* ================= TASK ================= */
 
 router.post(
-  "/sub-stages/:subStageId/tasks",
+  "/sub-stages/:sub_stage_id/tasks",
   camelToSnakeMiddleware,
   validateRequest(validation.createTaskSchema, REQUEST_SOURCE.BODY),
   controller.createTask
 );
 
 router.get(
-  "/sub-stages/:subStageId/tasks",
+  "/sub-stages/:sub_stage_id/tasks",
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.getTasks
 );

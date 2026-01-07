@@ -31,9 +31,9 @@ async function ensureWorkflowStageBySubStageId(subStageId) {
     [subStageId]
   );
 
-  if (!rows[0]?.is_workflow) {
-    throw new Error("Tasks allowed only under workflow stages");
-  }
+  // if (!rows[0]?.is_workflow) {
+  //   throw new Error("Tasks allowed only under workflow stages");
+  // }
 }
 
 module.exports = {

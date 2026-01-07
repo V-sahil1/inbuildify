@@ -1,0 +1,206 @@
+{
+  "invoiceFormat": {
+    "showDetails": {
+      "account": "Builder Info",
+      "address": "Header",
+      "contact": "None",
+      "bankInformation": "Bottom"
+    },
+    "pageHeader": {
+      "backgroundColor": null,
+      "fontColor": "#000000",
+      "fontSize": 10,
+      "title": ""
+    },
+    "pageFooter": {
+      "backgroundColor": null,
+      "fontColor": "#000000",
+      "fontSize": 10
+    },
+    "logoSettings": {
+      "alignment": "Left",
+      "height": 130,
+      "width": 150,
+      "padding": null,
+      "logoImage": null,
+      "watermarkImage": null
+    },
+    "listItems": {
+      "header": {
+        "backgroundColor": "#085dad",
+        "fontColor": "#ffffff"
+      },
+      "footer": {
+        "backgroundColor": null,
+        "fontColor": null
+      }
+    },
+    "bankDetails": {
+      "headerText": "Please credit funds direct to the following account details:"
+    },
+    "customText": "",
+    "initialDepositDescription": "Initial Deposit"
+  },
+  "receiptFormat": {
+    "showDetails": {
+      "account": "Company Info",
+      "address": "Header",
+      "contact": "None",
+      "bankInformation": "None"
+    },
+    "pageHeader": {
+      "backgroundColor": null,
+      "fontColor": "#000000",
+      "fontSize": 10,
+      "title": ""
+    },
+    "pageFooter": {
+      "backgroundColor": null,
+      "fontColor": "#000000",
+      "fontSize": 10
+    },
+    "logoSettings": {
+      "alignment": "Left",
+      "height": 130,
+      "width": 130,
+      "padding": null,
+      "logoImage": null,
+      "watermarkImage": null
+    },
+    "bankDetails": {
+      "headerText": "Please credit funds direct to the following account details:"
+    },
+    "customText": "Terms and Conditions goes here................"
+  },
+  "variationFormat": {
+    "showDetails": {
+      "account": "Builder Info",
+      "address": "Header",
+      "contact": "None",
+      "bankInformation": "Bottom"
+    },
+    "pageHeader": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 12,
+      "title": ""
+    },
+    "pageFooter": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 10
+    },
+    "logoSettings": {
+      "alignment": "Left",
+      "height": 130,
+      "width": 130,
+      "padding": null,
+      "logoImage": null,
+      "watermarkImage": null
+    },
+    "listItems": {
+      "header": {
+        "backgroundColor": null,
+        "fontColor": null
+      },
+      "footer": {
+        "backgroundColor": null,
+        "fontColor": null
+      }
+    },
+    "subItems": {
+      "header": {
+        "backgroundColor": null,
+        "fontColor": null
+      },
+      "showUnitOption": "Don't show units"
+    },
+    "bankDetails": {
+      "headerText": "Bank Details"
+    },
+    "customText": "Custom Text",
+    "totalCostCustomText": "",
+    "enableBuilderSignature": true
+  },
+  "colorFormat": {
+    "showDetails": {
+      "account": "Company Info",
+      "address": "Header",
+      "contact": "None",
+      "useLabelInfo": false
+    },
+    "pageHeader": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 12,
+      "title": ""
+    },
+    "pageFooter": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 10
+    },
+    "logoSettings": {
+      "alignment": "Left",
+      "height": 70,
+      "width": 120,
+      "padding": null,
+      "logoImage": null,
+      "watermarkImage": null
+    },
+    "listItems": {
+      "header": {
+        "backgroundColor": null,
+        "fontColor": null
+      },
+      "footer": {
+        "backgroundColor": null,
+        "fontColor": null
+      }
+    },
+    "costTypeStyles": {
+      "standard": {
+        "backgroundColor": "#0ba160",
+        "fontColor": "#ffffff"
+      },
+      "upgrade": {
+        "backgroundColor": "#dc3545",
+        "fontColor": "#ffffff"
+      }
+    },
+    "customText": "",
+    "enableBuilderSignature": true
+  },
+  "maintenanceFormat": {
+    "showDetails": {
+      "account": "Company Info",
+      "address": "Header",
+      "contact": "None"
+    },
+    "pageHeader": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 12,
+      "title": "Maintenance Report"
+    },
+    "pageFooter": {
+      "backgroundColor": null,
+      "fontColor": "#1049a5",
+      "fontSize": 10
+    },
+    "logoSettings": {
+      "alignment": "Left",
+      "height": 70,
+      "width": 120,
+      "padding": null,
+      "logoImage": null,
+      "watermarkImage": null
+    },
+    "listItems": {
+      "header": {
+        "backgroundColor": null,
+        "fontColor": null
+      }
+    }
+  }
+}

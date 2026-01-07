@@ -18,6 +18,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
         "Invalid user context. Missing builder or company ID."
       );
     }
+
     const {
       name,
       sort_order,
@@ -43,11 +44,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       return errorResponse(res, 400, "Folder name already exists.");
     }
 
-    let finalSortOrder = sort_order;
-
-    if (finalSortOrder === undefined || finalSortOrder === null) {
-      finalSortOrder = 1;
-    }
+    let finalSortOrder = sort_order ?? 1;
 
     const maxSortOrderQuery = `
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
@@ -70,74 +67,117 @@ exports.createDocumentCommonFolder = async (req, res) => {
       );
     }
 
-    const shiftSortOrderQuery = `
+    await client.query(
+      `
       UPDATE document_common_folder
       SET sort_order = sort_order + 1
       WHERE sort_order >= $1
         AND (builder_id = $2 OR company_id = $3);
-    `;
-
-    await client.query(shiftSortOrderQuery, [
-      finalSortOrder,
-      builderId,
-      companyId,
-    ]);
+      `,
+      [finalSortOrder, builderId, companyId]
+    );
 
     if (role_ids.length > 0) {
-      const roleCheckQuery = `
+      const roleCheckResult = await client.query(
+        `
         SELECT role_id
         FROM role
-        WHERE  role_id = ANY($1::uuid[])
-      `;
-      const roleCheckResult = await client.query(roleCheckQuery, [role_ids]);
+        WHERE role_id = ANY($1::uuid[])
+        `,
+        [role_ids]
+      );
+
       if (roleCheckResult.rowCount !== role_ids.length) {
-        return errorResponse(
-          res,
-          400,
-          "One or more role IDs are invalid for this builder."
-        );
+        return errorResponse(res, 400, "One or more role IDs are invalid.");
       }
     }
 
     if (user_ids.length > 0) {
-      const userCheckQuery = `
+      const userCheckResult = await client.query(
+        `
         SELECT users_id
         FROM users
-        WHERE  users_id = ANY($1::uuid[]) AND is_deleted = false
-      `;
-      const userCheckResult = await client.query(userCheckQuery, [user_ids]);
+        WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
+        `,
+        [user_ids]
+      );
+
       if (userCheckResult.rowCount !== user_ids.length) {
-        return errorResponse(
-          res,
-          400,
-          "One or more user IDs are invalid for this builder/company."
-        );
+        return errorResponse(res, 400, "One or more user IDs are invalid.");
       }
     }
 
-    const insertQuery = `
+    const insertResult = await client.query(
+      `
       INSERT INTO document_common_folder
         (company_id, builder_id, name, sort_order, notify, share_to_customer, is_locked, role_ids, user_ids, created_by, updated_by)
       VALUES
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
       RETURNING *;
-    `;
-    const insertResult = await client.query(insertQuery, [
-      companyId,
-      builderId,
-      name,
-      finalSortOrder,
-      notify,
-      share_to_customer,
-      is_locked,
-      role_ids,
-      user_ids,
-      createdBy,
-    ]);
+      `,
+      [
+        companyId,
+        builderId,
+        name,
+        finalSortOrder,
+        notify,
+        share_to_customer,
+        is_locked,
+        role_ids,
+        user_ids,
+        createdBy,
+      ]
+    );
+
+    const folder = insertResult.rows[0];
+
+    /* 🔹 Fetch role details */
+    let roles = [];
+    if (folder.role_ids?.length) {
+      const roleResult = await client.query(
+        `
+        SELECT role_id, name AS role_name
+        FROM role
+        WHERE role_id = ANY($1::uuid[])
+        `,
+        [folder.role_ids]
+      );
+      roles = roleResult.rows.map(role => ({
+        id: role.role_id,
+        name: role.role_name
+      }));
+    }
+
+    /* 🔹 Fetch user details */
+    let users = [];
+    if (folder.user_ids?.length) {
+      const userResult = await client.query(
+        `
+        SELECT users_id, name
+        FROM users
+        WHERE users_id = ANY($1::uuid[])
+        `,
+        [folder.user_ids]
+      );
+      users = userResult.rows.map(user => ({
+        id: user.users_id,
+        name: user.name
+      }));
+    }
 
     return successResponse(
       res,
-      keysToCamelCase(insertResult.rows[0]),
+      {
+        documentCommonFolderId: folder.document_common_folder_id,
+        name: folder.name,
+        sortOrder: folder.sort_order,
+        notify: folder.notify,
+        shareToCustomer: folder.share_to_customer,
+        isLocked: folder.is_locked,
+        roles,
+        users,
+        createdAt: folder.created_at
+      },
       "Document common folder created successfully."
     );
   } catch (error) {
@@ -147,6 +187,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
     client.release();
   }
 };
+
 
 exports.getAllDocumentCommonFolders = async (req, res) => {
   const pool = getPool();
@@ -521,9 +562,54 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       return errorResponse(res, 404, "Document common folder not found.");
     }
 
+    const folder = result.rows[0];
+
+    let roles = [];
+    if (folder.role_ids?.length) {
+      const roleResult = await client.query(
+        `
+        SELECT role_id, name AS role_name
+        FROM role
+        WHERE role_id = ANY($1::uuid[])
+        `,
+        [folder.role_ids]
+      );
+      roles = roleResult.rows.map(role => ({
+        id: role.role_id,
+        name: role.role_name
+      }));
+    }
+
+    let users = [];
+    if (folder.user_ids?.length) {
+      const userResult = await client.query(
+        `
+        SELECT users_id, name
+        FROM users
+        WHERE users_id = ANY($1::uuid[])
+        `,
+        [folder.user_ids]
+      );
+      users = userResult.rows.map(user => ({
+        id: user.users_id,
+        name: user.name
+      }));
+    }
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      {
+        documentCommonFolderId: folder.document_common_folder_id,
+        name: folder.name,
+        sortOrder: folder.sort_order,
+        notify: folder.notify,
+        shareToCustomer: folder.share_to_customer,
+        isLocked: folder.is_locked,
+        roles,
+        users,
+        createdAt: folder.created_at,
+        updatedAt: folder.updated_at
+      },
       "Document common folder updated successfully."
     );
   } catch (error) {

@@ -164,11 +164,12 @@ exports.getTemplateEmails = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
 
+    const { name, type } = req.query; 
+
     if (!builderId && !companyId) {
       return errorResponse(res, 401, "Unauthorized access.");
     }
 
-    /* ✅ Static default templates */
     const staticTemplates = [
       {
         name: "1st Follow-up",
@@ -257,7 +258,6 @@ exports.getTemplateEmails = async (req, res) => {
       },
     ];
 
-    /* ✅ Check existing templates */
     const existingQuery = `
       SELECT template_email_id
       FROM template_email
@@ -268,7 +268,6 @@ exports.getTemplateEmails = async (req, res) => {
       builderId,
     ]);
 
-    /* ✅ Insert defaults if not exist */
     if (existingResult.rowCount === 0) {
       const insertQuery = `
         INSERT INTO template_email (
@@ -318,29 +317,89 @@ exports.getTemplateEmails = async (req, res) => {
         ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
       );
 
+      const totalCount = filtered.length;
+      const standardCount = filtered.filter(template => template.type === 'standard').length;
+      const customizedCount = filtered.filter(template => template.type === 'customized').length;
+
+      const responseData = {
+        templates: keysToCamelCase(filtered),
+        counts: {
+          total: totalCount,
+          standard: standardCount,
+          customized: customizedCount
+        }
+      };
+
       return successResponse(
         res,
-        keysToCamelCase(filtered),
+        responseData,
         "Default email templates created and fetched successfully."
       );
     }
 
-    /* ✅ Fetch existing templates */
-    const fetchQuery = `
+    let fetchQuery = `
       SELECT *
       FROM template_email
       WHERE (company_id = $1 OR builder_id = $2)
-      ORDER BY created_at ASC
     `;
-    const result = await client.query(fetchQuery, [companyId, builderId]);
+
+    const queryParams = [companyId, builderId];
+    let paramIndex = 3;
+
+    if (name) {
+      fetchQuery += ` AND name ILIKE $${paramIndex++}`;
+      queryParams.push(`%${name}%`);
+    }
+
+    if (type) {
+      fetchQuery += ` AND type = $${paramIndex++}`;
+      queryParams.push(type);
+    }
+
+    fetchQuery += ` ORDER BY created_at ASC`;
+
+    const result = await client.query(fetchQuery, queryParams);
+
+    const totalQuery = `
+      SELECT COUNT(*) as total_count
+      FROM template_email
+      WHERE (company_id = $1 OR builder_id = $2)
+    `;
+    const totalResult = await client.query(totalQuery, [companyId, builderId]);
+    const totalCount = parseInt(totalResult.rows[0].total_count);
+
+    const standardQuery = `
+      SELECT COUNT(*) as standard_count
+      FROM template_email
+      WHERE (company_id = $1 OR builder_id = $2) AND type = 'standard'
+    `;
+    const standardResult = await client.query(standardQuery, [companyId, builderId]);
+    const standardCount = parseInt(standardResult.rows[0].standard_count);
+
+    const customizedQuery = `
+      SELECT COUNT(*) as customized_count
+      FROM template_email
+      WHERE (company_id = $1 OR builder_id = $2) AND type = 'customized'
+    `;
+    const customizedResult = await client.query(customizedQuery, [companyId, builderId]);
+    const customizedCount = parseInt(customizedResult.rows[0].customized_count);
 
     const filtered = result.rows.map(
       ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
     );
 
+    const responseData = {
+      templates: keysToCamelCase(filtered),
+      counts: {
+        total: totalCount,
+        standard: standardCount,
+        customized: customizedCount
+      }
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(filtered),
+      responseData,
       "Template emails fetched successfully."
     );
   } catch (error) {
@@ -351,6 +410,7 @@ exports.getTemplateEmails = async (req, res) => {
   }
 };
 
+
 exports.updateTemplateEmail = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -360,8 +420,6 @@ exports.updateTemplateEmail = async (req, res) => {
   const userId = req.user.user_id;
 
   const {
-    name,
-    type,
     subject,
     email_content,
     additional_recipient_users,
@@ -401,36 +459,12 @@ exports.updateTemplateEmail = async (req, res) => {
       return errorResponse(res, 404, "Template email is inactive.");
     }
 
-    if (name) {
-      const duplicateCheckQuery = `
-        SELECT template_email_id
-        FROM template_email
-        WHERE LOWER(name) = LOWER($1)
-          AND (builder_id = $2 OR company_id = $3)
-          AND template_email_id != $4
-      `;
-      const duplicateResult = await client.query(duplicateCheckQuery, [
-        name,
-        builderId,
-        companyId,
-        id,
-      ]);
-
-      if (duplicateResult.rows.length > 0) {
-        return errorResponse(
-          res,
-          409,
-          "A template email with this name already exists for this builder/company."
-        );
-      }
-    }
-
     if (
       Array.isArray(additional_recipient_users) &&
       additional_recipient_users.length > 0
     ) {
       const usersCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+        `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false AND is_verified = true`,
         [additional_recipient_users]
       );
       if (usersCheck.rowCount !== additional_recipient_users.length) {
@@ -484,14 +518,7 @@ exports.updateTemplateEmail = async (req, res) => {
     const values = [];
     let paramIndex = 1;
 
-    if (name) {
-      fields.push(`name = $${paramIndex++}`);
-      values.push(name);
-    }
-    if (type) {
-      fields.push(`type = $${paramIndex++}`);
-      values.push(type);
-    }
+   
     if (subject) {
       fields.push(`subject = $${paramIndex++}`);
       values.push(subject);
@@ -524,11 +551,45 @@ exports.updateTemplateEmail = async (req, res) => {
 
     const result = await client.query(updateQuery, values);
 
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Template email updated successfully."
-    );
+    const updatedTemplate = result.rows[0];
+
+let usersRecipient = [];
+if (updatedTemplate.additional_recipient_users?.length) {
+  const usersResult = await client.query(
+    `
+    SELECT users_id AS id,
+           CONCAT(name) AS name
+    FROM users
+    WHERE users_id = ANY($1::uuid[])
+    `,
+    [updatedTemplate.additional_recipient_users]
+  );
+  usersRecipient = usersResult.rows;
+}
+
+let userGroups = [];
+if (updatedTemplate.additional_recipient_groups?.length) {
+  const groupsResult = await client.query(
+    `
+    SELECT user_group_id AS id, name
+    FROM user_group
+    WHERE user_group_id = ANY($1::uuid[])
+    `,
+    [updatedTemplate.additional_recipient_groups]
+  );
+  userGroups = groupsResult.rows;
+}
+
+ return successResponse(
+  res,
+  keysToCamelCase({
+    ...updatedTemplate,
+    additional_recipient_users: usersRecipient,
+    additional_recipient_groups: userGroups,
+  }),
+  "Template email updated successfully."
+);
+
   } catch (error) {
     console.error("Update Template Email Error:", error);
     return errorResponse(res, 500, "Failed to update template email.");
@@ -606,7 +667,7 @@ exports.deleteTemplateEmail = async (req, res) => {
     client.release();
   }
 };
-
+  
 exports.updateTemplateEmailIsActive = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -617,23 +678,14 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
     const userId = req.user?.users_id;
 
     const { id } = req.params;
-    const { is_active } = req.body;
 
     if (!id) {
       return errorResponse(res, 400, "template_email_id is required");
     }
 
-    if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)"
-      );
-    }
-
     const existing = await client.query(
       `
-      SELECT template_email_id
+      SELECT template_email_id, is_active
       FROM template_email
       WHERE template_email_id = $1
         AND (
@@ -651,24 +703,25 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
     const updateQuery = `
       UPDATE template_email
       SET
-        is_active = $1,
-        updated_by = $2,
+        is_active = NOT is_active,
+        updated_by = $1,
         updated_at = NOW()
-      WHERE template_email_id = $3
+      WHERE template_email_id = $2
       RETURNING *;
     `;
 
-    const result = await client.query(updateQuery, [is_active, userId, id]);
+    const result = await client.query(updateQuery, [userId, id]);
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Template email status updated successfully"
+      "Template email status toggled successfully"
     );
   } catch (error) {
-    console.error("Error updating template email is_active:", error);
+    console.error("Error toggling template email is_active:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();
   }
 };
+

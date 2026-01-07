@@ -236,46 +236,264 @@ async function deleteStage(stageId, builderId) {
 /**
  * CREATE SUB STAGE (workflow only)
  */
-exports.createSubStage = async (stageId, payload) => {
+async function createSubStage(stageId, payload) {
   await ensureWorkflowStageByStageId(stageId);
 
   const pool = getPool();
-  const { rows } = await pool.query(
-    `
-    INSERT INTO job_process_sub_stage(stage_id, name, sort_order)
-    VALUES ($1,$2,$3)
-    RETURNING *
-    `,
-    [stageId, payload.name, payload.sort_order]
-  );
-  return rows[0];
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Get parent stage info to retrieve company and builder IDs
+    const stageQuery = await client.query(
+      `
+      SELECT company_id, builder_id
+      FROM job_process_stage
+      WHERE stage_id = $1
+      `,
+      [stageId]
+    );
+
+    if (stageQuery.rows.length === 0) {
+      throw new Error("Parent stage not found");
+    }
+
+    const { company_id: companyId, builder_id: builderId } = stageQuery.rows[0];
+
+    // Check for duplicate sub-stage name within the same stage
+    const duplicateCheck = await client.query(
+      `
+      SELECT sub_stage_id 
+      FROM job_process_sub_stage
+      WHERE stage_id = $1 
+        AND name = $2
+      `,
+      [stageId, payload.name]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      throw new Error(`Sub-stage with name ${payload.name} already exists for this stage`);
+    }
+
+    // Get max sort_order for existing sub-stages to shift
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM job_process_sub_stage
+      WHERE stage_id = $1
+    `;
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [stageId]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    // Determine final sort order
+    let finalSortOrder;
+    if (payload.sort_order !== undefined) {
+      finalSortOrder = payload.sort_order;
+    } else {
+      finalSortOrder = maxSortOrder + 1;
+    }
+
+    // Validate sort order range
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+    }
+
+    // If sort_order is provided, shift all sub-stages >= provided sort_order
+    if (payload.sort_order !== undefined) {
+      const shiftSortOrderQuery = `
+        UPDATE job_process_sub_stage
+        SET sort_order = sort_order + 1
+        WHERE stage_id = $1 
+          AND sort_order >= $2
+      `;
+      await client.query(shiftSortOrderQuery, [stageId, payload.sort_order]);
+    }
+
+    const result = await client.query(
+      `
+      INSERT INTO job_process_sub_stage
+      (stage_id, name, sort_order)
+      VALUES ($1, $2, $3)
+      RETURNING *
+      `,
+      [
+        stageId,
+        payload.name,
+        finalSortOrder
+      ]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
-exports.updateSubStage = async (subStageId, payload) => {
+async function updateSubStage(subStageId, payload, builderId, companyId) {
   const pool = getPool();
-  const { rows, rowCount } = await pool.query(
-    `
-    UPDATE job_process_sub_stage
-    SET
-      name = COALESCE($2, name),
-      sort_order = COALESCE($3, sort_order),
-      updated_at = NOW()
-    WHERE sub_stage_id = $1
-    RETURNING *
-    `,
-    [subStageId, payload.name, payload.sort_order]
-  );
+  const client = await pool.connect();
 
-  if (!rowCount) throw new Error("Sub-stage not found");
-  return rows[0];
+  try {
+    await client.query("BEGIN");
+
+    const checkQuery = await client.query(
+      `
+      SELECT ss.sub_stage_id, ss.stage_id, ss.name, ss.sort_order, s.builder_id, s.company_id
+      FROM job_process_sub_stage ss
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE ss.sub_stage_id = $1
+      `,
+      [subStageId]
+    );
+
+    if (checkQuery.rows.length === 0) {
+      throw new Error("Sub-stage not found");
+    }
+
+    const existingSubStage = checkQuery.rows[0];
+
+    if (existingSubStage.builder_id !== builderId && existingSubStage.company_id !== companyId) {
+      throw new Error("You can only update your own sub-stages");
+    }
+
+    if (payload.name && payload.name !== existingSubStage.name) {
+      const duplicateCheck = await client.query(
+        `
+        SELECT sub_stage_id 
+        FROM job_process_sub_stage
+        WHERE stage_id = $1 
+          AND name = $2
+          AND sub_stage_id != $3
+        `,
+        [existingSubStage.stage_id, payload.name, subStageId]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        throw new Error(`Sub-stage with name ${payload.name} already exists for this stage`);
+      }
+    }
+
+    if (payload.sort_order !== undefined && payload.sort_order !== existingSubStage.sort_order) {
+      const maxSortOrderQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+        FROM job_process_sub_stage
+        WHERE stage_id = $1
+      `;
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [existingSubStage.stage_id]);
+      const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+      if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
+        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+      }
+
+      if (payload.sort_order > existingSubStage.sort_order) {
+        await client.query(
+          `
+          UPDATE job_process_sub_stage
+          SET sort_order = sort_order - 1
+          WHERE sort_order > $1
+            AND sort_order <= $2
+            AND sub_stage_id != $3
+            AND stage_id = $4
+          `,
+          [existingSubStage.sort_order, payload.sort_order, subStageId, existingSubStage.stage_id]
+        );
+      } else {
+        await client.query(
+          `
+          UPDATE job_process_sub_stage
+          SET sort_order = sort_order + 1
+          WHERE sort_order >= $1
+            AND sort_order < $2
+            AND sub_stage_id != $3
+            AND stage_id = $4
+          `,
+          [payload.sort_order, existingSubStage.sort_order, subStageId, existingSubStage.stage_id]
+        );
+      }
+    }
+
+    const { rows, rowCount } = await client.query(
+      `
+      UPDATE job_process_sub_stage
+      SET
+        name = COALESCE($2, name),
+        sort_order = COALESCE($3, sort_order),
+        updated_at = NOW()
+      WHERE sub_stage_id = $1
+      RETURNING *
+      `,
+      [subStageId, payload.name, payload.sort_order]
+    );
+
+    if (!rowCount) throw new Error("Sub-stage not found");
+
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
-exports.deleteSubStage = async (subStageId) => {
+async function deleteSubStage(subStageId, builderId, companyId) {
   const pool = getPool();
-  await pool.query(
-    `DELETE FROM job_process_sub_stage WHERE sub_stage_id = $1`,
-    [subStageId]
-  );
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const checkQuery = await client.query(
+      `
+      SELECT ss.sub_stage_id, ss.stage_id, ss.sort_order, s.builder_id, s.company_id
+      FROM job_process_sub_stage ss
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE ss.sub_stage_id = $1
+      `,
+      [subStageId]
+    );
+
+    if (checkQuery.rows.length === 0) {
+      throw new Error("Sub-stage not found");
+    }
+
+    const subStageInfo = checkQuery.rows[0];
+
+    if (subStageInfo.builder_id !== builderId && subStageInfo.company_id !== companyId) {
+      throw new Error("You can only delete your own sub-stages");
+    }
+
+    const existingSortOrder = subStageInfo.sort_order;
+    const stageId = subStageInfo.stage_id;
+
+    await client.query(
+      `
+      UPDATE job_process_sub_stage
+      SET sort_order = sort_order - 1
+      WHERE stage_id = $1 
+        AND sort_order > $2
+      `,
+      [stageId, existingSortOrder]
+    );
+
+    await client.query(
+      `DELETE FROM job_process_sub_stage WHERE sub_stage_id = $1`,
+      [subStageId]
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 async function getJobProcess(companyId, builderId) {
@@ -470,6 +688,9 @@ module.exports = {
   createStage,
   updateStage,
   deleteStage,
+  createSubStage,
+  updateSubStage,
+  deleteSubStage,
   getStages,
   getSubStages,
   getStageFunctionalities,

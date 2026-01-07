@@ -19,7 +19,7 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
       );
     }
 
-    const { header_name, sort_order, is_active } = req.body;
+    const { header_name } = req.body;
 
     if (!header_name || header_name.trim() === "") {
       return errorResponse(res, 400, "Header name is required.");
@@ -44,40 +44,16 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
         "A header with this name already exists for this builder or company."
       );
     }
-    const finalSortOrder = sort_order ?? 0;
-    if (finalSortOrder !== undefined && sort_order !== null) {
-      const sortOrderCheckQuery = `
-        SELECT integration_custom_field_header_id
-        FROM integration_custom_field_header
-        WHERE sort_order = $1
-        AND (builder_id = $2 OR company_id = $3);
-      `;
-      const sortOrderCheck = await client.query(sortOrderCheckQuery, [
-        finalSortOrder,
-        builderId,
-        companyId,
-      ]);
-
-      if (sortOrderCheck.rowCount > 0) {
-        return errorResponse(
-          res,
-          400,
-          `Sort order ${sort_order} already exists for this builder or company.`
-        );
-      }
-    }
 
     const insertQuery = `
       INSERT INTO integration_custom_field_header (
         company_id,
         builder_id,
         header_name,
-        sort_order,
-        is_active,
         created_by,
         updated_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
     `;
 
@@ -85,8 +61,6 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
       companyId,
       builderId,
       header_name.trim(),
-      finalSortOrder,
-      is_active !== undefined ? is_active : true,
       userId,
       userId,
     ];
@@ -132,7 +106,7 @@ exports.getAllIntegrationCustomFieldHeader = async (req, res) => {
         *
       FROM integration_custom_field_header
       WHERE (builder_id = $1 OR company_id = $2)
-      ORDER BY sort_order ASC
+      ORDER BY created_at DESC
       LIMIT $3 OFFSET $4;
     `;
     const dataResult = await client.query(dataQuery, [
@@ -251,7 +225,7 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       );
     }
 
-    const { header_name, sort_order } = req.body;
+    const { header_name } = req.body;
 
     const checkQuery = `
       SELECT * FROM integration_custom_field_header
@@ -272,24 +246,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       );
     }
 
-    const checkActiveQuery = `
-      SELECT * FROM integration_custom_field_header
-      WHERE integration_custom_field_header_id = $1
-        AND (builder_id = $2 OR company_id = $3) AND is_active = true;
-    `;
-    const checkActiveResult = await client.query(checkActiveQuery, [
-      integration_custom_field_header_id,
-      builderId,
-      companyId,
-    ]);
-
-    if (checkActiveResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Inactive integration custom field header."
-      );
-    }
 
     if (header_name) {
       const duplicateNameQuery = `
@@ -315,29 +271,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       }
     }
 
-    if (sort_order !== undefined && sort_order !== null) {
-      const duplicateSortQuery = `
-        SELECT integration_custom_field_header_id
-        FROM integration_custom_field_header
-        WHERE sort_order = $1
-          AND (builder_id = $2 OR company_id = $3)
-          AND integration_custom_field_header_id <> $4;
-      `;
-      const duplicateSortResult = await client.query(duplicateSortQuery, [
-        sort_order,
-        builderId,
-        companyId,
-        integration_custom_field_header_id,
-      ]);
-
-      if (duplicateSortResult.rowCount > 0) {
-        return errorResponse(
-          res,
-          400,
-          "Sort order already exists for this builder/company."
-        );
-      }
-    }
 
     const fields = [];
     const values = [];
@@ -348,10 +281,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       values.push(header_name.trim());
     }
 
-    if (sort_order !== undefined) {
-      fields.push(`sort_order = $${i++}`);
-      values.push(sort_order);
-    }
 
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
@@ -391,75 +320,3 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
   }
 };
 
-exports.updateIntegrationCustomFieldHeaderIsActive = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { builder_id, company_id, user_id } = req.user;
-    const { integration_custom_field_header_id } = req.params;
-    const { is_active } = req.body;
-
-    if (!integration_custom_field_header_id) {
-      return errorResponse(
-        res,
-        400,
-        "integration custom field header id is required"
-      );
-    }
-
-    if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)"
-      );
-    }
-
-    const existing = await client.query(
-      `
-      SELECT integration_custom_field_header_id
-      FROM integration_custom_field_header
-      WHERE integration_custom_field_header_id = $1
-        AND company_id = $2
-        AND builder_id = $3
-      `,
-      [integration_custom_field_header_id, company_id, builder_id]
-    );
-
-    if (existing.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "integration custom field header not found"
-      );
-    }
-
-    const updated = await client.query(
-      `
-      UPDATE integration_custom_field_header
-      SET
-        is_active = $1,
-        updated_by = $2,
-        updated_at = NOW()
-      WHERE integration_custom_field_header_id = $3
-      RETURNING *;
-      `,
-      [is_active, user_id, integration_custom_field_header_id]
-    );
-
-    return successResponse(
-      res,
-      keysToCamelCase(updated.rows[0]),
-      "Integration custom field header status updated successfully."
-    );
-  } catch (error) {
-    console.error(
-      "Error updating integration custom field header is_active:",
-      error
-    );
-    return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};

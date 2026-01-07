@@ -19,7 +19,7 @@ exports.getSalesProcessStageFunctionalities = async (req, res) => {
 
     return successResponse(
       res,
-      result.rows,
+      keysToCamelCase(result.rows),
       "Sales process stage functionalities retrieved successfully."
     );
 

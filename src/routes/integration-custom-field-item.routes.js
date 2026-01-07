@@ -6,7 +6,6 @@ const {
   getAllIntegrationCustomFieldItem,
   deleteIntegrationCustomFieldItem,
   updateIntegrationCustomFieldItem,
-  updateIntegrationCustomFieldItemIsActive,
 } = require("../controllers/integration-custom-field-item.controller");
 const {
   createIntegrationCustomFieldItemSchema,
@@ -14,7 +13,6 @@ const {
   deleteIntegrationCustomFieldItemSchema,
   updateIntegrationCustomFieldParamsSchema,
   updateIntegrationCustoFieldItemSchema,
-  updateIntegrationCustomFieldItemIsActiveSchema,
 } = require("../validations/integration-custom-field-item.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -59,17 +57,6 @@ router.put(
   updateIntegrationCustomFieldItem
 );
 
-router.put(
-  "/is-active/:integration_custom_field_item_id",
-  validateRequest(
-    updateIntegrationCustomFieldParamsSchema,
-    REQUEST_SOURCE.PARAMS
-  ),
-  validateRequest(
-    updateIntegrationCustomFieldItemIsActiveSchema,
-    REQUEST_SOURCE.BODY
-  ),
-  updateIntegrationCustomFieldItemIsActive
-);
+
 
 module.exports = router;

@@ -86,7 +86,6 @@ exports.createDocumentFileNamingRule = async (req, res) => {
 
     const insertResult = await client.query(insertQuery, insertValues);
 
-    // Get folder details for response
     let folderNames = [];
     if (folder_ids && folder_ids.length > 0) {
       const folderQuery = `
@@ -389,9 +388,11 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       );
     }
 
+    const updatedRule = updateResult.rows[0];
+
     // Get folder details for response
     let folderNames = [];
-    if (folder_ids && folder_ids.length > 0) {
+    if (updatedRule.folder_ids && updatedRule.folder_ids.length > 0) {
       const folderQuery = `
         SELECT jsonb_agg(
           jsonb_build_object(
@@ -402,13 +403,13 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
         FROM document_common_folder dcf
         WHERE dcf.document_common_folder_id = ANY($1)
       `;
-      const folderResult = await client.query(folderQuery, [folder_ids]);
+      const folderResult = await client.query(folderQuery, [updatedRule.folder_ids]);
       folderNames = folderResult.rows[0]?.jsonb_agg || [];
     }
 
     const responseData = {
-      ...keysToCamelCase(updateResult.rows[0]),
-      folderIds: folder_ids || [],
+      ...keysToCamelCase(updatedRule),
+      folderIds: updatedRule.folder_ids || [],
       folderNames: folderNames
     };
 

@@ -80,6 +80,7 @@ const templateEmailRoutes = require("./template-email.routes");
 const integrationCustomFieldItemRoutes = require("./integration-custom-field-item.routes");
 const templateEmailSignatureRoutes = require("./template-email.signature.routes");
 const templateNoteRoutes = require("./template-note.routes");
+const templatePDFRoutes = require("./template-pdf.routes");
 const schedulerEmailRoutes = require("./scheduler.email.routes");
 const schedulerSettingRoutes = require("./scheduler-setting.routes");
 const portalSettingRoutes = require("./portal-setting.routes");
@@ -201,6 +202,7 @@ module.exports = function (app) {
   app.use("/template-email", templateEmailRoutes);
   app.use("/template-email-signature", templateEmailSignatureRoutes);
   app.use("/template-note", templateNoteRoutes);
+  app.use("/template-pdf", templatePDFRoutes);
   app.use("/scheduler-email", schedulerEmailRoutes);
   app.use("/scheduler-setting", schedulerSettingRoutes);
   app.use("/portal-setting", portalSettingRoutes);

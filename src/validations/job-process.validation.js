@@ -29,7 +29,7 @@ exports.updateStageSchema = Joi.object({
 ========================================================= */
 
 exports.subStageParamsSchema = Joi.object({
-  subStageId: uuid.required(),
+  sub_stage_id: uuid.required(),
 });
 
 exports.createSubStageSchema = Joi.object({

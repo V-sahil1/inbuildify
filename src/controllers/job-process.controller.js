@@ -43,7 +43,7 @@ exports.updateStage = async (req, res) => {
 exports.deleteStage = async (req, res) => {
   try {
     const { builder_id: builderId } = req.user;
-    await stageService.deleteStage(req.params.stageId, builderId);
+    await stageService.deleteStage(req.params.stage_id, builderId);
     return successResponse(res, null, "Stage deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -68,7 +68,7 @@ exports.getStages = async (req, res) => {
 exports.createSubStage = async (req, res) => {
   try {
     const subStage = await stageService.createSubStage(
-      req.params.stageId,
+      req.params.stage_id,
       req.body
     );
     return successResponse(res, keysToCamelCase(subStage), "Sub-stage created");
@@ -79,9 +79,12 @@ exports.createSubStage = async (req, res) => {
 
 exports.updateSubStage = async (req, res) => {
   try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
     const subStage = await stageService.updateSubStage(
-      req.params.subStageId,
-      req.body
+      req.params.sub_stage_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(subStage), "Sub-stage updated");
   } catch (err) {
@@ -91,7 +94,8 @@ exports.updateSubStage = async (req, res) => {
 
 exports.deleteSubStage = async (req, res) => {
   try {
-    await stageService.deleteSubStage(req.params.subStageId);
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    await stageService.deleteSubStage(req.params.subStageId, builderId, companyId);
     return successResponse(res, null, "Sub-stage deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -100,7 +104,7 @@ exports.deleteSubStage = async (req, res) => {
 
 exports.getSubStages = async (req, res) => {
   try {
-    const subStages = await stageService.getSubStages(req.params.stageId);
+    const subStages = await stageService.getSubStages(req.params.stage_id);
     return successResponse(res, keysToCamelCase(subStages));
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -113,9 +117,12 @@ exports.getSubStages = async (req, res) => {
 
 exports.createTask = async (req, res) => {
   try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
     const task = await taskService.createTaskService(
-      req.params.subStageId,
-      req.body
+      req.params.sub_stage_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(task), "Task created");
   } catch (err) {

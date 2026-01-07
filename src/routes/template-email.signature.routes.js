@@ -32,11 +32,7 @@ router.post(
 router.get("/", getTemplateEmailSignature);
 
 router.put(
-  "/:template_email_signature_id",
-  validateRequest(
-    updateTemplateEmailSignatureParamsSchema,
-    REQUEST_SOURCE.PARAMS
-  ),
+  "/",
   validateRequest(updateTemplateEmailSignatureSchema, REQUEST_SOURCE.BODY),
   updateTemplateEmailSignature
 );

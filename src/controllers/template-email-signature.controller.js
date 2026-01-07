@@ -127,7 +127,6 @@ exports.updateTemplateEmailSignature = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { template_email_signature_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
@@ -142,12 +141,10 @@ exports.updateTemplateEmailSignature = async (req, res) => {
     const checkQuery = `
       SELECT *
       FROM template_email_signature
-      WHERE template_email_signature_id = $1
-        AND ((builder_id IS NOT NULL AND builder_id = $2)
-          OR (company_id IS NOT NULL AND company_id = $3))
+      WHERE ((builder_id IS NOT NULL AND builder_id = $1)
+          OR (company_id IS NOT NULL AND company_id = $2))
     `;
     const checkResult = await client.query(checkQuery, [
-      template_email_signature_id,
       builderId,
       companyId,
     ]);
@@ -156,14 +153,12 @@ exports.updateTemplateEmailSignature = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you are not authorized to update it."
+        "No template email signatures found or you are not authorized to update them."
       );
     }
 
-    const existingRecord = checkResult.rows[0];
-
     if (
-      existingRecord.include_email_signature === false &&
+      checkResult.rows.some(record => record.include_email_signature === false) &&
       signature_content !== undefined &&
       (include_email_signature === undefined ||
         include_email_signature === false)
@@ -175,43 +170,33 @@ exports.updateTemplateEmailSignature = async (req, res) => {
       );
     }
 
-    if (
-      include_email_signature === undefined &&
-      signature_content !== undefined
-    ) {
-      if (existingRecord.include_email_signature === false) {
-        return errorResponse(
-          res,
-          400,
-          "You cannot update signature content when include_email_signature is disabled."
-        );
-      }
-    }
-
     if (include_email_signature === false) {
       signature_content = null;
     }
 
     const updateQuery = `
-      UPDATE template_email_signature
-      SET 
-        include_email_signature = COALESCE($1::BOOLEAN, include_email_signature),
-        signature_content = CASE
-          WHEN COALESCE($1::BOOLEAN, include_email_signature) = false THEN NULL
-          WHEN $2::TEXT IS NOT NULL THEN $2::TEXT
-          ELSE signature_content
-        END,
-        updated_by = $3,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE template_email_signature_id = $4
-      RETURNING *;
+     UPDATE template_email_signature
+SET 
+  include_email_signature = COALESCE($1::BOOLEAN, include_email_signature),
+  signature_content = CASE
+    WHEN COALESCE($1::BOOLEAN, include_email_signature) = false THEN NULL
+    WHEN $2::TEXT IS NOT NULL THEN $2::TEXT
+    ELSE signature_content
+  END,
+  updated_by = $3,
+  updated_at = CURRENT_TIMESTAMP
+WHERE ((builder_id IS NOT NULL AND builder_id = $4)
+    OR (company_id IS NOT NULL AND company_id = $5))
+RETURNING include_email_signature, signature_content;
+
     `;
 
     const values = [
       include_email_signature,
       signature_content ? signature_content.trim() : null,
       userId,
-      template_email_signature_id,
+      builderId,
+      companyId,
     ];
 
     const updateResult = await client.query(updateQuery, values);

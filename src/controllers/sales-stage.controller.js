@@ -603,7 +603,6 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
 
     await client.query("BEGIN");
 
-    /* ---------- CHECK SALES PROCESS OWNERSHIP ---------- */
     const processCheck = await client.query(
       `
       SELECT 1
@@ -619,7 +618,6 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
       return errorResponse(res, 404, "Sales process not found for this user.");
     }
 
-    /* ---------- COUNT QUERY ---------- */
     const countResult = await client.query(
       `
       SELECT COUNT(*)::int AS total
@@ -631,26 +629,37 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
 
     const totalRecords = countResult.rows[0].total;
 
-    /* ---------- DATA QUERY ---------- */
     const stagesResult = await client.query(
-      `
-      SELECT
-        sales_stage_id,
-        sales_process_id,
-        stage_name,
-        functionality_id,
-        category,
-        sort_order,
-        is_active,
-        created_at,
-        updated_at
-      FROM sales_stage
-      WHERE sales_process_id = $1
-      ORDER BY sort_order ASC
-      LIMIT $2 OFFSET $3
-      `,
-      [sales_process_id, limitValue, offsetValue]
-    );
+  `
+  SELECT
+    ss.sales_stage_id,
+    ss.sales_process_id,
+    ss.stage_name,
+    ss.category,
+    ss.sort_order,
+    ss.is_active,
+    ss.created_at,
+    ss.updated_at,
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', f.functionality_id,
+          'name', f.name
+        )
+      ) FILTER (WHERE f.functionality_id IS NOT NULL),
+      '[]'
+    ) AS functionality
+  FROM sales_stage ss
+  LEFT JOIN sales_process_stage_functionality f
+    ON f.functionality_id = ANY(ss.functionality_id)
+  WHERE ss.sales_process_id = $1
+  GROUP BY ss.sales_stage_id
+  ORDER BY ss.sort_order ASC
+  LIMIT $2 OFFSET $3
+  `,
+  [sales_process_id, limitValue, offsetValue]
+);
+
 
     await client.query("COMMIT");
 
