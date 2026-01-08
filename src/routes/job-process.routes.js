@@ -87,7 +87,7 @@ router.get(
 );
 
 router.put(
-  "/tasks/:taskId",
+  "/tasks/:task_id",
   camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateTaskSchema, REQUEST_SOURCE.BODY),
@@ -95,7 +95,7 @@ router.put(
 );
 
 router.delete(
-  "/tasks/:taskId",
+  "/tasks/:task_id",
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.deleteTask
 );
@@ -103,7 +103,7 @@ router.delete(
 /* ================= SUB-TASK ================= */
 
 router.post(
-  "/tasks/:taskId/sub-tasks",
+  "/tasks/:task_id/sub-tasks",
   camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.createSubTaskSchema, REQUEST_SOURCE.BODY),
@@ -111,13 +111,14 @@ router.post(
 );
 
 router.get(
-  "/tasks/:taskId/sub-tasks",
+  "/tasks/:task_id/sub-tasks",
+  camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.getSubTasks
 );
 
 router.put(
-  "/sub-tasks/:subTaskId",
+  "/sub-tasks/:sub_task_id",
   camelToSnakeMiddleware,
   validateRequest(validation.subTaskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateSubTaskSchema, REQUEST_SOURCE.BODY),
@@ -125,7 +126,8 @@ router.put(
 );
 
 router.delete(
-  "/sub-tasks/:subTaskId",
+  "/sub-tasks/:sub_task_id",
+  camelToSnakeMiddleware,
   validateRequest(validation.subTaskParamsSchema, REQUEST_SOURCE.PARAMS),
   controller.deleteSubTask
 );

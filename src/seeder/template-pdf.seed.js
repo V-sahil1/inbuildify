@@ -8,8 +8,16 @@ const { keysToCamelCase, keysToSnakeCase } = require("../utils/common");
  */
 function keyToTitle(key) {
   return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (s) => s.toUpperCase());
+    // convert snake_case to spaces
+    .replace(/[_-]/g, " ")
+    // add spaces before CamelCase capitals
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    // normalize spacing
+    .replace(/\s+/g, " ")
+    // trim
+    .trim()
+    // capitalize first letter of each word
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**

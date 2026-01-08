@@ -77,7 +77,41 @@ async function createStage(companyId, builderId, payload) {
     ]
   );
 
-  return result.rows[0];
+  // Fetch the created stage with dependent stage name
+  const { rows: createdRows } = await pool.query(
+    `
+    SELECT 
+      s.*,
+      ds.name AS dependent_stage_name,
+      f.functionality_id,
+      f.name AS functionality_name
+    FROM job_process_stage s
+    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
+    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
+    WHERE s.stage_id = $1
+    `,
+    [result.rows[0].stage_id]
+  );
+
+  const stageData = createdRows[0];
+  return {
+    stageId: stageData.stage_id,
+    name: stageData.name,
+    sortOrder: stageData.sort_order,
+    dependentStage: stageData.dependent_stage_id ? {
+      id: stageData.dependent_stage_id,
+      name: stageData.dependent_stage_name
+    } : null,
+    functionality: {
+      id: stageData.functionality_id,
+      name: stageData.functionality_name,
+      isWorkflow: stageData.is_workflow,
+    },
+    companyId: stageData.company_id,
+    builderId: stageData.builder_id,
+    createdAt: stageData.created_at,
+    updatedAt: stageData.updated_at
+  };
 }
 
 /**
@@ -187,7 +221,41 @@ async function updateStage(stageId, payload, builderId, companyId) {
     throw new Error("Stage not found");
   }
 
-  return result.rows[0];
+  // Fetch the updated stage with dependent stage name
+  const { rows: updatedRows } = await pool.query(
+    `
+    SELECT 
+      s.*,
+      ds.name AS dependent_stage_name,
+      f.functionality_id,
+      f.name AS functionality_name
+    FROM job_process_stage s
+    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
+    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
+    WHERE s.stage_id = $1
+    `,
+    [stageId]
+  );
+
+  const stageData = updatedRows[0];
+  return {
+    stageId: stageData.stage_id,
+    name: stageData.name,
+    sortOrder: stageData.sort_order,
+    dependentStage: stageData.dependent_stage_id ? {
+      id: stageData.dependent_stage_id,
+      name: stageData.dependent_stage_name
+    } : null,
+    functionality: {
+      id: stageData.functionality_id,
+      name: stageData.functionality_name,
+      isWorkflow: stageData.is_workflow,
+    },
+    companyId: stageData.company_id,
+    builderId: stageData.builder_id,
+    createdAt: stageData.created_at,
+    updatedAt: stageData.updated_at
+  };
 }
 
 /**
@@ -505,6 +573,8 @@ async function getJobProcess(companyId, builderId) {
       s.stage_id,
       s.name AS stage_name,
       s.sort_order AS stage_order,
+      s.dependent_stage_id,
+      ds.name AS dependent_stage_name,
       f.functionality_id,
       f.name AS functionality_name,
       f.is_workflow,
@@ -518,6 +588,7 @@ async function getJobProcess(companyId, builderId) {
       t.sort_order AS task_order,
 
       d.predecessor_task_id,
+      pt.name AS predecessor_task_name,
 
       st.job_process_subtask_id,
       st.name AS subtask_name,
@@ -525,9 +596,11 @@ async function getJobProcess(companyId, builderId) {
 
     FROM job_process_stage s
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
+    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
     LEFT JOIN job_process_sub_stage ss ON ss.stage_id = s.stage_id
     LEFT JOIN job_process_task t ON t.sub_stage_id = ss.sub_stage_id
     LEFT JOIN job_process_task_dependency d ON d.task_id = t.job_process_task_id
+    LEFT JOIN job_process_task pt ON d.predecessor_task_id = pt.job_process_task_id
     LEFT JOIN job_process_subtask st ON st.job_process_task_id = t.job_process_task_id
     WHERE s.company_id = $1 AND s.builder_id = $2
     ORDER BY
@@ -547,6 +620,10 @@ async function getJobProcess(companyId, builderId) {
         stageId: r.stage_id,
         name: r.stage_name,
         sortOrder: r.stage_order,
+        dependentStage: r.dependent_stage_id ? {
+          id: r.dependent_stage_id,
+          name: r.dependent_stage_name
+        } : null,
         functionality: {
           id: r.functionality_id,
           name: r.functionality_name,
@@ -591,9 +668,12 @@ async function getJobProcess(companyId, builderId) {
 
         if (
           r.predecessor_task_id &&
-          !task.dependencies.includes(r.predecessor_task_id)
+          !task.dependencies.find(dep => dep.id === r.predecessor_task_id)
         ) {
-          task.dependencies.push(r.predecessor_task_id);
+          task.dependencies.push({
+            id: r.predecessor_task_id,
+            name: r.predecessor_task_name
+          });
         }
 
         if (r.job_process_subtask_id) {
@@ -626,12 +706,13 @@ async function getStages(companyId, builderId) {
       s.name,
       s.sort_order,
       s.dependent_stage_id,
+      ds.name AS dependent_stage_name,
       f.functionality_id,
-      f.name AS functionality_name,
-      f.is_workflow
+      f.name AS functionality_name
     FROM job_process_stage s
     JOIN job_process_stage_functionality f
       ON f.functionality_id = s.functionality_id
+    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
     WHERE s.company_id = $1
       AND s.builder_id = $2
     ORDER BY s.sort_order
@@ -639,7 +720,20 @@ async function getStages(companyId, builderId) {
     [companyId, builderId]
   );
 
-  return rows;
+  // Format response to include dependentStage as object
+  return rows.map(row => ({
+    stageId: row.stage_id,
+    name: row.name,
+    sortOrder: row.sort_order,
+    dependentStage: row.dependent_stage_id ? {
+      id: row.dependent_stage_id,
+      name: row.dependent_stage_name
+    } : null,
+    functionality: {
+      id: row.functionality_id,
+      name: row.functionality_name,
+    }
+  }));
 }
 
 async function getSubStages(stageId) {

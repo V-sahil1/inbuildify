@@ -106,18 +106,44 @@ exports.createSalesStage = async (req, res) => {
     await client.query(shiftSortOrderQuery, [finalSortOrder, sales_process_id]);
 
     const insertQuery = `
-      INSERT INTO sales_stage (
-        sales_process_id,
-        stage_name,
-        functionality_id,
-        category,
-        sort_order,
-        is_active,
-        created_by,
-        updated_by
+      WITH inserted AS (
+        INSERT INTO sales_stage (
+          sales_process_id,
+          stage_name,
+          functionality_id,
+          category,
+          sort_order,
+          is_active,
+          created_by,
+          updated_by
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        RETURNING sales_stage_id, sales_process_id, stage_name, functionality_id, category, sort_order, is_active, created_by, updated_by, created_at, updated_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      RETURNING *;
+      SELECT
+        i.sales_stage_id,
+        i.sales_process_id,
+        i.stage_name,
+        i.category,
+        i.sort_order,
+        i.is_active,
+        i.created_by,
+        i.updated_by,
+        i.created_at,
+        i.updated_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', f.functionality_id,
+              'name', f.name
+            )
+          ) FILTER (WHERE f.functionality_id IS NOT NULL),
+          '[]'
+        ) AS functionality
+      FROM inserted i
+      LEFT JOIN sales_process_stage_functionality f
+        ON f.functionality_id = ANY(i.functionality_id)
+      GROUP BY i.sales_stage_id, i.sales_process_id, i.stage_name, i.category, i.sort_order, i.is_active, i.created_by, i.updated_by, i.created_at, i.updated_at;
     `;
 
     const values = [
@@ -374,7 +400,7 @@ exports.updateSalesStage = async (req, res) => {
           FROM sales_process_stage_functionality
           WHERE functionality_id = ANY($1)
           `,
-          [builderId]
+          [functionality_id]
         );
 
         if (funcCheck.rowCount !== functionality_id.length) {
@@ -473,10 +499,36 @@ exports.updateSalesStage = async (req, res) => {
     fields.push(`updated_at = NOW()`);
 
     const query = `
-      UPDATE sales_stage
-      SET ${fields.join(", ")}
-      WHERE sales_stage_id = $${i}
-      RETURNING *;
+      WITH updated AS (
+        UPDATE sales_stage
+        SET ${fields.join(", ")}
+        WHERE sales_stage_id = $${i}
+        RETURNING sales_stage_id, sales_process_id, stage_name, functionality_id, category, sort_order, is_active, created_by, updated_by, created_at, updated_at
+      )
+      SELECT
+        u.sales_stage_id,
+        u.sales_process_id,
+        u.stage_name,
+        u.category,
+        u.sort_order,
+        u.is_active,
+        u.created_by,
+        u.updated_by,
+        u.created_at,
+        u.updated_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', f.functionality_id,
+              'name', f.name
+            )
+          ) FILTER (WHERE f.functionality_id IS NOT NULL),
+          '[]'
+        ) AS functionality
+      FROM updated u
+      LEFT JOIN sales_process_stage_functionality f
+        ON f.functionality_id = ANY(u.functionality_id)
+      GROUP BY u.sales_stage_id, u.sales_process_id, u.stage_name, u.category, u.sort_order, u.is_active, u.created_by, u.updated_by, u.created_at, u.updated_at;
     `;
 
     values.push(sales_stage_id);

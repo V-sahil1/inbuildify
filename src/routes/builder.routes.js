@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   upsertBuilder,
   getMyBuilderProfile,
+  getAllBuilders,
 } = require("../controllers/builder.controller");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -18,6 +19,7 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 const upload = createUpload("builder-logo");
 
+router.get("/all", getAllBuilders);
 router.get("/", getMyBuilderProfile);
 router.post(
   "/",

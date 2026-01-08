@@ -1,15 +1,15 @@
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const templatePdfService = require("../services/template-pdf.service");
+const {
+  getFormatValidationSchema,
+} = require("../validations/template-pdf.validation");
 
 exports.createTemplatePdf = async (req, res) => {
   try {
     const user = req.user;
 
-    const template = await templatePdfService.createTemplatePdf(
-      user,
-      req.body
-    );
+    const template = await templatePdfService.createTemplatePdf(user, req.body);
 
     return successResponse(
       res,
@@ -25,19 +25,42 @@ exports.createTemplatePdf = async (req, res) => {
 exports.updateTemplatePdf = async (req, res) => {
   try {
     const user = req.user;
-    const { template_pdf_id: templatePdfId } = req.params;
+    const { template_pdf_id } = req.params;
 
-    console.log("🚀 ~ req.body:", req.body)
-    const template = await templatePdfService.updateTemplatePdf(
+    const formatTypeInput = req.body.format_type;
+    if (!formatTypeInput) return errorResponse(res, 400, "format_type is required");
+
+    const formatType = templatePdfService.normalizeFormatType(formatTypeInput);
+    if (!formatType) return errorResponse(res, 400, "Invalid format_type");
+
+    const schema = getFormatValidationSchema(formatType);
+    if (!schema) return errorResponse(res, 400, "Invalid format_type");
+
+    const payloadForValidation = { ...req.body };
+    delete payloadForValidation.format_type;
+    delete payloadForValidation.logo_image;
+    delete payloadForValidation.watermark_image;
+    
+    const { error } = schema.validate(payloadForValidation, { abortEarly: false });
+    if (error) {
+      return errorResponse(
+        res,
+        422,
+        error.details.map((d) => d.message).join(", ")
+      );
+    }
+
+    const updated = await templatePdfService.updateTemplatePdf(
       user,
-      templatePdfId,
+      template_pdf_id,
+      formatType,
       req.body
     );
 
     return successResponse(
       res,
-      keysToCamelCase(template),
-      "PDF template updated successfully"
+      keysToCamelCase(updated),
+      "Template format updated successfully"
     );
   } catch (err) {
     console.error(err);

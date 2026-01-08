@@ -132,9 +132,12 @@ exports.createTask = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
   try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
     const task = await taskService.updateTask(
-      req.params.taskId,
-      req.body
+      req.params.task_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(task), "Task updated");
   } catch (err) {
@@ -144,7 +147,8 @@ exports.updateTask = async (req, res) => {
 
 exports.deleteTask = async (req, res) => {
   try {
-    await taskService.deleteTask(req.params.taskId);
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    await taskService.deleteTask(req.params.task_id, builderId, companyId);
     return successResponse(res, null, "Task deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -153,7 +157,8 @@ exports.deleteTask = async (req, res) => {
 
 exports.getTasks = async (req, res) => {
   try {
-    const tasks = await taskService.getTasks(req.params.subStageId);
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    const tasks = await taskService.getTasks(req.params.sub_stage_id, builderId, companyId);
     return successResponse(res, tasks);
   } catch (err) {
     return errorResponse(res, 500, err.message);
@@ -166,9 +171,12 @@ exports.getTasks = async (req, res) => {
 
 exports.createSubTask = async (req, res) => {
   try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
     const subTask = await taskService.createSubTask(
-      req.params.taskId,
-      req.body
+      req.params.task_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(subTask), "Sub-task created");
   } catch (err) {
@@ -178,9 +186,12 @@ exports.createSubTask = async (req, res) => {
 
 exports.updateSubTask = async (req, res) => {
   try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
     const subTask = await taskService.updateSubTask(
-      req.params.subTaskId,
-      req.body
+      req.params.sub_task_id,
+      req.body,
+      builderId,
+      companyId
     );
     return successResponse(res, keysToCamelCase(subTask), "Sub-task updated");
   } catch (err) {
@@ -190,7 +201,8 @@ exports.updateSubTask = async (req, res) => {
 
 exports.deleteSubTask = async (req, res) => {
   try {
-    await taskService.deleteSubTask(req.params.subTaskId);
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    await taskService.deleteSubTask(req.params.sub_task_id, builderId, companyId);
     return successResponse(res, null, "Sub-task deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -199,7 +211,8 @@ exports.deleteSubTask = async (req, res) => {
 
 exports.getSubTasks = async (req, res) => {
   try {
-    const subTasks = await taskService.getSubTasks(req.params.taskId);
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    const subTasks = await taskService.getSubTasks(req.params.task_id, builderId, companyId);
     return successResponse(res, keysToCamelCase(subTasks));
   } catch (err) {
     return errorResponse(res, 500, err.message);

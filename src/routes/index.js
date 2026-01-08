@@ -113,8 +113,10 @@ const recalculateDateRoutes = require("./recalculate-date.routes");
 const constructionTypeRoutes = require("./construction-type.routes");
 const constructionStageRoutes = require("./construction-stage-.routes");
 const constructionInspectionChecklistRoutes = require("./construction-inspection-checklist.routes");
+const constructionOHSRoutes = require("./construction-ohs.routes");
 const timezoneRoutes = require("./timezone.routes");
 const roleTypeRoutes = require("./role-type.routes");
+const costCenterRoutes = require("./cost-center.routes")
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -234,7 +236,9 @@ module.exports = function (app) {
   app.use("/recalculate-date", recalculateDateRoutes);
   app.use("/construction-type", constructionTypeRoutes);
   app.use("/construction-stage", constructionStageRoutes);
+  app.use("/construction-ohs", constructionOHSRoutes);
   app.use("/construction-inspection-checklist", constructionInspectionChecklistRoutes);
   app.use("/timezone", timezoneRoutes);
   app.use("/role-type", roleTypeRoutes);
+  app.use("/cost-center", costCenterRoutes)
 };

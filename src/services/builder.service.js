@@ -205,4 +205,58 @@ async function getBuilderProfile(builderId) {
   }
 }
 
-module.exports = { upsertBuilder, getBuilderProfile };
+async function getAllBuilders() {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(
+      `
+      SELECT
+        b.builder_id,
+        b.name,
+        b.email,
+        b.phone_number,
+        b.abn_number,
+        b.acn_number,
+        b.hia_membership_no,
+        b.registration_number,
+        b.registered_building_practitioner,
+        b.practitioner_reg_no,
+        b.licensed_builder_name,
+        b.logo,
+        b.created_at,
+        b.updated_at,
+        jsonb_build_object(
+          'address_id', a.address_id,
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'state_id', a.state_id,
+          'country_id', a.country_id,
+          'zip_code', a.zip_code
+        ) AS address,
+        jsonb_build_object(
+          'builder_insurer_id', bi.builder_insurer_id,
+          'insurer_name', bi.insurer_name,
+          'insured_name', bi.insured_name,
+          'phone_number', bi.phone_number,
+          'address_line1', bi.address_line1,
+          'address_line2', bi.address_line2,
+          'state_id', bi.state_id,
+          'zip_code', bi.zip_code
+        ) AS insurer
+      FROM builder b
+      LEFT JOIN address a ON a.address_id = b.address_id
+      LEFT JOIN builder_insurer bi ON bi.builder_id = b.builder_id
+      ORDER BY b.name ASC
+      `
+    );
+
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { upsertBuilder, getBuilderProfile, getAllBuilders };

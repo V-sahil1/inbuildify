@@ -1,6 +1,6 @@
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
-const { upsertBuilder, getBuilderProfile } = require("../services/builder.service");
+const { upsertBuilder, getBuilderProfile, getAllBuilders } = require("../services/builder.service");
 
 exports.upsertBuilder = async (req, res) => {
   try {
@@ -41,5 +41,20 @@ exports.getMyBuilderProfile = async (req, res) => {
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, "Failed to fetch builder profile");
+  }
+};
+
+exports.getAllBuilders = async (req, res) => {
+  try {
+    const builders = await getAllBuilders();
+
+    return successResponse(
+      res,
+      keysToCamelCase(builders),
+      "All builders fetched successfully"
+    );
+  } catch (err) {
+    console.error(err);
+    return errorResponse(res, 500, "Failed to fetch builders");
   }
 };

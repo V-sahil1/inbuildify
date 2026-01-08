@@ -170,12 +170,33 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
   }
 };
 
-exports.updateTask = async (taskId, payload) => {
+exports.updateTask = async (taskId, payload, builderId, companyId) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Authorization check - user can only update tasks for their own sub-stages
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_task t
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE t.job_process_task_id = $1
+      `,
+      [taskId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only update tasks for your own sub-stages");
+    }
 
     // Get current task info
     const checkQuery = await client.query(
@@ -286,9 +307,56 @@ exports.updateTask = async (taskId, payload) => {
     );
 
     if (!rowCount) throw new Error("Task not found");
+    
+    // Handle predecessor task dependencies
+    if (payload.predecessor_task_ids !== undefined) {
+      // Clear existing dependencies
+      await client.query(
+        "DELETE FROM job_process_task_dependency WHERE task_id = $1",
+        [taskId]
+      );
+      
+      // Add new dependencies
+      for (const depId of payload.predecessor_task_ids || []) {
+        if (depId === taskId) {
+          throw new Error("Task cannot depend on itself");
+        }
+        
+        await client.query(
+          `
+          INSERT INTO job_process_task_dependency(task_id, predecessor_task_id)
+          VALUES ($1, $2)
+          `,
+          [taskId, depId]
+        );
+      }
+    }
+
+    // Fetch the updated task with dependencies
+    const { rows: updatedRows } = await client.query(
+      `
+      SELECT 
+        t.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', td.predecessor_task_id,
+              'name', pt.name
+            )
+          ) FILTER (WHERE td.predecessor_task_id IS NOT NULL),
+          '[]'
+        ) AS predecessor_task_ids
+      FROM job_process_task t
+      LEFT JOIN job_process_task_dependency td ON t.job_process_task_id = td.task_id
+      LEFT JOIN job_process_task pt ON td.predecessor_task_id = pt.job_process_task_id
+      WHERE t.job_process_task_id = $1
+      GROUP BY t.job_process_task_id
+      `,
+      [taskId]
+    );
 
     await client.query("COMMIT");
-    return rows[0];
+    return updatedRows[0];
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -297,12 +365,33 @@ exports.updateTask = async (taskId, payload) => {
   }
 };
 
-exports.deleteTask = async (taskId) => {
+exports.deleteTask = async (taskId, builderId, companyId) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Authorization check - user can only delete tasks for their own sub-stages
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_task t
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE t.job_process_task_id = $1
+      `,
+      [taskId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only delete tasks for your own sub-stages");
+    }
 
     // Get task info before deletion
     const checkQuery = await client.query(
@@ -347,7 +436,7 @@ exports.deleteTask = async (taskId) => {
   }
 };
 
-exports.getTasks = async (subStageId) => {
+exports.getTasks = async (subStageId, builderId, companyId) => {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -371,6 +460,10 @@ exports.getTasks = async (subStageId) => {
       st.sort_order AS subtask_order
 
     FROM job_process_task t
+    JOIN job_process_sub_stage ss
+      ON ss.sub_stage_id = t.sub_stage_id
+    JOIN job_process_stage s
+      ON s.stage_id = ss.stage_id
     LEFT JOIN job_process_task_dependency d
       ON d.task_id = t.job_process_task_id
     LEFT JOIN job_process_task pt
@@ -378,9 +471,10 @@ exports.getTasks = async (subStageId) => {
     LEFT JOIN job_process_subtask st
       ON st.job_process_task_id = t.job_process_task_id
     WHERE t.sub_stage_id = $1
+      AND (s.builder_id = $2 OR s.company_id = $3)
     ORDER BY t.sort_order, st.sort_order
     `,
-    [subStageId]
+    [subStageId, builderId, companyId]
   );
 
   const taskMap = new Map();
@@ -433,19 +527,40 @@ exports.getTasks = async (subStageId) => {
       }
     }
   }
-
   return Array.from(taskMap.values());
 };
 
 /**
- * CREATE SUB-TASK
+ * CREATE SUB-TASK  
  */
-exports.createSubTask = async (taskId, payload) => {
+exports.createSubTask = async (taskId, payload, builderId, companyId) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Authorization check - user can only create sub-tasks for their own tasks
+    // (task -> sub_stage -> stage ownership)
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_task t
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE t.job_process_task_id = $1
+      `,
+      [taskId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only create sub-tasks for your own tasks");
+    }
 
     // Check for duplicate sub-task name within the same task
     const duplicateCheck = await client.query(
@@ -505,8 +620,34 @@ exports.createSubTask = async (taskId, payload) => {
       [taskId, payload.name, finalSortOrder]
     );
 
+    // Fetch the created sub-task with task info
+    const { rows: createdRows } = await client.query(
+      `
+      SELECT 
+        st.*,
+        t.job_process_task_id,
+        t.name AS task_name
+      FROM job_process_subtask st
+      JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
+      WHERE st.job_process_subtask_id = $1
+      `,
+      [rows[0].job_process_subtask_id]
+    );
+
     await client.query("COMMIT");
-    return rows[0];
+    
+    const subTaskData = createdRows[0];
+    return {
+      jobProcessSubtaskId: subTaskData.job_process_subtask_id,
+      name: subTaskData.name,
+      sortOrder: subTaskData.sort_order,
+      jobProcessTask: {
+        id: subTaskData.job_process_task_id,
+        name: subTaskData.task_name
+      },
+      createdAt: subTaskData.created_at,
+      updatedAt: subTaskData.updated_at
+    };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -518,12 +659,34 @@ exports.createSubTask = async (taskId, payload) => {
 /**
  * UPDATE SUB-TASK
  */
-exports.updateSubTask = async (subTaskId, payload) => {
+exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Authorization check - user can only update sub-tasks for their own tasks
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_subtask st
+      JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE st.job_process_subtask_id = $1
+      `,
+      [subTaskId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Sub-task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only update sub-tasks for your own tasks");
+    }
 
     // Get current sub-task info
     const checkQuery = await client.query(
@@ -610,7 +773,7 @@ exports.updateSubTask = async (subTaskId, payload) => {
       SET
         name = COALESCE($2, name),
         sort_order = COALESCE($3, sort_order),
-        updated_at = NOW()
+        created_at = created_at
       WHERE job_process_subtask_id = $1
       RETURNING *
       `,
@@ -619,8 +782,34 @@ exports.updateSubTask = async (subTaskId, payload) => {
 
     if (!rowCount) throw new Error("Sub-task not found");
 
+    // Fetch the updated sub-task with task info
+    const { rows: updatedRows } = await client.query(
+      `
+      SELECT 
+        st.*,
+        t.job_process_task_id,
+        t.name AS task_name
+      FROM job_process_subtask st
+      JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
+      WHERE st.job_process_subtask_id = $1
+      `,
+      [subTaskId]
+    );
+
     await client.query("COMMIT");
-    return rows[0];
+    
+    const subTaskData = updatedRows[0];
+    return {
+      jobProcessSubtaskId: subTaskData.job_process_subtask_id,
+      name: subTaskData.name,
+      sortOrder: subTaskData.sort_order,
+      jobProcessTask: {
+        id: subTaskData.job_process_task_id,
+        name: subTaskData.task_name
+      },
+      createdAt: subTaskData.created_at,
+      updatedAt: subTaskData.updated_at
+    };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -632,12 +821,34 @@ exports.updateSubTask = async (subTaskId, payload) => {
 /**
  * DELETE SUB-TASK
  */
-exports.deleteSubTask = async (subTaskId) => {
+exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    // Authorization check - user can only delete sub-tasks for their own tasks
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_subtask st
+      JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE st.job_process_subtask_id = $1
+      `,
+      [subTaskId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Sub-task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only delete sub-tasks for your own tasks");
+    }
 
     // Get sub-task info before deletion
     const checkQuery = await client.query(
@@ -688,22 +899,36 @@ exports.deleteSubTask = async (subTaskId) => {
 /**
  * GET SUB-TASKS BY TASK
  */
-exports.getSubTasks = async (taskId) => {
+exports.getSubTasks = async (taskId, builderId, companyId) => {
   const pool = getPool();
 
   const { rows } = await pool.query(
     `
-    SELECT
-      job_process_subtask_id,
-      name,
-      sort_order,
-      created_at
-    FROM job_process_subtask
-    WHERE job_process_task_id = $1
-    ORDER BY sort_order
+    SELECT 
+      st.*,
+      t.job_process_task_id,
+      t.name AS task_name
+    FROM job_process_subtask st
+    JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
+    JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+    JOIN job_process_stage s ON s.stage_id = ss.stage_id
+    WHERE st.job_process_task_id = $1
+      AND (s.builder_id = $2 OR s.company_id = $3)
+    ORDER BY st.sort_order
     `,
-    [taskId]
+    [taskId, builderId, companyId]
   );
 
-  return rows;
+  // Format response to include jobProcessTask as object
+  return rows.map(row => ({
+    jobProcessSubtaskId: row.job_process_subtask_id,
+    name: row.name,
+    sortOrder: row.sort_order,
+    jobProcessTask: {
+      id: row.job_process_task_id,
+      name: row.task_name
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
 };

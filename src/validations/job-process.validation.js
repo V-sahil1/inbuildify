@@ -47,7 +47,7 @@ exports.updateSubStageSchema = Joi.object({
 ========================================================= */
 
 exports.taskParamsSchema = Joi.object({
-  taskId: uuid.required(),
+  task_id: uuid.required(),
 });
 
 exports.createTaskSchema = Joi.object({
@@ -71,6 +71,7 @@ exports.updateTaskSchema = Joi.object({
   notify: Joi.boolean().optional(),
   milestone: Joi.boolean().optional(),
   attachment_mandatory: Joi.boolean().optional(),
+  predecessor_task_ids: Joi.array().items(uuid).optional(),
 });
 
 /* =========================================================
@@ -78,7 +79,7 @@ exports.updateTaskSchema = Joi.object({
 ========================================================= */
 
 exports.subTaskParamsSchema = Joi.object({
-  subTaskId: uuid.required(),
+  sub_task_id: uuid.required(),
 });
 
 exports.createSubTaskSchema = Joi.object({

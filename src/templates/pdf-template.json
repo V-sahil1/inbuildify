@@ -1,205 +1,205 @@
 {
-  "invoiceFormat": {
-    "showDetails": {
+  "invoice_format": {
+    "show_details": {
       "account": "Builder Info",
       "address": "Header",
       "contact": "None",
-      "bankInformation": "Bottom"
+      "bank_information": "Bottom"
     },
-    "pageHeader": {
-      "backgroundColor": null,
-      "fontColor": "#000000",
-      "fontSize": 10,
+    "page_header": {
+      "background_color": null,
+      "font_color": "#000000",
+      "font_size": 10,
       "title": ""
     },
-    "pageFooter": {
-      "backgroundColor": null,
-      "fontColor": "#000000",
-      "fontSize": 10
+    "page_footer": {
+      "background_color": null,
+      "font_color": "#000000",
+      "font_size": 10
     },
-    "logoSettings": {
+    "logo_settings": {
       "alignment": "Left",
       "height": 130,
       "width": 150,
       "padding": null,
-      "logoImage": null,
-      "watermarkImage": null
+      "logo_image": null,
+      "watermark_image": null
     },
-    "listItems": {
+    "list_items": {
       "header": {
-        "backgroundColor": "#085dad",
-        "fontColor": "#ffffff"
+        "background_color": "#085dad",
+        "font_color": "#ffffff"
       },
       "footer": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       }
     },
-    "bankDetails": {
-      "headerText": "Please credit funds direct to the following account details:"
+    "bank_details": {
+      "header_text": "Please credit funds direct to the following account details:"
     },
-    "customText": "",
-    "initialDepositDescription": "Initial Deposit"
+    "custom_text": "",
+    "initial_deposit_description": "Initial Deposit"
   },
-  "receiptFormat": {
-    "showDetails": {
+  "receipt_format": {
+    "show_details": {
       "account": "Company Info",
       "address": "Header",
       "contact": "None",
-      "bankInformation": "None"
+      "bank_information": "None"
     },
-    "pageHeader": {
-      "backgroundColor": null,
-      "fontColor": "#000000",
-      "fontSize": 10,
+    "page_header": {
+      "background_color": null,
+      "font_color": "#000000",
+      "font_size": 10,
       "title": ""
     },
-    "pageFooter": {
-      "backgroundColor": null,
-      "fontColor": "#000000",
-      "fontSize": 10
+    "page_footer": {
+      "background_color": null,
+      "font_color": "#000000",
+      "font_size": 10
     },
-    "logoSettings": {
+    "logo_settings": {
       "alignment": "Left",
       "height": 130,
       "width": 130,
       "padding": null,
-      "logoImage": null,
-      "watermarkImage": null
+      "logo_image": null,
+      "watermark_image": null
     },
-    "bankDetails": {
-      "headerText": "Please credit funds direct to the following account details:"
+    "bank_details": {
+      "header_text": "Please credit funds direct to the following account details:"
     },
-    "customText": "Terms and Conditions goes here................"
+    "custom_text": "Terms and Conditions goes here................"
   },
-  "variationFormat": {
-    "showDetails": {
+  "variation_format": {
+    "show_details": {
       "account": "Builder Info",
       "address": "Header",
       "contact": "None",
-      "bankInformation": "Bottom"
+      "bank_information": "Bottom"
     },
-    "pageHeader": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 12,
+    "page_header": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 12,
       "title": ""
     },
-    "pageFooter": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 10
+    "page_footer": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 10
     },
-    "logoSettings": {
+    "logo_settings": {
       "alignment": "Left",
       "height": 130,
       "width": 130,
       "padding": null,
-      "logoImage": null,
-      "watermarkImage": null
+      "logo_image": null,
+      "watermark_image": null
     },
-    "listItems": {
+    "list_items": {
       "header": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       },
       "footer": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       }
     },
-    "subItems": {
+    "sub_items": {
       "header": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       },
-      "showUnitOption": "Don't show units"
+      "show_unit_option": "Don't show units"
     },
-    "bankDetails": {
-      "headerText": "Bank Details"
+    "bank_details": {
+      "header_text": "Bank Details"
     },
-    "customText": "Custom Text",
-    "totalCostCustomText": "",
-    "enableBuilderSignature": true
+    "custom_text": "Custom Text",
+    "total_cost_custom_text": "",
+    "enable_builder_signature": true
   },
-  "colorFormat": {
-    "showDetails": {
+  "color_format": {
+    "show_details": {
       "account": "Company Info",
       "address": "Header",
       "contact": "None",
-      "useLabelInfo": false
+      "use_label_info": false
     },
-    "pageHeader": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 12,
+    "page_header": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 12,
       "title": ""
     },
-    "pageFooter": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 10
+    "page_footer": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 10
     },
-    "logoSettings": {
+    "logo_settings": {
       "alignment": "Left",
       "height": 70,
       "width": 120,
       "padding": null,
-      "logoImage": null,
-      "watermarkImage": null
+      "logo_image": null,
+      "watermark_image": null
     },
-    "listItems": {
+    "list_items": {
       "header": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       },
       "footer": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       }
     },
-    "costTypeStyles": {
+    "cost_type_styles": {
       "standard": {
-        "backgroundColor": "#0ba160",
-        "fontColor": "#ffffff"
+        "background_color": "#0ba160",
+        "font_color": "#ffffff"
       },
       "upgrade": {
-        "backgroundColor": "#dc3545",
-        "fontColor": "#ffffff"
+        "background_color": "#dc3545",
+        "font_color": "#ffffff"
       }
     },
-    "customText": "",
-    "enableBuilderSignature": true
+    "custom_text": "",
+    "enable_builder_signature": true
   },
-  "maintenanceFormat": {
-    "showDetails": {
+  "maintenance_format": {
+    "show_details": {
       "account": "Company Info",
       "address": "Header",
       "contact": "None"
     },
-    "pageHeader": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 12,
+    "page_header": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 12,
       "title": "Maintenance Report"
     },
-    "pageFooter": {
-      "backgroundColor": null,
-      "fontColor": "#1049a5",
-      "fontSize": 10
+    "page_footer": {
+      "background_color": null,
+      "font_color": "#1049a5",
+      "font_size": 10
     },
-    "logoSettings": {
+    "logo_settings": {
       "alignment": "Left",
       "height": 70,
       "width": 120,
       "padding": null,
-      "logoImage": null,
-      "watermarkImage": null
+      "logo_image": null,
+      "watermark_image": null
     },
-    "listItems": {
+    "list_items": {
       "header": {
-        "backgroundColor": null,
-        "fontColor": null
+        "background_color": null,
+        "font_color": null
       }
     }
   }
