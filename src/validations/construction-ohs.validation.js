@@ -5,8 +5,8 @@ const Joi = require("joi");
 ======================== */
 
 const upsertSettingsSchema = Joi.object({
-  signature_required: Joi.boolean().required(),
-  minimum_audits: Joi.number().integer().min(0).required()
+  signature_required: Joi.boolean().optional(),
+  minimum_audits: Joi.number().integer().min(0).optional()
 });
 
 /* ========================

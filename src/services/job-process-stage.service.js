@@ -84,7 +84,8 @@ async function createStage(companyId, builderId, payload) {
       s.*,
       ds.name AS dependent_stage_name,
       f.functionality_id,
-      f.name AS functionality_name
+      f.name AS functionality_name,
+      f.is_workflow
     FROM job_process_stage s
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
@@ -105,8 +106,8 @@ async function createStage(companyId, builderId, payload) {
     functionality: {
       id: stageData.functionality_id,
       name: stageData.functionality_name,
-      isWorkflow: stageData.is_workflow,
     },
+    isWorkflow: stageData.is_workflow,
     companyId: stageData.company_id,
     builderId: stageData.builder_id,
     createdAt: stageData.created_at,
@@ -210,11 +211,12 @@ async function updateStage(stageId, payload, builderId, companyId) {
       name = COALESCE($2, name),
       sort_order = COALESCE($3, sort_order),
       dependent_stage_id = COALESCE($4, dependent_stage_id),
+      functionality_id = COALESCE($5, functionality_id),
       updated_at = NOW()
     WHERE stage_id = $1
     RETURNING *
     `,
-    [stageId, payload.name, payload.sort_order, payload.dependent_stage_id]
+    [stageId, payload.name, payload.sort_order, payload.dependent_stage_id, payload.functionality_id]
   );
 
   if (!result.rowCount) {
@@ -228,7 +230,8 @@ async function updateStage(stageId, payload, builderId, companyId) {
       s.*,
       ds.name AS dependent_stage_name,
       f.functionality_id,
-      f.name AS functionality_name
+      f.name AS functionality_name,
+      f.is_workflow
     FROM job_process_stage s
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
@@ -249,8 +252,8 @@ async function updateStage(stageId, payload, builderId, companyId) {
     functionality: {
       id: stageData.functionality_id,
       name: stageData.functionality_name,
-      isWorkflow: stageData.is_workflow,
     },
+    isWorkflow: stageData.is_workflow,
     companyId: stageData.company_id,
     builderId: stageData.builder_id,
     createdAt: stageData.created_at,
@@ -522,9 +525,9 @@ async function deleteSubStage(subStageId, builderId, companyId) {
       SELECT ss.sub_stage_id, ss.stage_id, ss.sort_order, s.builder_id, s.company_id
       FROM job_process_sub_stage ss
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
-      WHERE ss.sub_stage_id = $1
+      WHERE ss.sub_stage_id = $1 AND s.builder_id = $2 AND s.company_id = $3
       `,
-      [subStageId]
+      [subStageId, builderId, companyId]
     );
 
     if (checkQuery.rows.length === 0) {
@@ -532,10 +535,6 @@ async function deleteSubStage(subStageId, builderId, companyId) {
     }
 
     const subStageInfo = checkQuery.rows[0];
-
-    if (subStageInfo.builder_id !== builderId && subStageInfo.company_id !== companyId) {
-      throw new Error("You can only delete your own sub-stages");
-    }
 
     const existingSortOrder = subStageInfo.sort_order;
     const stageId = subStageInfo.stage_id;
@@ -708,10 +707,11 @@ async function getStages(companyId, builderId) {
       s.dependent_stage_id,
       ds.name AS dependent_stage_name,
       f.functionality_id,
-      f.name AS functionality_name
+      f.name AS functionality_name,
+      f.is_workflow
     FROM job_process_stage s
     JOIN job_process_stage_functionality f
-      ON f.functionality_id = s.functionality_id
+    ON f.functionality_id = s.functionality_id
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
     WHERE s.company_id = $1
       AND s.builder_id = $2
@@ -732,7 +732,8 @@ async function getStages(companyId, builderId) {
     functionality: {
       id: row.functionality_id,
       name: row.functionality_name,
-    }
+    },
+    isWorkflow: row.is_workflow
   }));
 }
 

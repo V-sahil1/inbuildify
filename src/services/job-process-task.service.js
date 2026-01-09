@@ -897,6 +897,105 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
 };
 
 /**
+ * GET ALL TASKS FOR BUILDER
+ */
+exports.getAllJobTasks = async (builderId, companyId) => {
+  const pool = getPool();
+
+  const { rows } = await pool.query(
+    `
+    SELECT
+      t.job_process_task_id,
+      t.name,
+      t.description,
+      t.sort_order,
+      t.no_of_days,
+      t.assignee_id,
+      t.notify,
+      t.milestone,
+      t.attachment_mandatory,
+      t.created_at,
+      t.updated_at,
+
+      d.predecessor_task_id,
+      pt.name AS predecessor_task_name,
+
+      ss.sub_stage_id,
+      ss.name AS sub_stage_name,
+      ss.sort_order AS sub_stage_sort_order,
+
+      s.stage_id,
+      s.name AS stage_name,
+      s.sort_order AS stage_sort_order,
+
+      st.job_process_subtask_id,
+      st.name AS subtask_name,
+      st.sort_order AS subtask_order
+
+    FROM job_process_task t
+    JOIN job_process_sub_stage ss
+      ON ss.sub_stage_id = t.sub_stage_id
+    JOIN job_process_stage s
+      ON s.stage_id = ss.stage_id
+    LEFT JOIN job_process_task_dependency d
+      ON d.task_id = t.job_process_task_id
+    LEFT JOIN job_process_task pt
+      ON pt.job_process_task_id = d.predecessor_task_id
+    LEFT JOIN job_process_subtask st
+      ON st.job_process_task_id = t.job_process_task_id
+    WHERE s.builder_id = $1 
+      AND s.company_id = $2
+    ORDER BY s.sort_order, ss.sort_order, t.sort_order, st.sort_order
+    `,
+    [builderId, companyId]
+  );
+
+  const taskMap = new Map();
+
+  for (const r of rows) {
+    if (!taskMap.has(r.job_process_task_id)) {
+      taskMap.set(r.job_process_task_id, {
+        taskId: r.job_process_task_id,
+        name: r.name,
+        description: r.description,
+        sortOrder: r.sort_order,
+        noOfDays: r.no_of_days,
+        assigneeId: r.assignee_id,
+        notify: r.notify,
+        milestone: r.milestone,
+        attachmentMandatory: r.attachment_mandatory,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        predecessorTaskId: r.predecessor_task_id,
+        predecessorTaskName: r.predecessor_task_name,
+        subStage: {
+          subStageId: r.sub_stage_id,
+          name: r.sub_stage_name,
+          sortOrder: r.sub_stage_sort_order
+        },
+        stage: {
+          stageId: r.stage_id,
+          name: r.stage_name,
+          sortOrder: r.stage_sort_order
+        },
+        subTasks: []
+      });
+    }
+
+    if (r.job_process_subtask_id) {
+      const task = taskMap.get(r.job_process_task_id);
+      task.subTasks.push({
+        jobProcessSubtaskId: r.job_process_subtask_id,
+        name: r.subtask_name,
+        sortOrder: r.subtask_order
+      });
+    }
+  }
+
+  return Array.from(taskMap.values());
+};
+
+/**
  * GET SUB-TASKS BY TASK
  */
 exports.getSubTasks = async (taskId, builderId, companyId) => {

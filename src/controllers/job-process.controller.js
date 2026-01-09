@@ -95,7 +95,7 @@ exports.updateSubStage = async (req, res) => {
 exports.deleteSubStage = async (req, res) => {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
-    await stageService.deleteSubStage(req.params.subStageId, builderId, companyId);
+    await stageService.deleteSubStage(req.params.sub_stage_id, builderId, companyId);
     return successResponse(res, null, "Sub-stage deleted");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -233,3 +233,15 @@ exports.getJobProcess = async (req, res) => {
     return errorResponse(res, 500, err.message);
   }
 };
+
+exports.getAllJobTasks = async (req, res) => {
+  try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
+    
+    const tasks = await taskService.getAllJobTasks(builderId, companyId);
+    return successResponse(res, tasks, "All job tasks fetched successfully.");
+  } catch (err) {
+    return errorResponse(res, 500, err.message);
+  }
+};
+

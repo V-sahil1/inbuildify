@@ -144,35 +144,35 @@ exports.createConstructionType = async (req, res) => {
 
     const responseQuery = `
       SELECT
-        ct.construction_type_id,
-        ct.types_name,
-        ct.sort_order,
-        ct.start_construction_days,
+  ct.construction_type_id,
+  ct.types_name,
+  ct.sort_order,
+  ct.start_construction_days,
 
-        json_build_object(
-          'id', b.builder_id,
-          'name', b.name
-        ) AS builder,
+  json_build_object(
+    'id', b.builder_id,
+    'name', b.name
+  ) AS builder,
 
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', dt.dwelling_type_id,
-              'name', dt.name
-            )
-          ) FILTER (WHERE dt.dwelling_type_id IS NOT NULL),
-          '[]'
-        ) AS dwelling_type
+  COALESCE(
+    json_agg(
+      DISTINCT jsonb_build_object(
+        'id', dt.dwelling_type_id,
+        'name', dt.name
+      )
+    ) FILTER (WHERE dt.dwelling_type_id IS NOT NULL),
+    '[]'
+  ) AS dwelling_type
 
-      FROM construction_type ct
-      JOIN builder b
-        ON b.builder_id = ct.builder_id
-      LEFT JOIN dwelling_type dt
-        ON dt.dwelling_type_id = ANY(ct.dwelling_type)
+FROM construction_type ct
+LEFT JOIN builder b
+  ON b.builder_id = ct.builder   
+LEFT JOIN dwelling_type dt
+  ON dt.dwelling_type_id = ANY(ct.dwelling_type)
 
-      WHERE ct.construction_type_id = $1
+WHERE ct.construction_type_id = $1
+GROUP BY ct.construction_type_id, b.builder_id;
 
-      GROUP BY ct.construction_type_id, b.builder_id;
     `;
 
     const responseResult = await client.query(responseQuery, [
@@ -244,7 +244,7 @@ exports.getAllConstructionTypes = async (req, res) => {
 
       FROM construction_type ct
       JOIN builder b
-        ON b.builder_id = ct.builder_id
+        ON b.builder_id = ct.builder
       LEFT JOIN dwelling_type dt
         ON dt.dwelling_type_id = ANY (ct.dwelling_type)
 
@@ -589,7 +589,7 @@ exports.updateConstructionType = async (req, res) => {
 
       FROM construction_type ct
       JOIN builder b
-        ON b.builder_id = ct.builder_id
+        ON b.builder_id = ct.builder
       LEFT JOIN dwelling_type dt
         ON dt.dwelling_type_id = ANY(ct.dwelling_type)
 

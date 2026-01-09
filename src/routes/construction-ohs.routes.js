@@ -3,7 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
-const handleMulterError = require("../utils/s3Upload").handleMulterError;
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 
 const {
   getOhsSettings,
@@ -26,6 +26,7 @@ const { REQUEST_SOURCE } = require("../config/constants");
 // auth
 router.use(authMiddleware);
 router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
 
 /* -------------------------
    SETTINGS (Signature + Audits)

@@ -1796,8 +1796,8 @@ CREATE TABLE integration_custom_field_item (
     integration_custom_field_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-    header1_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE CASCADE,
-    header2_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE CASCADE,
+    header1_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE SET NULL,
+    header2_id UUID REFERENCES integration_custom_field_header(integration_custom_field_header_id) ON DELETE SET NULL,
     value1 VARCHAR(255),  -- e.g. "Residential"
     value2 VARCHAR(255),  -- e.g. "Plumbing"
     assignee_user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2401,7 +2401,7 @@ CREATE TABLE construction_option(
 
 CREATE TABLE compliance_type(
   compliance_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL, 
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -2419,11 +2419,11 @@ CREATE TABLE construction_checklist(
   supplier BOOLEAN DEFAULT TRUE,
   claim BOOLEAN DEFAULT FALSE,
   dependent BOOLEAN DEFAULT FALSE,
-  no_of_days INT DEFAULT 1,                 -- if data require is true 
+  no_of_days INT DEFAULT 1,                 -- if data require is true then user can input in this field
   notify BOOLEAN DEFAULT FALSE,
   milestone BOOLEAN DEFAULT FALSE,
   attachment_mandatory BOOLEAN DEFAULT FALSE,
-  attachment_mandatory_name VARCHAR(255),             -- if attachment mandatory is true
+  attachment_mandatory_name VARCHAR(255),             -- if attachment mandatory is true then user input in this field
   cost_center_id UUID REFERENCES cost_center(cost_center_id) ON DELETE SET NULL,
   construction_option_id UUID REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,
   compliance_type_id UUID REFERENCES compliance_type(compliance_type_id) ON DELETE SET NULL,
@@ -2441,17 +2441,19 @@ CREATE TABLE construction_checklist_predecessor(
   offset BOOLEAN DEFAULT FALSE,
   duration INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 )
 
 CREATE TABLE construction_sub_checklist(
   construction_sub_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   construction_checklist_id UUID NOT NULL REFERENCES construction_checklist(construction_checklist_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
   data_required BOOLEAN DEFAULT TRUE,
   no_of_days INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 )
+
 CREATE TABLE construction_inspection_checklist(
   construction_inspection_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2513,7 +2515,11 @@ CREATE TABLE construction_ets_recharge(
   enable_ets_supplier BOOLEAN DEFAULT FALSE,
   enable_recharge_supplier BOOLEAN DEFAULT TRUE,
   signature_section BOOLEAN DEFAULT TRUE,
-  CONSTRAINT chk_constrcution_ets_recharge_scope CHECK (company_id IS NOT NULL OR builder_id IS NOT NULL)
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_constrcution_ets_recharge_scope CHECK (company_id IS NOT NULL OR builder_id IS NOT NULL),
   CONSTRAINT uq_construction_ets_recharge_scope UNIQUE (company_id, builder_id)
 );
 
@@ -2522,6 +2528,8 @@ construction_ets_recharge_approval_id UUID DEFAULT uuid_generate_v4() PRIMARY KE
 construction_ets_recharge_id UUID NOT NULL REFERENCES construction_ets_recharge(construction_ets_recharge_id) ON DELETE CASCADE,
 role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE SET NULL,
 amount NUMERIC(12, 2) NOT NULL,
+created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
 created_at TIMESTAMPTZ DEFAULT NOW(),
 updated_at TIMESTAMPTZ DEFAULT NOW()
 )

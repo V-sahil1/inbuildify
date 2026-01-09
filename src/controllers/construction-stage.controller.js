@@ -198,9 +198,45 @@ exports.createConstructionStage = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const constructionStageId = result.rows[0].construction_stage;
+
+    const responseQuery = `
+      SELECT
+        cs.construction_stage,
+        cs.stage_name,
+        cs.days,
+        cs.sort_order,
+        cs.site_image,
+        cs.inspection,
+        cs.bg_color,
+        cs.font_color,
+        cs.created_at,
+        cs.updated_at,
+
+        json_build_object(
+          'id', b.builder_id,
+          'name', b.name
+        ) AS builder,
+
+        json_build_object(
+          'id', ct.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type
+
+      FROM construction_stage cs
+      LEFT JOIN builder b
+        ON b.builder_id = cs.builder
+      LEFT JOIN construction_type ct
+        ON ct.construction_type_id = cs.construction_type_id
+      WHERE cs.construction_stage = $1
+      GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id;
+    `;
+
+    const responseResult = await client.query(responseQuery, [constructionStageId]);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseResult.rows[0]),
       "Construction stage created successfully."
     );
   } catch (error) {
@@ -228,15 +264,15 @@ exports.getAllConstructionStages = async (req, res) => {
     let values = [];
 
     if (builder) {
-      whereClauses.push(`builder = $1 AND builder_id = $2`);
+      whereClauses.push(`cs.builder = $1 AND cs.builder_id = $2`);
       values.push(builder, loggedInBuilderId);
     } else {
-      whereClauses.push(`builder_id = $1`);
+      whereClauses.push(`cs.builder_id = $1`);
       values.push(loggedInBuilderId);
     }
 
     if (construction_type_id) {
-      whereClauses.push(`construction_type_id = $${values.length + 1}`);
+      whereClauses.push(`cs.construction_type_id = $${values.length + 1}`);
       values.push(construction_type_id);
     }
 
@@ -247,10 +283,36 @@ exports.getAllConstructionStages = async (req, res) => {
     const offsetPlaceholder = `$${values.length + 2}`;
 
     const dataQuery = `
-      SELECT *
-      FROM construction_stage
+      SELECT
+        cs.construction_stage,
+        cs.stage_name,
+        cs.days,
+        cs.sort_order,
+        cs.site_image,
+        cs.inspection,
+        cs.bg_color,
+        cs.font_color,
+        cs.created_at,
+        cs.updated_at,
+
+        json_build_object(
+          'id', b.builder_id,
+          'name', b.name
+        ) AS builder,
+
+        json_build_object(
+          'id', ct.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type
+
+      FROM construction_stage cs
+      LEFT JOIN builder b
+        ON b.builder_id = cs.builder
+      LEFT JOIN construction_type ct
+        ON ct.construction_type_id = cs.construction_type_id
       ${whereClause}
-      ORDER BY sort_order ASC, created_at DESC
+      GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id
+      ORDER BY cs.sort_order ASC, cs.created_at DESC
       LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};
     `;
 
@@ -262,7 +324,7 @@ exports.getAllConstructionStages = async (req, res) => {
 
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM construction_stage
+      FROM construction_stage cs
       ${whereClause};
     `;
     const countResult = await client.query(countQuery, values);
@@ -606,9 +668,43 @@ exports.updateConstructionStage = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const responseQuery = `
+      SELECT
+        cs.construction_stage,
+        cs.stage_name,
+        cs.days,
+        cs.sort_order,
+        cs.site_image,
+        cs.inspection,
+        cs.bg_color,
+        cs.font_color,
+        cs.created_at,
+        cs.updated_at,
+
+        json_build_object(
+          'id', b.builder_id,
+          'name', b.name
+        ) AS builder,
+
+        json_build_object(
+          'id', ct.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type
+
+      FROM construction_stage cs
+      LEFT JOIN builder b
+        ON b.builder_id = cs.builder
+      LEFT JOIN construction_type ct
+        ON ct.construction_type_id = cs.construction_type_id
+      WHERE cs.construction_stage = $1
+      GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id;
+    `;
+
+    const responseResult = await client.query(responseQuery, [construction_stage]);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseResult.rows[0]),
       "Construction stage updated successfully."
     );
   } catch (error) {

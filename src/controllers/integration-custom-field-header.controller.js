@@ -152,60 +152,114 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
 
   try {
     const { integration_custom_field_header_id } = req.params;
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
+    const { company_id, builder_id } = req.user;
 
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
+    await client.query("BEGIN");
 
-    const checkQuery = `
-      SELECT integration_custom_field_header_id 
+    // 1️⃣ Check header exists & scope
+    const headerResult = await client.query(
+      `
+      SELECT integration_custom_field_header_id
       FROM integration_custom_field_header
       WHERE integration_custom_field_header_id = $1
-        AND (builder_id = $2 OR company_id = $3);
-    `;
-    const checkResult = await client.query(checkQuery, [
-      integration_custom_field_header_id,
-      builderId,
-      companyId,
-    ]);
+        AND (
+          (company_id = $2 AND $2 IS NOT NULL)
+          OR
+          (builder_id = $3 AND $3 IS NOT NULL)
+        )
+      `,
+      [integration_custom_field_header_id, company_id, builder_id]
+    );
 
-    if (checkResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "No integration custom field header found for this builder."
+    if (headerResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Header not found");
+    }
+
+    // 2️⃣ Count headers in same scope
+    const countResult = await client.query(
+      `
+      SELECT COUNT(*)::int AS header_count
+      FROM integration_custom_field_header
+      WHERE
+        (company_id = $1 AND $1 IS NOT NULL)
+        OR
+        (builder_id = $2 AND $2 IS NOT NULL)
+      `,
+      [company_id, builder_id]
+    );
+
+    const headerCount = countResult.rows[0].header_count;
+
+    // 3️⃣ If only ONE header → delete ALL custom field items
+    if (headerCount === 1) {
+      await client.query(
+        `
+        DELETE FROM integration_custom_field_item
+        WHERE
+          (company_id = $1 AND $1 IS NOT NULL)
+          OR
+          (builder_id = $2 AND $2 IS NOT NULL)
+        `,
+        [company_id, builder_id]
+      );
+    } else {
+      // 4️⃣ Otherwise → remove only the matching header column
+      await client.query(
+        `
+        UPDATE integration_custom_field_item
+        SET
+          header1_id = CASE
+            WHEN header1_id = $1 THEN NULL
+            ELSE header1_id
+          END,
+          value1 = CASE
+            WHEN header1_id = $1 THEN NULL
+            ELSE value1
+          END,
+          header2_id = CASE
+            WHEN header2_id = $1 THEN NULL
+            ELSE header2_id
+          END,
+          value2 = CASE
+            WHEN header2_id = $1 THEN NULL
+            ELSE value2
+          END,
+          updated_at = NOW()
+        WHERE
+          header1_id = $1
+          OR header2_id = $1
+        `,
+        [integration_custom_field_header_id]
       );
     }
 
-    const deleteQuery = `
+    // 5️⃣ Delete header itself
+    await client.query(
+      `
       DELETE FROM integration_custom_field_header
       WHERE integration_custom_field_header_id = $1
-        AND (builder_id = $2 OR company_id = $3);
-    `;
-    await client.query(deleteQuery, [
-      integration_custom_field_header_id,
-      builderId,
-      companyId,
-    ]);
+      `,
+      [integration_custom_field_header_id]
+    );
+
+    await client.query("COMMIT");
 
     return successResponse(
       res,
       null,
-      "Integration custom field header deleted successfully."
+      "Integration custom field header deleted successfully"
     );
   } catch (error) {
-    console.error("Error deleting integration custom field header:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error.");
+    await client.query("ROLLBACK");
+    console.error("Delete Integration Header Error:", error);
+    return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
   }
 };
+
+
 
 exports.updateIntegrationCustomFieldHeader = async (req, res) => {
   const pool = getPool();

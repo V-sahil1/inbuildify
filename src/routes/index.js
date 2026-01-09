@@ -112,11 +112,17 @@ const holidayRoutes = require("./holiday.routes");
 const recalculateDateRoutes = require("./recalculate-date.routes");
 const constructionTypeRoutes = require("./construction-type.routes");
 const constructionStageRoutes = require("./construction-stage-.routes");
+const constructionChecklistRoutes = require("./construction-checklist.routes");
+const constructionSubChecklistRoutes = require("./construction-sub-checklist.routes");
+const constructionChecklistPredecessorRoutes = require("./construction-checklist-predecessor.routes");
 const constructionInspectionChecklistRoutes = require("./construction-inspection-checklist.routes");
 const constructionOHSRoutes = require("./construction-ohs.routes");
+const constructionEtsRechargeRoutes = require("./construction-ets-recharge.routes");
+const constructionEtsRechargeApprovalRoutes = require("./construction-ets-recharge-approval.routes");
 const timezoneRoutes = require("./timezone.routes");
 const roleTypeRoutes = require("./role-type.routes");
 const costCenterRoutes = require("./cost-center.routes")
+const complianceTypeRoutes = require("./compliance-type.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -236,9 +242,15 @@ module.exports = function (app) {
   app.use("/recalculate-date", recalculateDateRoutes);
   app.use("/construction-type", constructionTypeRoutes);
   app.use("/construction-stage", constructionStageRoutes);
+  app.use("/construction-checklist", constructionChecklistRoutes);
+  app.use("/construction-sub-checklist", constructionSubChecklistRoutes);
+  app.use("/construction-checklist-predecessor", constructionChecklistPredecessorRoutes);
   app.use("/construction-ohs", constructionOHSRoutes);
   app.use("/construction-inspection-checklist", constructionInspectionChecklistRoutes);
+  app.use("/construction-ets-recharge", constructionEtsRechargeRoutes);
+  app.use("/construction-ets-recharge-approval", constructionEtsRechargeApprovalRoutes);
   app.use("/timezone", timezoneRoutes);
   app.use("/role-type", roleTypeRoutes);
   app.use("/cost-center", costCenterRoutes)
+  app.use("/compliance-type", complianceTypeRoutes);
 };

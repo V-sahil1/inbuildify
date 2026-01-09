@@ -452,9 +452,9 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
     const updatedItem = updateResult.rows[0];
     if (updatedItem.assignee_user_id) {
       const assigneeQuery = `
-        SELECT users_id, CONCAT(first_name, ' ', last_name) AS name
+        SELECT users_id, name
         FROM users 
-        WHERE users_id = $1 AND is_deleted = false;
+        WHERE users_id = $1 AND is_deleted = false AND is_verified = true;
       `;
       const assigneeResult = await client.query(assigneeQuery, [updatedItem.assignee_user_id]);
       if (assigneeResult.rows.length > 0) {

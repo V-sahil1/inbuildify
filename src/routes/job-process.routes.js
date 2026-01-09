@@ -132,11 +132,16 @@ router.delete(
   controller.deleteSubTask
 );
 
-/* ================= JOB PROCESS TREE ================= */
 
 router.get(
   "/",
   controller.getJobProcess
+);
+
+router.get(
+  "/tasks",
+  camelToSnakeMiddleware,
+  controller.getAllJobTasks
 );
 
 module.exports = router;
