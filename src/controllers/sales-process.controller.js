@@ -14,7 +14,6 @@ exports.createSalesProcess = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Check duplicate name for this builder/company
     const existingProcess = await client.query(
       `SELECT 1 
        FROM sales_process 
@@ -32,7 +31,6 @@ exports.createSalesProcess = async (req, res) => {
       );
     }
 
-    /* 🔹 FIXED LOGIC: reset other defaults */
     if (is_default) {
       await client.query(
         `
@@ -211,7 +209,6 @@ exports.updateSalesProcess = async (req, res) => {
       );
     }
 
-    // Check for duplicate email if updating email
     if (name) {
       const duplicateName = await client.query(
         `SELECT sales_process_id FROM sales_process 
@@ -229,6 +226,21 @@ exports.updateSalesProcess = async (req, res) => {
           "Name already exists for another sales process."
         );
       }
+    }
+
+    if (is_default === true) {
+      await client.query(
+        `
+    UPDATE sales_process
+    SET is_default = false,
+        updated_by = $1,
+        updated_at = NOW()
+    WHERE builder_id = $2
+      AND company_id = $3
+      AND sales_process_id != $4;
+    `,
+        [req.user?.user_id, builderId, companyId, id]
+      );
     }
 
     const fields = [];

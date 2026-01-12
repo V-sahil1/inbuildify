@@ -3,7 +3,7 @@ const getPool = require("../config/database");
 function resolveScope(user) {
   return {
     company_id: user.company_id || null,
-    builder_id: user.builder_id || null
+    builder_id: user.builder_id || null,
   };
 }
 
@@ -66,7 +66,13 @@ exports.upsertSettingsService = async (user, payload) => {
       VALUES ($1,$2,$3,$4,$5,$5)
       RETURNING *
       `,
-      [company_id, builder_id, payload.signature_required, payload.minimum_audits, user.users_id]
+      [
+        company_id,
+        builder_id,
+        payload.signature_required,
+        payload.minimum_audits,
+        user.users_id,
+      ]
     );
     return inserted.rows[0];
   }
@@ -86,7 +92,7 @@ exports.upsertSettingsService = async (user, payload) => {
       payload.signature_required,
       payload.minimum_audits,
       user.users_id,
-      existing.rows[0].construction_ohs_settings_id
+      existing.rows[0].construction_ohs_settings_id,
     ]
   );
 
@@ -122,6 +128,15 @@ exports.createOhsListItemService = async (user, payload) => {
 
   const settings = await exports.getSettingsService(user);
 
+  // 🔹 FIXED LOGIC: Validate field_type and parent_id
+  if (payload.field_type === "category" && payload.parent_id) {
+    throw new Error("Category field type cannot have parent_id");
+  }
+
+  if (payload.field_type === "item" && !payload.parent_id) {
+    throw new Error("Item field type must have parent_id");
+  }
+
   const result = await pool.query(
     `
       INSERT INTO construction_ohs_list
@@ -139,7 +154,7 @@ exports.createOhsListItemService = async (user, payload) => {
       payload.sort_order || 1,
       payload.parent_id || null,
       payload.add_defaults || false,
-      user.users_id
+      user.users_id,
     ]
   );
 
@@ -165,6 +180,18 @@ exports.updateOhsListItemService = async (user, id, payload) => {
 
   if (existing.rowCount === 0) throw new Error("OHS list item not found");
 
+  //  Prevent field_type updates and validate parent_id for categories
+  if (payload.field_type) {
+    throw new Error("Cannot update field_type");
+  }
+
+  const existingRecord = existing.rows[0];
+
+  // If existing record is category, ensure parent_id is not provided
+  if (existingRecord.field_type === "category" && payload.parent_id) {
+    throw new Error("Category field type cannot have parent_id");
+  }
+
   const updated = await pool.query(
     `
       UPDATE construction_ohs_list
@@ -182,7 +209,7 @@ exports.updateOhsListItemService = async (user, id, payload) => {
       payload.sort_order || null,
       payload.add_defaults ?? null,
       user.users_id,
-      id
+      id,
     ]
   );
 

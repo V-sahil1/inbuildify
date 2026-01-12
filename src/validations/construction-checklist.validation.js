@@ -46,10 +46,10 @@ const createConstructionChecklistValidation = Joi.object({
   attachment_mandatory_name: Joi.string().optional().allow(null).messages({
     "string.base": "Attachment mandatory name must be a string"
   }),
-  cost_center_id: Joi.string().uuid().optional().allow(null).messages({
+  cost_center_id: Joi.array().items(Joi.string().uuid()).default([]).messages({
     "string.uuid": "Cost center ID must be a valid UUID"
   }),
-  construction_option_id: Joi.string().uuid().optional().allow(null).messages({
+  construction_option_id: Joi.array().items(Joi.string().uuid()).default([]).messages({
     "string.uuid": "Construction option ID must be a valid UUID"
   }),
   compliance_type_id: Joi.string().uuid().optional().allow(null).messages({
@@ -106,18 +106,25 @@ const updateConstructionChecklistValidation = Joi.object({
   attachment_mandatory_name: Joi.string().optional().allow(null).messages({
     "string.base": "Attachment mandatory name must be a string"
   }),
-  cost_center_id: Joi.string().uuid().optional().allow(null).messages({
+  cost_center_id: Joi.array().items(Joi.string().uuid()).default([]).messages({
     "string.uuid": "Cost center ID must be a valid UUID"
   }),
-  construction_option_id: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Construction option ID must be a valid UUID"
+  construction_option_id: Joi.array().items(Joi.string().uuid()).default([]).messages({
+    "string.uuid": "Cost center ID must be a valid UUID"
   }),
   compliance_type_id: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "Compliance type ID must be a valid UUID"
   }),
   builder: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "Builder ID must be a valid UUID"
-  })
+  }),
+  po_folder_id: Joi.string().uuid().optional().messages({
+     "string.uuid": "po folder ID must be a valid UUID"
+  }),
+
+  job_documents_folder_id: Joi.string().uuid().optional().messages({
+     "string.uuid": "job document folder ID must be a valid UUID"
+  }),
 }).min(1);
 
 const getConstructionChecklistByIdValidation = Joi.object({

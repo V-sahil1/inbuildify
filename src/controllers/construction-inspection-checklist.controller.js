@@ -145,10 +145,57 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
     ];
 
     const result = await client.query(insertQuery, values);
+    const inspectionChecklistId = result.rows[0].construction_inspection_checklist_id;
+
+    const responseQuery = `
+      SELECT
+        cic.construction_inspection_checklist_id,
+        cic.field_name,
+        cic.description,
+        cic.sort_order,
+        cic.add_all_existing_jobs,
+
+        json_build_object(
+          'id', cic.builder_id,
+          'name', cic.builder
+        ) AS builder,
+
+        json_build_object(
+          'id', cic.construction_type_id,
+          'name', ct.types_name
+        ) AS constructionType,
+
+        json_build_object(
+          'id', cic.construction_stage_id,
+          'name', cs.stage_name
+        ) AS constructionStage,
+
+        json_build_object(
+          'id', cic.construction_option_id,
+          'name', co.option_name
+        ) AS constructionOption,
+
+        json_build_object(
+          'id', cic.section_id,
+          'name', section.description
+        ) AS section,
+        cic.created_at,
+        cic.updated_at
+
+      FROM construction_inspection_checklist cic
+      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
+      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
+      LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
+      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
+      WHERE cic.construction_inspection_checklist_id = $1
+      GROUP BY cic.construction_inspection_checklist_id, ct.types_name, cs.stage_name, co.option_name, section.description;
+    `;
+
+    const responseResult = await client.query(responseQuery, [inspectionChecklistId]);
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseResult.rows[0]),
       "Construction inspection checklist created successfully"
     );
   } catch (error) {
@@ -170,14 +217,45 @@ exports.getConstructionInspectionChecklists = async (req, res) => {
 
     let query = `
       SELECT 
-        cic.*,
-        ct.types_name as construction_type_name,
-        cs.stage_name as construction_stage_name,
-        co.option_name as construction_option_name
+        cic.construction_inspection_checklist_id,
+        cic.field_name,
+        cic.description,
+        cic.sort_order,
+        cic.add_all_existing_jobs,
+
+        json_build_object(
+          'id', cic.builder_id,
+          'name', cic.builder
+        ) AS builder,
+
+        json_build_object(
+          'id', cic.construction_type_id,
+          'name', ct.types_name
+        ) AS constructionType,
+
+        json_build_object(
+          'id', cic.construction_stage_id,
+          'name', cs.stage_name
+        ) AS constructionStage,
+
+        json_build_object(
+          'id', cic.construction_option_id,
+          'name', co.option_name
+        ) AS constructionOption,
+
+        json_build_object(
+          'id', cic.section_id,
+          'name', section.description
+        ) AS section,
+
+        cic.created_at,
+        cic.updated_at
+
       FROM construction_inspection_checklist cic
       LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
       LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
       LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
+      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
       WHERE 1=1
     `;
 
@@ -420,16 +498,63 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
       UPDATE construction_inspection_checklist 
       SET ${fields.join(', ')}
       WHERE construction_inspection_checklist_id = $${paramIndex}
-      RETURNING *
+      RETURNING construction_inspection_checklist_id
     `;
 
     values.push(id);
 
-    const result = await client.query(updateQuery, values);
+    await client.query(updateQuery, values);
+
+    const responseQuery = `
+      SELECT
+        cic.construction_inspection_checklist_id,
+        cic.field_name,
+        cic.description,
+        cic.sort_order,
+        cic.add_all_existing_jobs,
+
+        json_build_object(
+          'id', cic.builder_id,
+          'name', cic.builder
+        ) AS builder,
+
+        json_build_object(
+          'id', cic.construction_type_id,
+          'name', ct.types_name
+        ) AS constructionType,
+
+        json_build_object(
+          'id', cic.construction_stage_id,
+          'name', cs.stage_name
+        ) AS constructionStage,
+
+        json_build_object(
+          'id', cic.construction_option_id,
+          'name', co.option_name
+        ) AS constructionOption,
+
+        json_build_object(
+          'id', cic.section_id,
+          'name', section.description
+        ) AS section,
+
+        cic.created_at,
+        cic.updated_at
+
+      FROM construction_inspection_checklist cic
+      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
+      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
+      LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
+      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
+      WHERE cic.construction_inspection_checklist_id = $1
+      GROUP BY cic.construction_inspection_checklist_id, ct.types_name, cs.stage_name, co.option_name, section.description;
+    `;
+
+    const responseResult = await client.query(responseQuery, [id]);
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseResult.rows[0]),
       "Construction inspection checklist updated successfully"
     );
   } catch (error) {

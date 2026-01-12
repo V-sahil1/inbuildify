@@ -788,25 +788,73 @@ CREATE TABLE company (
 --   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 -- );
 
+-- CREATE TABLE users (
+--   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   builder_id UUID NOT NULL, 
+--   name VARCHAR(100) NOT NULL,
+--   email VARCHAR(100) UNIQUE NOT NULL,
+--   password VARCHAR(255) NOT NULL,
+--   is_verified BOOLEAN DEFAULT FALSE,
+--   is_deleted BOOLEAN DEFAULT FALSE,
+--   role_id UUID REFERENCES role(role_id),
+--   root_user BOOLEAN DEFAULT FALSE,
+--   otp VARCHAR(10),
+--   expires_at TIMESTAMP,
+--   reset_password_token VARCHAR(255),
+--   reset_token_expires_at TIMESTAMP,
+--   otp_resend_count INTEGER DEFAULT 0,
+--   last_otp_sent_at TIMESTAMP,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+-- );
+
+
 CREATE TABLE users (
   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  builder_id UUID NOT NULL, 
+  builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
+  login_id VARCHAR(100) UNIQUE NOT NULL,
+  initials VARCHAR(10),
+  phone VARCHAR(20),
+  secondary_phone VARCHAR(20),
+  role_id UUID REFERENCES role(role_id),
+  reporting_to UUID REFERENCES users(user_id),
+  designation VARCHAR(100),
+  date_of_joining DATE,
+  remark TEXT,
+  date_of_birth DATE,
+  consultant_bio TEXT,
+  photo VARCHAR(500),
+  signature VARCHAR(500),
   password VARCHAR(255) NOT NULL,
   is_verified BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  is_locked BOOLEAN DEFAULT FALSE,
   is_deleted BOOLEAN DEFAULT FALSE,
-  role_id UUID REFERENCES role(role_id),
   root_user BOOLEAN DEFAULT FALSE,
   otp VARCHAR(10),
   expires_at TIMESTAMP,
   reset_password_token VARCHAR(255),
   reset_token_expires_at TIMESTAMP,
-  otp_resend_count INTEGER DEFAULT 0,
-  last_otp_sent_at TIMESTAMP,
+  failed_attempts INT DEFAULT 0,
+  next_login_password_change BOOLEAN DEFAULT FALSE,
+  password_auto_generated BOOLEAN DEFAULT FALSE,
+  email_login_credentials BOOLEAN DEFAULT FALSE,
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  use_builder_address BOOLEAN DEFAULT FALSE,
+  has_login BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_builder_map (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (user_id, builder_id)
 );
 
 CREATE TABLE users_token (
@@ -1386,6 +1434,7 @@ CREATE TABLE job_process_task (
     name VARCHAR(200) NOT NULL,
     description TEXT,
     sort_order INT NOT NULL,
+    folder_id UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
     no_of_days INT,
     assignee_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
     notify BOOLEAN DEFAULT FALSE,
@@ -1749,15 +1798,20 @@ CREATE TABLE document_folder_mapping (
     document_folder_mapping_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-    mapping_type document_mapping_type_enum NOT NULL,
-    folder_id UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    signed_quotation UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    signed_color UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    signed_variation UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    signed_maintenance UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    signed_contract_document UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    compliance_certificate UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    purchase_order UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    job_documents UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
     select_all_files_from_folder BOOLEAN DEFAULT FALSE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL, 
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT chk_document_folder_mapping_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
-    CONSTRAINT uq_document_folder_mapping UNIQUE (company_id, builder_id, mapping_type)
+    CONSTRAINT chk_document_folder_mapping_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE integration_settings (
@@ -2351,6 +2405,18 @@ CREATE TABLE estate_stage_documents (
     uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 --------------------------------------------------------------------------------------------------------------
+CREATE TABLE drive(
+  drive_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+);
+
 CREATE TABLE construction_settings(
     construction_setting_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2424,9 +2490,11 @@ CREATE TABLE construction_checklist(
   milestone BOOLEAN DEFAULT FALSE,
   attachment_mandatory BOOLEAN DEFAULT FALSE,
   attachment_mandatory_name VARCHAR(255),             -- if attachment mandatory is true then user input in this field
-  cost_center_id UUID REFERENCES cost_center(cost_center_id) ON DELETE SET NULL,
-  construction_option_id UUID REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,
+  cost_center_id UUID[] DEFAULT '{}',                        --REFERENCES cost_center(cost_center_id) ON DELETE SET NULL,
+  construction_option_id UUID[] DEFAULT '{}',                      --REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,
   compliance_type_id UUID REFERENCES compliance_type(compliance_type_id) ON DELETE SET NULL,
+  po_folder_id UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+  job_documents_folder_id REFERENCES drive(drive_id) ON DELETE SET NULL,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),

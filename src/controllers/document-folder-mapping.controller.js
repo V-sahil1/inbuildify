@@ -1,108 +1,7 @@
+const { get } = require("lodash");
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
-
-exports.createDocumentFolderMapping = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-    const userId = req.user?.users_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
-
-    const { mapping_type, folder_id, select_all_files_from_folder } = req.body;
-
-    if (!mapping_type) {
-      return errorResponse(res, 400, "Mapping type is required.");
-    }
-
-    if (folder_id) {
-      const folderCheckQuery = `
-        SELECT document_common_folder_id
-        FROM document_common_folder
-        WHERE document_common_folder_id = $1
-        AND ((builder_id IS NOT NULL AND builder_id = $2)
-          OR (company_id IS NOT NULL AND company_id = $3));
-      `;
-      const folderCheckResult = await client.query(folderCheckQuery, [
-        folder_id,
-        builderId,
-        companyId,
-      ]);
-
-      if (folderCheckResult.rowCount === 0) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid folder ID or folder does not belong to this builder/company."
-        );
-      }
-    }
-
-    const duplicateQuery = `
-      SELECT document_folder_mapping_id
-      FROM document_folder_mapping
-      WHERE mapping_type = $1
-      AND (builder_id = $2 OR company_id = $3);
-    `;
-    const duplicateResult = await client.query(duplicateQuery, [
-      mapping_type,
-      builderId,
-      companyId,
-    ]);
-
-    if (duplicateResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        400,
-        "A folder mapping with this mapping type already exists."
-      );
-    }
-
-    const insertQuery = `
-      INSERT INTO document_folder_mapping (
-        company_id,
-        builder_id,
-        mapping_type,
-        folder_id,
-        select_all_files_from_folder,
-        created_by,
-        updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
-
-    const insertResult = await client.query(insertQuery, [
-      companyId,
-      builderId,
-      mapping_type,
-      folder_id || null,
-      select_all_files_from_folder ?? false,
-      userId,
-      userId,
-    ]);
-
-    return successResponse(
-      res,
-      keysToCamelCase(insertResult.rows[0]),
-      "Document folder mapping created successfully."
-    );
-  } catch (err) {
-    console.error("Error creating document folder mapping:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error.");
-  } finally {
-    client.release();
-  }
-};
 
 exports.getAllDocumentFolderMappings = async (req, res) => {
   const pool = getPool();
@@ -120,54 +19,50 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
       );
     }
 
-    const { page = 1, limit = 25 } = req.query;
-    const offset = (page - 1) * limit;
+    let result = await client.query(
+      `SELECT * FROM document_folder_mapping
+       WHERE (builder_id = $1 OR company_id = $2)
+       LIMIT 1`,
+      [builderId, companyId]
+    );
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM document_folder_mapping
-      WHERE builder_id = $1 OR company_id = $2;
-    `;
-    const countResult = await client.query(countQuery, [builderId, companyId]);
-    const total = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(total / limit);
+    if (result.rowCount === 0) {
+      result = await client.query(
+        `INSERT INTO document_folder_mapping (company_id, builder_id, select_all_files_from_folder, created_by, updated_by)
+         VALUES ($1, $2, false, $3, $4)
+         RETURNING *`,
+        [companyId, builderId, req.user?.users_id, req.user?.users_id]
+      );
+    }
 
     const getQuery = `
       SELECT 
-        document_folder_mapping_id,
-        company_id,
-        builder_id,
-        mapping_type,
-        folder_id,
-        select_all_files_from_folder,
-        created_by,
-        updated_by,
-        created_at,
-        updated_at
-      FROM document_folder_mapping
-      WHERE builder_id = $1 OR company_id = $2
-      ORDER BY created_at DESC
-      LIMIT $3 OFFSET $4;
+        dfm.document_folder_mapping_id,
+        dfm.company_id,
+        dfm.builder_id,
+        dfm.select_all_files_from_folder,
+        dfm.signed_quotation,
+        dfm.signed_color,
+        dfm.signed_variation,
+        dfm.signed_maintenance,
+        dfm.signed_contract_document,
+        dfm.compliance_certificate,
+        dfm.purchase_order,
+        dfm.job_documents,
+        dfm.created_by,
+        dfm.updated_by,
+        dfm.created_at,
+        dfm.updated_at
+      FROM document_folder_mapping dfm
+      WHERE dfm.builder_id = $1 OR dfm.company_id = $2
+      ORDER BY dfm.created_at DESC;
     `;
 
-    const result = await client.query(getQuery, [
-      builderId,
-      companyId,
-      limit,
-      offset,
-    ]);
-
-    const mappings = keysToCamelCase(result.rows);
+    const getResult = await client.query(getQuery, [builderId, companyId]);
 
     return successResponse(
       res,
-      {
-        records: mappings,
-        total,
-        totalPages,
-        currentPage: Number(page),
-        limit: Number(limit),
-      },
+      keysToCamelCase(getResult.rows[0]),
       "Document folder mappings fetched successfully."
     );
   } catch (err) {
@@ -183,7 +78,6 @@ exports.updateDocumentFolderMapping = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { document_folder_mapping_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
@@ -196,84 +90,88 @@ exports.updateDocumentFolderMapping = async (req, res) => {
       );
     }
 
-    const { mapping_type, folder_id, select_all_files_from_folder } = req.body;
+    const {
+      signed_quotation,
+      signed_color,
+      signed_variation,
+      signed_maintenance,
+      signed_contract_document,
+      compliance_certificate,
+      purchase_order,
+      job_documents,
+      select_all_files_from_folder,
+    } = req.body;
 
-    const checkQuery = `
-      SELECT * FROM document_folder_mapping
-      WHERE document_folder_mapping_id = $1
-      AND (builder_id = $2 OR company_id = $3);
-    `;
-    const checkResult = await client.query(checkQuery, [
-      document_folder_mapping_id,
-      builderId,
-      companyId,
-    ]);
+    const folderFields = [
+      { name: "signed_quotation", value: signed_quotation },
+      { name: "signed_color", value: signed_color },
+      { name: "signed_variation", value: signed_variation },
+      { name: "signed_maintenance", value: signed_maintenance },
+      { name: "signed_contract_document", value: signed_contract_document },
+      { name: "compliance_certificate", value: compliance_certificate },
+      { name: "purchase_order", value: purchase_order },
+      { name: "job_documents", value: job_documents },
+    ];
 
-    if (checkResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Record not found or unauthorized to update."
-      );
-    }
+    for (const field of folderFields) {
+      if (field.value) {
+        const folderCheckQuery = `
+          SELECT drive_id
+          FROM drive
+          WHERE drive_id = $1;
+        `;
+        const folderCheckResult = await client.query(folderCheckQuery, [
+          field.value,
+        ]);
 
-    if (folder_id) {
-      const folderCheckQuery = `
-        SELECT document_common_folder_id
-        FROM document_common_folder
-        WHERE document_common_folder_id = $1
-        AND ((builder_id IS NOT NULL AND builder_id = $2)
-          OR (company_id IS NOT NULL AND company_id = $3));
-      `;
-      const folderCheckResult = await client.query(folderCheckQuery, [
-        folder_id,
-        builderId,
-        companyId,
-      ]);
-      if (folderCheckResult.rowCount === 0) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid folder ID or folder does not belong to this builder/company."
-        );
+        if (folderCheckResult.rowCount === 0) {
+          return errorResponse(res, 400, `Invalid ${field.name} folder ID.`);
+        }
       }
     }
 
-    if (mapping_type) {
-      const duplicateCheckQuery = `
-        SELECT document_folder_mapping_id
-        FROM document_folder_mapping
-        WHERE mapping_type = $1
-        AND (builder_id = $2 OR company_id = $3)
-        AND document_folder_mapping_id <> $4;
-      `;
-      const duplicateResult = await client.query(duplicateCheckQuery, [
-        mapping_type,
-        builderId,
-        companyId,
-        document_folder_mapping_id,
-      ]);
-
-      if (duplicateResult.rowCount > 0) {
-        return errorResponse(
-          res,
-          400,
-          "A folder mapping with this mapping type already exists."
-        );
-      }
-    }
     const fields = [];
     const values = [];
     let i = 1;
 
-    if (mapping_type !== undefined) {
-      fields.push(`mapping_type = $${i++}`);
-      values.push(mapping_type);
+    if (signed_quotation !== undefined) {
+      fields.push(`signed_quotation = $${i++}`);
+      values.push(signed_quotation);
     }
 
-    if (folder_id !== undefined) {
-      fields.push(`folder_id = $${i++}`);
-      values.push(folder_id);
+    if (signed_color !== undefined) {
+      fields.push(`signed_color = $${i++}`);
+      values.push(signed_color);
+    }
+
+    if (signed_variation !== undefined) {
+      fields.push(`signed_variation = $${i++}`);
+      values.push(signed_variation);
+    }
+
+    if (signed_maintenance !== undefined) {
+      fields.push(`signed_maintenance = $${i++}`);
+      values.push(signed_maintenance);
+    }
+
+    if (signed_contract_document !== undefined) {
+      fields.push(`signed_contract_document = $${i++}`);
+      values.push(signed_contract_document);
+    }
+
+    if (compliance_certificate !== undefined) {
+      fields.push(`compliance_certificate = $${i++}`);
+      values.push(compliance_certificate);
+    }
+
+    if (purchase_order !== undefined) {
+      fields.push(`purchase_order = $${i++}`);
+      values.push(purchase_order);
+    }
+
+    if (job_documents !== undefined) {
+      fields.push(`job_documents = $${i++}`);
+      values.push(job_documents);
     }
 
     if (select_all_files_from_folder !== undefined) {
@@ -291,14 +189,29 @@ exports.updateDocumentFolderMapping = async (req, res) => {
     fields.push(`updated_at = NOW()`);
 
     const updateQuery = `
-      UPDATE document_folder_mapping
-      SET ${fields.join(", ")}
-      WHERE document_folder_mapping_id = $${i++}
-      AND (builder_id = $${i++} OR company_id = $${i})
-      RETURNING *;
-    `;
+  UPDATE document_folder_mapping dfm
+  SET ${fields.join(", ")}
+  WHERE dfm.builder_id = $${i++} OR dfm.company_id = $${i}
+  RETURNING 
+    dfm.document_folder_mapping_id,
+    dfm.company_id,
+    dfm.builder_id,
+    dfm.select_all_files_from_folder,
+    dfm.signed_quotation,
+    dfm.signed_color,
+    dfm.signed_variation,
+    dfm.signed_maintenance,
+    dfm.signed_contract_document,
+    dfm.compliance_certificate,
+    dfm.purchase_order,
+    dfm.job_documents,
+    dfm.created_by,
+    dfm.updated_by,
+    dfm.created_at,
+    dfm.updated_at
+`;
 
-    values.push(document_folder_mapping_id, builderId, companyId);
+    values.push(builderId, companyId);
 
     const updateResult = await client.query(updateQuery, values);
 
@@ -310,83 +223,23 @@ exports.updateDocumentFolderMapping = async (req, res) => {
       );
     }
 
+    // Fetch the updated record with folder details
+    const updatedRecord = await client.query(
+      `SELECT 
+        *
+      FROM document_folder_mapping dfm
+      WHERE dfm.document_folder_mapping_id = $1
+      `,
+      [updateResult.rows[0].document_folder_mapping_id]
+    );
+
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      keysToCamelCase(updatedRecord.rows[0]),
       "Document folder mapping updated successfully."
     );
   } catch (err) {
     console.error("Error updating document folder mapping:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error.");
-  } finally {
-    client.release();
-  }
-};
-
-exports.deleteDocumentFolderMapping = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { document_folder_mapping_id } = req.params;
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(
-        res,
-        401,
-        "Unauthorized: Missing builder or company ID."
-      );
-    }
-
-    const checkQuery = `
-      SELECT document_folder_mapping_id 
-      FROM document_folder_mapping
-      WHERE document_folder_mapping_id = $1
-      AND (builder_id = $2 OR company_id = $3);
-    `;
-    const checkResult = await client.query(checkQuery, [
-      document_folder_mapping_id,
-      builderId,
-      companyId,
-    ]);
-
-    if (checkResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Record not found or unauthorized to delete."
-      );
-    }
-
-    const deleteQuery = `
-      DELETE FROM document_folder_mapping
-      WHERE document_folder_mapping_id = $1
-      AND (builder_id = $2 OR company_id = $3)
-      RETURNING *;
-    `;
-    const deleteResult = await client.query(deleteQuery, [
-      document_folder_mapping_id,
-      builderId,
-      companyId,
-    ]);
-
-    if (deleteResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        404,
-        "Failed to delete document folder mapping."
-      );
-    }
-
-    return successResponse(
-      res,
-      null,
-      "Document folder mapping deleted successfully."
-    );
-  } catch (err) {
-    console.error("Error deleting document folder mapping:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error.");
   } finally {
     client.release();

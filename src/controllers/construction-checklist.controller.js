@@ -22,12 +22,12 @@ exports.createConstructionChecklist = async (req, res) => {
       milestone,
       attachment_mandatory,
       attachment_mandatory_name,
-      cost_center_id,
-      construction_option_id,
+      cost_center_id = [],
+      construction_option_id = [],
       compliance_type_id,
       builder
     } = req.body;
-    
+
     const { user_id, company_id, builder_id } = req.user;
 
     if (!name) {
@@ -35,80 +35,89 @@ exports.createConstructionChecklist = async (req, res) => {
     }
 
     if (construction_type_id) {
-      const constructionTypeCheck = await client.query(
-        `SELECT construction_type_id FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2`,
+      const check = await client.query(
+        `SELECT 1 FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2`,
         [construction_type_id, builder_id]
       );
-      if (constructionTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_type_id");
     }
 
     if (construction_stage_id) {
-      const constructionStageCheck = await client.query(
-        `SELECT construction_stage FROM construction_stage WHERE construction_stage = $1 AND builder_id = $2`,
+      const check = await client.query(
+        `SELECT 1 FROM construction_stage WHERE construction_stage = $1 AND builder_id = $2`,
         [construction_stage_id, builder_id]
       );
-      if (constructionStageCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_stage_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_stage_id");
     }
 
     if (supplier_type_id) {
-      const supplierTypeCheck = await client.query(
-        `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
         [supplier_type_id]
       );
-      if (supplierTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid supplier_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid supplier_type_id");
     }
 
-    if (cost_center_id) {
-      const costCenterCheck = await client.query(
-        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = $1`,
+
+    if (Array.isArray(cost_center_id) && cost_center_id.length) {
+      const check = await client.query(
+        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[])`,
         [cost_center_id]
       );
-      if (costCenterCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid cost_center_id");
+      if (check.rowCount !== cost_center_id.length) {
+        return errorResponse(res, 400, "One or more cost_center_id are invalid");
       }
     }
 
-    if (construction_option_id) {
-      const constructionOptionCheck = await client.query(
-        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = $1`,
+    if (Array.isArray(construction_option_id) && construction_option_id.length) {
+      const check = await client.query(
+        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[])`,
         [construction_option_id]
       );
-      if (constructionOptionCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_option_id");
+      if (check.rowCount !== construction_option_id.length) {
+        return errorResponse(res, 400, "One or more construction_option_id are invalid");
       }
     }
 
+
     if (compliance_type_id) {
-      const complianceTypeCheck = await client.query(
-        `SELECT compliance_type_id FROM compliance_type WHERE compliance_type_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
         [compliance_type_id]
       );
-      if (complianceTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid compliance_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid compliance_type_id");
     }
 
     if (builder) {
-      const builderCheck = await client.query(
-        `SELECT builder_id FROM builder WHERE builder_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM builder WHERE builder_id = $1`,
         [builder]
       );
-      if (builderCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid builder");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
+    }
+
+    if (data_required === false && no_of_days) {
+      return errorResponse(res, 400, "no_of_days cannot be set when data_required is false");
+    }
+
+    if (
+      attachment_mandatory === false &&
+      attachment_mandatory_name
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "attachment_mandatory_name cannot be set when attachment_mandatory is false"
+      );
     }
 
     const newSortOrder = sort_order || 1;
     await client.query(
-      `UPDATE construction_checklist 
-       SET sort_order = sort_order + 1 
-       WHERE company_id = $1 AND builder_id = $2 AND sort_order >= $3`,
+      `
+      UPDATE construction_checklist
+      SET sort_order = sort_order + 1
+      WHERE company_id = $1 AND builder_id = $2 AND sort_order >= $3
+      `,
       [company_id, builder_id, newSortOrder]
     );
 
@@ -138,8 +147,10 @@ exports.createConstructionChecklist = async (req, res) => {
         created_by,
         updated_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-      RETURNING *;
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+      )
+      RETURNING construction_checklist_id
       `,
       [
         company_id,
@@ -150,17 +161,17 @@ exports.createConstructionChecklist = async (req, res) => {
         name,
         supplier_type_id || null,
         newSortOrder,
-        data_required !== undefined ? data_required : true,
-        supplier !== undefined ? supplier : true,
-        claim !== undefined ? claim : false,
-        dependent !== undefined ? dependent : false,
-        no_of_days || 1,
-        notify !== undefined ? notify : false,
-        milestone !== undefined ? milestone : false,
-        attachment_mandatory !== undefined ? attachment_mandatory : false,
+        data_required ?? true,
+        supplier ?? true,
+        claim ?? false,
+        dependent ?? false,
+        no_of_days,
+        notify ?? false,
+        milestone ?? false,
+        attachment_mandatory ?? false,
         attachment_mandatory_name || null,
-        cost_center_id || null,
-        construction_option_id || null,
+        cost_center_id,
+        construction_option_id,
         compliance_type_id || null,
         user_id,
         user_id
@@ -169,80 +180,38 @@ exports.createConstructionChecklist = async (req, res) => {
 
     const responseQuery = `
       SELECT
-        cc.construction_checklist_id,
-        cc.company_id,
-        cc.builder_id,
-        cc.builder,
-        cc.name,
-        cc.sort_order,
-        cc.data_required,
-        cc.supplier,
-        cc.claim,
-        cc.dependent,
-        cc.no_of_days,
-        cc.notify,
-        cc.milestone,
-        cc.attachment_mandatory,
-        cc.attachment_mandatory_name,
-        
-        json_build_object(
-          'id', ct.construction_type_id,
-          'name', ct.types_name
-        ) AS construction_type,
-        json_build_object(
-          'id', cs.construction_stage,
-          'name', cs.stage_name
-        ) AS construction_stage,
-        json_build_object(
-          'id', st.supplier_type_id,
-          'name', st.name
-        ) AS supplier_type,
-        json_build_object(
-          'id', b.builder_id,
-          'name', b.name
-        ) AS builder,
-        json_build_object(
-          'id', cc_name.cost_center_id,
-          'name', cc_name.name
-        ) AS cost_center,
-        json_build_object(
-          'id', co.construction_option_id,
-          'name', co.option_name
-        ) AS construction_option,
-        json_build_object(
-          'id', cpt.compliance_type_id,
-          'name', cpt.name
-        ) AS compliance_type,
-        u.name AS created_by_name,
-        cc.created_by,
-        cc.updated_by,
-        cc.created_at,
-        cc.updated_at
+        cc.*,
+        (
+          SELECT json_agg(json_build_object('id', c.cost_center_id, 'name', c.name))
+          FROM cost_center c
+          WHERE c.cost_center_id = ANY(cc.cost_center_id)
+        ) AS cost_centers,
+        (
+          SELECT json_agg(json_build_object('id', co.construction_option_id, 'name', co.option_name))
+          FROM construction_option co
+          WHERE co.construction_option_id = ANY(cc.construction_option_id)
+        ) AS construction_options
       FROM construction_checklist cc
-      LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
-      LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
-      LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
-      LEFT JOIN builder b ON b.builder_id = cc.builder
-      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = cc.cost_center_id
-      LEFT JOIN construction_option co ON co.construction_option_id = cc.construction_option_id
-      LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
-      LEFT JOIN users u ON u.users_id = cc.created_by
-      WHERE cc.construction_checklist_id = $1;`;
+      WHERE cc.construction_checklist_id = $1
+    `;
 
-    const responseResult = await client.query(responseQuery, [insertResult.rows[0].construction_checklist_id]);
+    const response = await client.query(responseQuery, [
+      insertResult.rows[0].construction_checklist_id
+    ]);
 
     return successResponse(
       res,
-      keysToCamelCase(responseResult.rows[0]),
+      keysToCamelCase(response.rows[0]),
       "Construction checklist created successfully."
     );
   } catch (error) {
     console.error("Create Construction Checklist Error:", error);
-    return errorResponse(res, 500, error.message || "Internal server error.");
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
 };
+
 
 exports.getAllConstructionChecklists = async (req, res) => {
   const pool = getPool();
@@ -527,9 +496,11 @@ exports.updateConstructionChecklist = async (req, res) => {
       cost_center_id,
       construction_option_id,
       compliance_type_id,
-      builder
+      builder,
+      po_folder_id, 
+      job_documents_folder_id 
     } = req.body;
-    
+
     const { user_id, company_id, builder_id } = req.user;
 
     if (!construction_checklist_id) {
@@ -537,7 +508,8 @@ exports.updateConstructionChecklist = async (req, res) => {
     }
 
     const existingResult = await client.query(
-      `SELECT construction_checklist_id FROM construction_checklist 
+      `SELECT construction_checklist_id 
+       FROM construction_checklist 
        WHERE construction_checklist_id = $1 
          AND (company_id = $2 OR builder_id = $3)`,
       [construction_checklist_id, company_id, builder_id]
@@ -548,83 +520,134 @@ exports.updateConstructionChecklist = async (req, res) => {
     }
 
     if (construction_type_id) {
-      const constructionTypeCheck = await client.query(
-        `SELECT construction_type_id FROM construction_type WHERE construction_type_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM construction_type WHERE construction_type_id = $1`,
         [construction_type_id]
       );
-      if (constructionTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_type_id");
     }
 
     if (construction_stage_id) {
-      const constructionStageCheck = await client.query(
-        `SELECT construction_stage FROM construction_stage WHERE construction_stage = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM construction_stage WHERE construction_stage = $1`,
         [construction_stage_id]
       );
-      if (constructionStageCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_stage_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_stage_id");
     }
 
     if (supplier_type_id) {
-      const supplierTypeCheck = await client.query(
-        `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
         [supplier_type_id]
       );
-      if (supplierTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid supplier_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid supplier_type_id");
     }
 
-    if (cost_center_id) {
-      const costCenterCheck = await client.query(
-        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = $1`,
+
+    if (Array.isArray(cost_center_id) && cost_center_id.length) {
+      const check = await client.query(
+        `SELECT cost_center_id 
+         FROM cost_center 
+         WHERE cost_center_id = ANY($1::uuid[])`,
         [cost_center_id]
       );
-      if (costCenterCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid cost_center_id");
+      if (check.rowCount !== cost_center_id.length) {
+        return errorResponse(res, 400, "One or more cost_center_id are invalid");
       }
     }
 
-    if (construction_option_id) {
-      const constructionOptionCheck = await client.query(
-        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = $1`,
+    if (Array.isArray(construction_option_id) && construction_option_id.length) {
+      const check = await client.query(
+        `SELECT construction_option_id 
+         FROM construction_option 
+         WHERE construction_option_id = ANY($1::uuid[])`,
         [construction_option_id]
       );
-      if (constructionOptionCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid construction_option_id");
+      if (check.rowCount !== construction_option_id.length) {
+        return errorResponse(res, 400, "One or more construction_option_id are invalid");
       }
     }
 
+
     if (compliance_type_id) {
-      const complianceTypeCheck = await client.query(
-        `SELECT compliance_type_id FROM compliance_type WHERE compliance_type_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
         [compliance_type_id]
       );
-      if (complianceTypeCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid compliance_type_id");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid compliance_type_id");
     }
 
     if (builder) {
-      const builderCheck = await client.query(
-        `SELECT builder_id FROM builder WHERE builder_id = $1`,
+      const check = await client.query(
+        `SELECT 1 FROM builder WHERE builder_id = $1`,
         [builder]
       );
-      if (builderCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid builder");
-      }
+      if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
+    }
+
+    if (po_folder_id) {
+  const check = await client.query(
+    `SELECT 1 FROM drive WHERE drive_id = $1`,
+    [po_folder_id]
+  );
+  if (!check.rowCount) return errorResponse(res, 400, "Invalid po_folder_id");
+}
+
+if (job_documents_folder_id) {
+  const check = await client.query(
+    `SELECT 1 FROM drive WHERE drive_id = $1`,
+    [job_documents_folder_id]
+  );
+  if (!check.rowCount) return errorResponse(res, 400, "Invalid job_documents_folder_id");
+}
+
+    const currentRecord = await client.query(
+      `SELECT data_required, attachment_mandatory 
+       FROM construction_checklist 
+       WHERE construction_checklist_id = $1`,
+      [construction_checklist_id]
+    );
+
+    const currentData = currentRecord.rows[0];
+    const newDataRequired =
+      data_required !== undefined ? data_required : currentData.data_required;
+    const newAttachmentMandatory =
+      attachment_mandatory !== undefined
+        ? attachment_mandatory
+        : currentData.attachment_mandatory;
+
+    if (newDataRequired === false && no_of_days !== undefined && no_of_days) {
+      return errorResponse(res, 400, "no_of_days cannot be set when data_required is false");
+    }
+
+    if (
+      newAttachmentMandatory === false &&
+      attachment_mandatory_name !== undefined &&
+      attachment_mandatory_name
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "attachment_mandatory_name cannot be set when attachment_mandatory is false"
+      );
     }
 
     const updateFields = [];
     const updateValues = [];
     let idx = 1;
 
+    if (data_required === false && currentData.data_required === true) {
+      updateFields.push(`no_of_days = $${idx++}`);
+      updateValues.push(null);
+    }
+
+    if (attachment_mandatory === false && currentData.attachment_mandatory === true) {
+      updateFields.push(`attachment_mandatory_name = $${idx++}`);
+      updateValues.push(null);
+    }
+
     if (name !== undefined) {
-      if (!name) {
-        return errorResponse(res, 400, "Name cannot be empty");
-      }
+      if (!name) return errorResponse(res, 400, "Name cannot be empty");
       updateFields.push(`name = $${idx++}`);
       updateValues.push(name);
     }
@@ -696,12 +719,12 @@ exports.updateConstructionChecklist = async (req, res) => {
 
     if (cost_center_id !== undefined) {
       updateFields.push(`cost_center_id = $${idx++}`);
-      updateValues.push(cost_center_id || null);
+      updateValues.push(cost_center_id || []);
     }
 
     if (construction_option_id !== undefined) {
       updateFields.push(`construction_option_id = $${idx++}`);
-      updateValues.push(construction_option_id || null);
+      updateValues.push(construction_option_id || []);
     }
 
     if (compliance_type_id !== undefined) {
@@ -714,36 +737,18 @@ exports.updateConstructionChecklist = async (req, res) => {
       updateValues.push(builder || null);
     }
 
-    if (updateFields.length === 0) {
-      return errorResponse(res, 400, "At least one field is required for update.");
-    }
+    if (po_folder_id !== undefined) {
+  updateFields.push(`po_folder_id = $${idx++}`);
+  updateValues.push(po_folder_id || null);
+}
 
-    let currentSortOrder = null;
-    if (sort_order !== undefined) {
-      const currentRecord = await client.query(
-        `SELECT sort_order FROM construction_checklist 
-         WHERE construction_checklist_id = $1`,
-        [construction_checklist_id]
-      );
-      currentSortOrder = currentRecord.rows[0].sort_order;
-      
-      if (sort_order > currentSortOrder) {
-        await client.query(
-          `UPDATE construction_checklist 
-           SET sort_order = sort_order - 1 
-           WHERE company_id = $1 AND builder_id = $2 
-             AND sort_order > $3 AND sort_order <= $4`,
-          [company_id, builder_id, currentSortOrder, sort_order]
-        );
-      } else if (sort_order < currentSortOrder) {
-        await client.query(
-          `UPDATE construction_checklist 
-           SET sort_order = sort_order + 1 
-           WHERE company_id = $1 AND builder_id = $2 
-             AND sort_order >= $3 AND sort_order < $4`,
-          [company_id, builder_id, sort_order, currentSortOrder]
-        );
-      }
+if (job_documents_folder_id !== undefined) {
+  updateFields.push(`job_documents_folder_id = $${idx++}`);
+  updateValues.push(job_documents_folder_id || null);
+}
+
+    if (!updateFields.length) {
+      return errorResponse(res, 400, "At least one field is required for update.");
     }
 
     updateFields.push(`updated_by = $${idx++}`);
@@ -751,72 +756,37 @@ exports.updateConstructionChecklist = async (req, res) => {
     updateFields.push(`updated_at = NOW()`);
 
     await client.query(
-      `UPDATE construction_checklist SET ${updateFields.join(', ')} 
+      `UPDATE construction_checklist 
+       SET ${updateFields.join(", ")} 
        WHERE construction_checklist_id = $${idx}`,
       [...updateValues, construction_checklist_id]
     );
 
     const responseQuery = `
       SELECT
-        cc.construction_checklist_id,
-        cc.company_id,
-        cc.builder_id,
-        cc.builder,
-        cc.name,
-        cc.sort_order,
-        cc.data_required,
-        cc.supplier,
-        cc.claim,
-        cc.dependent,
-        cc.no_of_days,
-        cc.notify,
-        cc.milestone,
-        cc.attachment_mandatory,
-        cc.attachment_mandatory_name,
-       
-        json_build_object(
-          'id', ct.construction_type_id,
-          'name', ct.types_name
-        ) AS construction_type,
-        json_build_object(
-          'id', cs.construction_stage,
-          'name', cs.stage_name
-        ) AS construction_stage,
-        json_build_object(
-          'id', st.supplier_type_id,
-          'name', st.name
-        ) AS supplier_type,
-        json_build_object(
-          'id', b.builder_id,
-          'name', b.name
-        ) AS builder,
-        json_build_object(
-          'id', cc_name.cost_center_id,
-          'name', cc_name.name
-        ) AS cost_center,
-        json_build_object(
-          'id', co.construction_option_id,
-          'name', co.option_name
-        ) AS construction_option,
-        json_build_object(
-          'id', cpt.compliance_type_id,
-          'name', cpt.name
-        ) AS compliance_type,
-        u.name AS created_by_name,
-         cc.created_by,
-        cc.updated_by,
-        cc.created_at,
-        cc.updated_at
-      FROM construction_checklist cc
-      LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
-      LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
-      LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
-      LEFT JOIN builder b ON b.builder_id = cc.builder
-      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = cc.cost_center_id
-      LEFT JOIN construction_option co ON co.construction_option_id = cc.construction_option_id
-      LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
-      LEFT JOIN users u ON u.users_id = cc.created_by
-      WHERE cc.construction_checklist_id = $1;
+        cc.*,
+        (
+          SELECT json_agg(json_build_object('id', c.cost_center_id, 'name', c.name))
+          FROM cost_center c
+          WHERE c.cost_center_id = ANY(cc.cost_center_id)
+        ) AS cost_centers,
+        (
+          SELECT json_agg(json_build_object('id', co.construction_option_id, 'name', co.option_name))
+          FROM construction_option co
+          WHERE co.construction_option_id = ANY(cc.construction_option_id)
+       ) AS construction_options,
+(
+  SELECT json_build_object('id', d.drive_id, 'name', d.name)
+  FROM drive d
+  WHERE d.drive_id = cc.po_folder_id
+) AS po_folder,
+(
+  SELECT json_build_object('id', d.drive_id, 'name', d.name)
+  FROM drive d
+  WHERE d.drive_id = cc.job_documents_folder_id
+) AS job_documents_folder
+FROM construction_checklist cc
+      WHERE cc.construction_checklist_id = $1
     `;
 
     const responseResult = await client.query(responseQuery, [construction_checklist_id]);

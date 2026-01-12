@@ -11,7 +11,11 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
     const { user_id, company_id, builder_id } = req.user;
 
     if (!role_id || amount === undefined) {
-      return errorResponse(res, 400, "Missing required fields: role_id, amount");
+      return errorResponse(
+        res,
+        400,
+        "Missing required fields: role_id, amount"
+      );
     }
 
     if (amount <= 0) {
@@ -27,10 +31,15 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
     );
 
     if (etsRechargeResult.rowCount === 0) {
-      return errorResponse(res, 400, "No construction ETS recharge record found for this user. Please create a construction ETS recharge record first.");
+      return errorResponse(
+        res,
+        400,
+        "No construction ETS recharge record found for this user. Please create a construction ETS recharge record first."
+      );
     }
 
-    const construction_ets_recharge_id = etsRechargeResult.rows[0].construction_ets_recharge_id;
+    const construction_ets_recharge_id =
+      etsRechargeResult.rows[0].construction_ets_recharge_id;
 
     const roleCheck = await client.query(
       `SELECT role_id FROM role WHERE role_id = $1`,
@@ -39,6 +48,24 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
 
     if (roleCheck.rowCount === 0) {
       return errorResponse(res, 400, "Invalid role_id");
+    }
+
+    const duplicateRoleCheck = await client.query(
+      `
+  SELECT 1
+  FROM construction_ets_recharge_approval
+  WHERE construction_ets_recharge_id = $1
+    AND role_id = $2
+  `,
+      [construction_ets_recharge_id, role_id]
+    );
+
+    if (duplicateRoleCheck.rowCount > 0) {
+      return errorResponse(
+        res,
+        400,
+        "This role has already been added for approval. Duplicate role is not allowed."
+      );
     }
 
     const insertResult = await client.query(
@@ -51,7 +78,16 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
         updated_by
       )
       VALUES ($1, $2, $3, $4, $4)
-      RETURNING *;
+      RETURNING 
+        construction_ets_recharge_approval_id,
+        construction_ets_recharge_id,
+        role_id,
+        (SELECT name FROM role WHERE role_id = construction_ets_recharge_approval.role_id) AS role_name,
+        amount,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
       `,
       [construction_ets_recharge_id, role_id, amount, user_id]
     );
@@ -74,7 +110,12 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { page = 1, limit = 25, construction_ets_recharge_id, role_id } = req.query;
+    const {
+      page = 1,
+      limit = 25,
+      construction_ets_recharge_id,
+      role_id,
+    } = req.query;
 
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
@@ -128,7 +169,7 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM construction_ets_recharge_approval cera
-      ${whereClause.replace(/ORDER BY.*$/, '')};
+      ${whereClause.replace(/ORDER BY.*$/, "")};
     `;
 
     const countResult = await client.query(countQuery, values);
@@ -164,7 +205,11 @@ exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
     const { construction_ets_recharge_approval_id } = req.params;
 
     if (!construction_ets_recharge_approval_id) {
-      return errorResponse(res, 400, "construction_ets_recharge_approval_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_ets_recharge_approval_id is required."
+      );
     }
 
     const query = `
@@ -183,10 +228,16 @@ exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
       WHERE cera.construction_ets_recharge_approval_id = $1;
     `;
 
-    const result = await client.query(query, [construction_ets_recharge_approval_id]);
+    const result = await client.query(query, [
+      construction_ets_recharge_approval_id,
+    ]);
 
     if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Construction ETS recharge approval not found.");
+      return errorResponse(
+        res,
+        404,
+        "Construction ETS recharge approval not found."
+      );
     }
 
     return successResponse(
@@ -212,11 +263,19 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
     const { user_id } = req.user;
 
     if (!construction_ets_recharge_approval_id) {
-      return errorResponse(res, 400, "construction_ets_recharge_approval_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_ets_recharge_approval_id is required."
+      );
     }
 
     if (!role_id && amount === undefined) {
-      return errorResponse(res, 400, "At least one field (role_id or amount) is required for update.");
+      return errorResponse(
+        res,
+        400,
+        "At least one field (role_id or amount) is required for update."
+      );
     }
 
     const existingResult = await client.query(
@@ -225,7 +284,47 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
     );
 
     if (existingResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction ETS recharge approval not found.");
+      return errorResponse(
+        res,
+        404,
+        "Construction ETS recharge approval not found."
+      );
+    }
+
+    const currentApprovalResult = await client.query(
+      `
+  SELECT construction_ets_recharge_id, role_id
+  FROM construction_ets_recharge_approval
+  WHERE construction_ets_recharge_approval_id = $1
+  `,
+      [construction_ets_recharge_approval_id]
+    );
+
+    const { construction_ets_recharge_id } = currentApprovalResult.rows[0];
+
+    if (role_id) {
+      const duplicateRoleCheck = await client.query(
+        `
+    SELECT 1
+    FROM construction_ets_recharge_approval
+    WHERE construction_ets_recharge_id = $1
+      AND role_id = $2
+      AND construction_ets_recharge_approval_id <> $3
+    `,
+        [
+          construction_ets_recharge_id,
+          role_id,
+          construction_ets_recharge_approval_id,
+        ]
+      );
+
+      if (duplicateRoleCheck.rowCount > 0) {
+        return errorResponse(
+          res,
+          400,
+          "This role has already been added for approval. Duplicate role is not allowed."
+        );
+      }
     }
 
     const updateFields = [];
@@ -250,7 +349,9 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
     updateFields.push(`updated_at = NOW()`);
 
     await client.query(
-      `UPDATE construction_ets_recharge_approval SET ${updateFields.join(', ')} WHERE construction_ets_recharge_approval_id = $${idx}`,
+      `UPDATE construction_ets_recharge_approval SET ${updateFields.join(
+        ", "
+      )} WHERE construction_ets_recharge_approval_id = $${idx}`,
       [...updateValues, construction_ets_recharge_approval_id]
     );
 
@@ -270,7 +371,9 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
       WHERE cera.construction_ets_recharge_approval_id = $1;
     `;
 
-    const responseResult = await client.query(responseQuery, [construction_ets_recharge_approval_id]);
+    const responseResult = await client.query(responseQuery, [
+      construction_ets_recharge_approval_id,
+    ]);
 
     return successResponse(
       res,
@@ -293,7 +396,11 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
     const { construction_ets_recharge_approval_id } = req.params;
 
     if (!construction_ets_recharge_approval_id) {
-      return errorResponse(res, 400, "construction_ets_recharge_approval_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_ets_recharge_approval_id is required."
+      );
     }
 
     const checkResult = await client.query(
@@ -302,7 +409,11 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
     );
 
     if (checkResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction ETS recharge approval not found.");
+      return errorResponse(
+        res,
+        404,
+        "Construction ETS recharge approval not found."
+      );
     }
 
     await client.query(

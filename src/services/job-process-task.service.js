@@ -80,6 +80,21 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
       // }
     }
 
+    if (payload.folder_id) {
+      const folderCheck = await client.query(
+        `
+        SELECT drive_id
+        FROM drive
+        WHERE drive_id = $1
+        `,
+        [payload.folder_id]
+      );
+
+      if (folderCheck.rows.length === 0) {
+        throw new Error("Folder not found");
+      }
+    }
+
     const duplicateCheck = await client.query(
       `
       SELECT job_process_task_id 
@@ -126,9 +141,9 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
     const { rows } = await client.query(
       `
       INSERT INTO job_process_task
-      (sub_stage_id, name, description, sort_order, no_of_days,
+      (sub_stage_id, name, description, sort_order, folder_id, no_of_days,
        assignee_id, notify, milestone, attachment_mandatory)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *
       `,
       [
@@ -136,6 +151,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
         payload.name,
         payload.description,
         finalSortOrder,
+        payload.folder_id || null,
         payload.no_of_days,
         payload.assignee_id,
         payload.notify,
@@ -196,6 +212,22 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
     const owner = ownerCheck.rows[0];
     if (owner.builder_id !== builderId && owner.company_id !== companyId) {
       throw new Error("You can only update tasks for your own sub-stages");
+    }
+
+    // Validate folder_id if provided
+    if (payload.folder_id) {
+      const folderCheck = await client.query(
+        `
+        SELECT drive_id
+        FROM drive
+        WHERE drive_id = $1
+        `,
+        [payload.folder_id]
+      );
+
+      if (folderCheck.rows.length === 0) {
+        throw new Error("Folder not found");
+      }
     }
 
     // Get current task info
@@ -284,11 +316,12 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
         name = COALESCE($2, name),
         description = COALESCE($3, description),
         sort_order = COALESCE($4, sort_order),
-        no_of_days = COALESCE($5, no_of_days),
-        assignee_id = COALESCE($6, assignee_id),
-        notify = COALESCE($7, notify),
-        milestone = COALESCE($8, milestone),
-        attachment_mandatory = COALESCE($9, attachment_mandatory),
+        folder_id = COALESCE($5, folder_id),
+        no_of_days = COALESCE($6, no_of_days),
+        assignee_id = COALESCE($7, assignee_id),
+        notify = COALESCE($8, notify),
+        milestone = COALESCE($9, milestone),
+        attachment_mandatory = COALESCE($10, attachment_mandatory),
         updated_at = NOW()
       WHERE job_process_task_id = $1
       RETURNING *
@@ -298,6 +331,7 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
         payload.name,
         payload.description,
         payload.sort_order,
+        payload.folder_id,
         payload.no_of_days,
         payload.assignee_id,
         payload.notify,
@@ -446,13 +480,16 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
       t.name,
       t.description,
       t.sort_order,
+      t.folder_id,
       t.no_of_days,
       t.assignee_id,
+      u.name AS assignee_name,
+      drv.name AS folder_name,
       t.notify,
       t.milestone,
       t.attachment_mandatory,
 
-      d.predecessor_task_id,
+      dep.predecessor_task_id,
       pt.name AS predecessor_task_name,
 
       st.job_process_subtask_id,
@@ -464,12 +501,16 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
       ON ss.sub_stage_id = t.sub_stage_id
     JOIN job_process_stage s
       ON s.stage_id = ss.stage_id
-    LEFT JOIN job_process_task_dependency d
-      ON d.task_id = t.job_process_task_id
+    LEFT JOIN job_process_task_dependency dep
+      ON dep.task_id = t.job_process_task_id
     LEFT JOIN job_process_task pt
-      ON pt.job_process_task_id = d.predecessor_task_id
+      ON pt.job_process_task_id = dep.predecessor_task_id
     LEFT JOIN job_process_subtask st
       ON st.job_process_task_id = t.job_process_task_id
+    LEFT JOIN users u
+      ON u.users_id = t.assignee_id
+    LEFT JOIN drive drv
+      ON drv.drive_id = t.folder_id
     WHERE t.sub_stage_id = $1
       AND (s.builder_id = $2 OR s.company_id = $3)
     ORDER BY t.sort_order, st.sort_order
@@ -487,11 +528,18 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
         description: r.description,
         sortOrder: r.sort_order,
         noOfDays: r.no_of_days,
-        assigneeId: r.assignee_id,
+        assignee: {
+          id: r.assignee_id,
+          name: r.assignee_name,
+        },
+        folder: r.folder_id ? {
+          id: r.folder_id,
+          name: r.folder_name,
+        } : null,
         notify: r.notify,
         milestone: r.milestone,
         attachmentMandatory: r.attachment_mandatory,
-        dependencies: [],
+        predecessorTask: [],
         subTasks: [],
       });
     }
@@ -500,12 +548,12 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
 
     // Dependency with ID + name
     if (r.predecessor_task_id) {
-      const exists = task.dependencies.find(
+      const exists = task.predecessorTask.find(
         (d) => d.taskId === r.predecessor_task_id
       );
 
       if (!exists) {
-        task.dependencies.push({
+        task.predecessorTask.push({
           taskId: r.predecessor_task_id,
           name: r.predecessor_task_name,
         });
