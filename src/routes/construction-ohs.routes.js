@@ -18,6 +18,7 @@ const {
   upsertSettingsSchema,
   createListItemSchema,
   updateListItemSchema,
+  getListItemChema,
 } = require("../validations/construction-ohs.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -43,7 +44,11 @@ router.post(
    LIST (Categories / Items)
 -------------------------- */
 
-router.get("/list", getOhsList);
+router.get(
+  "/list",
+  validateRequest(getListItemChema, REQUEST_SOURCE.QUERY),
+  getOhsList
+);
 
 router.post(
   "/list",

@@ -47,7 +47,7 @@ const phoneRule = Joi.string()
   });
 
 // Schemas
-const createUserSchema = Joi.object({
+const registerRootSchema = Joi.object({
   name: nameRule,
   email: emailRule,
   password: passwordRule,
@@ -103,57 +103,17 @@ const refreshTokenSchema = Joi.object({
   }),
 });
 
-const inviteUserSchema = Joi.object({
-  email: emailRule,
-  role: Joi.string()
-    .valid(
-      "super_admin",
-      "admin",
-      "project_owner",
-      "service_provider",
-      "client"
-    )
-    .required()
-    .messages({
-      "string.base": "Role must be a string",
-      "any.only":
-        "Role must be one of: super_admin, admin, project_owner, service_provider, client",
-    }),
-});
-
-const acceptInviteSchema = Joi.object({
-  name: nameRule,
-  password: passwordRule,
-});
-
-const acceptInviteParamsSchema = Joi.object({
-  token: Joi.string().required().messages({
-    "string.base": "Invite token must be a string",
-    "string.empty": "Invite token is required",
-    "any.required": "Invite token is required",
-  }),
-});
-
-const getInvitedUserSchema = Joi.object({
-  limit: Joi.number().optional().default(25).max(50),
-  offset: Joi.number().optional().default(0).max(25),
-});
-
 const resendOtpSchema = Joi.object({
   email: emailRule,
 });
 
 module.exports = {
-  createUserSchema,
+  registerRootSchema,
   loginUserSchema,
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
   refreshTokenSchema,
-  inviteUserSchema,
-  acceptInviteSchema,
-  acceptInviteParamsSchema,
-  getInvitedUserSchema,
   resendOtpSchema,
 };

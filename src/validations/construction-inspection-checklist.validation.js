@@ -15,6 +15,7 @@ const createConstructionInspectionChecklistSchema = Joi.object({
 const getConstructionInspectionChecklistsSchema = Joi.object({
   construction_type_id: Joi.string().uuid().optional(),
   construction_stage_id: Joi.string().uuid().optional(),
+  field_name: Joi.string().valid("checklist", "section").optional(),
   builder: Joi.string().uuid().optional(),
 });
 
@@ -37,9 +38,17 @@ const deleteConstructionInspectionChecklistSchema = Joi.object({
   }),
 });
 
+const updateExistingJobsSchema = Joi.object({
+  add_all_existing_jobs: Joi.boolean().required().messages({
+    "boolean.base": "add_all_existing_jobs must be a boolean",
+    "any.required": "add_all_existing_jobs is required",
+  }),
+});
+
 module.exports = {
   createConstructionInspectionChecklistSchema,
   getConstructionInspectionChecklistsSchema,
   updateConstructionInspectionChecklistSchema,
   deleteConstructionInspectionChecklistSchema,
+  updateExistingJobsSchema,
 };

@@ -46,8 +46,9 @@ exports.upsertOhsSettings = async (req, res) => {
 exports.getOhsList = async (req, res) => {
   try {
     const user = req.user;
+    const filters = req.query; // Get query parameters for filtering
 
-    const list = await getOhsListService(user);
+    const list = await getOhsListService(user, filters);
 
     return successResponse(res, keysToCamelCase(list), "OHS list loaded");
   } catch (e) {

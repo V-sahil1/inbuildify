@@ -278,7 +278,6 @@ exports.getConstructionSettings = async (req, res) => {
       [builderId, companyId]
     );
 
-    // Auto-create construction settings if not found
     if (result.rowCount === 0) {
       result = await client.query(
         `
@@ -324,7 +323,6 @@ exports.updateConstructionSettings = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Fetch existing settings
     const existingSettingsResult = await client.query(
       `SELECT * FROM construction_settings WHERE company_id = $1 AND builder_id = $2 LIMIT 1;`,
       [companyId, builderId]

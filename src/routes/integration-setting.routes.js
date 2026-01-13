@@ -8,7 +8,6 @@ const {
 } = require("../controllers/integration-setting.controller");
 const {
   createIntegrationSettingsSchema,
-  updateIntegrationSettingParamsSchema,
   updateIntegrationSettingSchema,
 } = require("../validations/integration-setting.validation");
 

@@ -12,12 +12,12 @@ exports.createCostCenter = async (req, res) => {
       company_id,
       users_id
     );
-    
+
     res.status(201).json({
       success: true,
       statusCode: 201,
       message: "Cost center created successfully",
-      data: costCenter
+      data: costCenter,
     });
   } catch (error) {
     console.error("Error creating cost center:", error);
@@ -25,7 +25,7 @@ exports.createCostCenter = async (req, res) => {
       success: false,
       statusCode: 500,
       message: error.message || "Internal server error",
-      data: null
+      data: null,
     });
   }
 };
@@ -40,12 +40,12 @@ exports.getCostCenters = async (req, res) => {
       builder_id,
       company_id
     );
-    
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Cost centers retrieved successfully",
-      data: costCenters
+      data: costCenters,
     });
   } catch (error) {
     console.error("Error getting cost centers:", error);
@@ -53,7 +53,7 @@ exports.getCostCenters = async (req, res) => {
       success: false,
       statusCode: 500,
       message: error.message || "Internal server error",
-      data: null
+      data: null,
     });
   }
 };
@@ -65,18 +65,18 @@ exports.getCostCenterById = async (req, res) => {
   try {
     const { builder_id, company_id } = req.user;
     const { cost_center_id } = req.params;
-    
+
     const costCenter = await costCenterService.getCostCenterById(
       cost_center_id,
       builder_id,
       company_id
     );
-    
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Cost center retrieved successfully",
-      data: costCenter
+      data: costCenter,
     });
   } catch (error) {
     console.error("Error getting cost center:", error);
@@ -84,7 +84,7 @@ exports.getCostCenterById = async (req, res) => {
       success: false,
       statusCode: 500,
       message: error.message || "Internal server error",
-      data: null
+      data: null,
     });
   }
 };
@@ -94,21 +94,22 @@ exports.getCostCenterById = async (req, res) => {
  */
 exports.updateCostCenter = async (req, res) => {
   try {
-    const { builder_id, company_id } = req.user;
+    const { builder_id, company_id, users_id } = req.user;
     const { cost_center_id } = req.params;
-    
+
     const costCenter = await costCenterService.updateCostCenter(
       cost_center_id,
       req.body,
       builder_id,
-      company_id
+      company_id,
+      users_id
     );
-    
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Cost center updated successfully",
-      data: costCenter
+      data: costCenter,
     });
   } catch (error) {
     console.error("Error updating cost center:", error);
@@ -116,7 +117,7 @@ exports.updateCostCenter = async (req, res) => {
       success: false,
       statusCode: 500,
       message: error.message || "Internal server error",
-      data: null
+      data: null,
     });
   }
 };
@@ -128,18 +129,18 @@ exports.deleteCostCenter = async (req, res) => {
   try {
     const { builder_id, company_id } = req.user;
     const { cost_center_id } = req.params;
-    
+
     await costCenterService.deleteCostCenter(
       cost_center_id,
       builder_id,
       company_id
     );
-    
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Cost center deleted successfully",
-      data: null
+      data: null,
     });
   } catch (error) {
     console.error("Error deleting cost center:", error);
@@ -147,7 +148,41 @@ exports.deleteCostCenter = async (req, res) => {
       success: false,
       statusCode: 500,
       message: error.message || "Internal server error",
-      data: null
+      data: null,
+    });
+  }
+};
+
+/**
+ * TOGGLE COST CENTER STATUS
+ */
+exports.toggleCostCenterStatus = async (req, res) => {
+  try {
+    const { builder_id, company_id, users_id } = req.user;
+    const { cost_center_id } = req.params;
+
+    const costCenter = await costCenterService.toggleCostCenterStatus(
+      cost_center_id,
+      builder_id,
+      company_id,
+      users_id
+    );
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: `Cost center status ${
+        costCenter.status ? "activated" : "deactivated"
+      } successfully`,
+      data: costCenter,
+    });
+  } catch (error) {
+    console.error("Error toggling cost center status:", error);
+    res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: error.message || "Internal server error",
+      data: null,
     });
   }
 };

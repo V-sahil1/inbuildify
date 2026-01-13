@@ -1,486 +1,226 @@
-const getPool = require("../config/database");
+const userService = require("../services/user.service");
 const { successResponse, errorResponse } = require("../helper/response");
-const sendEmail = require("../helper/sendMail");
-const {
-  encrypt,
-  generateAccessToken,
-  generateRefreshToken,
-  keysToCamelCase,
-} = require("../utils/common");
-const crypto = require("crypto");
+const { keysToCamelCase } = require("../utils/common");
 
-exports.getUsersByBuilderId = async (req, res) => {
-  const builderId = req.user.builder_id;
-  const pool = getPool();
-  const client = await pool.connect();
-
+module.exports.getUsers = async (req, res) => {
   try {
-    const query = `
-      SELECT 
-        u.users_id,
-        u.builder_id,
-        u.name,
-        u.email,
-        u.is_verified,
-        u.role_id,
-        r.name AS role_name,
-        u.created_at,
-        u.updated_at
-      FROM users u
-      LEFT JOIN role r ON u.role_id = r.role_id
-      WHERE u.builder_id = $1 AND u.is_deleted = false;
-    `;
-
-    const result = await client.query(query, [builderId]);
-
-    const userData = result.rows.map((user) => ({
-      usersId: user.users_id,
-      builderId: user.builder_id,
-      name: user.name,
-      email: user.email,
-      isVerified: user.is_verified,
-      role: {
-        roleId: user.role_id,
-        roleName: user.role_name,
-      },
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    }));
-
-    return successResponse(res, userData, "Users fetched successfully.");
-  } catch (error) {
-    console.error("Get users error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getProfile = async (req, res) => {
-  const userId = req.user.users_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const userQuery = `
-      SELECT 
-        u.name,
-        u.email,
-        u.role_id,
-        r.name AS role_name,
-        u.builder_id,
-        u.users_id,
-        u.is_verified,
-        u.root_user,
-        u.created_at,
-        u.updated_at,
-        b.name AS builder_name,
-        b.logo,
-        b.abn_number,
-        b.phone_number
-      FROM users u
-      LEFT JOIN builder b ON u.builder_id = b.builder_id
-      LEFT JOIN role r ON u.role_id = r.role_id
-      WHERE u.users_id = $1;
-    `;
-
-    const userResult = await client.query(userQuery, [userId]);
-
-    if (userResult.rowCount === 0) {
-      return errorResponse(res, 404, "User not found.");
-    }
-
-    const userData = userResult.rows[0];
-
+    const data = await userService.getUsers(req.user, req.query);
     return successResponse(
       res,
-      {
-        name: userData.name,
-        email: userData.email,
-        role: {
-          roleId: userData.role_id,
-          roleName: userData.role_name,
-        },
-        builderId: userData.builder_id,
-        builderName: userData.builder_name,
-        logo: userData.logo,
-        slogan: userData.slogan,
-        firmName: userData.firm_name,
-        isVerified: userData.is_verified,
-        abnNumber: userData.abn_number,
-        licenseNumber: userData.license_number,
-        phoneNumber: userData.phone_number,
-        rootUser: userData.root_user,
-        createdAt: userData.created_at,
-        updatedAt: userData.updated_at,
-      },
-      "User profile fetched successfully."
-    );
-  } catch (error) {
-    console.error("Get profile error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getInvitedUser = async (req, res) => {
-  const { user } = req;
-
-  if (!user) {
-    return errorResponse(res, 400, "Your information is missing.");
-  }
-
-  const { limit, offset } = req.query || {};
-  const parsedLimit = parseInt(limit, 10) || 25;
-  const parsedOffset = parseInt(offset, 10) || 0;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const userResult = await client.query(
-      `SELECT invite_id, email, builder_id, role, invited_at FROM invites WHERE builder_id = $1 ORDER BY invited_at DESC LIMIT $2 OFFSET $3`,
-      [user?.builder_id, parsedLimit, parsedOffset]
-    );
-
-    if (userResult?.rows?.length === 0) {
-      return successResponse(res, [], "Invited Users get successfully.");
-    }
-
-    const totalResult = await client.query(
-      `SELECT COUNT(*) FROM invites WHERE builder_id = $1`,
-      [user?.builder_id]
-    );
-
-    const totalItems = parseInt(totalResult.rows[0].count, 10);
-    const totalPages = Math.ceil(totalItems / parsedLimit);
-    const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
-
-    return successResponse(
-      res,
-      {
-        users: userResult?.rows?.map((user) => ({
-          inviteId: user.invite_id,
-          email: user.email,
-          builderId: user.builder_id,
-          role: user.role,
-          invitedAt: user.invited_at,
-        })),
-        pagination: {
-          totalItems,
-          totalPages,
-          currentPage,
-          limit: parsedLimit,
-        },
-      },
-      "Invited Users get successfully."
-    );
-  } catch (error) {
-    console.error("Error updating user role:", error);
-    return errorResponse(res, 500, "Internal server error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.inviteUser = async (req, res) => {
-  const roleEnum = [
-    "super_admin",
-    "admin",
-    "project_owner",
-    "service_provider",
-    "client",
-  ];
-  const generateToken = () => crypto.randomBytes(20).toString("hex");
-  const INVITE_EXPIRATION_MINUTES = 10;
-
-  const { user } = req;
-
-  const { email: inputEmail, role } = req.body;
-
-  if (!inputEmail || !role) {
-    console.log("🚀 ~ role (missing):", role);
-    console.log("🚀 ~ inputEmail (email):", inputEmail);
-    return errorResponse(res, 400, "Missing required fields.");
-  }
-
-  if (!roleEnum.includes(role)) {
-    console.log("🚀 ~ add specified role:", role);
-    return errorResponse(res, 400, "Please add specified role.");
-  }
-
-  const email = inputEmail.toLowerCase();
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const existingUserQuery = `SELECT * FROM users WHERE email = $1 AND builder_id = $2 AND is_deleted = $3`;
-    const existingUserResult = await client.query(existingUserQuery, [
-      email,
-      user?.builder_id,
-      false,
-    ]);
-
-    if (existingUserResult?.rows?.length > 0) {
-      console.log("🚀 ~ existingUserResult:", existingUserResult);
-      return errorResponse(res, 400, "User email is already exists.");
-    }
-
-    const recentInviteQuery = `
-        SELECT * FROM invites 
-        WHERE email = $1 
-        AND builder_id = $2 
-        ORDER BY invited_at DESC LIMIT 1
-      `;
-    const recentInviteResult = await client.query(recentInviteQuery, [
-      email,
-      user?.builder_id,
-    ]);
-
-    if (recentInviteResult?.rows?.length > 0) {
-      const existingInvite = recentInviteResult.rows[0];
-      const invitedAt = new Date(existingInvite.invited_at);
-      const currentTime = new Date();
-      const timeDifferenceInMinutes =
-        (currentTime.getTime() - invitedAt.getTime()) / 60000;
-
-      if (timeDifferenceInMinutes < INVITE_EXPIRATION_MINUTES) {
-        console.log(
-          "🚀 ~ INVITE_EXPIRATION_MINUTES:",
-          INVITE_EXPIRATION_MINUTES
-        );
-        console.log("🚀 ~ timeDifferenceInMinutes:", timeDifferenceInMinutes);
-        return errorResponse(
-          res,
-          400,
-          "An invite was already sent. Please wait for 10 minutes before sending again."
-        );
-      }
-
-      await sendVerificationEmail(email, null, existingInvite.invite_token);
-
-      const updateInviteQuery = `
-          UPDATE invites 
-          SET invited_at = NOW() 
-          WHERE invite_token = $1
-        `;
-      await client.query(updateInviteQuery, [existingInvite.invite_token]);
-
-      return successResponse(
-        res,
-        keysToCamelCase({
-          invite_id: existingInvite.invite_id,
-          email: existingInvite.email,
-          builder_id: existingInvite.builder_id,
-          role: existingInvite.role,
-          invited_at: existingInvite.invited_at,
-        }),
-        "Invitation resent successfully."
-      );
-    }
-
-    const inviteToken = generateToken();
-    const insertInviteQuery = `INSERT INTO invites (email, invite_token, builder_id, role, expires_at) VALUES ($1, $2, $3, $4, NOW() + '1 days') RETURNING *;`;
-    const insertInviteResult = await client.query(insertInviteQuery, [
-      email,
-      inviteToken,
-      user?.builder_id,
-      role,
-    ]);
-
-    const inviteData = insertInviteResult.rows[0];
-
-    await sendVerificationEmail(email, null, inviteToken);
-
-    return successResponse(
-      res,
-      keysToCamelCase({
-        invite_id: inviteData.invite_id,
-        email: inviteData.email,
-        builder_id: inviteData.builder_id,
-        role: inviteData.role,
-        invited_at: inviteData.invited_at,
-      }),
-      "Invitation sent successfully."
-    );
-  } catch (error) {
-    console.error("Error inviting user:", error);
-    return errorResponse(
-      res,
-      error?.statusCode || 500,
-      error.message || "Internal server error"
-    );
-  } finally {
-    client.release();
-  }
-};
-
-exports.acceptInvite = async (req, res) => {
-  const { name, password } = req.body;
-
-  const queryParams = req?.query || {};
-  const { token } = queryParams;
-
-  if (!token || !name || !password) {
-    console.log("🚀 ~ name:", name);
-    return errorResponse(res, 400, "Missing required fields");
-  }
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-
-    const inviteQuery = `SELECT * FROM invites WHERE invite_token = $1 AND expires_at > NOW()`;
-    const inviteResult = await client.query(inviteQuery, [token]);
-
-    if (inviteResult?.rows?.length === 0) {
-      console.log(
-        "🚀 ~ inviteResult (Invalid or expired invitation):",
-        inviteResult
-      );
-      await client.query("ROLLBACK");
-      return errorResponse(res, 401, "Invalid or expired invitation.");
-    }
-
-    const invite = inviteResult.rows[0];
-    const hashedPassword = encrypt(password);
-
-    const insertUserQuery = `INSERT INTO users (builder_id, name, email, password, role, root_user, is_verified, created_at) VALUES ($1, $2, $3, $4, ARRAY[$5]::users_role_enum[], FALSE, TRUE, NOW()) RETURNING users_id;`;
-    const userResult = await client.query(insertUserQuery, [
-      invite.builder_id,
-      name,
-      invite.email,
-      hashedPassword,
-      invite.role,
-    ]);
-
-    await client.query(`DELETE FROM invites WHERE invite_token = $1`, [token]);
-
-    // Generate tokens
-    const accessToken = generateAccessToken(userResult.rows[0].users_id);
-    const refreshToken = generateRefreshToken(userResult.rows[0].users_id);
-
-    // Store tokens
-    const tokenQuery = `
-        INSERT INTO users_token (user_id, access_token, refresh_token) 
-        VALUES ($1, $2, $3);
-      `;
-    await client.query(tokenQuery, [
-      userResult.rows[0].users_id,
-      accessToken,
-      refreshToken,
-    ]);
-
-    return successResponse(
-      res,
-      {
-        accessToken,
-        refreshToken,
-        user: {
-          id: userResult.rows[0].users_id,
-          email: invite.email,
-          roles: invite.role,
-        },
-      },
-      "Login successful."
-    );
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error accepting invitation:", error);
-    return errorResponse(
-      res,
-      error?.statusCode || 500,
-      error.message || "Internal server error"
-    );
-  } finally {
-    client.release();
-    await client.query("COMMIT");
-  }
-};
-
-async function sendVerificationEmail(email, otp, inviteToken = null) {
-  let subject;
-  let verificationLink;
-  let text;
-  try {
-    if (inviteToken) {
-      subject = "Invitation to Join";
-      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTED_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
-      text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
-    } else {
-      subject = "OTP for Email Verification";
-      verificationLink = `${process.env.FRONTED_BASE_URL}/auth/verify-email?email=${email}`;
-      text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
-    }
-
-    return await sendEmail(email, subject, text);
-  } catch (error) {
-    console.error("Email sending error:", error);
-    return false;
-  }
-}
-
-exports.getAllUsers = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { page = 1, limit = 10 } = req.query;
-
-    const pageValue = Math.max(parseInt(page, 10), 1);
-    const limitValue = Math.max(parseInt(limit, 10), 1);
-    const offset = (pageValue - 1) * limitValue;
-
-    const countResult = await client.query(`
-      SELECT COUNT(*)::int AS total
-      FROM users
-      WHERE is_deleted = FALSE;
-    `);
-
-    const totalRecords = countResult.rows[0].total;
-
-    const usersResult = await client.query(
-      `
-      SELECT
-        users_id,
-        builder_id,
-        name,
-        email,
-        is_verified,
-        is_deleted,
-        role_id,
-        root_user,
-        created_at,
-        updated_at
-      FROM users
-      WHERE is_deleted = FALSE
-      ORDER BY created_at DESC
-      LIMIT $1 OFFSET $2;
-      `,
-      [limitValue, offset]
-    );
-
-    return successResponse(
-      res,
-      {
-        users: keysToCamelCase(usersResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          limit: limitValue,
-          totalRecords,
-          totalPages: Math.ceil(totalRecords / limitValue),
-        },
-      },
+      keysToCamelCase(data),
       "Users fetched successfully."
     );
-  } catch (error) {
-    console.error("Get All Users Error:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.getProfile = async (req, res) => {
+  try {
+    const data = await userService.getProfile(req.user.user_id);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Profile fetched successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.createUser = async (req, res) => {
+  try {
+    const photo = req.files?.photo?.[0] || null;
+    const signature = req.files?.signature?.[0] || null;
+
+    const data = await userService.createUser(req.user, req.body, {
+      photo,
+      signature,
+    });
+
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "User created successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.updateUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const photo = req.files?.photo?.[0] || null;
+    const signature = req.files?.signature?.[0] || null;
+
+    const data = await userService.updateUser(req.user, userId, req.body, {
+      photo,
+      signature,
+    });
+
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "User updated successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.deleteUser = async (req, res) => {
+  try {
+    const data = await userService.deleteUser(req.user, req.params.userId);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "User deleted (soft delete) successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+/* =========================================
+    PASSWORD & LOGIN ID MANAGEMENT
+========================================= */
+
+module.exports.resetPassword = async (req, res) => {
+  try {
+    const data = await userService.resetPassword(
+      req.user,
+      req.params.userId,
+      req.body
+    );
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Password reset successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.changeLoginId = async (req, res) => {
+  try {
+    const data = await userService.changeLoginId(
+      req.user,
+      req.params.userId,
+      req.body
+    );
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Login ID changed successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+/* =========================================
+       ACTIVE / INACTIVE MANAGEMENT
+========================================= */
+
+module.exports.toggleActive = async (req, res) => {
+  try {
+    const data = await userService.toggleActive(req.user, req.params.userId);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "User active status updated."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+/* =========================================
+           LOCK / UNLOCK USER
+========================================= */
+
+module.exports.toggleLock = async (req, res) => {
+  try {
+    const data = await userService.toggleLock(req.user, req.params.userId);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "User lock status updated."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+/* =========================================
+            PHOTO MANAGEMENT
+========================================= */
+
+module.exports.updatePhoto = async (req, res) => {
+  try {
+    const file = req.file;
+    const data = await userService.updatePhoto(
+      req.user,
+      req.params.userId,
+      file
+    );
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Photo updated successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.deletePhoto = async (req, res) => {
+  try {
+    const data = await userService.deletePhoto(req.user, req.params.userId);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Photo deleted successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+/* =========================================
+          SIGNATURE MANAGEMENT
+========================================= */
+
+module.exports.updateSignature = async (req, res) => {
+  try {
+    const file = req.file;
+    const data = await userService.updateSignature(
+      req.user,
+      req.params.userId,
+      file
+    );
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Signature updated successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
+  }
+};
+
+module.exports.deleteSignature = async (req, res) => {
+  try {
+    const data = await userService.deleteSignature(req.user, req.params.userId);
+    return successResponse(
+      res,
+      keysToCamelCase(data),
+      "Signature deleted successfully."
+    );
+  } catch (err) {
+    return errorResponse(res, err.status || 500, err.message);
   }
 };

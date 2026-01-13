@@ -6,7 +6,7 @@ const Joi = require("joi");
 
 const upsertSettingsSchema = Joi.object({
   signature_required: Joi.boolean().optional(),
-  minimum_audits: Joi.number().integer().min(0).optional()
+  minimum_audits: Joi.number().integer().min(0).optional(),
 });
 
 /* ========================
@@ -18,17 +18,27 @@ const createListItemSchema = Joi.object({
   description: Joi.string().max(500).required(),
   sort_order: Joi.number().integer().min(1).optional(),
   parent_id: Joi.string().uuid().optional().allow(null),
-  add_defaults: Joi.boolean().optional()
+  add_defaults: Joi.boolean().optional(),
 });
 
 const updateListItemSchema = Joi.object({
   description: Joi.string().max(500).optional(),
-  sort_order: Joi.number().integer().min(1).optional(),
+  sort_order: Joi.number().integer().min(1).when("field_type", {
+    is: "item",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   add_defaults: Joi.boolean().optional(),
 }).min(1);
+
+const getListItemChema = Joi.object({
+  field_name: Joi.string().max(100).optional(),
+  field_type: Joi.string().valid("category", "item").optional(),
+});
 
 module.exports = {
   upsertSettingsSchema,
   createListItemSchema,
-  updateListItemSchema
+  updateListItemSchema,
+  getListItemChema,
 };

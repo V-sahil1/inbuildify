@@ -16,13 +16,6 @@ const createPortalSettingsSchema = Joi.object({
   publish_packages_to_agent_portal: Joi.boolean().default(false),
 });
 
-const updatePortalSettingParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "portal setting ID must be a valid UUID",
-    "any.required": "portal setting ID is required",
-  }),
-});
-
 const updatePortalSettingsSchema = Joi.object({
   send_login_credentials_to_customer: Joi.boolean(),
   portal_active_days_after_handover: Joi.number().min(0).max(365).optional(),
@@ -41,6 +34,5 @@ const updatePortalSettingsSchema = Joi.object({
 
 module.exports = {
   createPortalSettingsSchema,
-  updatePortalSettingParamsSchema,
   updatePortalSettingsSchema,
 };

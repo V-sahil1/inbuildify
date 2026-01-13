@@ -4,7 +4,7 @@ const costCenterController = require("../controllers/cost-center.controller");
 const {
   createCostCenterSchema,
   updateCostCenterSchema,
-  costCenterParamsSchema
+  costCenterParamsSchema,
 } = require("../validations/cost-center.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -23,11 +23,7 @@ router.post(
   costCenterController.createCostCenter
 );
 
-
-router.get(
-  "/",
-  costCenterController.getCostCenters
-);
+router.get("/", costCenterController.getCostCenters);
 
 router.get(
   "/:cost_center_id",
@@ -42,6 +38,11 @@ router.put(
   costCenterController.updateCostCenter
 );
 
+router.put(
+  "/is-active/:cost_center_id",
+  validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
+  costCenterController.toggleCostCenterStatus
+);
 
 router.delete(
   "/:cost_center_id",

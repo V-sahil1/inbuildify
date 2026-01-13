@@ -8,7 +8,6 @@ const {
 } = require("../controllers/construction-setting.controller");
 const {
   createConstructionSettingSchema,
-  updateConstructionSettingParamsSchema,
   updateConstructionSettingSchema,
 } = require("../validations/construction-setting.validation");
 

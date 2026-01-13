@@ -2,6 +2,38 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+const formatInspectionChecklistResponse = (row) => {
+  const base = {
+    constructionInspectionChecklistId: row.constructionInspectionChecklistId,
+    fieldName: row.fieldName,
+    description: row.description,
+    sortOrder: row.sortOrder,
+    addAllExistingJobs: row.addAllExistingJobs,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+
+  if (row.fieldName === "section") {
+    return {
+      ...base,
+      builder: row.builder,
+      constructionType: row.constructionType,
+      constructionStage: row.constructionStage,
+    };
+  }
+
+  // checklist
+  return {
+    ...base,
+    section: row.section
+      ? {
+          id: row.section.id,
+          name: row.section.name,
+        }
+      : null,
+  };
+};
+
 exports.createConstructionInspectionChecklist = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -16,7 +48,7 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
       sort_order,
       construction_option_id,
       section_id,
-      add_all_existing_jobs
+      add_all_existing_jobs,
     } = req.body;
 
     const userId = req.user?.users_id;
@@ -27,36 +59,81 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
       return errorResponse(res, 400, "field_name and description are required");
     }
 
-    if (!['checklist', 'section'].includes(field_name)) {
-      return errorResponse(res, 400, "field_name must be either 'checklist' or 'section'");
+    if (!["checklist", "section"].includes(field_name)) {
+      return errorResponse(
+        res,
+        400,
+        "field_name must be either 'checklist' or 'section'"
+      );
+    }
+
+    if (field_name === "checklist" && !section_id) {
+      return errorResponse(
+        res,
+        400,
+        "section_id is required when field_name is 'checklist'"
+      );
     }
 
     if (!companyId && !builderId) {
-      return errorResponse(res, 400, "User must be associated with either company or builder");
+      return errorResponse(
+        res,
+        400,
+        "User must be associated with either company or builder"
+      );
     }
 
     let finalSortOrder = sort_order || 1;
 
-    if (field_name === 'section') {
-      const allowedSectionFields = ['builder', 'construction_type_id', 'construction_stage_id', 'field_name', 'description', 'sort_order'];
+    if (field_name === "section") {
+      const allowedSectionFields = [
+        "builder",
+        "construction_type_id",
+        "construction_stage_id",
+        "field_name",
+        "description",
+        "sort_order",
+        "add_all_existing_jobs",
+      ];
       const providedFields = Object.keys(req.body);
-      
+
       for (const field of providedFields) {
-        if (!allowedSectionFields.includes(field) && req.body[field] !== undefined) {
-          return errorResponse(res, 400, `Field '${field}' is not allowed when field_name is 'section'. Only allowed fields: ${allowedSectionFields.join(', ')}`);
+        if (
+          !allowedSectionFields.includes(field) &&
+          req.body[field] !== undefined
+        ) {
+          return errorResponse(
+            res,
+            400,
+            `Field '${field}' is not allowed when field_name is 'section'. Only allowed fields: ${allowedSectionFields.join(
+              ", "
+            )}`
+          );
         }
       }
-      
+
       if (!builder) {
-        return errorResponse(res, 400, "builder is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "builder is required when field_name is 'section'"
+        );
       }
-      
+
       if (!construction_type_id) {
-        return errorResponse(res, 400, "construction_type_id is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "construction_type_id is required when field_name is 'section'"
+        );
       }
-      
+
       if (!construction_stage_id) {
-        return errorResponse(res, 400, "construction_stage_id is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "construction_stage_id is required when field_name is 'section'"
+        );
       }
 
       const shiftSectionsQuery = `
@@ -69,9 +146,15 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
           AND construction_stage_id = $5
           AND sort_order >= $6
       `;
-      await client.query(shiftSectionsQuery, [companyId, builderId, builder, construction_type_id, construction_stage_id, finalSortOrder]);
-
-    } else if (field_name === 'checklist') {
+      await client.query(shiftSectionsQuery, [
+        companyId,
+        builderId,
+        builder,
+        construction_type_id,
+        construction_stage_id,
+        finalSortOrder,
+      ]);
+    } else if (field_name === "checklist") {
       if (section_id) {
         const sectionCheckQuery = `
           SELECT * FROM construction_inspection_checklist 
@@ -79,8 +162,12 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
             AND field_name = 'section'
             AND (company_id = $2 OR builder_id = $3)
         `;
-        const sectionResult = await client.query(sectionCheckQuery, [section_id, companyId, builderId]);
-        
+        const sectionResult = await client.query(sectionCheckQuery, [
+          section_id,
+          companyId,
+          builderId,
+        ]);
+
         if (sectionResult.rowCount === 0) {
           return errorResponse(res, 400, "Section not found or access denied");
         }
@@ -91,10 +178,17 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
             AND (company_id = $1 OR builder_id = $2)
           LIMIT 1
         `;
-        const sectionExistsResult = await client.query(sectionExistsQuery, [companyId, builderId]);
-        
+        const sectionExistsResult = await client.query(sectionExistsQuery, [
+          companyId,
+          builderId,
+        ]);
+
         if (sectionExistsResult.rowCount === 0) {
-          return errorResponse(res, 400, "Cannot create checklist. No sections found. Please create a section first.");
+          return errorResponse(
+            res,
+            400,
+            "Cannot create checklist. No sections found. Please create a section first."
+          );
         }
       }
 
@@ -105,7 +199,11 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
           AND (company_id = $1 OR builder_id = $2)
           AND sort_order >= $3
       `;
-      await client.query(shiftChecklistsQuery, [companyId, builderId, finalSortOrder]);
+      await client.query(shiftChecklistsQuery, [
+        companyId,
+        builderId,
+        finalSortOrder,
+      ]);
     }
 
     const insertQuery = `
@@ -141,61 +239,65 @@ exports.createConstructionInspectionChecklist = async (req, res) => {
       section_id || null,
       add_all_existing_jobs !== undefined ? add_all_existing_jobs : true,
       userId,
-      userId
+      userId,
     ];
 
     const result = await client.query(insertQuery, values);
-    const inspectionChecklistId = result.rows[0].construction_inspection_checklist_id;
+    const inspectionChecklistId =
+      result.rows[0].construction_inspection_checklist_id;
 
     const responseQuery = `
-      SELECT
-        cic.construction_inspection_checklist_id,
-        cic.field_name,
-        cic.description,
-        cic.sort_order,
-        cic.add_all_existing_jobs,
+     SELECT
+  cic.construction_inspection_checklist_id,
+  cic.field_name,
+  cic.description,
+  cic.sort_order,
+  cic.add_all_existing_jobs,
 
-        json_build_object(
-          'id', cic.builder_id,
-          'name', cic.builder
-        ) AS builder,
+  json_build_object(
+    'id', cic.builder,
+    'name', b.name
+  ) AS builder,
 
-        json_build_object(
-          'id', cic.construction_type_id,
-          'name', ct.types_name
-        ) AS constructionType,
+  json_build_object(
+    'id', cic.construction_type_id,
+    'name', ct.types_name
+  ) AS construction_type,
 
-        json_build_object(
-          'id', cic.construction_stage_id,
-          'name', cs.stage_name
-        ) AS constructionStage,
+  json_build_object(
+    'id', cic.construction_stage_id,
+    'name', cs.stage_name
+  ) AS construction_stage,
 
-        json_build_object(
-          'id', cic.construction_option_id,
-          'name', co.option_name
-        ) AS constructionOption,
+  json_build_object(
+    'id', cic.section_id,
+    'name', section.description
+  ) AS section,
 
-        json_build_object(
-          'id', cic.section_id,
-          'name', section.description
-        ) AS section,
-        cic.created_at,
-        cic.updated_at
+  cic.created_at,
+  cic.updated_at
 
-      FROM construction_inspection_checklist cic
-      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
-      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
-      LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
-      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
-      WHERE cic.construction_inspection_checklist_id = $1
-      GROUP BY cic.construction_inspection_checklist_id, ct.types_name, cs.stage_name, co.option_name, section.description;
+FROM construction_inspection_checklist cic
+LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
+LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
+LEFT JOIN construction_inspection_checklist section
+  ON cic.section_id = section.construction_inspection_checklist_id
+LEFT JOIN builder b ON cic.builder = b.builder_id
+WHERE cic.construction_inspection_checklist_id = $1;
+
     `;
 
-    const responseResult = await client.query(responseQuery, [inspectionChecklistId]);
+    const responseResult = await client.query(responseQuery, [
+      inspectionChecklistId,
+    ]);
+
+    const formatted = formatInspectionChecklistResponse(
+      keysToCamelCase(responseResult.rows[0])
+    );
 
     return successResponse(
       res,
-      keysToCamelCase(responseResult.rows[0]),
+      formatted,
       "Construction inspection checklist created successfully"
     );
   } catch (error) {
@@ -211,7 +313,9 @@ exports.getConstructionInspectionChecklists = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { construction_type_id, construction_stage_id, builder } = req.query;
+    const { construction_type_id, construction_stage_id, builder, field_name } =
+      req.query;
+
     const companyId = req.user?.company_id;
     const builderId = req.user?.builder_id;
 
@@ -224,39 +328,45 @@ exports.getConstructionInspectionChecklists = async (req, res) => {
         cic.add_all_existing_jobs,
 
         json_build_object(
-          'id', cic.builder_id,
-          'name', cic.builder
+          'id', cic.builder,
+          'name', b.name
         ) AS builder,
 
         json_build_object(
           'id', cic.construction_type_id,
           'name', ct.types_name
-        ) AS constructionType,
+        ) AS construction_type,
 
         json_build_object(
           'id', cic.construction_stage_id,
           'name', cs.stage_name
-        ) AS constructionStage,
+        ) AS construction_stage,
 
         json_build_object(
           'id', cic.construction_option_id,
           'name', co.option_name
-        ) AS constructionOption,
+        ) AS construction_option,
 
         json_build_object(
           'id', cic.section_id,
-          'name', section.description
+          'name', sec.description
         ) AS section,
 
         cic.created_at,
         cic.updated_at
 
       FROM construction_inspection_checklist cic
-      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
-      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
-      LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
-      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
-      WHERE 1=1
+      LEFT JOIN construction_type ct 
+        ON cic.construction_type_id = ct.construction_type_id
+      LEFT JOIN construction_stage cs 
+        ON cic.construction_stage_id = cs.construction_stage
+      LEFT JOIN construction_option co 
+        ON cic.construction_option_id = co.construction_option_id
+      LEFT JOIN construction_inspection_checklist sec 
+        ON cic.section_id = sec.construction_inspection_checklist_id
+      LEFT JOIN builder b 
+        ON cic.builder = b.builder_id
+      WHERE 1 = 1
     `;
 
     const values = [];
@@ -287,13 +397,22 @@ exports.getConstructionInspectionChecklists = async (req, res) => {
       values.push(construction_stage_id);
     }
 
+    if (field_name) {
+      query += ` AND cic.field_name = $${paramIndex++}`;
+      values.push(field_name);
+    }
+
     query += ` ORDER BY cic.sort_order, cic.created_at`;
 
     const result = await client.query(query, values);
 
+    const formatted = keysToCamelCase(result.rows).map(
+      formatInspectionChecklistResponse
+    );
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      formatted,
       "Construction inspection checklists fetched successfully"
     );
   } catch (error) {
@@ -323,25 +442,39 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
       sort_order,
       construction_option_id,
       section_id,
-      add_all_existing_jobs
+      add_all_existing_jobs,
     } = req.body;
 
-    if (field_name && !['checklist', 'section'].includes(field_name)) {
-      return errorResponse(res, 400, "field_name must be either 'checklist' or 'section'");
+    if (field_name && !["checklist", "section"].includes(field_name)) {
+      return errorResponse(
+        res,
+        400,
+        "field_name must be either 'checklist' or 'section'"
+      );
     }
 
     const checkQuery = `SELECT * FROM construction_inspection_checklist WHERE construction_inspection_checklist_id = $1 AND (company_id = $2 OR builder_id = $3)`;
-    const checkResult = await client.query(checkQuery, [id, companyId, builderId]);
+    const checkResult = await client.query(checkQuery, [
+      id,
+      companyId,
+      builderId,
+    ]);
 
     if (checkResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction inspection checklist not found or access denied");
+      return errorResponse(
+        res,
+        404,
+        "Construction inspection checklist not found or access denied"
+      );
     }
 
     const existingRecord = checkResult.rows[0];
-    const updatedFieldName = field_name !== undefined ? field_name : existingRecord.field_name;
-    const updatedSortOrder = sort_order !== undefined ? sort_order : existingRecord.sort_order;
+    const updatedFieldName =
+      field_name !== undefined ? field_name : existingRecord.field_name;
+    const updatedSortOrder =
+      sort_order !== undefined ? sort_order : existingRecord.sort_order;
 
-    if (updatedFieldName === 'checklist') {
+    if (updatedFieldName === "checklist") {
       if (section_id !== undefined) {
         if (section_id) {
           const sectionCheckQuery = `
@@ -350,10 +483,18 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
               AND field_name = 'section'
               AND (company_id = $2 OR builder_id = $3)
           `;
-          const sectionResult = await client.query(sectionCheckQuery, [section_id, companyId, builderId]);
-          
+          const sectionResult = await client.query(sectionCheckQuery, [
+            section_id,
+            companyId,
+            builderId,
+          ]);
+
           if (sectionResult.rowCount === 0) {
-            return errorResponse(res, 400, "Section not found or access denied");
+            return errorResponse(
+              res,
+              400,
+              "Section not found or access denied"
+            );
           }
         } else {
           const sectionExistsQuery = `
@@ -362,10 +503,17 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
               AND (company_id = $1 OR builder_id = $2)
             LIMIT 1
           `;
-          const sectionExistsResult = await client.query(sectionExistsQuery, [companyId, builderId]);
-          
+          const sectionExistsResult = await client.query(sectionExistsQuery, [
+            companyId,
+            builderId,
+          ]);
+
           if (sectionExistsResult.rowCount === 0) {
-            return errorResponse(res, 400, "Cannot create checklist. No sections found. Please create a section first.");
+            return errorResponse(
+              res,
+              400,
+              "Cannot create checklist. No sections found. Please create a section first."
+            );
           }
         }
       } else if (!existingRecord.section_id) {
@@ -375,42 +523,85 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
             AND (company_id = $1 OR builder_id = $2)
           LIMIT 1
         `;
-        const sectionExistsResult = await client.query(sectionExistsQuery, [companyId, builderId]);
-        
+        const sectionExistsResult = await client.query(sectionExistsQuery, [
+          companyId,
+          builderId,
+        ]);
+
         if (sectionExistsResult.rowCount === 0) {
-          return errorResponse(res, 400, "Cannot create checklist. No sections found. Please create a section first.");
+          return errorResponse(
+            res,
+            400,
+            "Cannot create checklist. No sections found. Please create a section first."
+          );
         }
       }
     }
 
-    if (updatedFieldName === 'section') {
-      const allowedSectionFields = ['builder', 'construction_type_id', 'construction_stage_id', 'field_name', 'description', 'sort_order'];
+    if (updatedFieldName === "section") {
+      const allowedSectionFields = [
+        "builder",
+        "construction_type_id",
+        "construction_stage_id",
+        "field_name",
+        "description",
+        "sort_order",
+        "add_all_existing_jobs",
+      ];
       const providedFields = Object.keys(req.body);
-      
+
       for (const field of providedFields) {
-        if (!allowedSectionFields.includes(field) && req.body[field] !== undefined) {
-          return errorResponse(res, 400, `Field '${field}' is not allowed when field_name is 'section'. Only allowed fields: ${allowedSectionFields.join(', ')}`);
+        if (
+          !allowedSectionFields.includes(field) &&
+          req.body[field] !== undefined
+        ) {
+          return errorResponse(
+            res,
+            400,
+            `Field '${field}' is not allowed when field_name is 'section'. Only allowed fields: ${allowedSectionFields.join(
+              ", "
+            )}`
+          );
         }
       }
-      
+
       if (builder !== undefined && !builder) {
-        return errorResponse(res, 400, "builder is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "builder is required when field_name is 'section'"
+        );
       }
-      
+
       if (construction_type_id !== undefined && !construction_type_id) {
-        return errorResponse(res, 400, "construction_type_id is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "construction_type_id is required when field_name is 'section'"
+        );
       }
-      
+
       if (construction_stage_id !== undefined && !construction_stage_id) {
-        return errorResponse(res, 400, "construction_stage_id is required when field_name is 'section'");
+        return errorResponse(
+          res,
+          400,
+          "construction_stage_id is required when field_name is 'section'"
+        );
       }
     }
 
     if (sort_order !== undefined && sort_order !== existingRecord.sort_order) {
-      if (updatedFieldName === 'section') {
-        const finalBuilder = builder !== undefined ? builder : existingRecord.builder;
-        const finalConstructionTypeId = construction_type_id !== undefined ? construction_type_id : existingRecord.construction_type_id;
-        const finalConstructionStageId = construction_stage_id !== undefined ? construction_stage_id : existingRecord.construction_stage_id;
+      if (updatedFieldName === "section") {
+        const finalBuilder =
+          builder !== undefined ? builder : existingRecord.builder;
+        const finalConstructionTypeId =
+          construction_type_id !== undefined
+            ? construction_type_id
+            : existingRecord.construction_type_id;
+        const finalConstructionStageId =
+          construction_stage_id !== undefined
+            ? construction_stage_id
+            : existingRecord.construction_stage_id;
 
         const shiftSectionsQuery = `
           UPDATE construction_inspection_checklist 
@@ -423,8 +614,16 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
             AND sort_order >= $6
             AND construction_inspection_checklist_id != $7
         `;
-        await client.query(shiftSectionsQuery, [companyId, builderId, finalBuilder, finalConstructionTypeId, finalConstructionStageId, sort_order, id]);
-      } else if (updatedFieldName === 'checklist') {
+        await client.query(shiftSectionsQuery, [
+          companyId,
+          builderId,
+          finalBuilder,
+          finalConstructionTypeId,
+          finalConstructionStageId,
+          sort_order,
+          id,
+        ]);
+      } else if (updatedFieldName === "checklist") {
         const shiftChecklistsQuery = `
           UPDATE construction_inspection_checklist 
           SET sort_order = sort_order + 1 
@@ -433,7 +632,12 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
             AND sort_order >= $3
             AND construction_inspection_checklist_id != $4
         `;
-        await client.query(shiftChecklistsQuery, [companyId, builderId, sort_order, id]);
+        await client.query(shiftChecklistsQuery, [
+          companyId,
+          builderId,
+          sort_order,
+          id,
+        ]);
       }
     }
 
@@ -496,7 +700,7 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
 
     const updateQuery = `
       UPDATE construction_inspection_checklist 
-      SET ${fields.join(', ')}
+      SET ${fields.join(", ")}
       WHERE construction_inspection_checklist_id = $${paramIndex}
       RETURNING construction_inspection_checklist_id
     `;
@@ -507,54 +711,54 @@ exports.updateConstructionInspectionChecklist = async (req, res) => {
 
     const responseQuery = `
       SELECT
-        cic.construction_inspection_checklist_id,
-        cic.field_name,
-        cic.description,
-        cic.sort_order,
-        cic.add_all_existing_jobs,
+  cic.construction_inspection_checklist_id,
+  cic.field_name,
+  cic.description,
+  cic.sort_order,
+  cic.add_all_existing_jobs,
 
-        json_build_object(
-          'id', cic.builder_id,
-          'name', cic.builder
-        ) AS builder,
+  json_build_object(
+    'id', cic.builder,
+    'name', b.name
+  ) AS builder,
 
-        json_build_object(
-          'id', cic.construction_type_id,
-          'name', ct.types_name
-        ) AS constructionType,
+  json_build_object(
+    'id', cic.construction_type_id,
+    'name', ct.types_name
+  ) AS construction_type,
 
-        json_build_object(
-          'id', cic.construction_stage_id,
-          'name', cs.stage_name
-        ) AS constructionStage,
+  json_build_object(
+    'id', cic.construction_stage_id,
+    'name', cs.stage_name
+  ) AS construction_stage,
 
-        json_build_object(
-          'id', cic.construction_option_id,
-          'name', co.option_name
-        ) AS constructionOption,
+  json_build_object(
+    'id', cic.section_id,
+    'name', section.description
+  ) AS section,
 
-        json_build_object(
-          'id', cic.section_id,
-          'name', section.description
-        ) AS section,
+  cic.created_at,
+  cic.updated_at
 
-        cic.created_at,
-        cic.updated_at
+FROM construction_inspection_checklist cic
+LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
+LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
+LEFT JOIN construction_inspection_checklist section
+  ON cic.section_id = section.construction_inspection_checklist_id
+LEFT JOIN builder b ON cic.builder = b.builder_id
+WHERE cic.construction_inspection_checklist_id = $1;
 
-      FROM construction_inspection_checklist cic
-      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
-      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
-      LEFT JOIN construction_option co ON cic.construction_option_id = co.construction_option_id
-      LEFT JOIN construction_inspection_checklist section ON cic.section_id = section.construction_inspection_checklist_id
-      WHERE cic.construction_inspection_checklist_id = $1
-      GROUP BY cic.construction_inspection_checklist_id, ct.types_name, cs.stage_name, co.option_name, section.description;
     `;
 
     const responseResult = await client.query(responseQuery, [id]);
 
+    const formatted = formatInspectionChecklistResponse(
+      keysToCamelCase(responseResult.rows[0])
+    );
+
     return successResponse(
       res,
-      keysToCamelCase(responseResult.rows[0]),
+      formatted,
       "Construction inspection checklist updated successfully"
     );
   } catch (error) {
@@ -571,18 +775,48 @@ exports.deleteConstructionInspectionChecklist = async (req, res) => {
 
   try {
     const { id } = req.params;
+    const { add_all_existing_jobs } = req.body;
+    const userId = req.user?.users_id;
     const companyId = req.user?.company_id;
     const builderId = req.user?.builder_id;
 
     const checkQuery = `SELECT * FROM construction_inspection_checklist WHERE construction_inspection_checklist_id = $1 AND (company_id = $2 OR builder_id = $3)`;
-    const checkResult = await client.query(checkQuery, [id, companyId, builderId]);
+    const checkResult = await client.query(checkQuery, [
+      id,
+      companyId,
+      builderId,
+    ]);
 
     if (checkResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction inspection checklist not found or access denied");
+      return errorResponse(
+        res,
+        404,
+        "Construction inspection checklist not found or access denied"
+      );
     }
 
-    const deleteQuery = `DELETE FROM construction_inspection_checklist WHERE construction_inspection_checklist_id = $1`;
-    await client.query(deleteQuery, [id]);
+    let deleteQuery = `DELETE FROM construction_inspection_checklist WHERE construction_inspection_checklist_id = $1`;
+    let queryParams = [id];
+
+    if (add_all_existing_jobs !== undefined) {
+      const updateQuery = `UPDATE construction_inspection_checklist SET add_all_existing_jobs = $1 WHERE construction_inspection_checklist_id = $2`;
+      await client.query(updateQuery, [add_all_existing_jobs, id]);
+
+      const updatedResult = await client.query(
+        `SELECT * FROM construction_inspection_checklist WHERE construction_inspection_checklist_id = $1`,
+        [id]
+      );
+
+      await client.query(deleteQuery, queryParams);
+
+      return successResponse(
+        res,
+        keysToCamelCase(updatedResult.rows[0]),
+        "Construction inspection checklist updated and deleted successfully"
+      );
+    }
+
+    await client.query(deleteQuery, queryParams);
 
     return successResponse(
       res,
@@ -592,6 +826,100 @@ exports.deleteConstructionInspectionChecklist = async (req, res) => {
   } catch (error) {
     console.error("Error deleting construction inspection checklist:", error);
     return errorResponse(res, 500, error.message || "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getConstructionInspectionChecklistById = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const companyId = req.user?.company_id;
+    const builderId = req.user?.builder_id;
+
+    if (!companyId && !builderId) {
+      return errorResponse(
+        res,
+        400,
+        "User must be associated with either company or builder"
+      );
+    }
+
+    const responseQuery = `
+      SELECT
+        cic.construction_inspection_checklist_id,
+        cic.field_name,
+        cic.description,
+        cic.sort_order,
+        cic.add_all_existing_jobs,
+
+        json_build_object(
+          'id', cic.builder,
+          'name', b.name
+        ) AS builder,
+
+        json_build_object(
+          'id', cic.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type,
+
+        json_build_object(
+          'id', cic.construction_stage_id,
+          'name', cs.stage_name
+        ) AS construction_stage,
+
+        json_build_object(
+          'id', cic.section_id,
+          'name', section.description
+        ) AS section,
+
+        cic.created_at,
+        cic.updated_at
+
+      FROM construction_inspection_checklist cic
+      LEFT JOIN construction_type ct ON cic.construction_type_id = ct.construction_type_id
+      LEFT JOIN construction_stage cs ON cic.construction_stage_id = cs.construction_stage
+      LEFT JOIN construction_inspection_checklist section
+        ON cic.section_id = section.construction_inspection_checklist_id
+      LEFT JOIN builder b ON cic.builder = b.builder_id
+      WHERE cic.section_id = $1 
+        AND (cic.company_id = $2 OR cic.builder_id = $3)
+        AND cic.field_name = 'checklist'
+      ORDER BY cic.sort_order ASC;
+    `;
+
+    const result = await client.query(responseQuery, [
+      id,
+      companyId,
+      builderId,
+    ]);
+
+    // if (result.rowCount === 0) {
+    //   return errorResponse(
+    //     res,
+    //     404,
+    //     "No checklists found for this section or access denied"
+    //   );
+    // }
+
+    const formatted = keysToCamelCase(result.rows).map(
+      formatInspectionChecklistResponse
+    );
+
+    return successResponse(
+      res,
+      formatted,
+      "Construction inspection checklists fetched successfully"
+    );
+  } catch (error) {
+    console.error(
+      "Error fetching construction inspection checklists by section ID:",
+      error
+    );
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

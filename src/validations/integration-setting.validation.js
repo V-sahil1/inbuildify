@@ -20,13 +20,6 @@ const createIntegrationSettingsSchema = Joi.object({
   }),
 });
 
-const updateIntegrationSettingParamsSchema = Joi.object({
-  integration_settings_id: Joi.string().uuid().required().messages({
-    "string.guid": "Integration setting id must be a valid UUID",
-    "any.required": "Integratiob setting id is required",
-  }),
-});
-
 const updateIntegrationSettingSchema = Joi.object({
   automatically_send_welcome_email: Joi.boolean().optional(),
   rea_hl_enabled: Joi.boolean().optional(),
@@ -49,6 +42,5 @@ const updateIntegrationSettingSchema = Joi.object({
 
 module.exports = {
   createIntegrationSettingsSchema,
-  updateIntegrationSettingParamsSchema,
   updateIntegrationSettingSchema,
 };

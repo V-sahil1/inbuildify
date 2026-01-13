@@ -6,6 +6,7 @@ const {
   getConstructionInspectionChecklists,
   updateConstructionInspectionChecklist,
   deleteConstructionInspectionChecklist,
+  getConstructionInspectionChecklistById,
 } = require("../controllers/construction-inspection-checklist.controller");
 
 const {
@@ -13,6 +14,7 @@ const {
   getConstructionInspectionChecklistsSchema,
   updateConstructionInspectionChecklistSchema,
   deleteConstructionInspectionChecklistSchema,
+  updateExistingJobsSchema,
 } = require("../validations/construction-inspection-checklist.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -26,26 +28,51 @@ router.use(roleMiddleware);
 router.use(caseConverterMiddleware);
 router.post(
   "/",
-  validateRequest(createConstructionInspectionChecklistSchema, REQUEST_SOURCE.BODY),
+  validateRequest(
+    createConstructionInspectionChecklistSchema,
+    REQUEST_SOURCE.BODY
+  ),
   createConstructionInspectionChecklist
 );
 
 router.get(
   "/",
-  validateRequest(getConstructionInspectionChecklistsSchema, REQUEST_SOURCE.QUERY),
+  validateRequest(
+    getConstructionInspectionChecklistsSchema,
+    REQUEST_SOURCE.QUERY
+  ),
   getConstructionInspectionChecklists
+);
+
+router.get(
+  "/:id",
+  validateRequest(
+    deleteConstructionInspectionChecklistSchema,
+    REQUEST_SOURCE.PARAMS
+  ),
+  getConstructionInspectionChecklistById
 );
 
 router.put(
   "/:id",
-  validateRequest(updateConstructionInspectionChecklistSchema, REQUEST_SOURCE.BODY),
-  validateRequest(deleteConstructionInspectionChecklistSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(
+    deleteConstructionInspectionChecklistSchema,
+    REQUEST_SOURCE.PARAMS
+  ),
+  validateRequest(
+    updateConstructionInspectionChecklistSchema,
+    REQUEST_SOURCE.BODY
+  ),
   updateConstructionInspectionChecklist
 );
 
 router.delete(
   "/:id",
-  validateRequest(deleteConstructionInspectionChecklistSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateExistingJobsSchema, REQUEST_SOURCE.BODY),
+  validateRequest(
+    deleteConstructionInspectionChecklistSchema,
+    REQUEST_SOURCE.PARAMS
+  ),
   deleteConstructionInspectionChecklist
 );
 

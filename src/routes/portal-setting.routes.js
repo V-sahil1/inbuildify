@@ -8,7 +8,6 @@ const {
 } = require("../controllers/portal-setting.controller");
 const {
   createPortalSettingsSchema,
-  updatePortalSettingParamsSchema,
   updatePortalSettingsSchema,
 } = require("../validations/portal-setting.validation");
 

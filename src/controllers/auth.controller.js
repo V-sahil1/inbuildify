@@ -1,608 +1,85 @@
-const getPool = require("../config/database");
+const AuthService = require("../services/auth.service");
 const { successResponse, errorResponse } = require("../helper/response");
-const { v4: uuidv4 } = require("uuid");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const sendEmail = require("../helper/sendMail");
-const {
-  generateOtp,
-  encrypt,
-  decrypt,
-  generateAccessToken,
-  generateRefreshToken,
-  checkRequiredFields,
-} = require("../utils/common");
 
-exports.registerUser = async (req, res) => {
-  const { name, email, password, role_id } = req.body;
-  const lowerCaseEmail = email.toLowerCase();
-
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function registerRoot(req, res) {
   try {
-    const existingUserQuery = `
-      SELECT u.is_verified, u.expires_at, b.email 
-      FROM users u 
-      JOIN builder b ON u.builder_id = b.builder_id 
-      WHERE LOWER(b.email) = $1;
-    `;
-    const existingUserResult = await client.query(existingUserQuery, [
-      lowerCaseEmail,
-    ]);
-
-    if (existingUserResult.rowCount > 0) {
-      const { is_verified } = existingUserResult.rows[0];
-
-      if (is_verified) {
-        return errorResponse(res, 409, "User already exists and is verified.");
-      }
-
-      const otp = generateOtp();
-      const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-
-      if (emailSent) {
-        await client.query(
-          `UPDATE users SET otp = $1, expires_at = $2 WHERE LOWER(email) = $3;`,
-          [otp, newExpiresAt, lowerCaseEmail]
-        );
-
-        return successResponse(
-          res,
-          {
-            message: "A new OTP has been sent to your email.",
-          },
-          "OTP sent successfully."
-        );
-      } else {
-        return errorResponse(res, 500, "Failed to send OTP email.");
-      }
-    }
-
-    // 🔹 Validate role_id
-    if (!role_id) {
-      return errorResponse(res, 400, "role_id is required.");
-    }
-
-    const roleCheck = await client.query(
-      `SELECT 1 FROM role WHERE role_id = $1;`,
-      [role_id]
-    );
-
-    if (roleCheck.rowCount === 0) {
-      return errorResponse(res, 400, "Invalid role_id provided.");
-    }
-
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-    
-    if (!emailSent) {
-      return errorResponse(res, 500, "Failed to send verification email.");
-    }
-
-    await client.query("BEGIN");
-
-    try {
-      const builderResult = await client.query(
-        `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id;`,
-        [name, lowerCaseEmail]
-      );
-      const builderId = builderResult.rows[0].builder_id;
-
-      await client.query(
-        `INSERT INTO users (
-          role_id, builder_id, name, email, password,
-          root_user, otp, expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
-        [
-          role_id,
-          builderId,
-          name,
-          lowerCaseEmail,
-          encrypt(password),
-          false, // keeping existing logic intact
-          otp,
-          expiresAt,
-        ]
-      );
-
-      await client.query("COMMIT");
-
-      return successResponse(res, null, "User created successfully.");
-    } catch (insertError) {
-      await client.query("ROLLBACK");
-      throw insertError;
-    }
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(res, 400, error.message || "Failed to create user.");
-  } finally {
-    client.release();
+    const data = await AuthService.registerRoot(req.body);
+    return successResponse(res, data, "Root user registered. OTP sent.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.verifyEmailOtp = async (req, res) => {
-  const { email, otp } = req.body;
-
-  if (!email || !otp) {
-    return errorResponse(res, 400, "Email and OTP are required.");
-  }
-
-  const lowerCaseEmail = email.toLowerCase();
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function verifyEmail(req, res) {
   try {
-    const userQuery = `
-      SELECT users_id, otp, expires_at, is_verified
-      FROM users
-      WHERE LOWER(email) = $1;
-    `;
-
-    const result = await client.query(userQuery, [lowerCaseEmail]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "User not found.");
-    }
-
-    const user = result.rows[0];
-
-    if (user.is_verified) {
-      return errorResponse(res, 400, "Email already verified.");
-    }
-
-    if (user.otp !== otp) {
-      return errorResponse(res, 400, "Invalid OTP.");
-    }
-
-    if (user.expires_at && new Date(user.expires_at) < new Date()) {
-      return errorResponse(res, 400, "OTP has expired.");
-    }
-
-    await client.query(
-      `
-      UPDATE users
-      SET is_verified = true,
-          otp = NULL,
-          expires_at = NULL,
-          updated_at = NOW()
-      WHERE users_id = $1;
-      `,
-      [user.users_id]
-    );
-
+    await AuthService.verifyEmail(req.body);
     return successResponse(res, null, "Email verified successfully.");
-  } catch (error) {
-    console.error("Verify email OTP error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.loginUser = async (req, res) => {
-  // Data is already validated by Joi middleware
-  const { email, password } = req.body;
-  const lowerCaseEmail = email.toLowerCase();
-
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function resendOtp(req, res) {
   try {
-    const userQuery = `
-      SELECT users_id, password, is_verified, otp, expires_at, role_id
-      FROM users 
-      WHERE LOWER(email) = $1;
-    `;
-    const userResult = await client.query(userQuery, [lowerCaseEmail]);
-
-    if (userResult.rows.length === 0) {
-      return errorResponse(res, 401, "Invalid email or password.");
-    }
-
-    const user = userResult.rows[0];
-
-    // Validate password
-    const decryptedPassword = decrypt(user.password);
-    if (decryptedPassword !== password) {
-      return errorResponse(res, 401, "Invalid email or password.");
-    }
-
-    // Check if user is verified
-    if (!user.is_verified) {
-      const otp = generateOtp();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-
-      if (emailSent) {
-        await client.query(
-          `UPDATE users SET otp = $1, expires_at = $2 WHERE LOWER(email) = $3;`,
-          [otp, expiresAt, lowerCaseEmail]
-        );
-
-        return errorResponse(
-          res,
-          400,
-          "Please verify your email before logging in. A new OTP has been sent.",
-          `/verify-email?email=${lowerCaseEmail}`
-        );
-      } else {
-        return errorResponse(res, 500, "Failed to send OTP email.");
-      }
-    }
-
-    // Generate tokens
-    const accessToken = generateAccessToken(user.users_id);
-    const refreshToken = generateRefreshToken(user.users_id);
-
-    // Store tokens
-    const tokenQuery = `
-      INSERT INTO users_token (user_id, access_token, refresh_token) 
-      VALUES ($1, $2, $3);
-    `;
-    await client.query(tokenQuery, [user.users_id, accessToken, refreshToken]);
-
-    return successResponse(
-      res,
-      {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.users_id,
-          email: lowerCaseEmail,
-          roles: user.role,
-        },
-      },
-      "Login successful."
-    );
-  } catch (error) {
-    console.error("Login error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
+    const data = await AuthService.resendOtp(req.body.email);
+    return successResponse(res, data, "OTP resent successfully.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.forgotPassword = async (req, res) => {
-  const requiredFields = ["email"];
-  const requestBody = req.body || {};
-
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  if (!checkRequiredFields(Object.keys(requestBody), requiredFields)) {
-    return errorResponse(res, 400, "Invalid request body");
-  }
-
-  const { email } = requestBody;
-  const lowerCaseEmail = email.toLowerCase();
-
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function login(req, res) {
   try {
-    const query = `SELECT u.users_id FROM users u WHERE LOWER(u.email) = $1 AND u.is_deleted = FALSE;`;
-    const result = await client.query(query, [lowerCaseEmail]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "User not found or inactive.");
-    }
-
-    const resetPasswordToken = uuidv4();
-    const resetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    const resetLink = `${process.env.FRONTED_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${lowerCaseEmail}`;
-    const emailSent = await sendVerificationEmail(
-      lowerCaseEmail,
-      null,
-      resetPasswordToken
-    );
-
-    if (emailSent) {
-      await client.query(
-        `UPDATE users SET reset_password_token = $1, reset_token_expires_at = $2 WHERE LOWER(email) = $3;`,
-        [resetPasswordToken, resetTokenExpiresAt, lowerCaseEmail]
-      );
-      return successResponse(
-        res,
-        null,
-        "Password reset email sent."
-      );
-    } else {
-      return errorResponse(res, 400, "Failed to send reset email.");
-    }
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(res, 500, "Internal server error");
-  } finally {
-    client.release();
+    const data = await AuthService.login(req.body);
+    return successResponse(res, data, "Login successful.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.resetPassword = async (req, res) => {
-  const requestBody = req?.body || {};
-
-  if (!requestBody || Object.keys(requestBody).length === 0) {
-    return errorResponse(res, 400, "Invalid request");
-  }
-
-  const { email, resetPasswordToken, password } = requestBody;
-
-  if (!email) {
-    return errorResponse(res, 400, "Email is required.");
-  }
-
-  if (!resetPasswordToken) {
-    return errorResponse(res, 400, "Reset password token is required.");
-  }
-
-  if (!password) {
-    return errorResponse(res, 400, "Password is required.");
-  }
-
-  const lowerCaseEmail = email.toLowerCase();
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function forgotPassword(req, res) {
   try {
-    const query = `
-        SELECT u.reset_token_expires_at, u.users_id
-        FROM users u 
-        WHERE LOWER(u.email) = $1 
-        AND u.reset_password_token = $2 
-        AND u.is_deleted = FALSE;
-      `;
-    const result = await client.query(query, [
-      lowerCaseEmail,
-      resetPasswordToken,
-    ]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(
-        res,
-        400,
-        "Invalid or expired token, or email does not exist."
-      );
-    }
-
-    const { reset_token_expires_at: resetTokenExpiresAt, users_id } =
-      result.rows[0];
-
-    if (new Date() > resetTokenExpiresAt) {
-      return errorResponse(
-        res,
-        400,
-        "Token has expired. Please request a new password reset."
-      );
-    }
-
-    const encryptedPassword = encrypt(password);
-
-    await client.query(
-      `UPDATE users SET password = $1, reset_password_token = NULL, reset_token_expires_at = NULL WHERE users_id = $2;`,
-      [encryptedPassword, users_id]
-    );
-
-    return successResponse(
-      res,
-      null,
-      "Password reset successfully. You can now log in with your new password."
-    );
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      500,
-      "An error occurred while resetting password."
-    );
-  } finally {
-    client.release();
+    await AuthService.forgotPassword(req.body.email);
+    return successResponse(res, null, "Password reset email sent.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.refreshToken = async (req, res) => {
-  const { refreshToken } = req.body || {};
-
-  if (!refreshToken) {
-    return errorResponse(res, 400, "Refresh token is missing.");
-  }
-
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function resetPassword(req, res) {
   try {
-    let decoded;
-    try {
-      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    } catch (error) {
-      return errorResponse(res, 401, "Invalid or expired refresh token.");
-    }
-
-    const query = `SELECT * FROM users_token WHERE user_id = $1 AND refresh_token = $2;`;
-    const result = await client.query(query, [decoded?.userId, refreshToken]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 401, "Invalid or expired refresh token.");
-    }
-
-    const newAccessToken = generateAccessToken(decoded?.userId);
-    await client.query(
-      `UPDATE users_token SET access_token = $1 WHERE user_id = $2 AND refresh_token = $3;`,
-      [newAccessToken, decoded?.userId, refreshToken]
-    );
-
-    return successResponse(
-      res,
-      { accessToken: newAccessToken },
-      "Refresh token updated successfully."
-    );
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(
-      res,
-      error.statusCode || 500,
-      error.message || "Internal Server Error"
-    );
-  } finally {
-    if (client) {
-      client.release();
-    }
+    await AuthService.resetPassword(req.body);
+    return successResponse(res, null, "Password reset successfully.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-exports.logoutUser = async (req, res) => {
-  const { user } = req;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
+async function refreshToken(req, res) {
   try {
-    const query = `DELETE FROM users_token WHERE user_id = $1 AND access_token = $2;`;
-    const result = await client.query(query, [
-      user?.user_id,
-      user?.access_token,
-    ]);
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 401, "Invalid or expired refresh token");
-    }
-
-    return successResponse(res, null, "User logged out successfully");
-  } catch (error) {
-    console.error({ error });
-    return errorResponse(res, 500, "Internal server error");
-  } finally {
-    if (client) {
-      client.release();
-    }
+    const data = await AuthService.refreshToken(req.body.refreshToken);
+    return successResponse(res, data, "Access token refreshed.");
+  } catch (err) {
+    return errorResponse(res, err.statusCode || 500, err.message);
   }
-};
+}
 
-// Helper function to send verification email
-async function sendVerificationEmail(
-  email,
-  otp,
-  resetPasswordToken = null,
-  inviteToken = null
-) {
-  let subject;
-  let verificationLink;
-  let text;
+async function logout(req, res) {
   try {
-    if (resetPasswordToken) {
-      subject = "CRMSimplify - Password Reset Request";
-      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
-      text = `You requested a password reset. Use the following link to reset your password:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
-    } else if (inviteToken) {
-      subject = "Invitation to Join";
-      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
-      text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
-    } else {
-      subject = "OTP for Email Verification";
-      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/verify-email?email=${email}`;
-      console.log("🚀 ~ sendVerificationEmail ~ verificationLink:", verificationLink)
-      text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
-      console.log("🚀 ~ sendVerificationEmail ~ text:", text)
-    }
-
-    return await sendEmail(email, subject, text);
-  } catch (error) {
-    console.error("Email sending error:", error);
-    return false;
+    await AuthService.logout(req.user);
+    return successResponse(res, null, "Logged out successfully.");
+  } catch (err) {
+    return errorResponse(res, 500, err.message);
   }
-};
+}
 
-exports.resendOtp = async (req, res) => {
-  const { email } = req.body;
-  const lowerCaseEmail = email.toLowerCase();
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    // Check if user exists and is not verified
-    const userQuery = `
-      SELECT u.users_id, u.is_verified, u.otp_resend_count, u.last_otp_sent_at, u.expires_at, b.email 
-      FROM users u 
-      JOIN builder b ON u.builder_id = b.builder_id 
-      WHERE LOWER(b.email) = $1;
-    `;
-    const userResult = await client.query(userQuery, [lowerCaseEmail]);
-
-    if (userResult.rowCount === 0) {
-      return errorResponse(res, 404, "User not found.");
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.is_verified) {
-      return errorResponse(res, 400, "User is already verified.");
-    }
-
-    // Check rate limiting
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    
-    // Reset count if it's been more than an hour
-    let resendCount = user.otp_resend_count || 0;
-    let lastOtpSentAt = user.last_otp_sent_at;
-
-    if (lastOtpSentAt && new Date(lastOtpSentAt) < oneHourAgo) {
-      resendCount = 0; // Reset count after 1 hour
-    }
-
-    // Check if user has exceeded the 4 resend limit
-    if (resendCount >= 4) {
-      const nextAvailableTime = new Date(new Date(lastOtpSentAt).getTime() + 60 * 60 * 1000);
-      const timeRemaining = Math.ceil((nextAvailableTime - now) / (1000 * 60)); // minutes
-      
-      return errorResponse(
-        res, 
-        429, 
-        `Maximum OTP resend limit reached. Please try again after ${timeRemaining} minutes.`
-      );
-    }
-
-    // Generate new OTP
-    const otp = generateOtp();
-    const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    // Send OTP email
-    const emailSent = await sendVerificationEmail(lowerCaseEmail, otp);
-
-    if (!emailSent) {
-      return errorResponse(res, 500, "Failed to send OTP email.");
-    }
-
-    // Update user record with new OTP and increment resend count
-    await client.query(
-      `UPDATE users 
-       SET otp = $1, expires_at = $2, otp_resend_count = $3, last_otp_sent_at = $4 
-       WHERE users_id = $5`,
-      [otp, newExpiresAt, resendCount + 1, now, user.users_id]
-    );
-
-    return successResponse(
-      res,
-      {
-        message: "A new OTP has been sent to your email.",
-        otpResendCount: resendCount + 1,
-        maxResendAllowed: 4,
-        remainingResends: 4 - (resendCount + 1)
-      },
-      "OTP resent successfully."
-    );
-
-  } catch (error) {
-    console.error("Error resending OTP:", error);
-    return errorResponse(res, 500, error.message || "Failed to resend OTP.");
-  } finally {
-    client.release();
-  }
+module.exports = {
+  registerRoot,
+  verifyEmail,
+  resendOtp,
+  login,
+  forgotPassword,
+  resetPassword,
+  refreshToken,
+  logout,
 };

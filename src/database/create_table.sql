@@ -697,7 +697,7 @@ BUILDER TABLE
 CREATE TABLE builder (
   builder_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_name VARCHAR(150) NOT NULL,
+  name VARCHAR(150) NOT NULL,
   email VARCHAR(150),
   phone_number VARCHAR(50),
   abn_number VARCHAR(20),
@@ -849,13 +849,6 @@ CREATE TABLE users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_builder_map (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-  builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE (user_id, builder_id)
-);
 
 CREATE TABLE users_token (
   users_token_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2564,7 +2557,8 @@ CREATE TABLE construction_ohs_list (
     REFERENCES construction_ohs_settings(construction_ohs_settings_id)
     ON DELETE CASCADE,
   field_type VARCHAR(20) NOT NULL CHECK (field_type IN ('category', 'item')),
-  description VARCHAR(500) NOT NULL,
+  field_name VARCHAR(100),
+  description VARCHAR(500),
   sort_order INT DEFAULT 1,
   -- only used when field_type = 'item'
   parent_id UUID REFERENCES construction_ohs_list(construction_ohs_list_id) ON DELETE CASCADE,

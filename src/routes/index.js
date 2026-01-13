@@ -104,6 +104,7 @@ const locationRoutes = require("./location.routes");
 const estateRoutes = require("./estate.routes");
 const estateFeatureRoutes = require("./estate-feature.routes");
 const estateStageRoutes = require("./estate-stage.routes");
+const estateDocumentImageRoutes = require("./estate-document-image.routes");
 const constructionSettingRoutes = require("./construction-setting.routes");
 const constructionOptionRoutes = require("./construction-option.routes");
 const quotationSettingRoutes = require("./quotation-setting.routes");
@@ -121,9 +122,9 @@ const constructionEtsRechargeRoutes = require("./construction-ets-recharge.route
 const constructionEtsRechargeApprovalRoutes = require("./construction-ets-recharge-approval.routes");
 const timezoneRoutes = require("./timezone.routes");
 const roleTypeRoutes = require("./role-type.routes");
-const costCenterRoutes = require("./cost-center.routes")
+const costCenterRoutes = require("./cost-center.routes");
 const complianceTypeRoutes = require("./compliance-type.routes");
-const driveRoutes = require("./drive.routes")
+const driveRoutes = require("./drive.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -177,7 +178,10 @@ module.exports = function (app) {
   app.use("/user-password-history", userPasswordHistoryRoutes);
   app.use("/sales-module-setting", salesModuleSettingRoutes);
   app.use("/sales-proccess", salesProcessRoutes);
-  app.use("/sales-proccess-stage-functionality", salesProcessStageFunctionalityRoutes);
+  app.use(
+    "/sales-proccess-stage-functionality",
+    salesProcessStageFunctionalityRoutes
+  );
   app.use("/sales-stage", salesStageRoutes);
   app.use("/lead-lost-reason", leadLostReasonRoutes);
   app.use("/client-type", clientTypeRoutes);
@@ -194,7 +198,10 @@ module.exports = function (app) {
   app.use("/job-commission", jobCommissionRoutes);
   app.use("/job-commission-sub-stage", jobCommissionSubStageRoutes);
   app.use("/job-process", jobProcessRoutes);
-  app.use("/job-process-stage-functionality", jobProcessStageFunctionalityRoutes);
+  app.use(
+    "/job-process-stage-functionality",
+    jobProcessStageFunctionalityRoutes
+  );
   app.use("/job-variation-approval", jobVariationApprovalRoutes);
   app.use("/maintenance-setting", maintenanceSettingRoutes);
   app.use("/maintenance-area", maintenanceAreaRoutes);
@@ -235,6 +242,7 @@ module.exports = function (app) {
   app.use("/estate", estateRoutes);
   app.use("/estate-feature", estateFeatureRoutes);
   app.use("/estate-stage", estateStageRoutes);
+  app.use("/estate-document-image", estateDocumentImageRoutes);
   app.use("/construction-setting", constructionSettingRoutes);
   app.use("/construction-option", constructionOptionRoutes);
   app.use("/quotation-setting", quotationSettingRoutes);
@@ -245,14 +253,23 @@ module.exports = function (app) {
   app.use("/construction-stage", constructionStageRoutes);
   app.use("/construction-checklist", constructionChecklistRoutes);
   app.use("/construction-sub-checklist", constructionSubChecklistRoutes);
-  app.use("/construction-checklist-predecessor", constructionChecklistPredecessorRoutes);
+  app.use(
+    "/construction-checklist-predecessor",
+    constructionChecklistPredecessorRoutes
+  );
   app.use("/construction-ohs", constructionOHSRoutes);
-  app.use("/construction-inspection-checklist", constructionInspectionChecklistRoutes);
+  app.use(
+    "/construction-inspection-checklist",
+    constructionInspectionChecklistRoutes
+  );
   app.use("/construction-ets-recharge", constructionEtsRechargeRoutes);
-  app.use("/construction-ets-recharge-approval", constructionEtsRechargeApprovalRoutes);
+  app.use(
+    "/construction-ets-recharge-approval",
+    constructionEtsRechargeApprovalRoutes
+  );
   app.use("/timezone", timezoneRoutes);
   app.use("/role-type", roleTypeRoutes);
-  app.use("/cost-center", costCenterRoutes)
+  app.use("/cost-center", costCenterRoutes);
   app.use("/compliance-type", complianceTypeRoutes);
-  app.use("/drive", driveRoutes)
+  app.use("/drive", driveRoutes);
 };

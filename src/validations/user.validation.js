@@ -1,74 +1,87 @@
 const Joi = require("joi");
 
-// Reusable rules
-const nameRule = Joi.string().min(2).max(100).trim().required().messages({
-  "string.base": "Name must be a string",
-  "string.empty": "Name is required",
-  "string.min": "Name must be at least 2 characters long",
-  "string.max": "Name must not exceed 100 characters",
-  "any.required": "Name is required",
-});
+// Common rules
+const nameRule = Joi.string().min(2).max(100).required();
+const emailRule = Joi.string().email().lowercase().trim().required();
+const phoneRule = Joi.string().pattern(/^[0-9]{8,15}$/).allow(null, "");
 
-const emailRule = Joi.string().email().lowercase().trim().required().messages({
-  "string.base": "Email must be a string",
-  "string.empty": "Email is required",
-  "string.email": "Please provide a valid email address",
-  "any.required": "Email is required",
-});
+const loginIdRule = Joi.string()
+  .pattern(/^[A-Za-z0-9._@-]+$/)
+  .messages({
+    "string.pattern.base":
+      "Login ID can only contain letters, numbers, dot, underscore, hyphen, and @."
+  });
 
-const passwordRule = Joi.string().min(6).max(100).required().messages({
-  "string.base": "Password must be a string",
-  "string.empty": "Password is required",
-  "string.min": "Password must be at least 6 characters long",
-  "string.max": "Password must not exceed 100 characters",
-  "any.required": "Password is required",
-});
+const uuidRule = Joi.string()
+  .guid({ version: "uuidv4" })
+  .messages({ "string.guid": "Invalid UUID format." });
 
-const inviteUserSchema = Joi.object({
-  email: emailRule,
-  role_id: Joi.string().uuid().required().messages({
-    "string.guid": "Role ID must be a valid UUID",
-    "any.required": "Role ID is required",
-  }),
-});
-
-const acceptInviteSchema = Joi.object({
+/* ---------------------------
+   CREATE USER
+---------------------------- */
+const createUserSchema = Joi.object({
   name: nameRule,
-  password: passwordRule,
+  email: emailRule,
+  login_id: loginIdRule.allow(null, ""),
+  role_id: uuidRule.required(),
+  phone: phoneRule,
+  secondary_phone: phoneRule,
+  initials: Joi.string().max(10).allow(null, ""),
+  reporting_to: uuidRule.allow(null, ""),
+  date_of_joining: Joi.date().allow(null, ""),
+  date_of_birth: Joi.date().allow(null, ""),
+  designation: Joi.string().max(100).allow(null, ""),
+  remark: Joi.string().allow(null, ""),
+  consultant_bio: Joi.string().allow(null, ""),
+  use_builder_address: Joi.boolean().truthy("true").falsy("false"),
+  has_login: Joi.boolean().truthy("true").falsy("false"),
+  password_option: Joi.string().valid("auto", "manual"),
+  manual_password: Joi.string().allow(null, ""),
+  next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
+  email_login_credentials: Joi.boolean().truthy("true").falsy("false"),
+  builders: Joi.string().allow(null, ""), // JSON array as string
+  address: Joi.string().allow(null, "") // JSON as string
 });
 
-const acceptInviteParamsSchema = Joi.object({
-  token: Joi.string().required().messages({
-    "string.base": "Invite token must be a string",
-    "string.empty": "Invite token is required",
-    "any.required": "Invite token is required",
-  }),
+/* ---------------------------
+   UPDATE USER
+---------------------------- */
+const updateUserSchema = createUserSchema.fork(
+  ["name", "email", "role_id"],
+  (schema) => schema.optional()
+);
+
+/* ---------------------------
+   RESET PASSWORD
+---------------------------- */
+const resetPasswordSchema = Joi.object({
+  password_option: Joi.string().valid("auto", "manual").required(),
+  manual_password: Joi.string().allow(null, ""),
+  next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
+  email_password: Joi.boolean().truthy("true").falsy("false")
 });
 
-const getInvitedUserSchema = Joi.object({
-  limit: Joi.number().optional().default(25).max(50),
-  offset: Joi.number().optional().default(0).max(25),
+/* ---------------------------
+   CHANGE LOGIN ID
+---------------------------- */
+const changeLoginIdSchema = Joi.object({
+  new_login_id: loginIdRule.required(),
+  email_login_id: Joi.boolean().truthy("true").falsy("false")
 });
 
-const getAllUserSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    "number.base": "Page must be a number",
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be greater than 0",
-  }),
-
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
-    "number.base": "Limit must be a number",
-    "number.integer": "Limit must be an integer",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit must not exceed 100",
-  }),
+/* ---------------------------
+   GET USERS
+---------------------------- */
+const getUsersSchema = Joi.object({
+  page: Joi.number().min(1).default(1),
+  limit: Joi.number().min(1).max(100).default(25),
+  search: Joi.string().allow("", null)
 });
 
 module.exports = {
-  inviteUserSchema,
-  acceptInviteSchema,
-  acceptInviteParamsSchema,
-  getInvitedUserSchema,
-  getAllUserSchema,
+  createUserSchema,
+  updateUserSchema,
+  resetPasswordSchema,
+  changeLoginIdSchema,
+  getUsersSchema
 };

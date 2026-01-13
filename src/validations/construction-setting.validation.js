@@ -53,13 +53,6 @@ const createConstructionSettingSchema = Joi.object({
     }),
 });
 
-const updateConstructionSettingParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": "construction setting ID must be a valid UUID",
-    "any.required": "construction setting ID is required",
-  }),
-});
-
 const updateConstructionSettingSchema = Joi.object({
   suppliers_tradies_madatory_to_complete_checklist: Joi.boolean().optional(),
   allow_checklist_even_supplier_tradies_not_responded: Joi.boolean().optional(),
@@ -112,6 +105,5 @@ const updateConstructionSettingSchema = Joi.object({
 
 module.exports = {
   createConstructionSettingSchema,
-  updateConstructionSettingParamsSchema,
   updateConstructionSettingSchema,
 };
