@@ -13,13 +13,8 @@ exports.createHoliday = async (req, res) => {
 
     await client.query("BEGIN");
 
-    const {
-      state,
-      holiday_start_date,
-      holiday_end_date,
-      holiday_description,
-      status,
-    } = req.body;
+    const { state, holiday_start_date, holiday_end_date, holiday_description } =
+      req.body;
 
     if (!companyId && !builderId) {
       await client.query("ROLLBACK");
@@ -100,10 +95,9 @@ exports.createHoliday = async (req, res) => {
         holiday_start_date,
         holiday_end_date,
         holiday_description,
-        status,
         created_by,
         updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
       RETURNING *;
     `;
 
@@ -114,17 +108,42 @@ exports.createHoliday = async (req, res) => {
       holiday_start_date,
       holiday_end_date,
       holiday_description,
-      status ?? true,
       userId,
     ];
 
     const result = await client.query(insertQuery, values);
 
+    // Get state information for response
+    const stateInfoQuery = `
+      SELECT state_id, name
+      FROM state
+      WHERE state_id = ANY($1)
+    `;
+    const stateInfoResult = await client.query(stateInfoQuery, [state || []]);
+
+    const responseData = {
+      holiday_id: result.rows[0].holiday_id,
+      company_id: result.rows[0].company_id,
+      builder_id: result.rows[0].builder_id,
+      holiday_start_date: result.rows[0].holiday_start_date,
+      holiday_end_date: result.rows[0].holiday_end_date,
+      holiday_description: result.rows[0].holiday_description,
+      status: result.rows[0].status,
+      states: stateInfoResult.rows.map((state) => ({
+        id: state.state_id,
+        name: state.name,
+      })),
+      created_by: result.rows[0].created_by,
+      updated_by: result.rows[0].updated_by,
+      created_at: result.rows[0].created_at,
+      updated_at: result.rows[0].updated_at,
+    };
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseData),
       "Holiday created successfully."
     );
   } catch (error) {
@@ -165,55 +184,42 @@ exports.getAllHolidays = async (req, res) => {
       status,
     } = req.query;
 
-    function isValidDate(dateString) {
-      const date = new Date(dateString);
-      return (
-        !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString
-      );
-    }
-
-    if (holiday_start_date && !isValidDate(holiday_start_date)) {
-      return errorResponse(res, 400, `Invalid date: ${holiday_start_date}`);
-    }
-
-    if (holiday_end_date && !isValidDate(holiday_end_date)) {
-      return errorResponse(res, 400, `Invalid date: ${holiday_end_date}`);
-    }
-
     let whereClauses = [];
     let values = [];
     let index = 1;
 
-    whereClauses.push(`(company_id = $${index} OR builder_id = $${index + 1})`);
+    whereClauses.push(
+      `(h.company_id = $${index} OR h.builder_id = $${index + 1})`
+    );
     values.push(companyId || null, builderId || null);
     index += 2;
 
     if (state) {
-      whereClauses.push(`state && $${index}::uuid[]`);
+      whereClauses.push(`h.state && $${index}::uuid[]`);
       values.push(state.split(","));
       index++;
     }
 
     if (holiday_start_date) {
-      whereClauses.push(`holiday_start_date >= $${index}`);
+      whereClauses.push(`h.holiday_start_date >= $${index}`);
       values.push(holiday_start_date);
       index++;
     }
 
     if (holiday_end_date) {
-      whereClauses.push(`holiday_end_date <= $${index}`);
+      whereClauses.push(`h.holiday_end_date <= $${index}`);
       values.push(holiday_end_date);
       index++;
     }
 
     if (holiday_description) {
-      whereClauses.push(`LOWER(holiday_description) LIKE LOWER($${index})`);
+      whereClauses.push(`LOWER(h.holiday_description) LIKE LOWER($${index})`);
       values.push(`%${holiday_description}%`);
       index++;
     }
 
     if (status !== undefined) {
-      whereClauses.push(`status = $${index}`);
+      whereClauses.push(`h.status = $${index}`);
       values.push(status === "true");
       index++;
     }
@@ -222,27 +228,56 @@ exports.getAllHolidays = async (req, res) => {
       ? "WHERE " + whereClauses.join(" AND ")
       : "";
 
-    const countQuery = `
+    /* ---------------- COUNT ---------------- */
+    const countResult = await client.query(
+      `
       SELECT COUNT(*) AS total
-      FROM holiday
-      ${whereSQL};
-    `;
+      FROM holiday h
+      ${whereSQL}
+      `,
+      values
+    );
 
-    const countResult = await client.query(countQuery, values);
     const totalRecords = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
+    /* ---------------- DATA ---------------- */
     const dataQuery = `
-      SELECT *
-      FROM holiday
+      SELECT
+        h.holiday_id,
+        h.company_id,
+        h.builder_id,
+        h.holiday_start_date,
+        h.holiday_end_date,
+        h.holiday_description,
+        h.status,
+  
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', s.state_id,
+              'name', s.name
+            )
+          ) FILTER (WHERE s.state_id IS NOT NULL),
+          '[]'
+        ) AS states,
+        h.created_by,
+        h.updated_by,
+        h.created_at,
+        h.updated_at
+      FROM holiday h
+      LEFT JOIN state s ON s.state_id = ANY(h.state)
       ${whereSQL}
-      ORDER BY created_at DESC
-      LIMIT $${index} OFFSET $${index + 1};
+      GROUP BY h.holiday_id
+      ORDER BY h.created_at DESC
+      LIMIT $${index} OFFSET $${index + 1}
     `;
 
-    const dataValues = [...values, limitValue, offset];
-
-    const dataResult = await client.query(dataQuery, dataValues);
+    const dataResult = await client.query(dataQuery, [
+      ...values,
+      limitValue,
+      offset,
+    ]);
 
     return successResponse(
       res,
@@ -310,6 +345,96 @@ exports.deleteHoliday = async (req, res) => {
     return successResponse(res, {}, "Holiday deleted permanently.");
   } catch (error) {
     console.error("Delete Holiday Error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.toggleHolidayStatus = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { holiday_id } = req.params;
+    const companyId = req.user.company_id;
+    const builderId = req.user.builder_id;
+    const userId = req.user.user_id;
+
+    if (!holiday_id) {
+      return errorResponse(res, 400, "Holiday ID is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const existingHoliday = await client.query(
+      `SELECT * FROM holiday 
+       WHERE holiday_id = $1 AND company_id = $2 AND builder_id = $3 FOR UPDATE`,
+      [holiday_id, companyId, builderId]
+    );
+
+    if (existingHoliday.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Holiday not found.");
+    }
+
+    const currentStatus = existingHoliday.rows[0].status;
+    const newStatus = !currentStatus; // Toggle the status
+
+    const updateQuery = `
+      UPDATE holiday
+      SET status = $1, updated_by = $2, updated_at = NOW()
+      WHERE holiday_id = $3 AND company_id = $4 AND builder_id = $5
+      RETURNING *
+    `;
+
+    const updateResult = await client.query(updateQuery, [
+      newStatus,
+      userId,
+      holiday_id,
+      companyId,
+      builderId,
+    ]);
+
+    // Get state information for response
+    const stateInfoQuery = `
+  SELECT state_id, name
+  FROM state
+  WHERE state_id = ANY($1)
+`;
+    const finalStates = updateResult.rows[0].state || [];
+    const stateInfoResult = await client.query(stateInfoQuery, [finalStates]);
+
+    const responseData = {
+      holiday_id: updateResult.rows[0].holiday_id,
+      company_id: updateResult.rows[0].company_id,
+      builder_id: updateResult.rows[0].builder_id,
+      holiday_start_date: updateResult.rows[0].holiday_start_date,
+      holiday_end_date: updateResult.rows[0].holiday_end_date,
+      holiday_description: updateResult.rows[0].holiday_description,
+      status: updateResult.rows[0].status,
+      states: stateInfoResult.rows.map((state) => ({
+        id: state.state_id,
+        name: state.name,
+      })),
+      created_by: updateResult.rows[0].created_by,
+      updated_by: updateResult.rows[0].updated_by,
+      created_at: updateResult.rows[0].created_at,
+      updated_at: updateResult.rows[0].updated_at,
+    };
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(responseData),
+      `Holiday status updated to ${
+        newStatus ? "active" : "inactive"
+      } successfully.`
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Toggle Holiday Status Error:", error);
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -504,11 +629,38 @@ exports.updateHoliday = async (req, res) => {
 
     const updated = await client.query(updateQuery, values);
 
+    // Get state information for response
+    const stateInfoQuery = `
+      SELECT state_id, name
+      FROM state
+      WHERE state_id = ANY($1)
+    `;
+    const finalStates = updated.rows[0].state || [];
+    const stateInfoResult = await client.query(stateInfoQuery, [finalStates]);
+
+    const responseData = {
+      holiday_id: updated.rows[0].holiday_id,
+      company_id: updated.rows[0].company_id,
+      builder_id: updated.rows[0].builder_id,
+      holiday_start_date: updated.rows[0].holiday_start_date,
+      holiday_end_date: updated.rows[0].holiday_end_date,
+      holiday_description: updated.rows[0].holiday_description,
+      status: updated.rows[0].status,
+      states: stateInfoResult.rows.map((state) => ({
+        id: state.state_id,
+        name: state.name,
+      })),
+      created_by: updated.rows[0].created_by,
+      updated_by: updated.rows[0].updated_by,
+      created_at: updated.rows[0].created_at,
+      updated_at: updated.rows[0].updated_at,
+    };
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(updated.rows[0]),
+      keysToCamelCase(responseData),
       "Holiday updated successfully."
     );
   } catch (error) {

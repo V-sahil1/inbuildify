@@ -8,13 +8,6 @@ const createRecalculateDateSchema = Joi.object({
   recalculate_confirmed_booking_dates: Joi.boolean().default(false),
 });
 
-const updateRecalculateDateParamsSchema = Joi.object({
-  recalculate_date_id: Joi.string().uuid().required().messages({
-    "string.guid": "Recalculate date ID must be a valid UUID",
-    "any.required": "Recalculate date ID is required",
-  }),
-});
-
 const updateRecalculateDateSchema = Joi.object({
   recalculate_workflow_job_estimated_dates: Joi.boolean().optional(),
   recalculate_construction_job_estimated_dates: Joi.boolean().optional(),
@@ -24,6 +17,5 @@ const updateRecalculateDateSchema = Joi.object({
 });
 module.exports = {
   createRecalculateDateSchema,
-  updateRecalculateDateParamsSchema,
   updateRecalculateDateSchema,
 };

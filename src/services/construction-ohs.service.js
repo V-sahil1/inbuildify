@@ -105,9 +105,8 @@ exports.upsertSettingsService = async (user, payload) => {
 exports.getOhsListService = async (user, filters = {}) => {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
-  const { field_type, field_name } = filters;
+  const { field_type, id } = filters;
 
-  // Check if any records exist for this scope
   const existingRecords = await pool.query(
     `
     SELECT COUNT(*) as count
@@ -117,12 +116,10 @@ exports.getOhsListService = async (user, filters = {}) => {
     [company_id, builder_id]
   );
 
-  // If no records exist, create default headers
   const recordCount = parseInt(existingRecords.rows[0].count);
 
   if (recordCount === 0) {
     try {
-      // First ensure settings exist
       const settingsResult = await exports.getSettingsService(user);
 
       if (settingsResult && settingsResult.construction_ohs_settings_id) {
@@ -151,20 +148,33 @@ exports.getOhsListService = async (user, filters = {}) => {
     SELECT *
     FROM construction_ohs_list
     WHERE (company_id = $1 OR builder_id = $2)
-      AND created_by = $3
   `;
-  let queryParams = [company_id, builder_id, user.users_id];
-  let paramIndex = 4;
+  let queryParams = [company_id, builder_id];
+  let paramIndex = 3;
 
-  if (field_type) {
-    query += ` AND field_type = $${paramIndex}`;
-    queryParams.push(field_type);
-    paramIndex++;
-  }
-
-  if (field_name) {
-    query += ` AND field_name ILIKE $${paramIndex}`;
-    queryParams.push(`%${field_name}%`);
+  if (id) {
+    if (field_type === "category") {
+      query += ` AND field_type = 'category' AND construction_ohs_list_id = $${paramIndex}`;
+      queryParams.push(id);
+      paramIndex++;
+    } else if (field_type === "item") {
+      query += ` AND parent_id = $${paramIndex}`;
+      queryParams.push(id);
+      paramIndex++;
+    } else {
+      query += ` AND created_by = $${paramIndex}`;
+      queryParams.push(id);
+      paramIndex++;
+    }
+  } else if (field_type) {
+    query += ` AND field_type = $${paramIndex} AND created_by = $${
+      paramIndex + 1
+    }`;
+    queryParams.push(field_type, user.users_id);
+    paramIndex += 2;
+  } else {
+    query += ` AND created_by = $${paramIndex}`;
+    queryParams.push(user.users_id);
     paramIndex++;
   }
 

@@ -1791,14 +1791,14 @@ CREATE TABLE document_folder_mapping (
     document_folder_mapping_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-    signed_quotation UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    signed_color UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    signed_variation UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    signed_maintenance UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    signed_contract_document UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    compliance_certificate UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    purchase_order UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-    job_documents UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    signed_quotation UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    signed_color UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    signed_variation UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    signed_maintenance UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    signed_contract_document UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    compliance_certificate UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    purchase_order UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+    job_documents UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
     select_all_files_from_folder BOOLEAN DEFAULT FALSE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL, 
@@ -2358,7 +2358,7 @@ CREATE TABLE estate (
 CREATE TABLE estate_images (
     estate_image_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
-    image_url VARCHAR(500) NOT NULL,
+    image_url VARCHAR(500),
     uploaded_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -2367,9 +2367,11 @@ CREATE TABLE estate_documents (
     estate_document_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
     document_name VARCHAR(255) NOT NULL,
-    file_url VARCHAR(500) NOT NULL,
-    uploaded_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+    file_url VARCHAR(500),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+    uploaded_by UUID REFERENCES users(users_id) ON DELETE SET NULL
 );
 
 CREATE TABLE estate_features (

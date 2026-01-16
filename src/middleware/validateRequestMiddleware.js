@@ -21,10 +21,10 @@ module.exports.validateRequest =
         dataToValidate = {
           ...req.body,
           ...(req.file && {
-            // Use the fieldname from the uploaded file
             [req.file.fieldname]: req.file.location || req.file.path,
           }),
         };
+
         break;
       default:
         dataToValidate = req[source];

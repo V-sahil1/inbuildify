@@ -8,7 +8,6 @@ const {
 } = require("../controllers/recalculate-date..controller");
 const {
   createRecalculateDateSchema,
-  updateRecalculateDateParamsSchema,
   updateRecalculateDateSchema,
 } = require("../validations/recalculate-date.validation");
 
@@ -32,8 +31,7 @@ router.post(
 router.get("/", getRecalculateDate);
 
 router.put(
-  "/:recalculate_date_id",
-  validateRequest(updateRecalculateDateParamsSchema, REQUEST_SOURCE.PARAMS),
+  "/",
   validateRequest(updateRecalculateDateSchema, REQUEST_SOURCE.BODY),
   updateRecalculateDate
 );

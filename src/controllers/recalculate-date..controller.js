@@ -136,10 +136,26 @@ exports.getRecalculateDate = async (req, res) => {
     ]);
 
     if (result.rowCount === 0) {
-      return errorResponse(
+      const insertQuery = `
+        INSERT INTO recalculate_date (
+          builder_id, 
+          company_id, 
+          created_by, 
+          updated_by
+        ) VALUES ($1, $2, $3, $3)
+        RETURNING *;
+      `;
+
+      const insertResult = await client.query(insertQuery, [
+        builderId || null,
+        companyId || null,
+        req.user.users_id,
+      ]);
+
+      return successResponse(
         res,
-        404,
-        "No Recalculate Date settings found for this builder/company."
+        keysToCamelCase(insertResult.rows[0]),
+        "Recalculate Date settings created and fetched successfully."
       );
     }
 
@@ -161,7 +177,6 @@ exports.updateRecalculateDate = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { recalculate_date_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
@@ -178,10 +193,9 @@ exports.updateRecalculateDate = async (req, res) => {
 
     const existing = await client.query(
       `SELECT * FROM recalculate_date 
-       WHERE recalculate_date_id = $1 
-       AND (builder_id = $2 OR company_id = $3)
+       WHERE (builder_id = $1 OR company_id = $2)
        FOR UPDATE`,
-      [recalculate_date_id, builderId, companyId]
+      [builderId, companyId]
     );
 
     if (existing.rowCount === 0) {
@@ -325,12 +339,11 @@ exports.updateRecalculateDate = async (req, res) => {
     const updateQuery = `
       UPDATE recalculate_date
       SET ${fields.join(", ")}
-      WHERE recalculate_date_id = $${paramIndex}
-        AND (builder_id = $${paramIndex + 1} OR company_id = $${paramIndex + 2})
+      WHERE (builder_id = $${paramIndex} OR company_id = $${paramIndex + 1})
       RETURNING *;
     `;
 
-    values.push(recalculate_date_id, builderId, companyId);
+    values.push(builderId, companyId);
 
     const updated = await client.query(updateQuery, values);
 

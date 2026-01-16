@@ -15,23 +15,28 @@ exports.createSurveyTemplate = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const { name, sort_order, is_recommended, status } = req.body || {};
+    const {
+      name,
+      sort_order,
+      is_recommended = false,
+      status = true,
+    } = req.body;
 
-    const duplicateNameQuery = `
-    SELECT survey_template_id 
-    FROM survey_template
-    WHERE company_id = $1 
-    AND builder_id = $2
-    AND LOWER(name) = $3;
-    `;
+    await client.query("BEGIN");
 
-    const duplicateNameResult = await client.query(duplicateNameQuery, [
-      companyId,
-      builderId,
-      name.toLowerCase(),
-    ]);
+    const duplicateCheck = await client.query(
+      `
+      SELECT 1
+      FROM survey_template
+      WHERE company_id = $1
+        AND builder_id = $2
+        AND LOWER(name) = LOWER($3)
+      `,
+      [companyId, builderId, name]
+    );
 
-    if (duplicateNameResult.rowCount > 0) {
+    if (duplicateCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         409,
@@ -39,31 +44,59 @@ exports.createSurveyTemplate = async (req, res) => {
       );
     }
 
-    const finalSortOrder = sort_order ?? 0;
-
-    const duplicateSortQuery = `
-      SELECT survey_template_id 
+    const maxOrderRes = await client.query(
+      `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
       FROM survey_template
-      WHERE company_id = $1
-        AND builder_id = $2
-        AND sort_order = $3;
-    `;
+      WHERE company_id = $1 AND builder_id = $2
+      `,
+      [companyId, builderId]
+    );
 
-    const duplicateSortResult = await client.query(duplicateSortQuery, [
-      companyId,
-      builderId,
-      finalSortOrder,
-    ]);
+    const maxSortOrder = Number(maxOrderRes.rows[0].max_sort_order);
 
-    if (duplicateSortResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        400,
-        `Sort Order ${finalSortOrder} already exists.`
+    let finalSortOrder;
+
+    if (sort_order === undefined || sort_order === null) {
+      finalSortOrder = maxSortOrder + 1;
+    } else {
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        );
+      }
+
+      finalSortOrder = sort_order;
+
+      await client.query(
+        `
+        UPDATE survey_template
+        SET sort_order = sort_order + 1
+        WHERE company_id = $1
+          AND builder_id = $2
+          AND sort_order >= $3
+        `,
+        [companyId, builderId, finalSortOrder]
       );
     }
 
-    const insertQuery = `
+    if (is_recommended === true) {
+      await client.query(
+        `
+        UPDATE survey_template
+        SET is_recommended = false
+        WHERE company_id = $1
+          AND builder_id = $2
+        `,
+        [companyId, builderId]
+      );
+    }
+
+    const insertRes = await client.query(
+      `
       INSERT INTO survey_template (
         company_id,
         builder_id,
@@ -74,29 +107,29 @@ exports.createSurveyTemplate = async (req, res) => {
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      RETURNING *;
-    `;
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
+      RETURNING *
+      `,
+      [
+        companyId,
+        builderId,
+        name,
+        finalSortOrder,
+        is_recommended,
+        status,
+        userId,
+      ]
+    );
 
-    const insertValues = [
-      companyId,
-      builderId,
-      name,
-      finalSortOrder,
-      is_recommended || false,
-      status || true,
-      userId,
-      userId,
-    ];
-
-    const result = await client.query(insertQuery, insertValues);
+    await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(insertRes.rows[0]),
       "Survey template created successfully."
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Create Survey Template Error:", error);
 
     if (error.code === "23505") {
@@ -130,7 +163,7 @@ exports.getAllSurveyTemplate = async (req, res) => {
         *
       FROM survey_template
       WHERE builder_id = $1
-      ORDER BY created_at ASC
+      ORDER BY sort_order ASC
       LIMIT $2 OFFSET $3;
     `;
 
@@ -184,7 +217,7 @@ exports.deleteSurveyTemplate = async (req, res) => {
     }
 
     const checkQuery = `
-      SELECT survey_template_id 
+      SELECT survey_template_id, sort_order
       FROM survey_template
       WHERE survey_template_id = $1 AND builder_id = $2
     `;
@@ -200,6 +233,23 @@ exports.deleteSurveyTemplate = async (req, res) => {
         "Record not found or you are not allowed to delete this record."
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+
+    // Shift sort orders down after deletion
+    const shiftSortOrderQuery = `
+      UPDATE survey_template
+      SET sort_order = sort_order - 1
+      WHERE sort_order > $1
+        AND builder_id = $2
+        AND company_id = $3
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      deletedSortOrder,
+      builderId,
+      req.user.company_id,
+    ]);
 
     const deleteQuery = `
       DELETE FROM survey_template 
@@ -357,27 +407,68 @@ exports.updateSurveyTemplate = async (req, res) => {
     }
 
     if (sort_order !== undefined) {
-      const sortQuery = `
-        SELECT survey_template_id
+      const maxSortOrderQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM survey_template
-        WHERE sort_order = $1
-          AND builder_id = $2
-          AND builder_id IS NOT NULL
-          AND survey_template_id != $3
+        WHERE company_id = $1 AND builder_id = $2;
       `;
-      const sortResult = await client.query(sortQuery, [
-        sort_order,
+
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+        companyId,
         builderId,
-        survey_template_id,
       ]);
 
-      if (sortResult.rowCount > 0) {
+      const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "Duplicate sort_order is not allowed for this builder."
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
         );
+      }
+
+      const oldSortOrder = oldTemplate.sort_order;
+
+      if (sort_order !== oldSortOrder) {
+        if (sort_order < oldSortOrder) {
+          const shiftUpQuery = `
+            UPDATE survey_template
+            SET sort_order = sort_order + 1
+            WHERE sort_order >= $1
+              AND sort_order < $2
+              AND company_id = $3
+              AND builder_id = $4
+              AND survey_template_id != $5
+          `;
+
+          await client.query(shiftUpQuery, [
+            sort_order,
+            oldSortOrder,
+            companyId,
+            builderId,
+            survey_template_id,
+          ]);
+        } else {
+          const shiftDownQuery = `
+            UPDATE survey_template
+            SET sort_order = sort_order - 1
+            WHERE sort_order > $1
+              AND sort_order <= $2
+              AND company_id = $3
+              AND builder_id = $4
+              AND survey_template_id != $5
+          `;
+
+          await client.query(shiftDownQuery, [
+            oldSortOrder,
+            sort_order,
+            companyId,
+            builderId,
+            survey_template_id,
+          ]);
+        }
       }
     }
 
@@ -392,7 +483,26 @@ exports.updateSurveyTemplate = async (req, res) => {
 
     if (name !== undefined) push("name", name);
     if (sort_order !== undefined) push("sort_order", sort_order);
-    if (is_recommended !== undefined) push("is_recommended", is_recommended);
+    if (is_recommended !== undefined) {
+      if (is_recommended === true) {
+        const updateRecommendedQuery = `
+          UPDATE survey_template 
+          SET is_recommended = false
+          WHERE company_id = $1
+            AND builder_id = $2
+            AND is_recommended = true
+            AND survey_template_id != $3
+        `;
+
+        await client.query(updateRecommendedQuery, [
+          companyId,
+          builderId,
+          survey_template_id,
+        ]);
+      }
+
+      push("is_recommended", is_recommended);
+    }
 
     if (statusInBody) push("status", requestedStatus);
 

@@ -24,72 +24,79 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
     }
 
     if (option_type === "radio") {
-      if (!options || !Array.isArray(options) || options.length === 0) {
+      if (!Array.isArray(options) || options.length === 0) {
         return errorResponse(
           res,
           400,
           "options array is required when option_type = radio."
         );
       }
+    } else if (options?.length) {
+      return errorResponse(
+        res,
+        400,
+        "options are allowed only when option_type = radio."
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const templateCheck = await client.query(
+      `
+      SELECT survey_template_id
+      FROM survey_template
+      WHERE survey_template_id = $1
+        AND builder_id = $2
+        AND status = true
+      `,
+      [survey_template_id, builderId]
+    );
+
+    if (templateCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 403, "Survey template is invalid or inactive.");
+    }
+
+    const maxOrderRes = await client.query(
+      `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM survey_template_questions
+      WHERE survey_template_id = $1
+      `,
+      [survey_template_id]
+    );
+
+    const maxSortOrder = Number(maxOrderRes.rows[0].max_sort_order);
+
+    let finalSortOrder;
+
+    if (sort_order === undefined || sort_order === null) {
+      finalSortOrder = maxSortOrder + 1; // append
     } else {
-      if (options && options.length > 0) {
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
+        await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "options are allowed only when option_type = radio."
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
         );
       }
-    }
 
-    const checkTemplateQuery = `
-      SELECT survey_template_id 
-      FROM survey_template
-      WHERE survey_template_id = $1 AND builder_id = $2;
-    `;
-    const checkTemplateResult = await client.query(checkTemplateQuery, [
-      survey_template_id,
-      builderId,
-    ]);
+      finalSortOrder = sort_order;
 
-    if (checkTemplateResult.rowCount === 0) {
-      return errorResponse(
-        res,
-        403,
-        "Survey template does not belong to this builder."
+      await client.query(
+        `
+        UPDATE survey_template_questions
+        SET sort_order = sort_order + 1
+        WHERE survey_template_id = $1
+          AND sort_order >= $2
+        `,
+        [survey_template_id, finalSortOrder]
       );
     }
 
-    if (survey_template_id) {
-      const surveyTemplateCheck = await client.query(
-        `SELECT survey_template_id 
-     FROM survey_template
-     WHERE builder_id = $1 
-       AND survey_template_id = $2 
-       AND status = true`,
-        [builderId, survey_template_id]
-      );
-
-      if (surveyTemplateCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "survey template id is inactive.");
-      }
-    }
-
-    const checkSortQuery = `
-      SELECT survey_question_id 
-      FROM survey_template_questions
-      WHERE survey_template_id = $1 AND sort_order = $2;
-    `;
-    const checkSortResult = await client.query(checkSortQuery, [
-      survey_template_id,
-      sort_order || 0,
-    ]);
-
-    if (checkSortResult.rowCount > 0) {
-      return errorResponse(res, 409, "Duplicate sort_order for this template.");
-    }
-
-    const insertQuery = `
+    const insertRes = await client.query(
+      `
       INSERT INTO survey_template_questions (
         survey_template_id,
         description,
@@ -99,28 +106,54 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      RETURNING *;
+      VALUES ($1,$2,$3,$4,$5,$6,$6)
+      RETURNING *
+      `,
+      [
+        survey_template_id,
+        description,
+        option_type,
+        option_type === "radio" ? options : null,
+        finalSortOrder,
+        userId,
+      ]
+    );
+
+    // Get survey template info for response
+    const templateInfoQuery = `
+      SELECT survey_template_id, name
+      FROM survey_template
+      WHERE survey_template_id = $1
     `;
-
-    const insertValues = [
+    const templateInfoResult = await client.query(templateInfoQuery, [
       survey_template_id,
-      description,
-      option_type,
-      option_type === "radio" ? options : null,
-      sort_order || 0,
-      userId,
-      userId,
-    ];
+    ]);
 
-    const result = await client.query(insertQuery, insertValues);
+    const responseData = {
+      survey_question_id: insertRes.rows[0].survey_question_id,
+      description: insertRes.rows[0].description,
+      option_type: insertRes.rows[0].option_type,
+      options: insertRes.rows[0].options,
+      sort_order: insertRes.rows[0].sort_order,
+      survey_template: {
+        id: templateInfoResult.rows[0].survey_template_id,
+        name: templateInfoResult.rows[0].name,
+      },
+      created_by: insertRes.rows[0].created_by,
+      updated_by: insertRes.rows[0].updated_by,
+      created_at: insertRes.rows[0].created_at,
+      updated_at: insertRes.rows[0].updated_at,
+    };
+
+    await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(responseData),
       "Survey template question created successfully."
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Create Survey Question Error:", error);
     return errorResponse(res, 500, "Internal Server Error.");
   } finally {
@@ -134,35 +167,64 @@ exports.getAllSurveyTemplateQuestions = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
-    const { page = 1, limit = 25 } = req.query;
+    const { page = 1, limit = 25, survey_template_id } = req.query;
 
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
+    let whereClause = "WHERE t.builder_id = $1";
+    let queryParams = [builderId];
+    let paramIndex = 2;
+
+    if (survey_template_id) {
+      whereClause += ` AND q.survey_template_id = $${paramIndex++}`;
+      queryParams.push(survey_template_id);
+    }
+
     const dataQuery = `
-      SELECT q.*
+      SELECT 
+        q.survey_question_id,
+        q.description,
+        q.option_type,
+        q.options,
+        q.sort_order,
+        json_build_object(
+          'id', t.survey_template_id,
+          'name', t.name
+        ) AS survey_template,
+        q.created_by,
+        q.updated_by,
+        q.created_at,
+        q.updated_at
       FROM survey_template_questions q
       JOIN survey_template t
         ON q.survey_template_id = t.survey_template_id
-      WHERE t.builder_id = $1
+      ${whereClause}
       ORDER BY q.sort_order ASC
-      LIMIT $2 OFFSET $3;
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    queryParams.push(limitValue, offset);
+
+    const dataResult = await client.query(dataQuery, queryParams);
+
+    queryParams = [builderId];
+    paramIndex = 2;
+    let countWhereClause = "WHERE t.builder_id = $1";
+
+    if (survey_template_id) {
+      countWhereClause += ` AND q.survey_template_id = $${paramIndex++}`;
+      queryParams.push(survey_template_id);
+    }
 
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM survey_template_questions q
       JOIN survey_template t
         ON q.survey_template_id = t.survey_template_id
-      WHERE t.builder_id = $1;
+      ${countWhereClause}
     `;
-    const countResult = await client.query(countQuery, [builderId]);
+    const countResult = await client.query(countQuery, queryParams);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
@@ -200,7 +262,7 @@ exports.deleteSurveyTemplateQuestion = async (req, res) => {
     }
 
     const checkQuery = `
-      SELECT q.survey_question_id
+      SELECT q.survey_question_id, q.sort_order, q.survey_template_id
       FROM survey_template_questions q
       JOIN survey_template t
         ON q.survey_template_id = t.survey_template_id
@@ -219,6 +281,21 @@ exports.deleteSurveyTemplateQuestion = async (req, res) => {
         "Survey template question not found or not owned by this builder."
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const surveyTemplateId = checkResult.rows[0].survey_template_id;
+
+    const shiftSortOrderQuery = `
+      UPDATE survey_template_questions
+      SET sort_order = sort_order - 1
+      WHERE sort_order > $1
+        AND survey_template_id = $2
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      deletedSortOrder,
+      surveyTemplateId,
+    ]);
 
     const deleteQuery = `
       DELETE FROM survey_template_questions
@@ -280,26 +357,72 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
     const currentOptionType = checkResult.rows[0].option_type;
 
     if (sort_order !== undefined) {
-      const duplicateSortQuery = `
-        SELECT survey_question_id
+      const maxSortOrderQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM survey_template_questions
-        WHERE survey_template_id = $1
-          AND sort_order = $2
-          AND survey_question_id <> $3;
+        WHERE survey_template_id = $1;
       `;
-      const duplicateSortResult = await client.query(duplicateSortQuery, [
+
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
         surveyTemplateId,
-        sort_order,
-        survey_question_id,
       ]);
 
-      if (duplicateSortResult.rowCount > 0) {
+      const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Sort order ${sort_order} already exists for this survey template.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
         );
+      }
+
+      const currentSortOrderResult = await client.query(
+        `
+        SELECT sort_order
+        FROM survey_template_questions
+        WHERE survey_question_id = $1
+        `,
+        [survey_question_id]
+      );
+
+      const currentSortOrder = currentSortOrderResult.rows[0].sort_order;
+
+      if (sort_order !== currentSortOrder) {
+        if (sort_order < currentSortOrder) {
+          const shiftUpQuery = `
+            UPDATE survey_template_questions
+            SET sort_order = sort_order + 1
+            WHERE sort_order >= $1
+              AND sort_order < $2
+              AND survey_template_id = $3
+              AND survey_question_id != $4
+          `;
+
+          await client.query(shiftUpQuery, [
+            sort_order,
+            currentSortOrder,
+            surveyTemplateId,
+            survey_question_id,
+          ]);
+        } else {
+          const shiftDownQuery = `
+            UPDATE survey_template_questions
+            SET sort_order = sort_order - 1
+            WHERE sort_order > $1
+              AND sort_order <= $2
+              AND survey_template_id = $3
+              AND survey_question_id != $4
+          `;
+
+          await client.query(shiftDownQuery, [
+            currentSortOrder,
+            sort_order,
+            surveyTemplateId,
+            survey_question_id,
+          ]);
+        }
       }
     }
 
@@ -371,11 +494,37 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
     `;
 
     const updateResult = await client.query(updateQuery, values);
+
+    const templateInfoQuery = `
+      SELECT survey_template_id, name
+      FROM survey_template
+      WHERE survey_template_id = $1
+    `;
+    const templateInfoResult = await client.query(templateInfoQuery, [
+      surveyTemplateId,
+    ]);
+
+    const responseData = {
+      survey_question_id: updateResult.rows[0].survey_question_id,
+      description: updateResult.rows[0].description,
+      option_type: updateResult.rows[0].option_type,
+      options: updateResult.rows[0].options,
+      sort_order: updateResult.rows[0].sort_order,
+      survey_template: {
+        id: templateInfoResult.rows[0].survey_template_id,
+        name: templateInfoResult.rows[0].name,
+      },
+      created_by: updateResult.rows[0].created_by,
+      updated_by: updateResult.rows[0].updated_by,
+      created_at: updateResult.rows[0].created_at,
+      updated_at: updateResult.rows[0].updated_at,
+    };
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
+      keysToCamelCase(responseData),
       "Survey template question updated successfully."
     );
   } catch (error) {

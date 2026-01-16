@@ -4,12 +4,16 @@ const router = express.Router();
 const {
   getEstateImages,
   updateEstateImage,
+  createEstateDocument,
   getEstateDocuments,
   updateEstateDocument,
 } = require("../controllers/estate-document-image.controller");
 
 const {
+  getEstateImageSchema,
+  updateEstateImageParamsSchema,
   updateEstateImageSchema,
+  createEstateDocumentSchema,
   updateEstateDocumentSchema,
 } = require("../validations/estate-document-image.validation");
 
@@ -32,13 +36,18 @@ const uploadDocument = createUpload("estate-document");
    ESTATE IMAGES ROUTES
 ------------------------------ */
 
-router.get("/image", getEstateImages);
+router.get(
+  "/image",
+  validateRequest(getEstateImageSchema, REQUEST_SOURCE.QUERY),
+  getEstateImages
+);
 
 router.put(
   "/image/:id",
   upload.single("imageUrl"),
   handleMulterError,
   camelToSnakeMiddleware,
+  validateRequest(updateEstateImageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateEstateImageSchema, REQUEST_SOURCE.FORM_DATA),
   updateEstateImage
 );
@@ -46,6 +55,15 @@ router.put(
 /* -----------------------------
    ESTATE DOCUMENTS ROUTES
 ------------------------------ */
+
+router.post(
+  "/documents",
+  uploadDocument.single("fileUrl"),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(createEstateDocumentSchema, REQUEST_SOURCE.FORM_DATA),
+  createEstateDocument
+);
 
 router.get("/documents", getEstateDocuments);
 

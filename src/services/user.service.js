@@ -67,7 +67,7 @@ async function createUser(currentUser, body, files) {
     manual_password,
     next_login_password_change,
     email_login_credentials,
-    builders,
+    builder_id, // Single builder ID instead of builders array
     address, // JSON string if provided
   } = body;
 
@@ -176,19 +176,10 @@ async function createUser(currentUser, body, files) {
     root_user: false,
     has_login: has_login === "true",
     next_login_password_change: next_login_password_change === "true",
+    builder_id: builder_id || null,
   });
 
   const userId = user.user_id;
-
-  /* --------------------------
-       MULTI-BUILDER MANAGEMENT
-    --------------------------- */
-
-  if (builders) {
-    const builderIds =
-      typeof builders === "string" ? JSON.parse(builders) : builders;
-    await userRepo.setUserBuilders(userId, builderIds);
-  }
 
   /* --------------------------
         PHOTO + SIGNATURE
@@ -214,12 +205,7 @@ async function createUser(currentUser, body, files) {
     await sendPasswordEmail(email, login_id, finalPassword);
   }
 
-  return {
-    userId,
-    email,
-    login_id,
-    role_id,
-  };
+  return user;
 }
 
 /* ----------------------------------------
@@ -297,17 +283,6 @@ async function updateUser(currentUser, userId, body, files) {
   };
 
   await userRepo.updateUser(userId, updateData);
-
-  /* --------------------------
-         MULTI-BUILDER MAPPING
-    --------------------------- */
-  if (body.builders) {
-    const builderIds =
-      typeof body.builders === "string"
-        ? JSON.parse(body.builders)
-        : body.builders;
-    await userRepo.setUserBuilders(userId, builderIds);
-  }
 
   /* --------------------------
         PHOTO & SIGNATURE
@@ -537,5 +512,5 @@ module.exports = {
   updateSignature,
   deletePhoto,
   deleteSignature,
-  deleteUser
+  deleteUser,
 };

@@ -6,6 +6,7 @@ const {
   getAllHolidays,
   deleteHoliday,
   updateHoliday,
+  toggleHolidayStatus,
 } = require("../controllers/holiday.controller");
 const {
   createHolidaySchema,
@@ -49,6 +50,12 @@ router.put(
   validateRequest(updateHolidayParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateHolidaySchema, REQUEST_SOURCE.BODY),
   updateHoliday
+);
+
+router.put(
+  "/is-active/:holiday_id",
+  validateRequest(updateHolidayParamsSchema, REQUEST_SOURCE.PARAMS),
+  toggleHolidayStatus
 );
 
 module.exports = router;

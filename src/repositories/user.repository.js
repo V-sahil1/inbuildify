@@ -170,6 +170,7 @@ async function createUser(data) {
       root_user,
       has_login,
       next_login_password_change,
+      builder_id,
     } = data;
 
     const res = await client.query(
@@ -179,14 +180,14 @@ async function createUser(data) {
           phone, secondary_phone, initials, reporting_to,
           date_of_joining, date_of_birth, designation, remark,
           consultant_bio, address_id, use_builder_address,
-          root_user, has_login, next_login_password_change
+          root_user, has_login, next_login_password_change, builder_id
         )
         VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9,
           $10, $11, $12, $13,
           $14, $15, $16,
-          $17, $18, $19
+          $17, $18, $19, $20
         )
         RETURNING *
         `,
@@ -210,6 +211,7 @@ async function createUser(data) {
         root_user,
         has_login,
         next_login_password_change,
+        builder_id,
       ]
     );
 
@@ -269,40 +271,6 @@ async function softDeleteUser(userId) {
       `,
     [userId]
   );
-}
-
-/* ============================================================
-        MULTI-BUILDER SUPPORT
-  ============================================================ */
-
-async function setUserBuilders(userId, builderIds = []) {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-
-    await client.query(`DELETE FROM user_builder_map WHERE user_id = $1`, [
-      userId,
-    ]);
-
-    for (const builderId of builderIds) {
-      await client.query(
-        `
-          INSERT INTO user_builder_map (user_id, builder_id)
-          VALUES ($1, $2)
-          `,
-        [userId, builderId]
-      );
-    }
-
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
 }
 
 /* ============================================================
@@ -407,7 +375,6 @@ module.exports = {
   updateLoginId,
   updateActiveStatus,
   updateLockStatus,
-  setUserBuilders,
   softDeleteUser,
   updatePhoto,
   updateSignature,

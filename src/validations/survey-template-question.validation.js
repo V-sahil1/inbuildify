@@ -43,6 +43,9 @@ const createSurveyQuestionSchema = Joi.object({
 });
 
 const getAllSurveyTemplateQuestionSchema = Joi.object({
+  survey_template_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Survey template ID must be a valid UUID",
+  }),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

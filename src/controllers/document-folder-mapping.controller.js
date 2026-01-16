@@ -1,4 +1,3 @@
-const { get } = require("lodash");
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
@@ -116,9 +115,9 @@ exports.updateDocumentFolderMapping = async (req, res) => {
     for (const field of folderFields) {
       if (field.value) {
         const folderCheckQuery = `
-          SELECT drive_id
-          FROM drive
-          WHERE drive_id = $1;
+          SELECT document_common_folder_id
+          FROM document_common_folder
+          WHERE document_common_folder_id = $1;
         `;
         const folderCheckResult = await client.query(folderCheckQuery, [
           field.value,

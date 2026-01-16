@@ -10,7 +10,6 @@ const createHolidaySchema = Joi.object({
   holiday_start_date: Joi.date().required(),
   holiday_end_date: Joi.date().required(),
   holiday_description: Joi.string().trim().max(500).required(),
-  status: Joi.boolean().default(true),
 });
 
 const getAllHolidaySchema = Joi.object({

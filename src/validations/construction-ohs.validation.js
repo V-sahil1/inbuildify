@@ -32,7 +32,7 @@ const updateListItemSchema = Joi.object({
 }).min(1);
 
 const getListItemChema = Joi.object({
-  field_name: Joi.string().max(100).optional(),
+  id: Joi.string().uuid().optional(),
   field_type: Joi.string().valid("category", "item").optional(),
 });
 

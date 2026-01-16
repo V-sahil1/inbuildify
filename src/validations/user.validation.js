@@ -3,13 +3,15 @@ const Joi = require("joi");
 // Common rules
 const nameRule = Joi.string().min(2).max(100).required();
 const emailRule = Joi.string().email().lowercase().trim().required();
-const phoneRule = Joi.string().pattern(/^[0-9]{8,15}$/).allow(null, "");
+const phoneRule = Joi.string()
+  .pattern(/^[0-9]{8,15}$/)
+  .allow(null, "");
 
 const loginIdRule = Joi.string()
   .pattern(/^[A-Za-z0-9._@-]+$/)
   .messages({
     "string.pattern.base":
-      "Login ID can only contain letters, numbers, dot, underscore, hyphen, and @."
+      "Login ID can only contain letters, numbers, dot, underscore, hyphen, and @.",
   });
 
 const uuidRule = Joi.string()
@@ -40,7 +42,8 @@ const createUserSchema = Joi.object({
   next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
   email_login_credentials: Joi.boolean().truthy("true").falsy("false"),
   builders: Joi.string().allow(null, ""), // JSON array as string
-  address: Joi.string().allow(null, "") // JSON as string
+  builder_id: uuidRule.required().allow(null, ""), // Single builder ID instead of array
+  address: Joi.string().allow(null, ""), // JSON as string
 });
 
 /* ---------------------------
@@ -58,7 +61,7 @@ const resetPasswordSchema = Joi.object({
   password_option: Joi.string().valid("auto", "manual").required(),
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
-  email_password: Joi.boolean().truthy("true").falsy("false")
+  email_password: Joi.boolean().truthy("true").falsy("false"),
 });
 
 /* ---------------------------
@@ -66,7 +69,7 @@ const resetPasswordSchema = Joi.object({
 ---------------------------- */
 const changeLoginIdSchema = Joi.object({
   new_login_id: loginIdRule.required(),
-  email_login_id: Joi.boolean().truthy("true").falsy("false")
+  email_login_id: Joi.boolean().truthy("true").falsy("false"),
 });
 
 /* ---------------------------
@@ -75,7 +78,7 @@ const changeLoginIdSchema = Joi.object({
 const getUsersSchema = Joi.object({
   page: Joi.number().min(1).default(1),
   limit: Joi.number().min(1).max(100).default(25),
-  search: Joi.string().allow("", null)
+  search: Joi.string().allow("", null),
 });
 
 module.exports = {
@@ -83,5 +86,5 @@ module.exports = {
   updateUserSchema,
   resetPasswordSchema,
   changeLoginIdSchema,
-  getUsersSchema
+  getUsersSchema,
 };
