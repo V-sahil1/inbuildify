@@ -15,7 +15,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -63,7 +63,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -74,7 +74,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       WHERE sort_order >= $1
         AND (builder_id = $2 OR company_id = $3);
       `,
-      [finalSortOrder, builderId, companyId]
+      [finalSortOrder, builderId, companyId],
     );
 
     if (role_ids.length > 0) {
@@ -84,7 +84,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
         FROM role
         WHERE role_id = ANY($1::uuid[])
         `,
-        [role_ids]
+        [role_ids],
       );
 
       if (roleCheckResult.rowCount !== role_ids.length) {
@@ -99,7 +99,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
         FROM users
         WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
         `,
-        [user_ids]
+        [user_ids],
       );
 
       if (userCheckResult.rowCount !== user_ids.length) {
@@ -126,7 +126,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
         role_ids,
         user_ids,
         createdBy,
-      ]
+      ],
     );
 
     const folder = insertResult.rows[0];
@@ -140,11 +140,11 @@ exports.createDocumentCommonFolder = async (req, res) => {
         FROM role
         WHERE role_id = ANY($1::uuid[])
         `,
-        [folder.role_ids]
+        [folder.role_ids],
       );
-      roles = roleResult.rows.map(role => ({
+      roles = roleResult.rows.map((role) => ({
         id: role.role_id,
-        name: role.role_name
+        name: role.role_name,
       }));
     }
 
@@ -157,11 +157,11 @@ exports.createDocumentCommonFolder = async (req, res) => {
         FROM users
         WHERE users_id = ANY($1::uuid[])
         `,
-        [folder.user_ids]
+        [folder.user_ids],
       );
-      users = userResult.rows.map(user => ({
+      users = userResult.rows.map((user) => ({
         id: user.users_id,
-        name: user.name
+        name: user.name,
       }));
     }
 
@@ -169,6 +169,8 @@ exports.createDocumentCommonFolder = async (req, res) => {
       res,
       {
         documentCommonFolderId: folder.document_common_folder_id,
+        builderId: folder.builder_id,
+        companyId: folder.company_id,
         name: folder.name,
         sortOrder: folder.sort_order,
         notify: folder.notify,
@@ -176,9 +178,12 @@ exports.createDocumentCommonFolder = async (req, res) => {
         isLocked: folder.is_locked,
         roles,
         users,
-        createdAt: folder.created_at
+        createdBy: folder.created_by,
+        updatedBy: folder.updated_by,
+        createdAt: folder.created_at,
+        updatedAt: folder.updated_at,
       },
-      "Document common folder created successfully."
+      "Document common folder created successfully.",
     );
   } catch (error) {
     console.error("Error creating document common folder:", error);
@@ -187,7 +192,6 @@ exports.createDocumentCommonFolder = async (req, res) => {
     client.release();
   }
 };
-
 
 exports.getAllDocumentCommonFolders = async (req, res) => {
   const pool = getPool();
@@ -201,7 +205,7 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -220,7 +224,14 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
 
     const dataQuery = `
       SELECT 
-        dcf.*,
+        dcf.document_common_folder_id,
+        dcf.builder_id,
+        dcf.company_id,
+        dcf.name,
+        dcf.sort_order,
+        dcf.notify,
+        dcf.share_to_customer,
+        dcf.is_locked,
         (
           SELECT jsonb_agg(
             jsonb_build_object(
@@ -240,7 +251,11 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
           )
           FROM users u
           WHERE u.users_id = ANY(dcf.user_ids)
-        ) AS users
+        ) AS users,
+        dcf.created_by,
+        dcf.updated_by,
+        dcf.created_at,
+        dcf.updated_at
       FROM document_common_folder dcf
       WHERE dcf.builder_id = $1 OR dcf.company_id = $2
       ORDER BY dcf.sort_order, dcf.created_at
@@ -256,7 +271,7 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
     return successResponse(
       res,
       {
-        folders: keysToCamelCase(dataResult.rows),
+        commonFolders: keysToCamelCase(dataResult.rows),
         pagination: {
           totalRecords,
           currentPage: page,
@@ -264,7 +279,7 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
           limit,
         },
       },
-      "Document common folders fetched successfully."
+      "Document common folders fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching document common folders:", error);
@@ -291,7 +306,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -311,7 +326,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not authorized to delete this folder."
+        "You are not authorized to delete this folder.",
       );
     }
 
@@ -345,7 +360,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Document common folder deleted successfully."
+      "Document common folder deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting document common folder:", error);
@@ -373,7 +388,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -393,7 +408,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not authorized to update this folder."
+        "You are not authorized to update this folder.",
       );
     }
 
@@ -416,7 +431,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
         `SELECT document_common_folder_id
          FROM document_common_folder
          WHERE name = $1 AND (builder_id = $2 OR company_id = $3) AND document_common_folder_id != $4`,
-        [name, builderId, companyId, document_common_folder_id]
+        [name, builderId, companyId, document_common_folder_id],
       );
       if (nameCheck.rowCount > 0) {
         return errorResponse(res, 400, `Folder name "${name}" already exists.`);
@@ -445,7 +460,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`,
         );
       }
 
@@ -466,7 +481,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
               oldSortOrder,
               newSortOrder,
               document_common_folder_id,
-            ]
+            ],
           );
         } else {
           await client.query(
@@ -484,7 +499,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
               newSortOrder,
               oldSortOrder,
               document_common_folder_id,
-            ]
+            ],
           );
         }
         fields.push(`sort_order = $${i++}`);
@@ -512,7 +527,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       if (role_ids.length > 0) {
         const validRoles = await client.query(
           `SELECT role_id FROM role WHERE role_id = ANY($1::uuid[])`,
-          [role_ids]
+          [role_ids],
         );
         if (validRoles.rowCount !== role_ids.length) {
           return errorResponse(res, 400, "One or more role ids are invalid.");
@@ -530,7 +545,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       if (user_ids.length > 0) {
         const validUsers = await client.query(
           `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
-          [user_ids]
+          [user_ids],
         );
         if (validUsers.rowCount !== user_ids.length) {
           return errorResponse(res, 400, "One or more user_ids are invalid.");
@@ -572,11 +587,11 @@ exports.updateDocumentCommonFolder = async (req, res) => {
         FROM role
         WHERE role_id = ANY($1::uuid[])
         `,
-        [folder.role_ids]
+        [folder.role_ids],
       );
-      roles = roleResult.rows.map(role => ({
+      roles = roleResult.rows.map((role) => ({
         id: role.role_id,
-        name: role.role_name
+        name: role.role_name,
       }));
     }
 
@@ -588,11 +603,11 @@ exports.updateDocumentCommonFolder = async (req, res) => {
         FROM users
         WHERE users_id = ANY($1::uuid[])
         `,
-        [folder.user_ids]
+        [folder.user_ids],
       );
-      users = userResult.rows.map(user => ({
+      users = userResult.rows.map((user) => ({
         id: user.users_id,
-        name: user.name
+        name: user.name,
       }));
     }
 
@@ -600,6 +615,8 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       res,
       {
         documentCommonFolderId: folder.document_common_folder_id,
+        builderId: folder.builder_id,
+        companyId: folder.company_id,
         name: folder.name,
         sortOrder: folder.sort_order,
         notify: folder.notify,
@@ -607,10 +624,12 @@ exports.updateDocumentCommonFolder = async (req, res) => {
         isLocked: folder.is_locked,
         roles,
         users,
+        createdBy: folder.created_by,
+        updatedBy: folder.updated_by,
         createdAt: folder.created_at,
-        updatedAt: folder.updated_at
+        updatedAt: folder.updated_at,
       },
-      "Document common folder updated successfully."
+      "Document common folder updated successfully.",
     );
   } catch (error) {
     console.error("Error updating document common folder:", error);

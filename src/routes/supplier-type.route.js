@@ -6,6 +6,7 @@ const {
   getAllSupplierType,
   deleteSupplierType,
   updateSupplierType,
+  toggleActiveStatus,
 } = require("../controllers/supplier-type.controller");
 const {
   createSuppllierTypeSchema,
@@ -29,25 +30,31 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createSuppllierTypeSchema, REQUEST_SOURCE.BODY),
-  createSupplierType
+  createSupplierType,
 );
 
 router.get(
   "/",
   validateRequest(getAllSupllierTypeSchema, REQUEST_SOURCE.QUERY),
-  getAllSupplierType
+  getAllSupplierType,
 );
 
 router.delete(
   "/:supplier_type_id",
   validateRequest(deleteSupplierTypeSchema, REQUEST_SOURCE.PARAMS),
-  deleteSupplierType
+  deleteSupplierType,
 );
 
 router.put(
   "/:supplier_type_id",
   validateRequest(updateSupplierTypeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSupplierTypeSchema, REQUEST_SOURCE.BODY),
-  updateSupplierType
+  updateSupplierType,
+);
+
+router.put(
+  "/is-active/:supplier_type_id",
+  validateRequest(updateSupplierTypeParamsSchema, REQUEST_SOURCE.PARAMS),
+  toggleActiveStatus,
 );
 module.exports = router;

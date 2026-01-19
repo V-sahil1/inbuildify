@@ -1,6 +1,10 @@
 const Joi = require("joi");
 
 const createSupplierSchema = Joi.object({
+  supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.sparse": "supplier_type_id cannot contain empty values",
+    "array.unique": "supplier_type_id must be unique",
+  }),
   company_name: Joi.string().max(255).required(),
   abn: Joi.string().max(50).allow(null, ""),
   description: Joi.string().allow(null, ""),
@@ -32,7 +36,6 @@ const createSupplierSchema = Joi.object({
   zip_code: Joi.string().max(20).allow(null, ""),
   lead_time: Joi.string().max(100).allow(null, ""),
   status: Joi.boolean().default(true),
-  is_recommended: Joi.boolean().default(false),
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
     .unique()
@@ -86,6 +89,10 @@ const updateSupplierParamsSchema = Joi.object({
 });
 
 const updateSupplierSchema = Joi.object({
+  supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.sparse": "supplier_type_id cannot contain empty values",
+    "array.unique": "supplier_type_id must be unique",
+  }),
   company_name: Joi.string().max(255).optional(),
   abn: Joi.string().max(50).allow(null, ""),
   description: Joi.string().allow(null, ""),
@@ -119,7 +126,6 @@ const updateSupplierSchema = Joi.object({
   zip_code: Joi.string().max(20).allow(null, "").optional(),
   lead_time: Joi.string().max(100).allow(null, "").optional(),
   status: Joi.boolean(),
-  is_recommended: Joi.boolean(),
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
     .optional(),

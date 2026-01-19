@@ -25,7 +25,7 @@ exports.createConstructionChecklist = async (req, res) => {
       cost_center_id = [],
       construction_option_id = [],
       compliance_type_id,
-      builder
+      builder,
     } = req.body;
 
     const { user_id, company_id, builder_id } = req.user;
@@ -37,77 +37,91 @@ exports.createConstructionChecklist = async (req, res) => {
     if (construction_type_id) {
       const check = await client.query(
         `SELECT 1 FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2`,
-        [construction_type_id, builder_id]
+        [construction_type_id, builder_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid construction_type_id");
     }
 
     if (construction_stage_id) {
       const check = await client.query(
         `SELECT 1 FROM construction_stage WHERE construction_stage = $1 AND builder_id = $2`,
-        [construction_stage_id, builder_id]
+        [construction_stage_id, builder_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_stage_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid construction_stage_id");
     }
 
     if (supplier_type_id) {
       const check = await client.query(
         `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
-        [supplier_type_id]
+        [supplier_type_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid supplier_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid supplier_type_id");
     }
-
 
     if (Array.isArray(cost_center_id) && cost_center_id.length) {
       const check = await client.query(
         `SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[])`,
-        [cost_center_id]
+        [cost_center_id],
       );
       if (check.rowCount !== cost_center_id.length) {
-        return errorResponse(res, 400, "One or more cost_center_id are invalid");
+        return errorResponse(
+          res,
+          400,
+          "One or more cost_center_id are invalid",
+        );
       }
     }
 
-    if (Array.isArray(construction_option_id) && construction_option_id.length) {
+    if (
+      Array.isArray(construction_option_id) &&
+      construction_option_id.length
+    ) {
       const check = await client.query(
         `SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[])`,
-        [construction_option_id]
+        [construction_option_id],
       );
       if (check.rowCount !== construction_option_id.length) {
-        return errorResponse(res, 400, "One or more construction_option_id are invalid");
+        return errorResponse(
+          res,
+          400,
+          "One or more construction_option_id are invalid",
+        );
       }
     }
-
 
     if (compliance_type_id) {
       const check = await client.query(
         `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
-        [compliance_type_id]
+        [compliance_type_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid compliance_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid compliance_type_id");
     }
 
     if (builder) {
       const check = await client.query(
         `SELECT 1 FROM builder WHERE builder_id = $1`,
-        [builder]
+        [builder],
       );
       if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
     }
 
     if (data_required === false && no_of_days) {
-      return errorResponse(res, 400, "no_of_days cannot be set when data_required is false");
-    }
-
-    if (
-      attachment_mandatory === false &&
-      attachment_mandatory_name
-    ) {
       return errorResponse(
         res,
         400,
-        "attachment_mandatory_name cannot be set when attachment_mandatory is false"
+        "no_of_days cannot be set when data_required is false",
+      );
+    }
+
+    if (attachment_mandatory === false && attachment_mandatory_name) {
+      return errorResponse(
+        res,
+        400,
+        "attachment_mandatory_name cannot be set when attachment_mandatory is false",
       );
     }
 
@@ -118,7 +132,7 @@ exports.createConstructionChecklist = async (req, res) => {
       SET sort_order = sort_order + 1
       WHERE company_id = $1 AND builder_id = $2 AND sort_order >= $3
       `,
-      [company_id, builder_id, newSortOrder]
+      [company_id, builder_id, newSortOrder],
     );
 
     const insertResult = await client.query(
@@ -174,157 +188,17 @@ exports.createConstructionChecklist = async (req, res) => {
         construction_option_id,
         compliance_type_id || null,
         user_id,
-        user_id
-      ]
+        user_id,
+      ],
     );
 
     const responseQuery = `
-      SELECT
-        cc.*,
-        (
-          SELECT json_agg(json_build_object('id', c.cost_center_id, 'name', c.name))
-          FROM cost_center c
-          WHERE c.cost_center_id = ANY(cc.cost_center_id)
-        ) AS cost_centers,
-        (
-          SELECT json_agg(json_build_object('id', co.construction_option_id, 'name', co.option_name))
-          FROM construction_option co
-          WHERE co.construction_option_id = ANY(cc.construction_option_id)
-        ) AS construction_options
-      FROM construction_checklist cc
-      WHERE cc.construction_checklist_id = $1
-    `;
-
-    const response = await client.query(responseQuery, [
-      insertResult.rows[0].construction_checklist_id
-    ]);
-
-    return successResponse(
-      res,
-      keysToCamelCase(response.rows[0]),
-      "Construction checklist created successfully."
-    );
-  } catch (error) {
-    console.error("Create Construction Checklist Error:", error);
-    return errorResponse(res, 500, error.message || "Internal server error");
-  } finally {
-    client.release();
-  }
-};
-
-
-exports.getAllConstructionChecklists = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { 
-      page = 1, 
-      limit = 25, 
-      construction_type_id, 
-      construction_stage_id,
-      supplier_type_id,
-      builder,
-      data_required,
-      supplier,
-      claim,
-      dependent,
-      notify,
-      milestone,
-      attachment_mandatory,
-      cost_center_id,
-      construction_option_id,
-      compliance_type_id
-    } = req.query;
-
-    const { company_id, builder_id } = req.user;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
-    let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
-    let values = [company_id, builder_id];
-    let paramIndex = values.length + 1;
-
-    if (construction_type_id) {
-      whereClause += ` AND cc.construction_type_id = $${paramIndex++}`;
-      values.push(construction_type_id);
-    }
-
-    if (construction_stage_id) {
-      whereClause += ` AND cc.construction_stage_id = $${paramIndex++}`;
-      values.push(construction_stage_id);
-    }
-
-    if (supplier_type_id) {
-      whereClause += ` AND cc.supplier_type_id = $${paramIndex++}`;
-      values.push(supplier_type_id);
-    }
-
-    if (builder) {
-      whereClause += ` AND cc.builder = $${paramIndex++}`;
-      values.push(builder);
-    }
-
-    if (data_required !== undefined) {
-      whereClause += ` AND cc.data_required = $${paramIndex++}`;
-      values.push(data_required === 'true');
-    }
-
-    if (supplier !== undefined) {
-      whereClause += ` AND cc.supplier = $${paramIndex++}`;
-      values.push(supplier === 'true');
-    }
-
-    if (claim !== undefined) {
-      whereClause += ` AND cc.claim = $${paramIndex++}`;
-      values.push(claim === 'true');
-    }
-
-    if (dependent !== undefined) {
-      whereClause += ` AND cc.dependent = $${paramIndex++}`;
-      values.push(dependent === 'true');
-    }
-
-    if (notify !== undefined) {
-      whereClause += ` AND cc.notify = $${paramIndex++}`;
-      values.push(notify === 'true');
-    }
-
-    if (milestone !== undefined) {
-      whereClause += ` AND cc.milestone = $${paramIndex++}`;
-      values.push(milestone === 'true');
-    }
-
-    if (attachment_mandatory !== undefined) {
-      whereClause += ` AND cc.attachment_mandatory = $${paramIndex++}`;
-      values.push(attachment_mandatory === 'true');
-    }
-
-    if (cost_center_id) {
-      whereClause += ` AND cc.cost_center_id = $${paramIndex++}`;
-      values.push(cost_center_id);
-    }
-
-    if (construction_option_id) {
-      whereClause += ` AND cc.construction_option_id = $${paramIndex++}`;
-      values.push(construction_option_id);
-    }
-
-    if (compliance_type_id) {
-      whereClause += ` AND cc.compliance_type_id = $${paramIndex++}`;
-      values.push(compliance_type_id);
-    }
-
-    const dataQuery = `
       SELECT
         cc.construction_checklist_id,
         cc.company_id,
         cc.builder_id,
         cc.builder,
         cc.name,
-        cc.supplier_type_id,
         cc.sort_order,
         cc.data_required,
         cc.supplier,
@@ -335,10 +209,6 @@ exports.getAllConstructionChecklists = async (req, res) => {
         cc.milestone,
         cc.attachment_mandatory,
         cc.attachment_mandatory_name,
-        cc.cost_center_id,
-        cc.construction_option_id,
-        cc.compliance_type_id,
-        
         json_build_object(
           'id', ct.construction_type_id,
           'name', ct.types_name
@@ -377,8 +247,125 @@ exports.getAllConstructionChecklists = async (req, res) => {
       LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
       LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
       LEFT JOIN builder b ON b.builder_id = cc.builder
-      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = cc.cost_center_id
-      LEFT JOIN construction_option co ON co.construction_option_id = cc.construction_option_id
+      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = ANY(cc.cost_center_id)
+      LEFT JOIN construction_option co ON co.construction_option_id = ANY(cc.construction_option_id)
+      LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
+      LEFT JOIN users u ON u.users_id = cc.created_by
+      WHERE cc.construction_checklist_id = $1
+    `;
+
+    const response = await client.query(responseQuery, [
+      insertResult.rows[0].construction_checklist_id,
+    ]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(response.rows[0]),
+      "Construction checklist created successfully.",
+    );
+  } catch (error) {
+    console.error("Create Construction Checklist Error:", error);
+    return errorResponse(res, 500, error.message || "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getAllConstructionChecklists = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const {
+      page = 1,
+      limit = 25,
+      construction_type_id,
+      construction_stage_id,
+      builder,
+    } = req.query;
+
+    const { company_id, builder_id } = req.user;
+
+    const limitValue = parseInt(limit, 10);
+    const pageValue = parseInt(page, 10);
+    const offset = (pageValue - 1) * limitValue;
+
+    let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
+    let values = [company_id, builder_id];
+    let paramIndex = values.length + 1;
+
+    if (construction_type_id) {
+      whereClause += ` AND cc.construction_type_id = $${paramIndex++}`;
+      values.push(construction_type_id);
+    }
+
+    if (construction_stage_id) {
+      whereClause += ` AND cc.construction_stage_id = $${paramIndex++}`;
+      values.push(construction_stage_id);
+    }
+
+    if (builder) {
+      whereClause += ` AND cc.builder = $${paramIndex++}`;
+      values.push(builder);
+    }
+
+    const dataQuery = `
+      SELECT
+        cc.construction_checklist_id,
+        cc.company_id,
+        cc.builder_id,
+        cc.builder,
+        cc.name,
+        cc.sort_order,
+        cc.data_required,
+        cc.supplier,
+        cc.claim,
+        cc.dependent,
+        cc.no_of_days,
+        cc.notify,
+        cc.milestone,
+        cc.attachment_mandatory,
+        cc.attachment_mandatory_name,
+        json_build_object(
+          'id', ct.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type,
+        json_build_object(
+          'id', cs.construction_stage,
+          'name', cs.stage_name
+        ) AS construction_stage,
+        json_build_object(
+          'id', st.supplier_type_id,
+          'name', st.name
+        ) AS supplier_type,
+        json_build_object(
+          'id', b.builder_id,
+          'name', b.name
+        ) AS builder,
+        json_build_object(
+          'id', cc_name.cost_center_id,
+          'name', cc_name.name
+        ) AS cost_center,
+        json_build_object(
+          'id', co.construction_option_id,
+          'name', co.option_name
+        ) AS construction_option,
+        json_build_object(
+          'id', cpt.compliance_type_id,
+          'name', cpt.name
+        ) AS compliance_type,
+        u.name AS created_by_name,
+        cc.created_by,
+        cc.updated_by,
+        cc.created_at,
+        cc.updated_at
+      FROM construction_checklist cc
+      LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
+      LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
+      LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
+      LEFT JOIN builder b ON b.builder_id = cc.builder
+      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = ANY(cc.cost_center_id)
+      LEFT JOIN construction_option co ON co.construction_option_id = ANY(cc.construction_option_id)
       LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
       LEFT JOIN users u ON u.users_id = cc.created_by
       ${whereClause}
@@ -386,7 +373,11 @@ exports.getAllConstructionChecklists = async (req, res) => {
       LIMIT $${paramIndex++} OFFSET $${paramIndex++};
     `;
 
-    const dataResult = await client.query(dataQuery, [...values, limitValue, offset]);
+    const dataResult = await client.query(dataQuery, [
+      ...values,
+      limitValue,
+      offset,
+    ]);
 
     const countQuery = `
       SELECT COUNT(*) AS total
@@ -409,11 +400,11 @@ exports.getAllConstructionChecklists = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Construction checklists fetched successfully."
+      "Construction checklists fetched successfully.",
     );
   } catch (error) {
     console.error("Get All Construction Checklists Error:", error);
-    return errorResponse(res, 500, error.message || "Internal server error.");
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -462,7 +453,7 @@ exports.getConstructionChecklistById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction checklist fetched successfully."
+      "Construction checklist fetched successfully.",
     );
   } catch (error) {
     console.error("Get Construction Checklist By ID Error:", error);
@@ -497,8 +488,8 @@ exports.updateConstructionChecklist = async (req, res) => {
       construction_option_id,
       compliance_type_id,
       builder,
-      po_folder_id, 
-      job_documents_folder_id 
+      po_folder_id,
+      job_documents_folder_id,
     } = req.body;
 
     const { user_id, company_id, builder_id } = req.user;
@@ -512,7 +503,7 @@ exports.updateConstructionChecklist = async (req, res) => {
        FROM construction_checklist 
        WHERE construction_checklist_id = $1 
          AND (company_id = $2 OR builder_id = $3)`,
-      [construction_checklist_id, company_id, builder_id]
+      [construction_checklist_id, company_id, builder_id],
     );
 
     if (existingResult.rowCount === 0) {
@@ -522,90 +513,105 @@ exports.updateConstructionChecklist = async (req, res) => {
     if (construction_type_id) {
       const check = await client.query(
         `SELECT 1 FROM construction_type WHERE construction_type_id = $1`,
-        [construction_type_id]
+        [construction_type_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid construction_type_id");
     }
 
     if (construction_stage_id) {
       const check = await client.query(
         `SELECT 1 FROM construction_stage WHERE construction_stage = $1`,
-        [construction_stage_id]
+        [construction_stage_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid construction_stage_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid construction_stage_id");
     }
 
     if (supplier_type_id) {
       const check = await client.query(
         `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
-        [supplier_type_id]
+        [supplier_type_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid supplier_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid supplier_type_id");
     }
-
 
     if (Array.isArray(cost_center_id) && cost_center_id.length) {
       const check = await client.query(
         `SELECT cost_center_id 
          FROM cost_center 
          WHERE cost_center_id = ANY($1::uuid[])`,
-        [cost_center_id]
+        [cost_center_id],
       );
       if (check.rowCount !== cost_center_id.length) {
-        return errorResponse(res, 400, "One or more cost_center_id are invalid");
+        return errorResponse(
+          res,
+          400,
+          "One or more cost_center_id are invalid",
+        );
       }
     }
 
-    if (Array.isArray(construction_option_id) && construction_option_id.length) {
+    if (
+      Array.isArray(construction_option_id) &&
+      construction_option_id.length
+    ) {
       const check = await client.query(
         `SELECT construction_option_id 
          FROM construction_option 
          WHERE construction_option_id = ANY($1::uuid[])`,
-        [construction_option_id]
+        [construction_option_id],
       );
       if (check.rowCount !== construction_option_id.length) {
-        return errorResponse(res, 400, "One or more construction_option_id are invalid");
+        return errorResponse(
+          res,
+          400,
+          "One or more construction_option_id are invalid",
+        );
       }
     }
-
 
     if (compliance_type_id) {
       const check = await client.query(
         `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
-        [compliance_type_id]
+        [compliance_type_id],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid compliance_type_id");
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid compliance_type_id");
     }
 
     if (builder) {
       const check = await client.query(
         `SELECT 1 FROM builder WHERE builder_id = $1`,
-        [builder]
+        [builder],
       );
       if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
     }
 
     if (po_folder_id) {
-  const check = await client.query(
-    `SELECT 1 FROM drive WHERE drive_id = $1`,
-    [po_folder_id]
-  );
-  if (!check.rowCount) return errorResponse(res, 400, "Invalid po_folder_id");
-}
+      const check = await client.query(
+        `SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1`,
+        [po_folder_id],
+      );
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid po_folder_id");
+    }
 
-if (job_documents_folder_id) {
-  const check = await client.query(
-    `SELECT 1 FROM drive WHERE drive_id = $1`,
-    [job_documents_folder_id]
-  );
-  if (!check.rowCount) return errorResponse(res, 400, "Invalid job_documents_folder_id");
-}
+    if (job_documents_folder_id) {
+      const check = await client.query(
+        `SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1`,
+        [job_documents_folder_id],
+      );
+      if (!check.rowCount)
+        return errorResponse(res, 400, "Invalid job_documents_folder_id");
+    }
 
     const currentRecord = await client.query(
       `SELECT data_required, attachment_mandatory 
        FROM construction_checklist 
        WHERE construction_checklist_id = $1`,
-      [construction_checklist_id]
+      [construction_checklist_id],
     );
 
     const currentData = currentRecord.rows[0];
@@ -617,7 +623,11 @@ if (job_documents_folder_id) {
         : currentData.attachment_mandatory;
 
     if (newDataRequired === false && no_of_days !== undefined && no_of_days) {
-      return errorResponse(res, 400, "no_of_days cannot be set when data_required is false");
+      return errorResponse(
+        res,
+        400,
+        "no_of_days cannot be set when data_required is false",
+      );
     }
 
     if (
@@ -628,7 +638,7 @@ if (job_documents_folder_id) {
       return errorResponse(
         res,
         400,
-        "attachment_mandatory_name cannot be set when attachment_mandatory is false"
+        "attachment_mandatory_name cannot be set when attachment_mandatory is false",
       );
     }
 
@@ -641,7 +651,10 @@ if (job_documents_folder_id) {
       updateValues.push(null);
     }
 
-    if (attachment_mandatory === false && currentData.attachment_mandatory === true) {
+    if (
+      attachment_mandatory === false &&
+      currentData.attachment_mandatory === true
+    ) {
       updateFields.push(`attachment_mandatory_name = $${idx++}`);
       updateValues.push(null);
     }
@@ -738,17 +751,21 @@ if (job_documents_folder_id) {
     }
 
     if (po_folder_id !== undefined) {
-  updateFields.push(`po_folder_id = $${idx++}`);
-  updateValues.push(po_folder_id || null);
-}
+      updateFields.push(`po_folder_id = $${idx++}`);
+      updateValues.push(po_folder_id || null);
+    }
 
-if (job_documents_folder_id !== undefined) {
-  updateFields.push(`job_documents_folder_id = $${idx++}`);
-  updateValues.push(job_documents_folder_id || null);
-}
+    if (job_documents_folder_id !== undefined) {
+      updateFields.push(`job_documents_folder_id = $${idx++}`);
+      updateValues.push(job_documents_folder_id || null);
+    }
 
     if (!updateFields.length) {
-      return errorResponse(res, 400, "At least one field is required for update.");
+      return errorResponse(
+        res,
+        400,
+        "At least one field is required for update.",
+      );
     }
 
     updateFields.push(`updated_by = $${idx++}`);
@@ -759,42 +776,89 @@ if (job_documents_folder_id !== undefined) {
       `UPDATE construction_checklist 
        SET ${updateFields.join(", ")} 
        WHERE construction_checklist_id = $${idx}`,
-      [...updateValues, construction_checklist_id]
+      [...updateValues, construction_checklist_id],
     );
 
     const responseQuery = `
       SELECT
-        cc.*,
-        (
-          SELECT json_agg(json_build_object('id', c.cost_center_id, 'name', c.name))
-          FROM cost_center c
-          WHERE c.cost_center_id = ANY(cc.cost_center_id)
-        ) AS cost_centers,
-        (
-          SELECT json_agg(json_build_object('id', co.construction_option_id, 'name', co.option_name))
-          FROM construction_option co
-          WHERE co.construction_option_id = ANY(cc.construction_option_id)
-       ) AS construction_options,
-(
-  SELECT json_build_object('id', d.drive_id, 'name', d.name)
-  FROM drive d
-  WHERE d.drive_id = cc.po_folder_id
-) AS po_folder,
-(
-  SELECT json_build_object('id', d.drive_id, 'name', d.name)
-  FROM drive d
-  WHERE d.drive_id = cc.job_documents_folder_id
-) AS job_documents_folder
-FROM construction_checklist cc
+        cc.construction_checklist_id,
+        cc.company_id,
+        cc.builder_id,
+        cc.builder,
+        cc.name,
+        cc.sort_order,
+        cc.data_required,
+        cc.supplier,
+        cc.claim,
+        cc.dependent,
+        cc.no_of_days,
+        cc.notify,
+        cc.milestone,
+        cc.attachment_mandatory,
+        cc.attachment_mandatory_name,
+        json_build_object(
+          'id', ct.construction_type_id,
+          'name', ct.types_name
+        ) AS construction_type,
+        json_build_object(
+          'id', cs.construction_stage,
+          'name', cs.stage_name
+        ) AS construction_stage,
+        json_build_object(
+          'id', st.supplier_type_id,
+          'name', st.name
+        ) AS supplier_type,
+        json_build_object(
+          'id', b.builder_id,
+          'name', b.name
+        ) AS builder,
+        json_build_object(
+          'id', cc_name.cost_center_id,
+          'name', cc_name.name
+        ) AS cost_center,
+        json_build_object(
+          'id', co.construction_option_id,
+          'name', co.option_name
+        ) AS construction_option,
+        json_build_object(
+          'id', cpt.compliance_type_id,
+          'name', cpt.name
+        ) AS compliance_type,
+        json_build_object(
+          'id', dcf.document_common_folder_id,
+          'name', dcf.name
+        ) AS po_folder,
+        json_build_object(
+          'id', dcf2.document_common_folder_id,
+          'name', dcf2.name
+        ) AS job_document_folder,
+        u.name AS created_by_name,
+        cc.created_by,
+        cc.updated_by,
+        cc.created_at,
+        cc.updated_at
+      FROM construction_checklist cc
+      LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
+      LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
+      LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
+      LEFT JOIN builder b ON b.builder_id = cc.builder
+      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = ANY(cc.cost_center_id)
+      LEFT JOIN construction_option co ON co.construction_option_id = ANY(cc.construction_option_id)
+      LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
+      LEFT JOIN document_common_folder dcf ON dcf.document_common_folder_id = cc.po_folder_id
+      LEFT JOIN document_common_folder dcf2 ON dcf2.document_common_folder_id = cc.job_documents_folder_id
+      LEFT JOIN users u ON u.users_id = cc.created_by
       WHERE cc.construction_checklist_id = $1
     `;
 
-    const responseResult = await client.query(responseQuery, [construction_checklist_id]);
+    const responseResult = await client.query(responseQuery, [
+      construction_checklist_id,
+    ]);
 
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction checklist updated successfully."
+      "Construction checklist updated successfully.",
     );
   } catch (error) {
     console.error("Update Construction Checklist Error:", error);
@@ -820,7 +884,7 @@ exports.deleteConstructionChecklist = async (req, res) => {
       `SELECT construction_checklist_id FROM construction_checklist 
        WHERE construction_checklist_id = $1 
          AND (company_id = $2 OR builder_id = $3)`,
-      [construction_checklist_id, company_id, builder_id]
+      [construction_checklist_id, company_id, builder_id],
     );
 
     if (checkResult.rowCount === 0) {
@@ -830,26 +894,26 @@ exports.deleteConstructionChecklist = async (req, res) => {
     const deletedRecord = await client.query(
       `SELECT sort_order FROM construction_checklist 
        WHERE construction_checklist_id = $1`,
-      [construction_checklist_id]
+      [construction_checklist_id],
     );
     const deletedSortOrder = deletedRecord.rows[0].sort_order;
 
     await client.query(
       `DELETE FROM construction_checklist WHERE construction_checklist_id = $1`,
-      [construction_checklist_id]
+      [construction_checklist_id],
     );
 
     await client.query(
       `UPDATE construction_checklist 
        SET sort_order = sort_order - 1 
        WHERE company_id = $1 AND builder_id = $2 AND sort_order > $3`,
-      [company_id, builder_id, deletedSortOrder]
+      [company_id, builder_id, deletedSortOrder],
     );
 
     return successResponse(
       res,
       {},
-      "Construction checklist deleted successfully."
+      "Construction checklist deleted successfully.",
     );
   } catch (error) {
     console.error("Delete Construction Checklist Error:", error);

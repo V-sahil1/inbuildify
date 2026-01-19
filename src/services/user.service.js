@@ -143,7 +143,7 @@ async function createUser(currentUser, body, files) {
 
   if (use_builder_address === "true") {
     const builderAddress = await builderRepo.getBuilderAddress(
-      currentUser.builder_id
+      currentUser.builder_id,
     );
     addressId = builderAddress || null;
   } else if (address) {
@@ -182,6 +182,25 @@ async function createUser(currentUser, body, files) {
   const userId = user.user_id;
 
   /* --------------------------
+       SINGLE BUILDER MANAGEMENT
+    --------------------------- */
+
+  if (builder_id) {
+    // Check if user already has a builder assigned
+    const existingBuilder = await userRepo.getUserBuilder(userId);
+    if (existingBuilder) {
+      throw {
+        status: 400,
+        message:
+          "User already has a builder assigned. Each user can only have one builder.",
+      };
+    }
+
+    // Assign single builder to user
+    await userRepo.setUserBuilder(userId, builder_id);
+  }
+
+  /* --------------------------
         PHOTO + SIGNATURE
     --------------------------- */
 
@@ -205,7 +224,12 @@ async function createUser(currentUser, body, files) {
     await sendPasswordEmail(email, login_id, finalPassword);
   }
 
-  return user;
+  return {
+    userId,
+    email,
+    login_id,
+    role_id,
+  };
 }
 
 /* ----------------------------------------
@@ -260,7 +284,7 @@ async function updateUser(currentUser, userId, body, files) {
 
   if (body.use_builder_address === "true") {
     const builderAddress = await builderRepo.getBuilderAddress(
-      targetUser.builder_id
+      targetUser.builder_id,
     );
     addressId = builderAddress;
   } else if (body.address) {
@@ -283,6 +307,26 @@ async function updateUser(currentUser, userId, body, files) {
   };
 
   await userRepo.updateUser(userId, updateData);
+
+  /* --------------------------
+         SINGLE BUILDER MANAGEMENT
+    --------------------------- */
+  if (body.builder_id) {
+    // Check if user already has a builder assigned (and it's different)
+    const existingBuilder = await userRepo.getUserBuilder(userId);
+    if (existingBuilder && existingBuilder.builder_id !== body.builder_id) {
+      throw {
+        status: 400,
+        message:
+          "User already has a builder assigned. Each user can only have one builder.",
+      };
+    }
+
+    if (!existingBuilder) {
+      // Assign single builder to user
+      await userRepo.setUserBuilder(userId, body.builder_id);
+    }
+  }
 
   /* --------------------------
         PHOTO & SIGNATURE
@@ -355,7 +399,7 @@ async function resetPassword(currentUser, userId, body) {
   await userRepo.updatePassword(
     userId,
     encrypted,
-    next_login_password_change === "true"
+    next_login_password_change === "true",
   );
 
   if (email_password === "true") {

@@ -15,7 +15,7 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -41,7 +41,7 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A header with this name already exists for this builder or company."
+        "A header with this name already exists for this builder or company.",
       );
     }
 
@@ -70,7 +70,7 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Integration custom field header created successfully."
+      "Integration custom field header created successfully.",
     );
   } catch (err) {
     console.error("Error creating integration custom field header:", err);
@@ -93,7 +93,7 @@ exports.getAllIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -136,7 +136,7 @@ exports.getAllIntegrationCustomFieldHeader = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Integration custom field headers fetched successfully."
+      "Integration custom field headers fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching integration custom field headers:", error);
@@ -156,7 +156,6 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // 1️⃣ Check header exists & scope
     const headerResult = await client.query(
       `
       SELECT integration_custom_field_header_id
@@ -168,7 +167,7 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
           (builder_id = $3 AND $3 IS NOT NULL)
         )
       `,
-      [integration_custom_field_header_id, company_id, builder_id]
+      [integration_custom_field_header_id, company_id, builder_id],
     );
 
     if (headerResult.rowCount === 0) {
@@ -176,7 +175,6 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(res, 404, "Header not found");
     }
 
-    // 2️⃣ Count headers in same scope
     const countResult = await client.query(
       `
       SELECT COUNT(*)::int AS header_count
@@ -186,12 +184,11 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
         OR
         (builder_id = $2 AND $2 IS NOT NULL)
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     const headerCount = countResult.rows[0].header_count;
 
-    // 3️⃣ If only ONE header → delete ALL custom field items
     if (headerCount === 1) {
       await client.query(
         `
@@ -201,46 +198,45 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
           OR
           (builder_id = $2 AND $2 IS NOT NULL)
         `,
-        [company_id, builder_id]
+        [company_id, builder_id],
       );
     } else {
-      // 4️⃣ Otherwise → remove only the matching header column
       await client.query(
         `
         UPDATE integration_custom_field_item
         SET
           header1_id = CASE
-            WHEN header1_id = $1 THEN NULL
+            WHEN header1_id = $1 THEN header2_id
             ELSE header1_id
           END,
           value1 = CASE
-            WHEN header1_id = $1 THEN NULL
+            WHEN header1_id = $1 THEN value2
             ELSE value1
           END,
           header2_id = CASE
+            WHEN header1_id = $1 THEN NULL
             WHEN header2_id = $1 THEN NULL
             ELSE header2_id
           END,
           value2 = CASE
+            WHEN header1_id = $1 THEN NULL
             WHEN header2_id = $1 THEN NULL
             ELSE value2
           END,
           updated_at = NOW()
         WHERE
-          header1_id = $1
-          OR header2_id = $1
+          header1_id = $1 OR header2_id = $1
         `,
-        [integration_custom_field_header_id]
+        [integration_custom_field_header_id],
       );
     }
 
-    // 5️⃣ Delete header itself
     await client.query(
       `
       DELETE FROM integration_custom_field_header
       WHERE integration_custom_field_header_id = $1
       `,
-      [integration_custom_field_header_id]
+      [integration_custom_field_header_id],
     );
 
     await client.query("COMMIT");
@@ -248,7 +244,7 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Integration custom field header deleted successfully"
+      "Integration custom field header deleted successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -258,8 +254,6 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
     client.release();
   }
 };
-
-
 
 exports.updateIntegrationCustomFieldHeader = async (req, res) => {
   const pool = getPool();
@@ -275,7 +269,7 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -296,10 +290,9 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or not owned by this builder."
+        "Record not found or not owned by this builder.",
       );
     }
-
 
     if (header_name) {
       const duplicateNameQuery = `
@@ -320,11 +313,10 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Header name already exists for this builder/company."
+          "Header name already exists for this builder/company.",
         );
       }
     }
-
 
     const fields = [];
     const values = [];
@@ -334,7 +326,6 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
       fields.push(`header_name = $${i++}`);
       values.push(header_name.trim());
     }
-
 
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
@@ -364,7 +355,7 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Integration custom field header updated successfully."
+      "Integration custom field header updated successfully.",
     );
   } catch (error) {
     console.error("Error updating integration custom field header:", error);
@@ -373,4 +364,3 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
     client.release();
   }
 };
-

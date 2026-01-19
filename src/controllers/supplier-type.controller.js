@@ -31,7 +31,7 @@ exports.createSupplierType = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
     `,
-      [name.trim(), builderId]
+      [name.trim(), builderId],
     );
 
     if (checkExisting.rowCount > 0) {
@@ -39,7 +39,7 @@ exports.createSupplierType = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Supplier type name already exists for this builder."
+        "Supplier type name already exists for this builder.",
       );
     }
 
@@ -73,7 +73,7 @@ exports.createSupplierType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Supplier type created successfully."
+      "Supplier type created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -96,7 +96,7 @@ exports.getAllSupplierType = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Scope missing.");
     }
 
-    let { page = 1, limit = 25, is_active } = req.query;
+    let { page = 1, limit = 25, is_active, name } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -120,6 +120,11 @@ exports.getAllSupplierType = async (req, res) => {
     if (is_active !== undefined) {
       conditions.push(`is_active = $${index++}`);
       values.push(is_active === "true");
+    }
+
+    if (name) {
+      conditions.push(`name ILIKE $${index++}`);
+      values.push(`%${name}%`);
     }
 
     const whereClause = conditions.length
@@ -157,8 +162,8 @@ exports.getAllSupplierType = async (req, res) => {
 
     return successResponse(
       res,
-      { records: rows, pagination },
-      "Supplier types fetched successfully."
+      { supplierType: rows, pagination },
+      "Supplier types fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching supplier types:", error);
@@ -206,7 +211,7 @@ exports.deleteSupplierType = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Supplier type not found or access denied."
+        "Supplier type not found or access denied.",
       );
     }
 
@@ -248,7 +253,7 @@ exports.updateSupplierType = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -257,7 +262,7 @@ exports.updateSupplierType = async (req, res) => {
     const existingSupplier = await client.query(
       `SELECT * FROM supplier_type 
 			 WHERE supplier_type_id = $1 AND builder_id = $2`,
-      [supplier_type_id, builderId]
+      [supplier_type_id, builderId],
     );
 
     if (existingSupplier.rowCount === 0) {
@@ -265,7 +270,7 @@ exports.updateSupplierType = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Supplier type not found for this builder."
+        "Supplier type not found for this builder.",
       );
     }
 
@@ -284,7 +289,7 @@ exports.updateSupplierType = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To deactivate an active supplier type, 'is_active' must be the only field provided in the request."
+            "To deactivate an active supplier type, 'is_active' must be the only field provided in the request.",
           );
         }
       }
@@ -297,7 +302,7 @@ exports.updateSupplierType = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To activate an inactive supplier type, 'is_active' must be the only field provided in the request."
+            "To activate an inactive supplier type, 'is_active' must be the only field provided in the request.",
           );
         }
       }
@@ -308,7 +313,7 @@ exports.updateSupplierType = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "Cannot update non-'is_active' fields when the supplier type is currently inactive. Only 'is_active' can be changed (to true)."
+            "Cannot update non-'is_active' fields when the supplier type is currently inactive. Only 'is_active' can be changed (to true).",
           );
         }
       }
@@ -319,7 +324,7 @@ exports.updateSupplierType = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "Supplier type is already inactive. 'is_active' can only be updated to true from this state."
+            "Supplier type is already inactive. 'is_active' can only be updated to true from this state.",
           );
         }
       }
@@ -331,7 +336,7 @@ exports.updateSupplierType = async (req, res) => {
 			 			WHERE LOWER(name) = LOWER($1)
 			 			 	AND builder_id = $2
 			 			 	AND supplier_type_id != $3`,
-        [name.trim(), builderId, supplier_type_id]
+        [name.trim(), builderId, supplier_type_id],
       );
 
       if (duplicateName.rowCount > 0) {
@@ -339,7 +344,7 @@ exports.updateSupplierType = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Supplier type name already exists for another record."
+          "Supplier type name already exists for another record.",
         );
       }
     }
@@ -382,11 +387,76 @@ exports.updateSupplierType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Supplier type updated successfully."
+      "Supplier type updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating supplier type:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.toggleActiveStatus = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { supplier_type_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    if (!supplier_type_id) {
+      return errorResponse(res, 400, "Supplier type ID is required.");
+    }
+
+    await client.query("BEGIN");
+
+    // Find the supplier type record
+    const existing = await client.query(
+      `SELECT * FROM supplier_type 
+       WHERE supplier_type_id = $1 
+       AND (builder_id = $2 OR company_id = $3)
+       FOR UPDATE`,
+      [supplier_type_id, builderId, companyId],
+    );
+
+    if (existing.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Supplier type not found.");
+    }
+
+    const currentStatus = existing.rows[0].is_active;
+    const newStatus = !currentStatus;
+
+    const updateQuery = `
+      UPDATE supplier_type
+      SET is_active = $1, updated_by = $2, updated_at = NOW()
+      WHERE supplier_type_id = $3
+        AND (builder_id = $4 OR company_id = $5)
+      RETURNING *;
+    `;
+
+    const updated = await client.query(updateQuery, [
+      newStatus,
+      userId,
+      supplier_type_id,
+      builderId,
+      companyId,
+    ]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(updated.rows[0]),
+      `Supplier type ${newStatus ? "activated" : "deactivated"} successfully.`,
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error toggling supplier type status:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
     client.release();

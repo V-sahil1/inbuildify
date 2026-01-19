@@ -1427,7 +1427,7 @@ CREATE TABLE job_process_task (
     name VARCHAR(200) NOT NULL,
     description TEXT,
     sort_order INT NOT NULL,
-    folder_id UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
+    folder_id UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
     no_of_days INT,
     assignee_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
     notify BOOLEAN DEFAULT FALSE,
@@ -2088,6 +2088,7 @@ CREATE TABLE supplier (
     supplier_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+    supplier_type_id UUID[] DEFAULT '{}',
     company_name VARCHAR(255) NOT NULL,
     abn VARCHAR(50),
     description TEXT,
@@ -2102,7 +2103,6 @@ CREATE TABLE supplier (
     lead_time VARCHAR(100),
     status BOOLEAN DEFAULT TRUE,
     emails TEXT[], -- array to store multiple email addresses
-    is_recommended BOOLEAN DEFAULT FALSE, -- after creation can be marked as recommended
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -2115,8 +2115,19 @@ CREATE TABLE supplier_supplier_type_map (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
     supplier_type_id UUID NOT NULL REFERENCES supplier_type(supplier_type_id) ON DELETE CASCADE,
+    is_recommended BOOLEAN DEFAULT FALSE,
+    assign_to_new_and_existing_checklist BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_supplier_type_map UNIQUE (supplier_id, supplier_type_id)
+);
+
+CREATE TABLE supplier_type_construction_checklist_map(
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    supplier_type_id UUID NOT NULL REFERENCES supplier_type(supplier_type_id) ON DELETE CASCADE,
+    construction_checklist_id UUID NOT NULL REFERENCES construction_checklist(construction_checklist_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_supplier_type_construction_checklist_map UNIQUE (supplier_type_id, construction_checklist_id)
 );
 
 CREATE TABLE supplier_contacts (
@@ -2488,8 +2499,8 @@ CREATE TABLE construction_checklist(
   cost_center_id UUID[] DEFAULT '{}',                        --REFERENCES cost_center(cost_center_id) ON DELETE SET NULL,
   construction_option_id UUID[] DEFAULT '{}',                      --REFERENCES construction_option(construction_option_id) ON DELETE CASCADE,
   compliance_type_id UUID REFERENCES compliance_type(compliance_type_id) ON DELETE SET NULL,
-  po_folder_id UUID REFERENCES drive(drive_id) ON DELETE SET NULL,
-  job_documents_folder_id REFERENCES drive(drive_id) ON DELETE SET NULL,
+  po_folder_id UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
+  job_documents_folder_id UUID REFERENCES document_common_folder(document_common_folder_id) ON DELETE SET NULL,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -2682,25 +2693,38 @@ CREATE TABLE color_category(
   CONSTRAINT chk_color_category_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
--- CREATE TABLE color_item(
---   color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   color_id UUID NOT NULL REFERENCES color(color_id) ON DELETE CASCADE,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
---   item_name VARCHAR(255) NOT NULL,
---   cost_type VARCHAR(50) CHECK(cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
---   upgrade_option VARCHAR(50) CHECK(upgrade_option IN('fixed', 'start_from', 'tba')),
---   cost NUMERIC (10,2),
---   item_code VARCHAR(100) NOT NULL,
---   supplier_id UUID REFERENCES supplier(supplier_id) ON DELETE SET NULL,
---   sort_order INT DEFAULT 1,
---   status BOOLEAN DEFAULT TRUE,
---   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
---   features VARCHAR(500),
---   description Variable(500),
---   color_type text[],                          
---   range_id UUID[] DEFAULT '{}',
--- )
+CREATE TABLE color_group(
+  color_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  status BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_color_group_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE color_item(
+  color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_group_id UUID REFERENCES color_group(color_group_id) ON DELETE CASCADE,
+  item_name VARCHAR(255) NOT NULL,
+  item_code VARCHAR(100) NOT NULL,
+  supplier_id UUID REFERENCES supplier(supplier_id) ON DELETE SET NULL,
+  upgrade_option VARCHAR(50) CHECK(upgrade_option IN('fixed', 'start_from', 'tba')),
+  cost_type VARCHAR(50) CHECK(cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
+  cost NUMERIC (10,2),                   --if cost_type is upgrade
+  features VARCHAR(500),
+  description VARCHAR(500),
+  specification VARCHAR(500),
+  units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
+  color_image VARCHAR(500),
+  specification VARCHAR(500),
+  status BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
 
 CREATE TABLE cost_center(
     cost_center_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2721,6 +2745,7 @@ CREATE TABLE cost_center(
 CREATE TABLE cost_center_checklist_map(
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     cost_center_id UUID NOT NULL REFERENCES cost_center(cost_center_id) ON DELETE CASCADE,
-    checklist_id UUID NOT NULL REFERENCES checklist(checklist_id) ON DELETE CASCADE,
-    UNIQUE (cost_center_id, checklist_id)
+    construction_checklist_id UUID NOT NULL REFERENCES construction_checklist(construction_checklist_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_cost_center_checklist_map UNIQUE (cost_center_id, construction_checklist_id)
 );

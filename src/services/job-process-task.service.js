@@ -6,7 +6,12 @@ const {
 /**
  * CREATE TASK + DEPENDENCIES
  */
-exports.createTaskService = async (subStageId, payload, builderId, companyId) => {
+exports.createTaskService = async (
+  subStageId,
+  payload,
+  builderId,
+  companyId,
+) => {
   await ensureWorkflowStageBySubStageId(subStageId);
 
   const pool = getPool();
@@ -22,7 +27,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
       FROM job_process_sub_stage ss
       WHERE ss.sub_stage_id = $1 
       `,
-      [subStageId]
+      [subStageId],
     );
 
     if (subStageCheck.rows.length === 0) {
@@ -36,7 +41,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
       FROM job_process_stage
       WHERE stage_id = $1
       `,
-      [subStageCheck.rows[0].stage_id]
+      [subStageCheck.rows[0].stage_id],
     );
 
     if (stageCheck.rows.length === 0) {
@@ -46,7 +51,10 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
     const stageInfo = stageCheck.rows[0];
 
     // Authorization check - user can only create tasks for their own sub-stages
-    if (stageInfo.builder_id !== builderId && stageInfo.company_id !== companyId) {
+    if (
+      stageInfo.builder_id !== builderId &&
+      stageInfo.company_id !== companyId
+    ) {
       throw new Error("You can only create tasks for your own sub-stages");
     }
 
@@ -57,7 +65,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
         FROM users
         WHERE users_id = $1
         `,
-        [payload.assignee_id]
+        [payload.assignee_id],
       );
 
       if (assigneeCheck.rows.length === 0) {
@@ -83,11 +91,11 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
     if (payload.folder_id) {
       const folderCheck = await client.query(
         `
-        SELECT drive_id
-        FROM drive
-        WHERE drive_id = $1
+        SELECT document_common_folder_id
+        FROM document_common_folder
+        WHERE document_common_folder_id = $1
         `,
-        [payload.folder_id]
+        [payload.folder_id],
       );
 
       if (folderCheck.rows.length === 0) {
@@ -102,11 +110,13 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
       WHERE sub_stage_id = $1 
         AND name = $2
       `,
-      [subStageId, payload.name]
+      [subStageId, payload.name],
     );
 
     if (duplicateCheck.rows.length > 0) {
-      throw new Error(`Task with name ${payload.name} already exists for this sub-stage`);
+      throw new Error(
+        `Task with name ${payload.name} already exists for this sub-stage`,
+      );
     }
 
     const maxSortOrderQuery = `
@@ -114,7 +124,9 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
       FROM job_process_task
       WHERE sub_stage_id = $1
     `;
-    const maxSortOrderResult = await client.query(maxSortOrderQuery, [subStageId]);
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      subStageId,
+    ]);
     const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
     let finalSortOrder;
@@ -125,7 +137,9 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
     }
 
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+      throw new Error(
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+      );
     }
 
     if (payload.sort_order !== undefined) {
@@ -157,7 +171,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
         payload.notify,
         payload.milestone,
         payload.attachment_mandatory,
-      ]
+      ],
     );
 
     const taskId = rows[0].job_process_task_id;
@@ -172,7 +186,7 @@ exports.createTaskService = async (subStageId, payload, builderId, companyId) =>
         INSERT INTO job_process_task_dependency(task_id, predecessor_task_id)
         VALUES ($1,$2)
         `,
-        [taskId, depId]
+        [taskId, depId],
       );
     }
 
@@ -202,7 +216,7 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
       WHERE t.job_process_task_id = $1
       `,
-      [taskId]
+      [taskId],
     );
 
     if (ownerCheck.rows.length === 0) {
@@ -218,11 +232,11 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
     if (payload.folder_id) {
       const folderCheck = await client.query(
         `
-        SELECT drive_id
-        FROM drive
-        WHERE drive_id = $1
+        SELECT document_common_folder_id
+        FROM document_common_folder
+        WHERE document_common_folder_id = $1
         `,
-        [payload.folder_id]
+        [payload.folder_id],
       );
 
       if (folderCheck.rows.length === 0) {
@@ -237,7 +251,7 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       FROM job_process_task
       WHERE job_process_task_id = $1
       `,
-      [taskId]
+      [taskId],
     );
 
     if (checkQuery.rows.length === 0) {
@@ -256,27 +270,36 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
           AND name = $2
           AND job_process_task_id != $3
         `,
-        [existingTask.sub_stage_id, payload.name, taskId]
+        [existingTask.sub_stage_id, payload.name, taskId],
       );
 
       if (duplicateCheck.rows.length > 0) {
-        throw new Error(`Task with name ${payload.name} already exists for this sub-stage`);
+        throw new Error(
+          `Task with name ${payload.name} already exists for this sub-stage`,
+        );
       }
     }
 
     // Handle sort order shifting if sort_order is being updated
-    if (payload.sort_order !== undefined && payload.sort_order !== existingTask.sort_order) {
+    if (
+      payload.sort_order !== undefined &&
+      payload.sort_order !== existingTask.sort_order
+    ) {
       const maxSortOrderQuery = `
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM job_process_task
         WHERE sub_stage_id = $1
       `;
-      const maxSortOrderResult = await client.query(maxSortOrderQuery, [existingTask.sub_stage_id]);
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+        existingTask.sub_stage_id,
+      ]);
       const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
       // Validate sort order range
       if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
-        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+        throw new Error(
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+        );
       }
 
       // Shift sort orders based on movement direction
@@ -291,7 +314,12 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
             AND job_process_task_id != $3
             AND sub_stage_id = $4
           `,
-          [existingTask.sort_order, payload.sort_order, taskId, existingTask.sub_stage_id]
+          [
+            existingTask.sort_order,
+            payload.sort_order,
+            taskId,
+            existingTask.sub_stage_id,
+          ],
         );
       } else {
         // Moving up: increment sort_order for tasks between new and old position
@@ -304,7 +332,12 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
             AND job_process_task_id != $3
             AND sub_stage_id = $4
           `,
-          [payload.sort_order, existingTask.sort_order, taskId, existingTask.sub_stage_id]
+          [
+            payload.sort_order,
+            existingTask.sort_order,
+            taskId,
+            existingTask.sub_stage_id,
+          ],
         );
       }
     }
@@ -337,31 +370,31 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
         payload.notify,
         payload.milestone,
         payload.attachment_mandatory,
-      ]
+      ],
     );
 
     if (!rowCount) throw new Error("Task not found");
-    
+
     // Handle predecessor task dependencies
     if (payload.predecessor_task_ids !== undefined) {
       // Clear existing dependencies
       await client.query(
         "DELETE FROM job_process_task_dependency WHERE task_id = $1",
-        [taskId]
+        [taskId],
       );
-      
+
       // Add new dependencies
       for (const depId of payload.predecessor_task_ids || []) {
         if (depId === taskId) {
           throw new Error("Task cannot depend on itself");
         }
-        
+
         await client.query(
           `
           INSERT INTO job_process_task_dependency(task_id, predecessor_task_id)
           VALUES ($1, $2)
           `,
-          [taskId, depId]
+          [taskId, depId],
         );
       }
     }
@@ -386,7 +419,7 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       WHERE t.job_process_task_id = $1
       GROUP BY t.job_process_task_id
       `,
-      [taskId]
+      [taskId],
     );
 
     await client.query("COMMIT");
@@ -415,7 +448,7 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
       WHERE t.job_process_task_id = $1
       `,
-      [taskId]
+      [taskId],
     );
 
     if (ownerCheck.rows.length === 0) {
@@ -434,7 +467,7 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       FROM job_process_task
       WHERE job_process_task_id = $1
       `,
-      [taskId]
+      [taskId],
     );
 
     if (checkQuery.rows.length === 0) {
@@ -452,13 +485,13 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       WHERE sub_stage_id = $1 
         AND sort_order > $2
       `,
-      [subStageId, existingSortOrder]
+      [subStageId, existingSortOrder],
     );
 
     // Delete the task
     await client.query(
       `DELETE FROM job_process_task WHERE job_process_task_id = $1`,
-      [taskId]
+      [taskId],
     );
 
     await client.query("COMMIT");
@@ -509,13 +542,13 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
       ON st.job_process_task_id = t.job_process_task_id
     LEFT JOIN users u
       ON u.users_id = t.assignee_id
-    LEFT JOIN drive drv
-      ON drv.drive_id = t.folder_id
+    LEFT JOIN document_common_folder drv
+      ON drv.document_common_folder_id = t.folder_id
     WHERE t.sub_stage_id = $1
       AND (s.builder_id = $2 OR s.company_id = $3)
     ORDER BY t.sort_order, st.sort_order
     `,
-    [subStageId, builderId, companyId]
+    [subStageId, builderId, companyId],
   );
 
   const taskMap = new Map();
@@ -532,10 +565,12 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
           id: r.assignee_id,
           name: r.assignee_name,
         },
-        folder: r.folder_id ? {
-          id: r.folder_id,
-          name: r.folder_name,
-        } : null,
+        folder: r.folder_id
+          ? {
+              id: r.folder_id,
+              name: r.folder_name,
+            }
+          : null,
         notify: r.notify,
         milestone: r.milestone,
         attachmentMandatory: r.attachment_mandatory,
@@ -549,7 +584,7 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
     // Dependency with ID + name
     if (r.predecessor_task_id) {
       const exists = task.predecessorTask.find(
-        (d) => d.taskId === r.predecessor_task_id
+        (d) => d.taskId === r.predecessor_task_id,
       );
 
       if (!exists) {
@@ -563,7 +598,7 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
     // Sub-tasks
     if (r.job_process_subtask_id) {
       const exists = task.subTasks.find(
-        (st) => st.subTaskId === r.job_process_subtask_id
+        (st) => st.subTaskId === r.job_process_subtask_id,
       );
 
       if (!exists) {
@@ -579,7 +614,7 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
 };
 
 /**
- * CREATE SUB-TASK  
+ * CREATE SUB-TASK
  */
 exports.createSubTask = async (taskId, payload, builderId, companyId) => {
   const pool = getPool();
@@ -598,7 +633,7 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
       WHERE t.job_process_task_id = $1
       `,
-      [taskId]
+      [taskId],
     );
 
     if (ownerCheck.rows.length === 0) {
@@ -618,11 +653,13 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       WHERE job_process_task_id = $1 
         AND name = $2
       `,
-      [taskId, payload.name]
+      [taskId, payload.name],
     );
 
     if (duplicateCheck.rows.length > 0) {
-      throw new Error(`Sub-task with name ${payload.name} already exists for this task`);
+      throw new Error(
+        `Sub-task with name ${payload.name} already exists for this task`,
+      );
     }
 
     // Get max sort_order for existing sub-tasks to shift
@@ -644,7 +681,9 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
 
     // Validate sort order range
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+      throw new Error(
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+      );
     }
 
     // If sort_order is provided, shift all sub-tasks >= provided sort_order
@@ -665,7 +704,7 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       VALUES ($1,$2,$3)
       RETURNING *
       `,
-      [taskId, payload.name, finalSortOrder]
+      [taskId, payload.name, finalSortOrder],
     );
 
     // Fetch the created sub-task with task info
@@ -679,11 +718,11 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
       WHERE st.job_process_subtask_id = $1
       `,
-      [rows[0].job_process_subtask_id]
+      [rows[0].job_process_subtask_id],
     );
 
     await client.query("COMMIT");
-    
+
     const subTaskData = createdRows[0];
     return {
       jobProcessSubtaskId: subTaskData.job_process_subtask_id,
@@ -691,10 +730,10 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       sortOrder: subTaskData.sort_order,
       jobProcessTask: {
         id: subTaskData.job_process_task_id,
-        name: subTaskData.task_name
+        name: subTaskData.task_name,
       },
       createdAt: subTaskData.created_at,
-      updatedAt: subTaskData.updated_at
+      updatedAt: subTaskData.updated_at,
     };
   } catch (err) {
     await client.query("ROLLBACK");
@@ -724,7 +763,7 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
       WHERE st.job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     if (ownerCheck.rows.length === 0) {
@@ -743,7 +782,7 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       FROM job_process_subtask
       WHERE job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     if (checkQuery.rows.length === 0) {
@@ -762,27 +801,36 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
           AND name = $2
           AND job_process_subtask_id != $3
         `,
-        [existingSubTask.job_process_task_id, payload.name, subTaskId]
+        [existingSubTask.job_process_task_id, payload.name, subTaskId],
       );
 
       if (duplicateCheck.rows.length > 0) {
-        throw new Error(`Sub-task with name ${payload.name} already exists for this task`);
+        throw new Error(
+          `Sub-task with name ${payload.name} already exists for this task`,
+        );
       }
     }
 
     // Handle sort order shifting if sort_order is being updated
-    if (payload.sort_order !== undefined && payload.sort_order !== existingSubTask.sort_order) {
+    if (
+      payload.sort_order !== undefined &&
+      payload.sort_order !== existingSubTask.sort_order
+    ) {
       const maxSortOrderQuery = `
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM job_process_subtask
         WHERE job_process_task_id = $1
       `;
-      const maxSortOrderResult = await client.query(maxSortOrderQuery, [existingSubTask.job_process_task_id]);
+      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+        existingSubTask.job_process_task_id,
+      ]);
       const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
       // Validate sort order range
       if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
-        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+        throw new Error(
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+        );
       }
 
       // Shift sort orders based on movement direction
@@ -797,7 +845,12 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
             AND job_process_subtask_id != $3
             AND job_process_task_id = $4
           `,
-          [existingSubTask.sort_order, payload.sort_order, subTaskId, existingSubTask.job_process_task_id]
+          [
+            existingSubTask.sort_order,
+            payload.sort_order,
+            subTaskId,
+            existingSubTask.job_process_task_id,
+          ],
         );
       } else {
         // Moving up: increment sort_order for sub-tasks between new and old position
@@ -810,7 +863,12 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
             AND job_process_subtask_id != $3
             AND job_process_task_id = $4
           `,
-          [payload.sort_order, existingSubTask.sort_order, subTaskId, existingSubTask.job_process_task_id]
+          [
+            payload.sort_order,
+            existingSubTask.sort_order,
+            subTaskId,
+            existingSubTask.job_process_task_id,
+          ],
         );
       }
     }
@@ -825,7 +883,7 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       WHERE job_process_subtask_id = $1
       RETURNING *
       `,
-      [subTaskId, payload.name, payload.sort_order]
+      [subTaskId, payload.name, payload.sort_order],
     );
 
     if (!rowCount) throw new Error("Sub-task not found");
@@ -841,11 +899,11 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       JOIN job_process_task t ON t.job_process_task_id = st.job_process_task_id
       WHERE st.job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     await client.query("COMMIT");
-    
+
     const subTaskData = updatedRows[0];
     return {
       jobProcessSubtaskId: subTaskData.job_process_subtask_id,
@@ -853,10 +911,10 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       sortOrder: subTaskData.sort_order,
       jobProcessTask: {
         id: subTaskData.job_process_task_id,
-        name: subTaskData.task_name
+        name: subTaskData.task_name,
       },
       createdAt: subTaskData.created_at,
-      updatedAt: subTaskData.updated_at
+      updatedAt: subTaskData.updated_at,
     };
   } catch (err) {
     await client.query("ROLLBACK");
@@ -886,7 +944,7 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
       WHERE st.job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     if (ownerCheck.rows.length === 0) {
@@ -905,7 +963,7 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
       FROM job_process_subtask
       WHERE job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     if (checkQuery.rows.length === 0) {
@@ -923,7 +981,7 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
       WHERE job_process_task_id = $1 
         AND sort_order > $2
       `,
-      [taskId, existingSortOrder]
+      [taskId, existingSortOrder],
     );
 
     // Delete sub-task
@@ -932,7 +990,7 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
       DELETE FROM job_process_subtask
       WHERE job_process_subtask_id = $1
       `,
-      [subTaskId]
+      [subTaskId],
     );
 
     await client.query("COMMIT");
@@ -995,7 +1053,7 @@ exports.getAllJobTasks = async (builderId, companyId) => {
       AND s.company_id = $2
     ORDER BY s.sort_order, ss.sort_order, t.sort_order, st.sort_order
     `,
-    [builderId, companyId]
+    [builderId, companyId],
   );
 
   const taskMap = new Map();
@@ -1019,14 +1077,14 @@ exports.getAllJobTasks = async (builderId, companyId) => {
         subStage: {
           subStageId: r.sub_stage_id,
           name: r.sub_stage_name,
-          sortOrder: r.sub_stage_sort_order
+          sortOrder: r.sub_stage_sort_order,
         },
         stage: {
           stageId: r.stage_id,
           name: r.stage_name,
-          sortOrder: r.stage_sort_order
+          sortOrder: r.stage_sort_order,
         },
-        subTasks: []
+        subTasks: [],
       });
     }
 
@@ -1035,7 +1093,7 @@ exports.getAllJobTasks = async (builderId, companyId) => {
       task.subTasks.push({
         jobProcessSubtaskId: r.job_process_subtask_id,
         name: r.subtask_name,
-        sortOrder: r.subtask_order
+        sortOrder: r.subtask_order,
       });
     }
   }
@@ -1063,19 +1121,19 @@ exports.getSubTasks = async (taskId, builderId, companyId) => {
       AND (s.builder_id = $2 OR s.company_id = $3)
     ORDER BY st.sort_order
     `,
-    [taskId, builderId, companyId]
+    [taskId, builderId, companyId],
   );
 
   // Format response to include jobProcessTask as object
-  return rows.map(row => ({
+  return rows.map((row) => ({
     jobProcessSubtaskId: row.job_process_subtask_id,
     name: row.name,
     sortOrder: row.sort_order,
     jobProcessTask: {
       id: row.job_process_task_id,
-      name: row.task_name
+      name: row.task_name,
     },
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   }));
 };

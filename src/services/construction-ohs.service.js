@@ -21,10 +21,9 @@ exports.getSettingsService = async (user) => {
     WHERE (company_id = $1 OR builder_id = $2)
     LIMIT 1
   `,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
-  // if not existing → create default row
   if (result.rowCount === 0) {
     const inserted = await pool.query(
       `
@@ -33,7 +32,7 @@ exports.getSettingsService = async (user) => {
       VALUES ($1,$2,$3,$3)
       RETURNING *
       `,
-      [company_id, builder_id, user.users_id]
+      [company_id, builder_id, user.users_id],
     );
     return inserted.rows[0];
   }
@@ -54,11 +53,10 @@ exports.upsertSettingsService = async (user, payload) => {
       WHERE (company_id = $1 OR builder_id = $2)
       LIMIT 1
     `,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
   if (existing.rowCount === 0) {
-    // Insert
     const inserted = await pool.query(
       `
       INSERT INTO construction_ohs_settings 
@@ -69,31 +67,49 @@ exports.upsertSettingsService = async (user, payload) => {
       [
         company_id,
         builder_id,
-        payload.signature_required,
-        payload.minimum_audits,
+        payload.signature_required !== undefined
+          ? payload.signature_required
+          : null,
+        payload.minimum_audits !== undefined ? payload.minimum_audits : null,
         user.users_id,
-      ]
+      ],
     );
     return inserted.rows[0];
   }
 
-  // Update
+  const updateFields = [];
+  const updateValues = [];
+  let paramIndex = 1;
+
+  if (payload.signature_required !== undefined) {
+    updateFields.push(`signature_required = $${paramIndex++}`);
+    updateValues.push(payload.signature_required);
+  }
+
+  if (payload.minimum_audits !== undefined) {
+    updateFields.push(`minimum_audits = $${paramIndex++}`);
+    updateValues.push(payload.minimum_audits);
+  }
+
+  if (updateFields.length === 0) {
+    throw new Error("At least one field is required for update");
+  }
+
+  updateFields.push(`updated_by = $${paramIndex++}`);
+  updateValues.push(user.users_id);
+  updateFields.push(`updated_at = NOW()`);
+
+  updateFields.push(`construction_ohs_settings_id = $${paramIndex}`);
+  updateValues.push(existing.rows[0].construction_ohs_settings_id);
+
   const updated = await pool.query(
     `
       UPDATE construction_ohs_settings
-      SET signature_required = $1,
-          minimum_audits = $2,
-          updated_by = $3,
-          updated_at = NOW()
-      WHERE construction_ohs_settings_id = $4
+      SET ${updateFields.join(", ")}
+      WHERE construction_ohs_settings_id = $${paramIndex}
       RETURNING *
     `,
-    [
-      payload.signature_required,
-      payload.minimum_audits,
-      user.users_id,
-      existing.rows[0].construction_ohs_settings_id,
-    ]
+    updateValues,
   );
 
   return updated.rows[0];
@@ -113,7 +129,7 @@ exports.getOhsListService = async (user, filters = {}) => {
     FROM construction_ohs_list
     WHERE (company_id = $1 OR builder_id = $2)
     `,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
   const recordCount = parseInt(existingRecords.rows[0].count);
@@ -135,7 +151,7 @@ exports.getOhsListService = async (user, filters = {}) => {
             ($1, $2, $3, 'category', 'Supervisor', null, 1, $4, $4),
             ($1, $2, $3, 'category', 'Supplier', null, 2, $4, $4)
           `,
-          [company_id, builder_id, settingsId, user.users_id]
+          [company_id, builder_id, settingsId, user.users_id],
         );
       }
     } catch (error) {
@@ -194,7 +210,6 @@ exports.createOhsListItemService = async (user, payload) => {
 
   const settings = await exports.getSettingsService(user);
 
-  // 🔹 FIXED LOGIC: Validate field_type and parent_id
   if (payload.field_type === "category") {
     throw new Error("Cannot create category items. Only items can be created.");
   }
@@ -203,7 +218,6 @@ exports.createOhsListItemService = async (user, payload) => {
     throw new Error("Item field type must have parent_id");
   }
 
-  // Validate that parent_id belongs to a category owned by the same user
   if (payload.field_type === "item" && payload.parent_id) {
     const parentCheck = await pool.query(
       `
@@ -214,7 +228,7 @@ exports.createOhsListItemService = async (user, payload) => {
           AND created_by = $4
           AND field_type = 'category'
       `,
-      [payload.parent_id, company_id, builder_id, user.users_id]
+      [payload.parent_id, company_id, builder_id, user.users_id],
     );
 
     if (parentCheck.rowCount === 0) {
@@ -222,25 +236,83 @@ exports.createOhsListItemService = async (user, payload) => {
     }
   }
 
-  // Handle sort order shifting for items during creation
-  if (payload.field_type === "item" && payload.sort_order) {
-    const shiftQuery = `
-      UPDATE construction_ohs_list 
-      SET sort_order = sort_order + 1 
-      WHERE field_type = 'item' 
-        AND (company_id = $1 OR builder_id = $2)
-        AND created_by = $3
-        AND parent_id = $4
-        AND sort_order >= $5
-    `;
-    await pool.query(shiftQuery, [
-      company_id,
-      builder_id,
-      user.users_id,
-      payload.parent_id,
-      payload.sort_order,
-    ]);
+  if (
+    payload.field_type === "item" &&
+    payload.description &&
+    payload.parent_id
+  ) {
+    const duplicateCheck = await pool.query(
+      `
+        SELECT construction_ohs_list_id
+        FROM construction_ohs_list
+        WHERE description = $1
+          AND parent_id = $2
+          AND (company_id = $3 OR builder_id = $4)
+          AND created_by = $5
+          AND field_type = 'item'
+      `,
+      [
+        payload.description,
+        payload.parent_id,
+        company_id,
+        builder_id,
+        user.users_id,
+      ],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      throw new Error(
+        "Item description must be unique within the same category",
+      );
+    }
   }
+
+  let finalSortOrder = payload.sort_order;
+
+  if (finalSortOrder === undefined || finalSortOrder === null) {
+    finalSortOrder = 1;
+  }
+
+  const maxSortOrderQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM construction_ohs_list
+    WHERE (company_id = $1 OR builder_id = $2)
+      AND created_by = $3
+      AND field_type = 'item'
+      ${payload.parent_id ? "AND parent_id = $4" : "AND parent_id IS NULL"}
+  `;
+
+  const maxSortOrderParams = payload.parent_id
+    ? [company_id, builder_id, user.users_id, payload.parent_id]
+    : [company_id, builder_id, user.users_id];
+
+  const maxSortOrderResult = await pool.query(
+    maxSortOrderQuery,
+    maxSortOrderParams,
+  );
+  const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+  if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+    throw new Error(
+      `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+    );
+  }
+
+  const shiftSortOrderQuery = `
+    UPDATE construction_ohs_list
+    SET sort_order = sort_order + 1
+    WHERE sort_order >= $1
+      AND (company_id = $2 OR builder_id = $3)
+      AND created_by = $4
+      AND field_type = 'item'
+      ${payload.parent_id ? "AND parent_id = $5" : "AND parent_id IS NULL"}
+  `;
+
+  const shiftParams = payload.parent_id
+    ? [finalSortOrder, company_id, builder_id, user.users_id, payload.parent_id]
+    : [finalSortOrder, company_id, builder_id, user.users_id];
+
+  await pool.query(shiftSortOrderQuery, shiftParams);
 
   const result = await pool.query(
     `
@@ -257,11 +329,11 @@ exports.createOhsListItemService = async (user, payload) => {
       payload.field_type,
       payload.field_name || null,
       payload.description,
-      payload.sort_order || 1,
+      finalSortOrder,
       payload.parent_id || null,
       payload.add_defaults || false,
       user.users_id,
-    ]
+    ],
   );
 
   return result.rows[0];
@@ -282,19 +354,125 @@ exports.updateOhsListItemService = async (user, id, payload) => {
         AND (company_id = $2 OR builder_id = $3)
         AND created_by = $4
     `,
-    [id, company_id, builder_id, user.users_id]
+    [id, company_id, builder_id, user.users_id],
   );
 
   if (existing.rowCount === 0) throw new Error("OHS list item not found");
 
-  //  Prevent field_type updates and validate parent_id for categories
   if (payload.field_type) {
     throw new Error("Cannot update field_type");
   }
 
   const existingRecord = existing.rows[0];
 
-  // If existing record is category, only allow description and add_defaults updates
+  if (
+    existingRecord.field_type === "category" &&
+    payload.sort_order !== undefined
+  ) {
+    throw new Error("Cannot update sort_order for category");
+  }
+
+  if (
+    payload.sort_order !== undefined &&
+    payload.sort_order !== null &&
+    existingRecord.field_type === "item"
+  ) {
+    const existingSortOrder = existingRecord.sort_order;
+
+    const maxSortQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM construction_ohs_list
+      WHERE (company_id = $1 OR builder_id = $2)
+        AND created_by = $3
+        AND field_type = 'item'
+        AND construction_ohs_list_id != $4
+        ${existingRecord.parent_id ? "AND parent_id = $5" : "AND parent_id IS NULL"}
+    `;
+
+    const maxSortParams = existingRecord.parent_id
+      ? [company_id, builder_id, user.users_id, id, existingRecord.parent_id]
+      : [company_id, builder_id, user.users_id, id];
+
+    const maxSortResult = await pool.query(maxSortQuery, maxSortParams);
+    const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+    if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
+      throw new Error(
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+      );
+    }
+
+    if (payload.sort_order !== existingSortOrder) {
+      if (payload.sort_order > existingSortOrder) {
+        const shiftDownQuery = `
+          UPDATE construction_ohs_list
+          SET sort_order = sort_order - 1
+          WHERE sort_order > $1
+            AND sort_order <= $2
+            AND construction_ohs_list_id != $3
+            AND (company_id = $4 OR builder_id = $5)
+            AND created_by = $6
+            AND field_type = 'item'
+            ${existingRecord.parent_id ? "AND parent_id = $7" : "AND parent_id IS NULL"}
+        `;
+
+        const shiftDownParams = existingRecord.parent_id
+          ? [
+              existingSortOrder,
+              payload.sort_order,
+              id,
+              company_id,
+              builder_id,
+              user.users_id,
+              existingRecord.parent_id,
+            ]
+          : [
+              existingSortOrder,
+              payload.sort_order,
+              id,
+              company_id,
+              builder_id,
+              user.users_id,
+            ];
+
+        await pool.query(shiftDownQuery, shiftDownParams);
+      } else {
+        const shiftUpQuery = `
+          UPDATE construction_ohs_list
+          SET sort_order = sort_order + 1
+          WHERE sort_order >= $1
+            AND sort_order < $2
+            AND construction_ohs_list_id != $3
+            AND (company_id = $4 OR builder_id = $5)
+            AND created_by = $6
+            AND field_type = 'item'
+            ${existingRecord.parent_id ? "AND parent_id = $7" : "AND parent_id IS NULL"}
+        `;
+
+        const shiftUpParams = existingRecord.parent_id
+          ? [
+              payload.sort_order,
+              existingSortOrder,
+              id,
+              company_id,
+              builder_id,
+              user.users_id,
+              existingRecord.parent_id,
+            ]
+          : [
+              payload.sort_order,
+              existingSortOrder,
+              id,
+              company_id,
+              builder_id,
+              user.users_id,
+            ];
+
+        await pool.query(shiftUpQuery, shiftUpParams);
+      }
+    }
+  }
+
   if (existingRecord.field_type === "category") {
     if (payload.sort_order) {
       throw new Error("Cannot update sort_order for category");
@@ -304,35 +482,41 @@ exports.updateOhsListItemService = async (user, id, payload) => {
     }
   }
 
-  // If existing record is item, only allow description and sort_order updates
   if (existingRecord.field_type === "item") {
     if (payload.add_defaults !== undefined) {
       throw new Error("Cannot update add_defaults for item");
     }
 
-    // Handle sort order shifting for items
     if (
-      payload.sort_order &&
-      payload.sort_order !== existingRecord.sort_order
+      payload.description &&
+      payload.description !== existingRecord.description
     ) {
-      const shiftQuery = `
-        UPDATE construction_ohs_list 
-        SET sort_order = sort_order + 1 
-        WHERE field_type = 'item' 
-          AND (company_id = $1 OR builder_id = $2)
-          AND created_by = $3
-          AND parent_id = $4
-          AND sort_order >= $5
-          AND construction_ohs_list_id != $6
-      `;
-      await pool.query(shiftQuery, [
-        company_id,
-        builder_id,
-        user.users_id,
-        existingRecord.parent_id,
-        payload.sort_order,
-        id,
-      ]);
+      const duplicateCheck = await pool.query(
+        `
+          SELECT construction_ohs_list_id
+          FROM construction_ohs_list
+          WHERE description = $1
+            AND parent_id = $2
+            AND (company_id = $3 OR builder_id = $4)
+            AND created_by = $5
+            AND field_type = 'item'
+            AND construction_ohs_list_id != $6
+        `,
+        [
+          payload.description,
+          existingRecord.parent_id,
+          company_id,
+          builder_id,
+          user.users_id,
+          id,
+        ],
+      );
+
+      if (duplicateCheck.rowCount > 0) {
+        throw new Error(
+          "Item description must be unique within the same category",
+        );
+      }
     }
   }
 
@@ -354,7 +538,7 @@ exports.updateOhsListItemService = async (user, id, payload) => {
       payload.add_defaults ?? null,
       user.users_id,
       id,
-    ]
+    ],
   );
 
   return updated.rows[0];
@@ -367,7 +551,6 @@ exports.deleteOhsListItemService = async (user, id) => {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  // Get the item details before deletion for sort order shifting
   const itemToDelete = await pool.query(
     `
       SELECT sort_order, parent_id, created_by
@@ -377,18 +560,18 @@ exports.deleteOhsListItemService = async (user, id) => {
         AND (company_id = $2 OR builder_id = $3)
         AND created_by = $4
     `,
-    [id, company_id, builder_id, user.users_id]
+    [id, company_id, builder_id, user.users_id],
   );
 
   if (itemToDelete.rowCount === 0) {
     throw new Error(
-      "Item not found, access denied, or category deletion is not allowed"
+      "Item not found, access denied, or category deletion is not allowed",
     );
   }
 
-  const deletedItem = itemToDelete.rows[0];
+  const deletedItemSortOrder = itemToDelete.rows[0].sort_order;
+  const deletedItemParentId = itemToDelete.rows[0].parent_id;
 
-  // Delete the item
   const result = await pool.query(
     `
       DELETE FROM construction_ohs_list
@@ -397,30 +580,34 @@ exports.deleteOhsListItemService = async (user, id) => {
         AND (company_id = $2 OR builder_id = $3)
         AND created_by = $4
     `,
-    [id, company_id, builder_id, user.users_id]
+    [id, company_id, builder_id, user.users_id],
   );
 
   if (result.rowCount === 0) {
     throw new Error(
-      "Item not found, access denied, or category deletion is not allowed"
+      "Item not found, access denied, or category deletion is not allowed",
     );
   }
 
-  // Shift down items with higher sort order within the same parent category
-  const shiftQuery = `
-    UPDATE construction_ohs_list 
-    SET sort_order = sort_order - 1 
-    WHERE field_type = 'item' 
-      AND (company_id = $1 OR builder_id = $2)
-      AND created_by = $3
-      AND parent_id = $4
-      AND sort_order > $5
+  const shiftDownQuery = `
+    UPDATE construction_ohs_list
+    SET sort_order = sort_order - 1
+    WHERE sort_order > $1
+      AND (company_id = $2 OR builder_id = $3)
+      AND created_by = $4
+      AND field_type = 'item'
+      ${deletedItemParentId ? "AND parent_id = $5" : "AND parent_id IS NULL"}
   `;
-  await pool.query(shiftQuery, [
-    company_id,
-    builder_id,
-    user.users_id,
-    deletedItem.parent_id,
-    deletedItem.sort_order,
-  ]);
+
+  const shiftDownParams = deletedItemParentId
+    ? [
+        deletedItemSortOrder,
+        company_id,
+        builder_id,
+        user.users_id,
+        deletedItemParentId,
+      ]
+    : [deletedItemSortOrder, company_id, builder_id, user.users_id];
+
+  await pool.query(shiftDownQuery, shiftDownParams);
 };

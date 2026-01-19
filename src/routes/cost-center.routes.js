@@ -5,6 +5,9 @@ const {
   createCostCenterSchema,
   updateCostCenterSchema,
   costCenterParamsSchema,
+  createCostCenterChecklistMapSchema,
+  costCenterChecklistMapQuerySchema,
+  costCenterChecklistMapParamsSchema,
 } = require("../validations/cost-center.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -20,34 +23,54 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createCostCenterSchema, REQUEST_SOURCE.BODY),
-  costCenterController.createCostCenter
+  costCenterController.createCostCenter,
 );
 
 router.get("/", costCenterController.getCostCenters);
 
+//get cost center checklist map
+router.get(
+  "/checklist-map",
+  validateRequest(costCenterChecklistMapQuerySchema, REQUEST_SOURCE.QUERY),
+  costCenterController.getCostCenterChecklistMaps,
+);
+
 router.get(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.getCostCenterById
+  costCenterController.getCostCenterById,
 );
 
 router.put(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCostCenterSchema, REQUEST_SOURCE.BODY),
-  costCenterController.updateCostCenter
+  costCenterController.updateCostCenter,
 );
 
 router.put(
   "/is-active/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.toggleCostCenterStatus
+  costCenterController.toggleCostCenterStatus,
 );
 
 router.delete(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.deleteCostCenter
+  costCenterController.deleteCostCenter,
+);
+
+// Cost Center Checklist Map Routes
+router.post(
+  "/checklist-map",
+  validateRequest(createCostCenterChecklistMapSchema, REQUEST_SOURCE.BODY),
+  costCenterController.createCostCenterChecklistMap,
+);
+
+router.delete(
+  "/checklist-map/:id",
+  validateRequest(costCenterChecklistMapParamsSchema, REQUEST_SOURCE.PARAMS),
+  costCenterController.deleteCostCenterChecklistMap,
 );
 
 module.exports = router;

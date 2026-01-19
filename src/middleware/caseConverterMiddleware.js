@@ -18,7 +18,7 @@ const convertKeysToSnakeCase = (data, res) => {
       // 🚨 Reject snake_case keys
       if (isSnakeCaseKey(key)) {
         throw new Error(
-          `Invalid field ${key}. Use camelCase keys instead of snake_case.`
+          `Invalid field ${key}. Use camelCase keys instead of snake_case.`,
         );
       }
 

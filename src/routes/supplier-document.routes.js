@@ -29,40 +29,40 @@ const upload = createUpload("supplier-document");
 router.post(
   "/",
   upload.fields([
-    { name: "work_cover_image", maxCount: 1 },
-    { name: "pl_insurance_image", maxCount: 1 },
-    { name: "white_card_image", maxCount: 1 },
-    { name: "fork_lift_license_image", maxCount: 1 },
-    { name: "trade_license_image", maxCount: 1 },
-    { name: "induction_pack_image", maxCount: 1 },
+    { name: "workCoverImage", maxCount: 1 },
+    { name: "plInsuranceImage", maxCount: 1 },
+    { name: "whiteCardImage", maxCount: 1 },
+    { name: "forkLiftLicenseImage", maxCount: 1 },
+    { name: "tradeLicenseImage", maxCount: 1 },
+    { name: "inductionPackImage", maxCount: 1 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createSupplierContactSchema, REQUEST_SOURCE.FORM_DATA),
-  createSupplierDocument
+  createSupplierDocument,
 );
 
 router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getAllSupplierDocumentSchema, REQUEST_SOURCE.QUERY),
-  getAllSupplierDocuments
+  getAllSupplierDocuments,
 );
 
 router.put(
   "/:id",
   upload.fields([
-    { name: "work_cover_image", maxCount: 1 },
-    { name: "pl_insurance_image", maxCount: 1 },
-    { name: "white_card_image", maxCount: 1 },
-    { name: "fork_lift_license_image", maxCount: 1 },
-    { name: "trade_license_image", maxCount: 1 },
-    { name: "induction_pack_image", maxCount: 1 },
+    { name: "workCoverImage", maxCount: 1 },
+    { name: "plInsuranceImage", maxCount: 1 },
+    { name: "whiteCardImage", maxCount: 1 },
+    { name: "forkLiftLicenseImage", maxCount: 1 },
+    { name: "tradeLicenseImage", maxCount: 1 },
+    { name: "inductionPackImage", maxCount: 1 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updateSupplierDocumentParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSupplierDocumentSchema, REQUEST_SOURCE.FORM_DATA),
-  updateSupplierDocument
+  updateSupplierDocument,
 );
 module.exports = router;

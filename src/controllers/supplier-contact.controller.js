@@ -17,7 +17,7 @@ exports.createSupplierContact = async (req, res) => {
       `SELECT supplier_id, builder_id 
        FROM supplier 
        WHERE supplier_id = $1`,
-      [supplier_id]
+      [supplier_id],
     );
 
     if (
@@ -28,7 +28,7 @@ exports.createSupplierContact = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Supplier does not belong to this builder."
+        "Supplier does not belong to this builder.",
       );
     }
 
@@ -39,7 +39,7 @@ exports.createSupplierContact = async (req, res) => {
      WHERE builder_id = $1 
        AND supplier_id = $2 
        AND status = true`,
-        [builderId, supplier_id]
+        [builderId, supplier_id],
       );
 
       if (supplierCheck.rowCount === 0) {
@@ -75,7 +75,7 @@ exports.createSupplierContact = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Supplier contact created successfully."
+      "Supplier contact created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -134,12 +134,12 @@ exports.getAllSupplierContacts = async (req, res) => {
       res,
       {
         supplierContact: keysToCamelCase(dataResult.rows),
-        total_records: totalRecords,
-        current_page: page,
-        total_pages: totalPages,
+        totalRecords: totalRecords,
+        currentPage: page,
+        totalPages: totalPages,
         limit,
       },
-      "Supplier contacts fetched successfully."
+      "Supplier contacts fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching supplier contacts:", error);
@@ -179,7 +179,7 @@ exports.deleteSupplierContact = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or does not belong to this builder."
+        "Record not found or does not belong to this builder.",
       );
     }
 
@@ -235,7 +235,7 @@ exports.updateSupplierContact = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or does not belong to this builder."
+        "Record not found or does not belong to this builder.",
       );
     }
 
@@ -283,7 +283,7 @@ exports.updateSupplierContact = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Supplier contact updated successfully."
+      "Supplier contact updated successfully.",
     );
   } catch (error) {
     console.error("Error updating supplier contact:", error);
