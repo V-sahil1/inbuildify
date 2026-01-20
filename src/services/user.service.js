@@ -22,13 +22,14 @@ const { encrypt } = require("../utils/crypto.util");
   ---------------------------------------- */
 async function getUsers(currentUser, query) {
   const builderId = currentUser.builder_id;
-  const { page = 1, limit = 25, search = "" } = query;
+  const { page = 1, limit = 25, search = "", role = "" } = query;
 
   return await userRepo.getUsers({
     builderId,
     page,
     limit,
     search,
+    role,
   });
 }
 
@@ -180,25 +181,6 @@ async function createUser(currentUser, body, files) {
   });
 
   const userId = user.user_id;
-
-  /* --------------------------
-       SINGLE BUILDER MANAGEMENT
-    --------------------------- */
-
-  if (builder_id) {
-    // Check if user already has a builder assigned
-    const existingBuilder = await userRepo.getUserBuilder(userId);
-    if (existingBuilder) {
-      throw {
-        status: 400,
-        message:
-          "User already has a builder assigned. Each user can only have one builder.",
-      };
-    }
-
-    // Assign single builder to user
-    await userRepo.setUserBuilder(userId, builder_id);
-  }
 
   /* --------------------------
         PHOTO + SIGNATURE

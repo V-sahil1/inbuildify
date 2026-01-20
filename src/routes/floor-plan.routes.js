@@ -30,20 +30,20 @@ const upload = createUpload("floor-plans");
 router.post(
   "/",
   upload.fields([
-    { name: "detailed_image", maxCount: 1 },
-    { name: "simple_image", maxCount: 1 },
+    { name: "detailedImage", maxCount: 1 },
+    { name: "simpleImage", maxCount: 1 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createFloorPlanSchema, REQUEST_SOURCE.FORM_DATA),
-  createFloorPlan
+  createFloorPlan,
 );
 
 router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getFloorPlansSchema, REQUEST_SOURCE.QUERY),
-  getFloorPlans
+  getFloorPlans,
 );
 
 router.get("/filters", getFloorPlanFilters);
@@ -51,21 +51,21 @@ router.get("/filters", getFloorPlanFilters);
 router.put(
   "/:floor_plan_id",
   upload.fields([
-    { name: "detailed_image", maxCount: 1 },
-    { name: "simple_image", maxCount: 1 },
+    { name: "detailedImage", maxCount: 1 },
+    { name: "simpleImage", maxCount: 1 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updateFloorPlanParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateFloorPlanSchema, REQUEST_SOURCE.FORM_DATA),
-  updateFloorPlan
+  updateFloorPlan,
 );
 
 router.delete(
   "/:floor_plan_id",
   camelToSnakeMiddleware,
   validateRequest(deleteFloorPlanSchema, REQUEST_SOURCE.PARAMS),
-  deleteFloorPlan
+  deleteFloorPlan,
 );
 
 module.exports = router;

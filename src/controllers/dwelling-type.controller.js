@@ -8,48 +8,21 @@ exports.getAllDwellingTypes = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
 
     const dataQuery = `
       SELECT 
-       *
+        *
       FROM dwelling_type 
       WHERE builder_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3;
+      ORDER BY created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM dwelling_type
-      WHERE builder_id = $1;
-    `;
-    const countResult = await client.query(countQuery, [builderId]);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, [builderId]);
 
     return successResponse(
       res,
-      {
-        dwellingType: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
-      "dwelling type fetched successfully."
+      keysToCamelCase(dataResult.rows),
+      "dwelling type fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching dwelling type:", error);
@@ -74,7 +47,7 @@ exports.createDwellingType = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -91,7 +64,7 @@ exports.createDwellingType = async (req, res) => {
       WHERE LOWER(name) = LOWER($1)
         AND (builder_id = $2 OR company_id = $3)
       `,
-      [name.trim(), builderId, companyId]
+      [name.trim(), builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -99,7 +72,7 @@ exports.createDwellingType = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Dwelling type with this name already exists."
+        "Dwelling type with this name already exists.",
       );
     }
 
@@ -131,7 +104,7 @@ exports.createDwellingType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Dwelling type created successfully."
+      "Dwelling type created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -156,7 +129,7 @@ exports.updateDwellingType = async (req, res) => {
 
     const existingDwellingType = await client.query(
       `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2`,
-      [dwelling_type_id, builderId]
+      [dwelling_type_id, builderId],
     );
 
     if (existingDwellingType.rowCount === 0) {
@@ -166,7 +139,7 @@ exports.updateDwellingType = async (req, res) => {
 
     const existingActiveDwellingType = await client.query(
       `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true`,
-      [dwelling_type_id, builderId]
+      [dwelling_type_id, builderId],
     );
 
     if (existingActiveDwellingType.rowCount === 0) {
@@ -179,7 +152,7 @@ exports.updateDwellingType = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -190,7 +163,7 @@ exports.updateDwellingType = async (req, res) => {
           WHERE LOWER(name) = LOWER($1) 
           AND builder_id = $2 
           AND dwelling_type_id != $3`,
-        [name.trim(), builderId, dwelling_type_id]
+        [name.trim(), builderId, dwelling_type_id],
       );
 
       if (duplicateName.rowCount > 0) {
@@ -198,7 +171,7 @@ exports.updateDwellingType = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Dwelling type with this name already exists."
+          "Dwelling type with this name already exists.",
         );
       }
     }
@@ -232,7 +205,7 @@ exports.updateDwellingType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Dwelling type updated successfully."
+      "Dwelling type updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -252,13 +225,13 @@ exports.deleteDwellingType = async (req, res) => {
   try {
     const checkDwellingTypeExists = await client.query(
       `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2`,
-      [dwelling_type_id, builderId]
+      [dwelling_type_id, builderId],
     );
     if (checkDwellingTypeExists.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Dwelling type not found for this builder"
+        "Dwelling type not found for this builder",
       );
     }
 
@@ -268,7 +241,7 @@ exports.deleteDwellingType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Dwelling type deleted successfully."
+      "Dwelling type deleted successfully.",
     );
   } catch (error) {
     console.error(error);
@@ -296,7 +269,7 @@ exports.updateDwellingTypeActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -307,14 +280,14 @@ exports.updateDwellingTypeActive = async (req, res) => {
       WHERE dwelling_type_id = $1
         AND builder_id = $2
       `,
-      [dwelling_type_id, builderId]
+      [dwelling_type_id, builderId],
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "dwelling type not found for this builder"
+        "dwelling type not found for this builder",
       );
     }
 
@@ -337,7 +310,7 @@ exports.updateDwellingTypeActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Dwelling type status updated successfully."
+      "Dwelling type status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating dwelling type is_active:", error);

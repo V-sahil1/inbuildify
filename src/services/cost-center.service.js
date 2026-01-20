@@ -1,4 +1,5 @@
 const getPool = require("../config/database");
+const { keysToCamelCase } = require("../utils/common");
 
 /**
  * CREATE COST CENTER
@@ -88,7 +89,7 @@ async function createCostCenter(payload, builderId, companyId, userId) {
     );
 
     await client.query("COMMIT");
-    return rows[0];
+    return keysToCamelCase(rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -113,7 +114,7 @@ async function getCostCenters(builderId, companyId) {
     [companyId, builderId],
   );
 
-  return rows;
+  return keysToCamelCase(rows);
 }
 
 /**
@@ -136,7 +137,7 @@ async function getCostCenterById(costCenterId, builderId, companyId) {
     throw new Error("Cost center not found");
   }
 
-  return rows[0];
+  return keysToCamelCase(rows[0]);
 }
 
 /**
@@ -296,7 +297,7 @@ async function updateCostCenter(
     );
 
     await client.query("COMMIT");
-    return rows[0];
+    return keysToCamelCase(rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -398,7 +399,7 @@ async function toggleCostCenterStatus(
     );
 
     await client.query("COMMIT");
-    return rows[0];
+    return keysToCamelCase(rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -547,18 +548,20 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
   );
 
   // Transform the response to match the requested format
-  return rows.map((row) => ({
-    id: row.id,
-    costCenter: {
-      id: row.cost_center_id,
-      name: row.cost_center_name,
-    },
-    constructionChecklist: {
-      id: row.construction_checklist_id,
-      name: row.construction_checklist_name,
-    },
-    createdAt: row.created_at,
-  }));
+  return rows.map((row) =>
+    keysToCamelCase({
+      id: row.id,
+      costCenter: {
+        id: row.cost_center_id,
+        name: row.cost_center_name,
+      },
+      constructionChecklist: {
+        id: row.construction_checklist_id,
+        name: row.construction_checklist_name,
+      },
+      createdAt: row.created_at,
+    }),
+  );
 }
 
 /**

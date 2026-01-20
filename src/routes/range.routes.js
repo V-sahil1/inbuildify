@@ -12,7 +12,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
-  getAllRangesSchema,
   createRangeSchema,
   updateRangeSchema,
   updateRangeParamsSchema,
@@ -28,12 +27,7 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 const upload = createUpload("range");
 
-router.get(
-  "/",
-  camelToSnakeMiddleware,
-  validateRequest(getAllRangesSchema, REQUEST_SOURCE.QUERY),
-  getAllRanges
-);
+router.get("/", camelToSnakeMiddleware, getAllRanges);
 router.post(
   "/",
   upload.fields([
@@ -43,7 +37,7 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createRangeSchema, REQUEST_SOURCE.FORM_DATA),
-  createRange
+  createRange,
 );
 router.put(
   "/:range_id",
@@ -55,13 +49,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateRangeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRangeSchema, REQUEST_SOURCE.FORM_DATA),
-  updateRange
+  updateRange,
 );
 router.delete(
   "/:range_id",
   camelToSnakeMiddleware,
   validateRequest(deleteRangeSchema.params, REQUEST_SOURCE.PARAMS),
-  deleteRange
+  deleteRange,
 );
 
 router.put(
@@ -69,7 +63,7 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateRangeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRangeActiveSchema, REQUEST_SOURCE.BODY),
-  updateRangeActive
+  updateRangeActive,
 );
 
 module.exports = router;

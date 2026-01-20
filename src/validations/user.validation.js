@@ -51,7 +51,7 @@ const createUserSchema = Joi.object({
 ---------------------------- */
 const updateUserSchema = createUserSchema.fork(
   ["name", "email", "role_id"],
-  (schema) => schema.optional()
+  (schema) => schema.optional(),
 );
 
 /* ---------------------------
@@ -79,6 +79,7 @@ const getUsersSchema = Joi.object({
   page: Joi.number().min(1).default(1),
   limit: Joi.number().min(1).max(100).default(25),
   search: Joi.string().allow("", null),
+  role: Joi.string().allow("", null).max(255).optional(),
 });
 
 module.exports = {

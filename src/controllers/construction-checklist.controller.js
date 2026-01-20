@@ -54,8 +54,8 @@ exports.createConstructionChecklist = async (req, res) => {
 
     if (supplier_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
-        [supplier_type_id],
+        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1 AND builder_id = $2`,
+        [supplier_type_id, builder_id],
       );
       if (!check.rowCount)
         return errorResponse(res, 400, "Invalid supplier_type_id");
@@ -63,8 +63,8 @@ exports.createConstructionChecklist = async (req, res) => {
 
     if (Array.isArray(cost_center_id) && cost_center_id.length) {
       const check = await client.query(
-        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[])`,
-        [cost_center_id],
+        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[]) AND builder_id = $2`,
+        [cost_center_id, builder_id],
       );
       if (check.rowCount !== cost_center_id.length) {
         return errorResponse(
@@ -80,8 +80,8 @@ exports.createConstructionChecklist = async (req, res) => {
       construction_option_id.length
     ) {
       const check = await client.query(
-        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[])`,
-        [construction_option_id],
+        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[]) AND builder_id = $2`,
+        [construction_option_id, builder_id],
       );
       if (check.rowCount !== construction_option_id.length) {
         return errorResponse(
@@ -225,13 +225,23 @@ exports.createConstructionChecklist = async (req, res) => {
           'id', b.builder_id,
           'name', b.name
         ) AS builder,
-        json_build_object(
-          'id', cc_name.cost_center_id,
-          'name', cc_name.name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', cc_name.cost_center_id,
+              'name', cc_name.name
+            )
+          ) FILTER (WHERE cc_name.cost_center_id IS NOT NULL),
+          '[]'
         ) AS cost_center,
-        json_build_object(
-          'id', co.construction_option_id,
-          'name', co.option_name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', co.construction_option_id,
+              'name', co.option_name
+            )
+          ) FILTER (WHERE co.construction_option_id IS NOT NULL),
+          '[]'
         ) AS construction_option,
         json_build_object(
           'id', cpt.compliance_type_id,
@@ -252,6 +262,37 @@ exports.createConstructionChecklist = async (req, res) => {
       LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
       LEFT JOIN users u ON u.users_id = cc.created_by
       WHERE cc.construction_checklist_id = $1
+      GROUP BY 
+        cc.construction_checklist_id, 
+        cc.company_id, 
+        cc.builder_id, 
+        cc.builder, 
+        cc.name, 
+        cc.sort_order, 
+        cc.data_required, 
+        cc.supplier, 
+        cc.claim, 
+        cc.dependent, 
+        cc.no_of_days, 
+        cc.notify, 
+        cc.milestone, 
+        cc.attachment_mandatory, 
+        cc.attachment_mandatory_name,
+        ct.construction_type_id,
+        ct.types_name,
+        cs.construction_stage,
+        cs.stage_name,
+        st.supplier_type_id,
+        st.name,
+        b.builder_id,
+        b.name,
+        cpt.compliance_type_id,
+        cpt.name,
+        u.name,
+        cc.created_by,
+        cc.updated_by,
+        cc.created_at,
+        cc.updated_at
     `;
 
     const response = await client.query(responseQuery, [
@@ -342,23 +383,42 @@ exports.getAllConstructionChecklists = async (req, res) => {
           'id', b.builder_id,
           'name', b.name
         ) AS builder,
-        json_build_object(
-          'id', cc_name.cost_center_id,
-          'name', cc_name.name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', cc_name.cost_center_id,
+              'name', cc_name.name
+            )
+          ) FILTER (WHERE cc_name.cost_center_id IS NOT NULL),
+          '[]'
         ) AS cost_center,
-        json_build_object(
-          'id', co.construction_option_id,
-          'name', co.option_name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', co.construction_option_id,
+              'name', co.option_name
+            )
+          ) FILTER (WHERE co.construction_option_id IS NOT NULL),
+          '[]'
         ) AS construction_option,
         json_build_object(
           'id', cpt.compliance_type_id,
           'name', cpt.name
         ) AS compliance_type,
-        u.name AS created_by_name,
-        cc.created_by,
-        cc.updated_by,
-        cc.created_at,
-        cc.updated_at
+        (
+          SELECT COALESCE(json_agg(json_build_object(
+            'constructionChecklistPredecessorId', ccp.construction_checklist_predecessor_id,
+            'constructionChecklistId', ccp.construction_checklist_id,
+            'predecessorChecklistId', ccp.predecessor_checklist_id,
+            'predecessorChecklistName', pred_cc.name,
+            'offSet', ccp.off_set,
+            'duration', ccp.duration
+          )), '[]'::json)
+          FROM construction_checklist_predecessor ccp
+          LEFT JOIN construction_checklist pred_cc ON pred_cc.construction_checklist_id = ccp.predecessor_checklist_id
+          WHERE ccp.construction_checklist_id = cc.construction_checklist_id
+            AND ccp.predecessor_checklist_id IS NOT NULL
+        ) AS predecessor
       FROM construction_checklist cc
       LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
       LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
@@ -369,6 +429,37 @@ exports.getAllConstructionChecklists = async (req, res) => {
       LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
       LEFT JOIN users u ON u.users_id = cc.created_by
       ${whereClause}
+      GROUP BY 
+        cc.construction_checklist_id, 
+        cc.company_id, 
+        cc.builder_id, 
+        cc.builder, 
+        cc.name, 
+        cc.sort_order, 
+        cc.data_required, 
+        cc.supplier, 
+        cc.claim, 
+        cc.dependent, 
+        cc.no_of_days, 
+        cc.notify, 
+        cc.milestone, 
+        cc.attachment_mandatory, 
+        cc.attachment_mandatory_name,
+        ct.construction_type_id,
+        ct.types_name,
+        cs.construction_stage,
+        cs.stage_name,
+        st.supplier_type_id,
+        st.name,
+        b.builder_id,
+        b.name,
+        cpt.compliance_type_id,
+        cpt.name,
+        u.name,
+        cc.created_by,
+        cc.updated_by,
+        cc.created_at,
+        cc.updated_at
       ORDER BY cc.sort_order ASC, cc.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++};
     `;
@@ -812,13 +903,23 @@ exports.updateConstructionChecklist = async (req, res) => {
           'id', b.builder_id,
           'name', b.name
         ) AS builder,
-        json_build_object(
-          'id', cc_name.cost_center_id,
-          'name', cc_name.name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', cc_name.cost_center_id,
+              'name', cc_name.name
+            )
+          ) FILTER (WHERE cc_name.cost_center_id IS NOT NULL),
+          '[]'
         ) AS cost_center,
-        json_build_object(
-          'id', co.construction_option_id,
-          'name', co.option_name
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', co.construction_option_id,
+              'name', co.option_name
+            )
+          ) FILTER (WHERE co.construction_option_id IS NOT NULL),
+          '[]'
         ) AS construction_option,
         json_build_object(
           'id', cpt.compliance_type_id,
@@ -849,6 +950,41 @@ exports.updateConstructionChecklist = async (req, res) => {
       LEFT JOIN document_common_folder dcf2 ON dcf2.document_common_folder_id = cc.job_documents_folder_id
       LEFT JOIN users u ON u.users_id = cc.created_by
       WHERE cc.construction_checklist_id = $1
+      GROUP BY 
+        cc.construction_checklist_id, 
+        cc.company_id, 
+        cc.builder_id, 
+        cc.builder, 
+        cc.name, 
+        cc.sort_order, 
+        cc.data_required, 
+        cc.supplier, 
+        cc.claim, 
+        cc.dependent, 
+        cc.no_of_days, 
+        cc.notify, 
+        cc.milestone, 
+        cc.attachment_mandatory, 
+        cc.attachment_mandatory_name,
+        ct.construction_type_id,
+        ct.types_name,
+        cs.construction_stage,
+        cs.stage_name,
+        st.supplier_type_id,
+        st.name,
+        b.builder_id,
+        b.name,
+        cpt.compliance_type_id,
+        cpt.name,
+        dcf.document_common_folder_id,
+        dcf.name,
+        dcf2.document_common_folder_id,
+        dcf2.name,
+        u.name,
+        cc.created_by,
+        cc.updated_by,
+        cc.created_at,
+        cc.updated_at
     `;
 
     const responseResult = await client.query(responseQuery, [

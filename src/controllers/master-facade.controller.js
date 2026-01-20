@@ -33,7 +33,7 @@ exports.createMasterFacade = async (req, res) => {
         `SELECT location_id
          FROM location
          WHERE location_id = $1 AND builder_id = $2`,
-        [location_id, builderId]
+        [location_id, builderId],
       );
 
       if (locCheck.rowCount === 0) {
@@ -41,7 +41,7 @@ exports.createMasterFacade = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid location id does not belong to this builder."
+          "Invalid location id does not belong to this builder.",
         );
       }
     }
@@ -51,7 +51,7 @@ exports.createMasterFacade = async (req, res) => {
         `SELECT location_id
          FROM location
          WHERE location_id = $1 AND builder_id = $2 AND status = true`,
-        [location_id, builderId]
+        [location_id, builderId],
       );
 
       if (locActiveCheck.rowCount === 0) {
@@ -102,7 +102,7 @@ exports.createMasterFacade = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Facade with this name already exists for this location."
+        "Facade with this name already exists for this location.",
       );
     }
 
@@ -145,10 +145,45 @@ exports.createMasterFacade = async (req, res) => {
 
     const result = await client.query(insertQuery, values);
 
+    // Fetch complete facade data with related objects using json_build_object
+    const completeResult = await client.query(
+      `
+      SELECT
+        f.facade_id,
+        f.name,
+        f.cost_type,
+        f.cost,
+        f.builder_cost,
+        f.image,
+        f.status,
+        json_build_object(
+          'id', f.location_id,
+          'name', l.name
+        ) AS location,
+        json_build_object(
+          'id', f.dwelling_type_id,
+          'name', dt.name
+        ) AS dwellingType,
+        json_build_object(
+          'id', f.range_id,
+          'name', r.name
+        ) AS range
+      FROM facade f
+      LEFT JOIN location l ON f.location_id = l.location_id
+      LEFT JOIN dwelling_type dt ON f.dwelling_type_id = dt.dwelling_type_id
+      LEFT JOIN range r ON f.range_id = r.range_id
+      WHERE f.facade_id = $1
+      `,
+      [result.rows[0].facade_id],
+    );
+
+    const facadeData = completeResult.rows[0];
+    const transformedResponse = keysToCamelCase(facadeData);
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
-      "Facade created successfully."
+      transformedResponse,
+      "Facade created successfully.",
     );
   } catch (error) {
     console.error("Create Facade Error:", error);
@@ -186,26 +221,28 @@ exports.getMasterFacades = async (req, res) => {
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    /* -------------------- BASE QUERY -------------------- */
     let baseQuery = `
       SELECT
         f.facade_id,
-        f.company_id,
-        f.builder_id,
-        f.location_id,
         f.name,
         f.cost_type,
         f.cost,
         f.builder_cost,
-        f.dwelling_type_id,
-        f.range_id,
         f.image,
         f.status,
-        f.created_at,
-        f.updated_at,
-        dt.name AS dwelling_type_name,
-        r.name AS range_name,
-        l.name AS location_name
+    
+        json_build_object(
+          'id', f.location_id,
+          'name', l.name
+        ) AS location,
+        json_build_object(
+          'id', f.dwelling_type_id,
+          'name', dt.name
+        ) AS dwellingType,
+        json_build_object(
+          'id', f.range_id,
+          'name', r.name
+        ) AS range
       FROM facade f
       LEFT JOIN dwelling_type dt 
         ON f.dwelling_type_id = dt.dwelling_type_id
@@ -219,8 +256,6 @@ exports.getMasterFacades = async (req, res) => {
 
     const queryParams = [builderId, companyId];
     let paramIndex = 3;
-
-    /* -------------------- FILTERS -------------------- */
 
     if (name) {
       baseQuery += ` AND f.name ILIKE $${paramIndex}`;
@@ -258,7 +293,6 @@ exports.getMasterFacades = async (req, res) => {
       paramIndex++;
     }
 
-    /* -------------------- PAGINATION -------------------- */
     baseQuery += `
       ORDER BY f.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -267,7 +301,6 @@ exports.getMasterFacades = async (req, res) => {
 
     const result = await client.query(baseQuery, queryParams);
 
-    /* -------------------- COUNT QUERY -------------------- */
     let countQuery = `
       SELECT COUNT(*) AS total
       FROM facade f
@@ -328,7 +361,7 @@ exports.getMasterFacades = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Facades fetched successfully."
+      "Facades fetched successfully.",
     );
   } catch (error) {
     console.error("Get Facades error:", error);
@@ -347,8 +380,32 @@ exports.getMasterFacadeById = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM facade 
-      WHERE facade_id = $1 AND builder_id = $2;
+      SELECT
+        f.facade_id,
+        f.name,
+        f.cost_type,
+        f.cost,
+        f.builder_cost,
+        f.image,
+        f.status,
+       
+        json_build_object(
+          'id', f.location_id,
+          'name', l.name
+        ) AS location,
+        json_build_object(
+          'id', f.dwelling_type_id,
+          'name', dt.name
+        ) AS dwellingType,
+        json_build_object(
+          'id', f.range_id,
+          'name', r.name
+        ) AS range
+      FROM facade f
+      LEFT JOIN location l ON f.location_id = l.location_id
+      LEFT JOIN dwelling_type dt ON f.dwelling_type_id = dt.dwelling_type_id
+      LEFT JOIN range r ON f.range_id = r.range_id
+      WHERE f.facade_id = $1 AND f.builder_id = $2;
     `;
     const result = await client.query(query, [id, builderId]);
 
@@ -359,7 +416,7 @@ exports.getMasterFacadeById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      " Facade fetched successfully."
+      " Facade fetched successfully.",
     );
   } catch (error) {
     console.error("Get facade by ID error:", error);
@@ -383,7 +440,6 @@ exports.updateMasterFacade = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    /* -------------------- CHECK & LOCK FACADE -------------------- */
     const checkQuery = `
       SELECT *
       FROM facade
@@ -411,17 +467,12 @@ exports.updateMasterFacade = async (req, res) => {
 
     let requestedStatus = statusInBody ? updates.status : undefined;
 
-    /* -------------------- Status Business Logic (is_active) -------------------- */
-
-    // 1. Determine if any field other than 'status' is present in the request
     const updatesWithoutStatus = { ...updates };
     delete updatesWithoutStatus.status;
 
-    // Check if updates contain any non-status field or if an image is being uploaded
     const updatingOtherFields =
       Object.keys(updatesWithoutStatus).length > 0 || !!imageUrl;
 
-    // 2. Status Validation and Conversion
     if (statusInBody) {
       if (typeof requestedStatus === "string") {
         const v = requestedStatus.trim().toLowerCase();
@@ -432,7 +483,7 @@ exports.updateMasterFacade = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "The 'status' field must be a boolean (true or false)."
+            "The 'status' field must be a boolean (true or false).",
           );
         }
       } else if (typeof requestedStatus !== "boolean") {
@@ -440,76 +491,66 @@ exports.updateMasterFacade = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "The 'status' field must be a boolean (true or false)."
+          "The 'status' field must be a boolean (true or false).",
         );
       }
     }
 
-    // 3. Rule 1: Active (true) -> Inactive (false) transition
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      // Must only change status, no other fields.
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active facade, 'status' must be the only field provided in the request."
-        );
-      }
-    }
-
-    // 4. Rule 2 & 3: Currently Inactive (false)
     if (currentStatus === false) {
       const performingActivation = statusInBody && requestedStatus === true;
 
       if (statusInBody && requestedStatus === false) {
-        // Rule 3: Block Inactive -> Inactive update
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           403,
-          "Facade is already Inactive. 'status' can only be updated to true (Active) from this state."
+          "Facade is already Inactive. 'status' can only be updated to true (Active) from this state.",
         );
       }
 
-      // Rule 2: Cannot update non-'status' fields unless performing activation
       if (updatingOtherFields && !performingActivation) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           403,
-          "Cannot update non-'status' fields when the facade is currently Inactive. Only 'status' can be changed (to true/Active)."
+          "Cannot update non-'status' fields when the facade is currently Inactive. Only 'status' can be changed (to true/Active).",
         );
       }
 
-      // Rule: If activating (false -> true), only 'status' must be present.
       if (performingActivation && updatingOtherFields) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           403,
-          "To activate an inactive facade, 'status' must be the only field provided in the request."
+          "To activate an inactive facade, 'status' must be the only field provided in the request.",
         );
       }
     }
 
-    // If status was validated successfully, overwrite the original updates.status with the boolean value
+    if (currentStatus === true && statusInBody && requestedStatus === false) {
+      if (updatingOtherFields) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "To deactivate an active facade, 'status' must be the only field provided in the request.",
+        );
+      }
+    }
+
     if (statusInBody) {
       updates.status = requestedStatus;
     }
 
-    /* -------------------- END Status Business Logic -------------------- */
-
     const setClauses = [];
     const values = [];
 
-    /* -------------------- SIMPLE FIELDS -------------------- */
     const allowedFields = [
       "name",
       "cost_type",
       "cost",
       "builder_cost",
-      "status", // Now contains the validated boolean
+      "status",
       "location_id",
     ];
 
@@ -518,14 +559,10 @@ exports.updateMasterFacade = async (req, res) => {
 
       let value = rawValue;
 
-      // Removed the original string->boolean conversion since it's now handled above
-      // for validation and consistency.
-
       setClauses.push(`${key} = $${values.length + 1}`);
       values.push(value);
     }
 
-    /* -------------------- VALIDATE COST TYPE -------------------- */
     if (updates.cost_type) {
       if (!["standard", "upgrade"].includes(updates.cost_type)) {
         await client.query("ROLLBACK");
@@ -533,7 +570,6 @@ exports.updateMasterFacade = async (req, res) => {
       }
     }
 
-    /* -------------------- VALIDATE LOCATION -------------------- */
     if (updates.location_id) {
       const locCheck = `
         SELECT location_id
@@ -551,7 +587,6 @@ exports.updateMasterFacade = async (req, res) => {
       }
     }
 
-    /* -------------------- VALIDATE DWELLING TYPE -------------------- */
     if (updates.dwelling_type_id) {
       const dtCheck = `
         SELECT dwelling_type_id
@@ -573,7 +608,6 @@ exports.updateMasterFacade = async (req, res) => {
       values.push(updates.dwelling_type_id);
     }
 
-    /* -------------------- VALIDATE RANGE -------------------- */
     if (updates.range_id) {
       const rangeCheck = `
         SELECT range_id
@@ -595,7 +629,6 @@ exports.updateMasterFacade = async (req, res) => {
       values.push(updates.range_id);
     }
 
-    /* -------------------- UNIQUE (location_id + name) -------------------- */
     if (updates.name || updates.location_id) {
       const locationId = updates.location_id || existingFacade.location_id;
       const name = updates.name || existingFacade.name;
@@ -618,12 +651,11 @@ exports.updateMasterFacade = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "Facade with this name already exists for this location."
+          "Facade with this name already exists for this location.",
         );
       }
     }
 
-    /* -------------------- IMAGE UPDATE -------------------- */
     if (imageUrl) {
       if (existingFacade.image) {
         await deleteFromS3(existingFacade.image);
@@ -637,7 +669,6 @@ exports.updateMasterFacade = async (req, res) => {
       return errorResponse(res, 400, "No updatable fields provided.");
     }
 
-    /* -------------------- FINAL UPDATE -------------------- */
     const updateQuery = `
       UPDATE facade
       SET ${setClauses.join(", ")},
@@ -655,10 +686,45 @@ exports.updateMasterFacade = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const completeResult = await client.query(
+      `
+      SELECT
+        f.facade_id,
+        f.name,
+        f.cost_type,
+        f.cost,
+        f.builder_cost,
+        f.image,
+        f.status,
+       
+        json_build_object(
+          'id', f.location_id,
+          'name', l.name
+        ) AS location,
+        json_build_object(
+          'id', f.dwelling_type_id,
+          'name', dt.name
+        ) AS dwellingType,
+        json_build_object(
+          'id', f.range_id,
+          'name', r.name
+        ) AS range
+      FROM facade f
+      LEFT JOIN location l ON f.location_id = l.location_id
+      LEFT JOIN dwelling_type dt ON f.dwelling_type_id = dt.dwelling_type_id
+      LEFT JOIN range r ON f.range_id = r.range_id
+      WHERE f.facade_id = $1
+      `,
+      [updateResult.rows[0].facade_id],
+    );
+
+    const facadeData = completeResult.rows[0];
+    const transformedResponse = keysToCamelCase(facadeData);
+
     return successResponse(
       res,
-      keysToCamelCase(updateResult.rows[0]),
-      "Facade updated successfully."
+      transformedResponse,
+      "Facade updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

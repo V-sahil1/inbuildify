@@ -11,7 +11,7 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
       construction_checklist_id,
       predecessor_checklist_id,
       offset,
-      duration
+      duration,
     } = req.body;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
@@ -22,19 +22,27 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
 
     const checklistCheck = await client.query(
       `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
-      [construction_checklist_id, builderId, companyId]
+      [construction_checklist_id, builderId, companyId],
     );
     if (checklistCheck.rowCount === 0) {
-      return errorResponse(res, 400, "Invalid construction_checklist_id or access denied");
+      return errorResponse(
+        res,
+        400,
+        "Invalid construction_checklist_id or access denied",
+      );
     }
 
     if (predecessor_checklist_id) {
       const predecessorCheck = await client.query(
         `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
-        [predecessor_checklist_id, builderId, companyId]
+        [predecessor_checklist_id, builderId, companyId],
       );
       if (predecessorCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid predecessor_checklist_id or access denied");
+        return errorResponse(
+          res,
+          400,
+          "Invalid predecessor_checklist_id or access denied",
+        );
       }
     }
 
@@ -42,10 +50,14 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
       `SELECT construction_checklist_predecessor_id 
        FROM construction_checklist_predecessor 
        WHERE construction_checklist_id = $1 AND predecessor_checklist_id = $2`,
-      [construction_checklist_id, predecessor_checklist_id || null]
+      [construction_checklist_id, predecessor_checklist_id || null],
     );
     if (existingCheck.rowCount > 0) {
-      return errorResponse(res, 400, "Predecessor relationship already exists for this checklist");
+      return errorResponse(
+        res,
+        400,
+        "Predecessor relationship already exists for this checklist",
+      );
     }
 
     const insertResult = await client.query(
@@ -61,37 +73,29 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
         construction_checklist_id,
         predecessor_checklist_id || null,
         offset !== undefined ? offset : false,
-        duration !== undefined ? duration : 0
-      ]
+        duration !== undefined ? duration : 0,
+      ],
     );
 
-    const predecessorId = insertResult.rows[0].construction_checklist_predecessor_id;
+    const predecessorId =
+      insertResult.rows[0].construction_checklist_predecessor_id;
 
     const responseQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
+        ccp.construction_checklist_id as construction_checklist,
+        ccp.predecessor_checklist_id,
+        predecessor.name as predecessor_checklist_name,
         ccp.off_set,
         ccp.duration,
         ccp.created_at,
-        ccp.updated_at,
-
-        json_build_object(
-          'id', cc1.construction_checklist_id,
-          'name', cc1.name
-        ) AS construction_checklist,
-
-        json_build_object(
-          'id', cc2.construction_checklist_id,
-          'name', cc2.name
-        ) AS predecessor_checklist
-
+        ccp.updated_at
       FROM construction_checklist_predecessor ccp
       LEFT JOIN construction_checklist cc1
         ON cc1.construction_checklist_id = ccp.construction_checklist_id
-      LEFT JOIN construction_checklist cc2
-        ON cc2.construction_checklist_id = ccp.predecessor_checklist_id
-      WHERE ccp.construction_checklist_predecessor_id = $1
-      GROUP BY ccp.construction_checklist_predecessor_id, cc1.construction_checklist_id, cc2.construction_checklist_id;
+      LEFT JOIN construction_checklist predecessor
+        ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
+      WHERE ccp.construction_checklist_predecessor_id = $1;
     `;
 
     const responseResult = await client.query(responseQuery, [predecessorId]);
@@ -99,7 +103,7 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction checklist predecessor created successfully."
+      "Construction checklist predecessor created successfully.",
     );
   } catch (error) {
     console.error("Create Construction Checklist Predecessor Error:", error);
@@ -114,13 +118,13 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { 
-      page = 1, 
-      limit = 25, 
+    const {
+      page = 1,
+      limit = 25,
       construction_checklist_id,
       predecessor_checklist_id,
       offset,
-      duration
+      duration,
     } = req.query;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
@@ -145,7 +149,7 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
 
     if (offset !== undefined) {
       whereClause += ` AND ccp.off_set = $${paramIndex++}`;
-      values.push(offset === 'true');
+      values.push(offset === "true");
     }
 
     if (duration !== undefined) {
@@ -159,31 +163,26 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
     const dataQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
+        ccp.construction_checklist_id as construction_checklist,
+        ccp.predecessor_checklist_id,
+        predecessor.name as predecessor_checklist_name,
         ccp.off_set,
         ccp.duration,
         ccp.created_at,
-        ccp.updated_at,
-
-        json_build_object(
-          'id', cc.construction_checklist_id,
-          'name', cc.name
-        ) AS constructionChecklist,
-
-        json_build_object(
-          'id', predecessor.construction_checklist_id,
-          'name', predecessor.name
-        ) AS predecessorChecklist
-
+        ccp.updated_at
       FROM construction_checklist_predecessor ccp
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id
       LEFT JOIN construction_checklist predecessor ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
       ${whereClause}
-      GROUP BY ccp.construction_checklist_predecessor_id, cc.construction_checklist_id, predecessor.construction_checklist_id
       ORDER BY cc.sort_order ASC, predecessor.sort_order ASC, ccp.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++};
     `;
 
-    const dataResult = await client.query(dataQuery, [...values, limitValue, offsetValue]);
+    const dataResult = await client.query(dataQuery, [
+      ...values,
+      limitValue,
+      offsetValue,
+    ]);
 
     const countQuery = `
       SELECT COUNT(*) AS total
@@ -208,7 +207,7 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Construction checklist predecessors fetched successfully."
+      "Construction checklist predecessors fetched successfully.",
     );
   } catch (error) {
     console.error("Get All Construction Checklist Predecessors Error:", error);
@@ -227,44 +226,47 @@ exports.getConstructionChecklistPredecessorById = async (req, res) => {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
     if (!construction_checklist_predecessor_id) {
-      return errorResponse(res, 400, "construction_checklist_predecessor_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_checklist_predecessor_id is required.",
+      );
     }
 
     const query = `
       SELECT
         ccp.construction_checklist_predecessor_id,
+        ccp.construction_checklist_id as construction_checklist,
+        ccp.predecessor_checklist_id,
+        predecessor.name as predecessor_checklist_name,
         ccp.off_set,
         ccp.duration,
         ccp.created_at,
-        ccp.updated_at,
-
-        json_build_object(
-          'id', cc.construction_checklist_id,
-          'name', cc.name
-        ) AS constructionChecklist,
-
-        json_build_object(
-          'id', predecessor.construction_checklist_id,
-          'name', predecessor.name
-        ) AS predecessorChecklist
-
+        ccp.updated_at
       FROM construction_checklist_predecessor ccp
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id
       LEFT JOIN construction_checklist predecessor ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
-      WHERE ccp.construction_checklist_predecessor_id = $1 AND cc.builder_id = $2 AND cc.company_id = $3
-      GROUP BY ccp.construction_checklist_predecessor_id, cc.construction_checklist_id, predecessor.construction_checklist_id;
+      WHERE ccp.construction_checklist_predecessor_id = $1 AND cc.builder_id = $2 AND cc.company_id = $3;
     `;
 
-    const result = await client.query(query, [construction_checklist_predecessor_id, builderId, companyId]);
+    const result = await client.query(query, [
+      construction_checklist_predecessor_id,
+      builderId,
+      companyId,
+    ]);
 
     if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Construction checklist predecessor not found or access denied.");
+      return errorResponse(
+        res,
+        404,
+        "Construction checklist predecessor not found or access denied.",
+      );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction checklist predecessor fetched successfully."
+      "Construction checklist predecessor fetched successfully.",
     );
   } catch (error) {
     console.error("Get Construction Checklist Predecessor By ID Error:", error);
@@ -280,41 +282,56 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
 
   try {
     const { construction_checklist_predecessor_id } = req.params;
-    const {
-      predecessor_checklist_id,
-      offset,
-      duration
-    } = req.body;
+    const { predecessor_checklist_id, offset, duration } = req.body;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
 
     if (!construction_checklist_predecessor_id) {
-      return errorResponse(res, 400, "construction_checklist_predecessor_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_checklist_predecessor_id is required.",
+      );
     }
 
     const existingResult = await client.query(
       `SELECT ccp.*, cc.builder_id, cc.company_id FROM construction_checklist_predecessor ccp
        LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id 
        WHERE ccp.construction_checklist_predecessor_id = $1`,
-      [construction_checklist_predecessor_id]
+      [construction_checklist_predecessor_id],
     );
 
     if (existingResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction checklist predecessor not found.");
+      return errorResponse(
+        res,
+        404,
+        "Construction checklist predecessor not found.",
+      );
     }
 
-    if (existingResult.rows[0].builder_id !== builderId || existingResult.rows[0].company_id !== companyId) {
-      return errorResponse(res, 403, "Access denied - you can only update your own records.");
+    if (
+      existingResult.rows[0].builder_id !== builderId ||
+      existingResult.rows[0].company_id !== companyId
+    ) {
+      return errorResponse(
+        res,
+        403,
+        "Access denied - you can only update your own records.",
+      );
     }
 
     if (predecessor_checklist_id !== undefined) {
       if (predecessor_checklist_id) {
         const predecessorCheck = await client.query(
           `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
-          [predecessor_checklist_id, builderId, companyId]
+          [predecessor_checklist_id, builderId, companyId],
         );
         if (predecessorCheck.rowCount === 0) {
-          return errorResponse(res, 400, "Invalid predecessor_checklist_id or access denied");
+          return errorResponse(
+            res,
+            400,
+            "Invalid predecessor_checklist_id or access denied",
+          );
         }
       }
     }
@@ -339,48 +356,45 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
     }
 
     if (updateFields.length === 0) {
-      return errorResponse(res, 400, "At least one field is required for update.");
+      return errorResponse(
+        res,
+        400,
+        "At least one field is required for update.",
+      );
     }
 
     updateFields.push(`updated_at = NOW()`);
 
     await client.query(
-      `UPDATE construction_checklist_predecessor SET ${updateFields.join(', ')} 
+      `UPDATE construction_checklist_predecessor SET ${updateFields.join(", ")} 
        WHERE construction_checklist_predecessor_id = $${idx}`,
-      [...updateValues, construction_checklist_predecessor_id]
+      [...updateValues, construction_checklist_predecessor_id],
     );
 
     const responseQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
+        ccp.construction_checklist_id as construction_checklist,
+        ccp.predecessor_checklist_id,
+        predecessor.name as predecessor_checklist_name,
         ccp.off_set,
         ccp.duration,
         ccp.created_at,
-        ccp.updated_at,
-
-        json_build_object(
-          'id', cc.construction_checklist_id,
-          'name', cc.name
-        ) AS constructionChecklist,
-
-        json_build_object(
-          'id', predecessor.construction_checklist_id,
-          'name', predecessor.name
-        ) AS predecessorChecklist
-
+        ccp.updated_at
       FROM construction_checklist_predecessor ccp
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id
       LEFT JOIN construction_checklist predecessor ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
-      WHERE ccp.construction_checklist_predecessor_id = $1
-      GROUP BY ccp.construction_checklist_predecessor_id, cc.construction_checklist_id, predecessor.construction_checklist_id;
+      WHERE ccp.construction_checklist_predecessor_id = $1;
     `;
 
-    const responseResult = await client.query(responseQuery, [construction_checklist_predecessor_id]);
+    const responseResult = await client.query(responseQuery, [
+      construction_checklist_predecessor_id,
+    ]);
 
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction checklist predecessor updated successfully."
+      "Construction checklist predecessor updated successfully.",
     );
   } catch (error) {
     console.error("Update Construction Checklist Predecessor Error:", error);
@@ -399,33 +413,48 @@ exports.deleteConstructionChecklistPredecessor = async (req, res) => {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
     if (!construction_checklist_predecessor_id) {
-      return errorResponse(res, 400, "construction_checklist_predecessor_id is required.");
+      return errorResponse(
+        res,
+        400,
+        "construction_checklist_predecessor_id is required.",
+      );
     }
 
     const checkResult = await client.query(
       `SELECT ccp.*, cc.builder_id, cc.company_id FROM construction_checklist_predecessor ccp
        LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id 
        WHERE ccp.construction_checklist_predecessor_id = $1`,
-      [construction_checklist_predecessor_id]
+      [construction_checklist_predecessor_id],
     );
 
     if (checkResult.rowCount === 0) {
-      return errorResponse(res, 404, "Construction checklist predecessor not found.");
+      return errorResponse(
+        res,
+        404,
+        "Construction checklist predecessor not found.",
+      );
     }
 
-    if (checkResult.rows[0].builder_id !== builderId || checkResult.rows[0].company_id !== companyId) {
-      return errorResponse(res, 403, "Access denied - you can only delete your own records.");
+    if (
+      checkResult.rows[0].builder_id !== builderId ||
+      checkResult.rows[0].company_id !== companyId
+    ) {
+      return errorResponse(
+        res,
+        403,
+        "Access denied - you can only delete your own records.",
+      );
     }
 
     await client.query(
       `DELETE FROM construction_checklist_predecessor WHERE construction_checklist_predecessor_id = $1`,
-      [construction_checklist_predecessor_id]
+      [construction_checklist_predecessor_id],
     );
 
     return successResponse(
       res,
       {},
-      "Construction checklist predecessor deleted successfully."
+      "Construction checklist predecessor deleted successfully.",
     );
   } catch (error) {
     console.error("Delete Construction Checklist Predecessor Error:", error);

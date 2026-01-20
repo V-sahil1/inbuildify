@@ -7,8 +7,13 @@ exports.createConstructionSubChecklist = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { construction_checklist_id, name, data_required, no_of_days } =
-      req.body;
+    const {
+      construction_checklist_id,
+      name,
+      data_required,
+      no_of_days,
+      sort_order,
+    } = req.body;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -32,15 +37,32 @@ exports.createConstructionSubChecklist = async (req, res) => {
       );
     }
 
+    const maxSortOrderQuery = await client.query(
+      `SELECT COALESCE(MAX(sort_order), 0) as max_sort_order FROM construction_sub_checklist WHERE construction_checklist_id = $1`,
+      [construction_checklist_id],
+    );
+
+    let newSortOrder;
+    if (sort_order !== undefined) {
+      newSortOrder = sort_order;
+      await client.query(
+        `UPDATE construction_sub_checklist SET sort_order = sort_order + 1 WHERE construction_checklist_id = $1 AND sort_order >= $2`,
+        [construction_checklist_id, newSortOrder],
+      );
+    } else {
+      newSortOrder = maxSortOrderQuery.rows[0].max_sort_order + 1;
+    }
+
     const insertResult = await client.query(
       `
       INSERT INTO construction_sub_checklist (
         construction_checklist_id,
         name,
         data_required,
-        no_of_days
+        no_of_days,
+        sort_order
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
       `,
       [
@@ -48,6 +70,7 @@ exports.createConstructionSubChecklist = async (req, res) => {
         name,
         data_required !== undefined ? data_required : true,
         no_of_days !== undefined ? no_of_days : 0,
+        newSortOrder,
       ],
     );
 
@@ -61,6 +84,7 @@ exports.createConstructionSubChecklist = async (req, res) => {
         csc.name,
         csc.data_required,
         csc.no_of_days,
+        csc.sort_order,
         csc.created_at,
         csc.updated_at
 
@@ -137,13 +161,14 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
         csc.name,
         csc.data_required,
         csc.no_of_days,
+        csc.sort_order,
         csc.created_at,
         csc.updated_at
 
       FROM construction_sub_checklist csc
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = csc.construction_checklist_id
       ${whereClause}
-      ORDER BY cc.sort_order ASC, csc.created_at DESC
+      ORDER BY csc.sort_order ASC, csc.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++};
     `;
 
@@ -208,6 +233,7 @@ exports.getConstructionSubChecklistById = async (req, res) => {
         csc.name,
         csc.data_required,
         csc.no_of_days,
+        csc.sort_order,
         csc.created_at,
         csc.updated_at
 
@@ -249,7 +275,7 @@ exports.updateConstructionSubChecklist = async (req, res) => {
 
   try {
     const { construction_sub_checklist_id } = req.params;
-    const { name, data_required, no_of_days } = req.body;
+    const { name, data_required, no_of_days, sort_order } = req.body;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -286,6 +312,8 @@ exports.updateConstructionSubChecklist = async (req, res) => {
     const updateFields = [];
     const updateValues = [];
     let idx = 1;
+    const currentSortOrder = existingResult.rows[0].sort_order;
+    const checklistId = existingResult.rows[0].construction_checklist_id;
 
     if (name !== undefined) {
       if (!name) {
@@ -303,6 +331,24 @@ exports.updateConstructionSubChecklist = async (req, res) => {
     if (no_of_days !== undefined) {
       updateFields.push(`no_of_days = $${idx++}`);
       updateValues.push(no_of_days);
+    }
+
+    if (sort_order !== undefined && sort_order !== currentSortOrder) {
+      if (sort_order < currentSortOrder) {
+        await client.query(
+          `UPDATE construction_sub_checklist SET sort_order = sort_order + 1 
+           WHERE construction_checklist_id = $1 AND sort_order >= $2 AND sort_order < $3`,
+          [checklistId, sort_order, currentSortOrder],
+        );
+      } else {
+        await client.query(
+          `UPDATE construction_sub_checklist SET sort_order = sort_order - 1 
+           WHERE construction_checklist_id = $1 AND sort_order > $2 AND sort_order <= $3`,
+          [checklistId, currentSortOrder, sort_order],
+        );
+      }
+      updateFields.push(`sort_order = $${idx++}`);
+      updateValues.push(sort_order);
     }
 
     if (updateFields.length === 0) {
@@ -328,6 +374,7 @@ exports.updateConstructionSubChecklist = async (req, res) => {
         csc.name,
         csc.data_required,
         csc.no_of_days,
+        csc.sort_order,
         csc.created_at,
         csc.updated_at
 
@@ -393,9 +440,18 @@ exports.deleteConstructionSubChecklist = async (req, res) => {
       );
     }
 
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const checklistId = checkResult.rows[0].construction_checklist_id;
+
     await client.query(
       `DELETE FROM construction_sub_checklist WHERE construction_sub_checklist_id = $1`,
       [construction_sub_checklist_id],
+    );
+
+    await client.query(
+      `UPDATE construction_sub_checklist SET sort_order = sort_order - 1 
+       WHERE construction_checklist_id = $1 AND sort_order > $2`,
+      [checklistId, deletedSortOrder],
     );
 
     return successResponse(

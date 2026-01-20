@@ -9,48 +9,21 @@ exports.getAllRanges = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
 
     const dataQuery = `
       SELECT 
         *
       FROM range
       WHERE builder_id = $1
-      ORDER BY sort_order ASc
-      LIMIT $2 OFFSET $3;
+      ORDER BY sort_order ASC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM range
-      WHERE builder_id = $1;
-    `;
-    const countResult = await client.query(countQuery, [builderId]);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, [builderId]);
 
     return successResponse(
       res,
-      {
-        ranges: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
-      "Ranges fetched successfully."
+      keysToCamelCase(dataResult.rows),
+      "Ranges fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching ranges:", error);
@@ -119,7 +92,7 @@ exports.createRange = async (req, res) => {
 
     const dupCheck = await client.query(
       `SELECT range_id FROM range WHERE builder_id = $1 AND LOWER(name) = LOWER($2)`,
-      [builderId, name]
+      [builderId, name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -150,7 +123,7 @@ exports.createRange = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -204,7 +177,7 @@ exports.createRange = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Range created successfully."
+      "Range created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -237,7 +210,7 @@ exports.updateRange = async (req, res) => {
 
     const rangeCheck = await client.query(
       `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2`,
-      [range_id, builderId]
+      [range_id, builderId],
     );
 
     if (rangeCheck.rowCount === 0) {
@@ -247,7 +220,7 @@ exports.updateRange = async (req, res) => {
 
     const rangeActiveCheck = await client.query(
       `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true`,
-      [range_id, builderId]
+      [range_id, builderId],
     );
 
     if (rangeActiveCheck.rowCount === 0) {
@@ -291,7 +264,7 @@ exports.updateRange = async (req, res) => {
     if (user_id && user_id.length > 0) {
       const userCheck = await client.query(
         `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
-        [user_id]
+        [user_id],
       );
 
       if (userCheck.rowCount !== user_id.length) {
@@ -299,7 +272,7 @@ exports.updateRange = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more user IDs are invalid or do not exist."
+          "One or more user IDs are invalid or do not exist.",
         );
       }
     }
@@ -310,7 +283,7 @@ exports.updateRange = async (req, res) => {
          WHERE builder_id = $1 
          AND LOWER(name) = LOWER($2) 
          AND range_id != $3`,
-        [builderId, name.trim(), range_id]
+        [builderId, name.trim(), range_id],
       );
 
       if (dupName.rowCount > 0) {
@@ -336,7 +309,7 @@ exports.updateRange = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -351,7 +324,7 @@ exports.updateRange = async (req, res) => {
           AND range_id != $3
           AND builder_id = $4
         `,
-            [existingSortOrder, sort_order, range_id, builderId]
+            [existingSortOrder, sort_order, range_id, builderId],
           );
         } else {
           await client.query(
@@ -363,7 +336,7 @@ exports.updateRange = async (req, res) => {
           AND range_id != $3
           AND builder_id = $4
         `,
-            [sort_order, existingSortOrder, range_id, builderId]
+            [sort_order, existingSortOrder, range_id, builderId],
           );
         }
       }
@@ -460,7 +433,7 @@ exports.updateRange = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(finalData),
-      "Range updated successfully."
+      "Range updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -480,7 +453,7 @@ exports.deleteRange = async (req, res) => {
   try {
     const checkRangeExists = await client.query(
       `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2`,
-      [range_id, builderId]
+      [range_id, builderId],
     );
     if (checkRangeExists.rowCount === 0) {
       return errorResponse(res, 404, "Range not found for this builder");
@@ -493,7 +466,7 @@ exports.deleteRange = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Range deleted successfully."
+      "Range deleted successfully.",
     );
   } catch (error) {
     console.error(error);
@@ -521,7 +494,7 @@ exports.updateRangeActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -532,7 +505,7 @@ exports.updateRangeActive = async (req, res) => {
       WHERE range_id = $1
         AND builder_id = $2
       `,
-      [range_id, builderId]
+      [range_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -558,7 +531,7 @@ exports.updateRangeActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Range status updated successfully."
+      "Range status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating range is_active:", error);

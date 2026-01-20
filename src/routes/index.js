@@ -14,6 +14,7 @@ const masterPriceListCategoryRoutes = require("./master-price-list-category.rout
 const rangeRoutes = require("./range.routes");
 const dwellingTypeRoutes = require("./dwelling-type.routes");
 const floorPlanRoutes = require("./floor-plan.routes");
+const floorPlanPricelistItemMapRoutes = require("./floor-plan-pricelist-item-map.routes");
 const masterFacadeRoutes = require("./master-facade.routes");
 const masterPriceListCategoryItemRoutes = require("./master-price-list-category-item.routes");
 const conditionRoutes = require("./condition.routes");
@@ -143,6 +144,7 @@ module.exports = function (app) {
   app.use("/range", rangeRoutes);
   app.use("/dwelling-type", dwellingTypeRoutes);
   app.use("/floor-plan", floorPlanRoutes);
+  app.use("/floor-plan-pricelist-item-map", floorPlanPricelistItemMapRoutes);
   app.use("/facade", masterFacadeRoutes);
   app.use("/condition", conditionRoutes);
   app.use("/category-item", masterPriceListCategoryItemRoutes);
@@ -180,7 +182,7 @@ module.exports = function (app) {
   app.use("/sales-proccess", salesProcessRoutes);
   app.use(
     "/sales-proccess-stage-functionality",
-    salesProcessStageFunctionalityRoutes
+    salesProcessStageFunctionalityRoutes,
   );
   app.use("/sales-stage", salesStageRoutes);
   app.use("/lead-lost-reason", leadLostReasonRoutes);
@@ -200,7 +202,7 @@ module.exports = function (app) {
   app.use("/job-process", jobProcessRoutes);
   app.use(
     "/job-process-stage-functionality",
-    jobProcessStageFunctionalityRoutes
+    jobProcessStageFunctionalityRoutes,
   );
   app.use("/job-variation-approval", jobVariationApprovalRoutes);
   app.use("/maintenance-setting", maintenanceSettingRoutes);
@@ -212,7 +214,7 @@ module.exports = function (app) {
   app.use("/integration-setting", integrationSettingRoutes);
   app.use(
     "/integration-custom-field-header",
-    integrationCustomFieldHeaderRoutes
+    integrationCustomFieldHeaderRoutes,
   );
   app.use("/integration-custom-field-item", integrationCustomFieldItemRoutes);
   app.use("/template-email", templateEmailRoutes);
@@ -255,17 +257,17 @@ module.exports = function (app) {
   app.use("/construction-sub-checklist", constructionSubChecklistRoutes);
   app.use(
     "/construction-checklist-predecessor",
-    constructionChecklistPredecessorRoutes
+    constructionChecklistPredecessorRoutes,
   );
   app.use("/construction-ohs", constructionOHSRoutes);
   app.use(
     "/construction-inspection-checklist",
-    constructionInspectionChecklistRoutes
+    constructionInspectionChecklistRoutes,
   );
   app.use("/construction-ets-recharge", constructionEtsRechargeRoutes);
   app.use(
     "/construction-ets-recharge-approval",
-    constructionEtsRechargeApprovalRoutes
+    constructionEtsRechargeApprovalRoutes,
   );
   app.use("/timezone", timezoneRoutes);
   app.use("/role-type", roleTypeRoutes);

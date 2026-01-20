@@ -4,10 +4,6 @@ const createPriceListSchema = Joi.object({
   name: Joi.string().min(1).max(200).required(),
   sort_order: Joi.number().integer().min(0).default(0).optional(),
   show_in_view_list: Joi.boolean().default(true),
-  is_active: Joi.boolean().default(true),
-  location: Joi.string().uuid().allow(null).optional().messages({
-    "string.guid": "state location ID must be a valid UUID",
-  }),
 });
 
 const getAllPriceListSchema = Joi.object({
@@ -46,9 +42,6 @@ const updatePriceListSchema = Joi.object({
   sort_order: Joi.number().integer().min(0).default(0).optional(),
   show_in_view_list: Joi.boolean(),
   is_active: Joi.boolean(),
-  location: Joi.string().uuid().allow(null).optional().messages({
-    "string.guid": "state location ID must be a valid UUID",
-  }),
 });
 
 module.exports = {

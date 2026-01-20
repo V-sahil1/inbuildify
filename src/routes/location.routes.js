@@ -9,7 +9,6 @@ const {
 } = require("../controllers/location.controller");
 const {
   createLocationSchema,
-  getAllLocationSchema,
   deleteLocationSchema,
   updateLocationParamsSchema,
   updateLocationShema,
@@ -29,26 +28,22 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createLocationSchema, REQUEST_SOURCE.BODY),
-  createLocation
+  createLocation,
 );
 
-router.get(
-  "/",
-  validateRequest(getAllLocationSchema, REQUEST_SOURCE.QUERY),
-  getAllLocation
-);
+router.get("/", getAllLocation);
 
 router.delete(
   "/:location_id",
   validateRequest(deleteLocationSchema, REQUEST_SOURCE.PARAMS),
-  deleteLocation
+  deleteLocation,
 );
 
 router.put(
   "/:location_id",
   validateRequest(updateLocationParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLocationShema, REQUEST_SOURCE.BODY),
-  updateLocation
+  updateLocation,
 );
 
 module.exports = router;

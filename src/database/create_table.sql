@@ -2023,23 +2023,23 @@ CREATE TABLE master_price_list_categories_item (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE master_facade (
-  master_facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  image VARCHAR(500),
-  range_type_id UUID REFERENCES range(range_id) ON DELETE CASCADE NOT NULL,
-  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE NOT NULL,
-  standard BOOLEAN DEFAULT FALSE,
-  upgrade BOOLEAN DEFAULT FALSE,
-  cost NUMERIC(12,2) DEFAULT 0,
-  is_deleted BOOLEAN DEFAULT FALSE,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
+-- CREATE TABLE master_facade (
+--   master_facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
+--   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
+--   name VARCHAR(100) NOT NULL,
+--   image VARCHAR(500),
+--   range_type_id UUID REFERENCES range(range_id) ON DELETE CASCADE NOT NULL,
+--   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE NOT NULL,
+--   standard BOOLEAN DEFAULT FALSE,
+--   upgrade BOOLEAN DEFAULT FALSE,
+--   cost NUMERIC(12,2) DEFAULT 0,
+--   is_deleted BOOLEAN DEFAULT FALSE,
+--   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+--   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+-- );
 
 CREATE TABLE price_list_item (
     price_list_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2344,6 +2344,18 @@ CREATE TABLE floor_plan (
     CONSTRAINT uq_floor_plan_per_builder UNIQUE (builder_id, name)
 );
 
+CREATE TABLE floor_plan_pricelist_item_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
+  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+  inclide_default BOOLEAN DEFAULT FALSE,
+  modify BOOLEAN DEFAULT FALSE,
+  quantity INT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_floor_plan_pricelist_item_map UNIQUE (floor_plan_id, price_list_item_id)
+);
+
 CREATE TABLE estate (
     estate_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2524,6 +2536,7 @@ CREATE TABLE construction_sub_checklist(
   name VARCHAR(255) NOT NULL,
   data_required BOOLEAN DEFAULT TRUE,
   no_of_days INT DEFAULT 0,
+  sort_order INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 )

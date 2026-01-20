@@ -19,7 +19,7 @@ exports.createLocation = async (req, res) => {
       `SELECT location_id 
        FROM location 
        WHERE builder_id = $1 AND LOWER(name) = LOWER($2)`,
-      [builderId, name]
+      [builderId, name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -27,7 +27,7 @@ exports.createLocation = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Location name already exists for this builder."
+        "Location name already exists for this builder.",
       );
     }
 
@@ -53,7 +53,7 @@ exports.createLocation = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Location created successfully."
+      "Location created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -72,49 +72,23 @@ exports.getAllLocation = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    const { page = 1, limit = 25 } = req.query;
-
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
-
-    const pageValue = parseInt(page, 10);
-    const limitValue = parseInt(limit, 10);
-    const offset = (pageValue - 1) * limitValue;
-
-    const totalQuery = `
-      SELECT COUNT(*) AS total
-      FROM location
-      WHERE builder_id = $1 AND company_id = $2
-    `;
-    const totalResult = await client.query(totalQuery, [builderId, companyId]);
-    const totalRecords = parseInt(totalResult.rows[0].total, 10);
-
-    const totalPages = Math.ceil(totalRecords / limitValue);
 
     const dataQuery = `
       SELECT *
       FROM location
       WHERE builder_id = $1 AND company_id = $2
       ORDER BY created_at DESC
-      LIMIT $3 OFFSET $4
     `;
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      companyId,
-      limitValue,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [builderId, companyId]);
 
-    return successResponse(res, {
-      locations: keysToCamelCase(dataResult.rows),
-      pagination: {
-        currentPage: pageValue,
-        totalPages,
-        totalRecords,
-        limit: limitValue,
-      },
-    });
+    return successResponse(
+      res,
+      keysToCamelCase(dataResult.rows),
+      "Locations retrieved successfully.",
+    );
   } catch (err) {
     console.error("Error fetching locations:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
@@ -209,7 +183,7 @@ exports.updateLocation = async (req, res) => {
 
     const fieldsToCheck = ["name"];
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
 
     if (statusInBody && typeof requestedStatus !== "boolean") {
@@ -217,7 +191,7 @@ exports.updateLocation = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "The 'status' field must be a boolean (true or false)."
+        "The 'status' field must be a boolean (true or false).",
       );
     }
 
@@ -227,7 +201,7 @@ exports.updateLocation = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To deactivate an active location, 'status' must be the only field provided in the request."
+          "To deactivate an active location, 'status' must be the only field provided in the request.",
         );
       }
     }
@@ -239,7 +213,7 @@ exports.updateLocation = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To activate an inactive location, 'status' must be the only field provided in the request."
+            "To activate an inactive location, 'status' must be the only field provided in the request.",
           );
         }
       }
@@ -251,7 +225,7 @@ exports.updateLocation = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Cannot update non-'status' fields when the location is currently Inactive. Only 'status' can be changed (to true/Active)."
+          "Cannot update non-'status' fields when the location is currently Inactive. Only 'status' can be changed (to true/Active).",
         );
       }
 
@@ -260,7 +234,7 @@ exports.updateLocation = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Location is already Inactive. 'status' can only be updated to true (Active) from this state."
+          "Location is already Inactive. 'status' can only be updated to true (Active) from this state.",
         );
       }
     }
@@ -270,7 +244,7 @@ exports.updateLocation = async (req, res) => {
         `SELECT location_id 
           FROM location
           WHERE builder_id = $1 AND LOWER(name) = LOWER($2) AND location_id != $3`,
-        [builderId, name, location_id]
+        [builderId, name, location_id],
       );
 
       if (dupCheck.rowCount > 0) {
@@ -278,7 +252,7 @@ exports.updateLocation = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "Location name already exists for this builder."
+          "Location name already exists for this builder.",
         );
       }
     }
@@ -323,7 +297,7 @@ exports.updateLocation = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Location updated successfully."
+      "Location updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");

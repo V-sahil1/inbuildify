@@ -11,13 +11,7 @@ exports.createPriceList = async (req, res) => {
     const companyId = req.user.company_id;
     const userId = req.user.user_id;
 
-    let {
-      name,
-      sort_order = 0,
-      show_in_view_list = true,
-      is_active = true,
-      location = null,
-    } = req.body;
+    let { name, sort_order = 0, show_in_view_list = true } = req.body;
 
     if (!name || name.trim() === "") {
       return errorResponse(res, 400, "Name is required.");
@@ -29,7 +23,7 @@ exports.createPriceList = async (req, res) => {
       `SELECT 1 
        FROM price_list 
        WHERE name = $1 AND company_id = $2 AND builder_id = $3`,
-      [name.trim(), companyId, builderId]
+      [name.trim(), companyId, builderId],
     );
 
     if (nameExists.rowCount > 0) {
@@ -37,50 +31,47 @@ exports.createPriceList = async (req, res) => {
       return errorResponse(res, 400, "Name already exists.");
     }
 
-    if (location) {
-      const locationCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1`,
-        [location]
-      );
-      if (locationCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid location (state_id).");
-      }
+    let finalSortOrder = sort_order;
+
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
     }
 
-    const sortOrderCheck = await client.query(
-      `SELECT sort_order 
-       FROM price_list 
-       WHERE company_id = $1 AND builder_id = $2
-       AND sort_order = $3`,
-      [companyId, builderId, sort_order]
-    );
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM price_list
+      WHERE company_id = $1 AND builder_id = $2;
+    `;
 
-    const defaultSortExists = await client.query(
-      `SELECT price_list_id 
-       FROM price_list 
-       WHERE company_id = $1 AND builder_id = $2
-       AND sort_order = 0`,
-      [companyId, builderId]
-    );
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      companyId,
+      builderId,
+    ]);
 
-    if (sort_order === 0 && defaultSortExists.rowCount > 0) {
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "Default sort order 0 already exists. Only one record can have sort_order = 0."
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
-    if (sort_order !== 0 && sortOrderCheck.rowCount > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        `Sort order ${sort_order} already exists. Please use a different one.`
-      );
-    }
+    const shiftSortOrderQuery = `
+      UPDATE price_list
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND company_id = $2
+        AND builder_id = $3;
+    `;
+
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      companyId,
+      builderId,
+    ]);
 
     const insertQuery = `
       INSERT INTO price_list (
@@ -89,12 +80,10 @@ exports.createPriceList = async (req, res) => {
         name,
         sort_order,
         show_in_view_list,
-        is_active,
-        location,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *;
     `;
 
@@ -104,8 +93,6 @@ exports.createPriceList = async (req, res) => {
       name.trim(),
       sort_order,
       show_in_view_list,
-      is_active,
-      location,
       userId,
       userId,
     ];
@@ -117,7 +104,7 @@ exports.createPriceList = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Price list created successfully."
+      "Price list created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -194,8 +181,8 @@ exports.getAllPriceList = async (req, res) => {
 
     return successResponse(
       res,
-      { data: rows, pagination },
-      "Price list fetched successfully."
+      { priceList: rows, pagination },
+      "Price list fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching price list:", error);
@@ -228,7 +215,7 @@ exports.deletePriceList = async (req, res) => {
         AND company_id = $2 
         AND builder_id = $3
       `,
-      [priceListId, companyId, builderId]
+      [priceListId, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -236,13 +223,43 @@ exports.deletePriceList = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you do not have permission to delete this."
+        "Record not found or you do not have permission to delete this.",
       );
     }
 
+    const sortOrderQuery = await client.query(
+      `SELECT sort_order 
+       FROM price_list 
+       WHERE price_list_id = $1 
+         AND company_id = $2 
+         AND builder_id = $3`,
+      [priceListId, companyId, builderId],
+    );
+
+    if (sortOrderQuery.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        404,
+        "Record not found or you do not have permission to delete this.",
+      );
+    }
+
+    const deletedSortOrder = sortOrderQuery.rows[0].sort_order;
+
+    const shiftQuery = `
+      UPDATE price_list
+      SET sort_order = sort_order - 1
+      WHERE sort_order > $1
+        AND company_id = $2
+        AND builder_id = $3
+    `;
+
+    await client.query(shiftQuery, [deletedSortOrder, companyId, builderId]);
+
     await client.query(
       `DELETE FROM price_list WHERE price_list_id = $1 AND builder_id = $2`,
-      [priceListId, builderId]
+      [priceListId, builderId],
     );
 
     await client.query("COMMIT");
@@ -272,7 +289,7 @@ exports.updatePriceList = async (req, res) => {
       return errorResponse(res, 400, "priceListId is required.");
     }
 
-    let { name, sort_order, show_in_view_list, is_active, location } = req.body;
+    let { name, sort_order, show_in_view_list, is_active } = req.body;
 
     await client.query("BEGIN");
 
@@ -284,7 +301,7 @@ exports.updatePriceList = async (req, res) => {
         AND company_id = $2
         AND builder_id = $3
       `,
-      [priceListId, companyId, builderId]
+      [priceListId, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -292,7 +309,7 @@ exports.updatePriceList = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you do not have permission to update this."
+        "Record not found or you do not have permission to update this.",
       );
     }
 
@@ -303,7 +320,6 @@ exports.updatePriceList = async (req, res) => {
       req.body.name,
       req.body.sort_order,
       req.body.show_in_view_list,
-      req.body.location,
     ].some((val) => val !== undefined);
 
     const requestedIsActiveTrue = is_active === true || is_active === "true";
@@ -316,7 +332,7 @@ exports.updatePriceList = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To deactivate an active price list, 'is_active' must be the only field provided in the request."
+            "To deactivate an active price list, 'is_active' must be the only field provided in the request.",
           );
         }
       }
@@ -329,7 +345,7 @@ exports.updatePriceList = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To activate an inactive price list, 'is_active' must be the only field provided in the request."
+            "To activate an inactive price list, 'is_active' must be the only field provided in the request.",
           );
         }
       }
@@ -340,7 +356,7 @@ exports.updatePriceList = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "Cannot update non-'is_active' fields when the price list is currently inactive. Only 'is_active' can be changed (to true)."
+            "Cannot update non-'is_active' fields when the price list is currently inactive. Only 'is_active' can be changed (to true).",
           );
         }
       }
@@ -351,7 +367,7 @@ exports.updatePriceList = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "Price list is already inactive. 'is_active' can only be updated to true from this state."
+            "Price list is already inactive. 'is_active' can only be updated to true from this state.",
           );
         }
       }
@@ -367,7 +383,7 @@ exports.updatePriceList = async (req, res) => {
           AND builder_id = $3
           AND price_list_id <> $4
         `,
-        [name.trim(), companyId, builderId, priceListId]
+        [name.trim(), companyId, builderId, priceListId],
       );
 
       if (nameCheck.rowCount > 0) {
@@ -376,61 +392,59 @@ exports.updatePriceList = async (req, res) => {
       }
     }
 
-    if (location) {
-      const locationCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1`,
-        [location]
-      );
-
-      if (locationCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid location (state_id).");
-      }
-    }
-
     if (sort_order !== undefined) {
       const newSort = parseInt(sort_order, 10);
 
-      const sortOrderCheck = await client.query(
-        `
-        SELECT price_list_id
-        FROM price_list
-        WHERE company_id = $1
-          AND builder_id = $2
-          AND sort_order = $3
-          AND price_list_id <> $4
-        `,
-        [companyId, builderId, newSort, priceListId]
-      );
+      const maxSortQuery = `
+    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+    FROM price_list
+    WHERE company_id = $1
+      AND builder_id = $2
+  `;
 
-      const defaultSortExists = await client.query(
-        `
-        SELECT price_list_id
-        FROM price_list
-        WHERE company_id = $1
-          AND builder_id = $2
-          AND sort_order = 0
-          AND price_list_id <> $3
-        `,
-        [companyId, builderId, priceListId]
-      );
+      const maxSortResult = await client.query(maxSortQuery, [
+        companyId,
+        builderId,
+      ]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      if (newSort === 0 && defaultSortExists.rowCount > 0) {
+      if (newSort < 1 || newSort > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "Default sort order 0 already exists. Only one record can have sort_order = 0."
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
-      if (newSort !== 0 && sortOrderCheck.rowCount > 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          `Sort order ${newSort} already exists. Please use a different one.`
-        );
+      if (newSort !== current.sort_order) {
+        if (newSort > current.sort_order) {
+          await client.query(
+            `
+        UPDATE price_list
+        SET sort_order = sort_order - 1
+        WHERE sort_order > $1
+          AND sort_order <= $2
+          AND company_id = $3
+          AND builder_id = $4
+          AND price_list_id != $5
+        `,
+            [current.sort_order, newSort, companyId, builderId, priceListId],
+          );
+        } else {
+          await client.query(
+            `
+        UPDATE price_list
+        SET sort_order = sort_order + 1
+        WHERE sort_order >= $1
+          AND sort_order < $2
+          AND company_id = $3
+          AND builder_id = $4
+          AND price_list_id != $5
+        `,
+            [newSort, current.sort_order, companyId, builderId, priceListId],
+          );
+        }
       }
     }
 
@@ -454,17 +468,13 @@ exports.updatePriceList = async (req, res) => {
       updateFields.push(`is_active = $${idx++}`);
       updateValues.push(is_active);
     }
-    if (location !== undefined) {
-      updateFields.push(`location = $${idx++}`);
-      updateValues.push(location);
-    }
 
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -489,7 +499,7 @@ exports.updatePriceList = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Price list updated successfully."
+      "Price list updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

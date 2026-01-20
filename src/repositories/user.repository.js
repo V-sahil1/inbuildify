@@ -14,7 +14,7 @@ async function findByEmail(email) {
   const pool = getPool();
   const res = await pool.query(
     `SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = FALSE`,
-    [email]
+    [email],
   );
   return res.rows[0];
 }
@@ -23,7 +23,7 @@ async function findByLoginId(loginId) {
   const pool = getPool();
   const res = await pool.query(
     `SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE`,
-    [loginId]
+    [loginId],
   );
   return res.rows[0];
 }
@@ -46,7 +46,7 @@ async function getBasicUser(userId) {
       FROM users
       WHERE user_id = $1 AND is_deleted = FALSE
       `,
-    [userId]
+    [userId],
   );
   return res.rows[0];
 }
@@ -55,11 +55,31 @@ async function getBasicUser(userId) {
         USER LISTING
   ============================================================ */
 
-async function getUsers({ builderId, page, limit, search }) {
+async function getUsers({ builderId, page, limit, search, role }) {
   const pool = getPool();
   const offset = (page - 1) * limit;
 
   const searchFilter = search ? `%${search}%` : "%";
+
+  let whereClause = `
+    WHERE
+      u.is_deleted = FALSE
+      AND u.builder_id = $1
+      AND (
+        LOWER(u.name) LIKE LOWER($2)
+        OR LOWER(u.email) LIKE LOWER($2)
+        OR LOWER(u.login_id) LIKE LOWER($2)
+      )
+  `;
+
+  let queryParams = [builderId, searchFilter];
+  let paramIndex = 3;
+
+  // Add role filter if provided
+  if (role) {
+    whereClause += ` AND r.name = $${paramIndex++}`;
+    queryParams.push(role);
+  }
 
   const res = await pool.query(
     `
@@ -78,36 +98,31 @@ async function getUsers({ builderId, page, limit, search }) {
         r.name AS role_name
       FROM users u
       LEFT JOIN role r ON r.role_id = u.role_id
-      WHERE
-        u.is_deleted = FALSE
-        AND (
-          LOWER(u.name) LIKE LOWER($1)
-          OR LOWER(u.email) LIKE LOWER($1)
-          OR LOWER(u.login_id) LIKE LOWER($1)
-        )
+      ${whereClause}
       ORDER BY u.created_at DESC
-      LIMIT $2 OFFSET $3
-      `,
-    [searchFilter, limit, offset]
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+    `,
+    [...queryParams, limit, offset],
+  );
+
+  // Build count query with same filters
+  let countWhereClause = whereClause.replace(
+    `LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`,
+    "",
   );
 
   const countRes = await pool.query(
     `
       SELECT COUNT(*)::int
-      FROM users
-      WHERE builder_id = $1
-        AND is_deleted = FALSE
-        AND (
-          LOWER(name) LIKE LOWER($2)
-          OR LOWER(email) LIKE LOWER($2)
-          OR LOWER(login_id) LIKE LOWER($2)
-        )
-      `,
-    [builderId, searchFilter]
+      FROM users u
+      LEFT JOIN role r ON r.role_id = u.role_id
+      ${countWhereClause}
+    `,
+    queryParams,
   );
 
   return {
-    rows: res.rows,
+    users: res.rows,
     total: countRes.rows[0].count,
   };
 }
@@ -135,7 +150,7 @@ async function getProfile(userId) {
       LEFT JOIN address a ON a.address_id = u.address_id
       WHERE u.users_id = $1 AND u.is_deleted = FALSE
       `,
-    [userId]
+    [userId],
   );
   return res.rows[0];
 }
@@ -212,7 +227,7 @@ async function createUser(data) {
         has_login,
         next_login_password_change,
         builder_id,
-      ]
+      ],
     );
 
     await client.query("COMMIT");
@@ -235,7 +250,7 @@ async function updateUser(userId, data) {
 
   try {
     const keys = Object.keys(data).filter(
-      (k) => data[k] !== undefined && k !== "builders"
+      (k) => data[k] !== undefined && k !== "builders",
     );
 
     if (keys.length === 0) return;
@@ -250,7 +265,7 @@ async function updateUser(userId, data) {
         SET ${setClauses.join(", ")}, updated_at = NOW()
         WHERE user_id = $${index}
         `,
-      [...values, userId]
+      [...values, userId],
     );
   } finally {
     client.release();
@@ -269,7 +284,7 @@ async function softDeleteUser(userId) {
       SET is_deleted = TRUE, updated_at = NOW()
       WHERE user_id = $1
       `,
-    [userId]
+    [userId],
   );
 }
 
@@ -285,7 +300,7 @@ async function updatePhoto(userId, url) {
       SET photo = $1, updated_at = NOW()
       WHERE user_id = $2
       `,
-    [url, userId]
+    [url, userId],
   );
 }
 
@@ -297,7 +312,7 @@ async function updateSignature(userId, url) {
       SET signature = $1, updated_at = NOW()
       WHERE user_id = $2
       `,
-    [url, userId]
+    [url, userId],
   );
 }
 
@@ -315,7 +330,7 @@ async function updatePassword(userId, encryptedPassword, askNextLogin) {
           updated_at = NOW()
       WHERE user_id = $3
       `,
-    [encryptedPassword, askNextLogin, userId]
+    [encryptedPassword, askNextLogin, userId],
   );
 }
 
@@ -331,7 +346,7 @@ async function updateLoginId(userId, newLoginId) {
       SET login_id = $1, updated_at = NOW()
       WHERE user_id = $2
       `,
-    [newLoginId, userId]
+    [newLoginId, userId],
   );
 }
 
@@ -347,7 +362,7 @@ async function updateActiveStatus(userId, isActive) {
       SET is_active = $1, updated_at = NOW()
       WHERE user_id = $2
       `,
-    [isActive, userId]
+    [isActive, userId],
   );
 }
 
@@ -359,7 +374,7 @@ async function updateLockStatus(userId, isLocked) {
       SET is_locked = $1, updated_at = NOW()
       WHERE user_id = $2
       `,
-    [isLocked, userId]
+    [isLocked, userId],
   );
 }
 

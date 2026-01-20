@@ -15,7 +15,6 @@ exports.createFloorPlan = async (req, res) => {
     carpark,
     living,
     range_id,
-    location_id,
     garage_area,
     porch_area,
     alfresco_area,
@@ -41,7 +40,7 @@ exports.createFloorPlan = async (req, res) => {
       `SELECT floor_plan_id
        FROM floor_plan
        WHERE builder_id = $1 AND LOWER(name) = LOWER($2)`,
-      [builderId, name]
+      [builderId, name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -55,7 +54,7 @@ exports.createFloorPlan = async (req, res) => {
          FROM dwelling_type
          WHERE dwelling_type_id = $1
            AND builder_id = $2`,
-        [dwelling_type_id, builderId]
+        [dwelling_type_id, builderId],
       );
 
       if (dtCheck.rowCount === 0) {
@@ -63,7 +62,7 @@ exports.createFloorPlan = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid dwelling_type_id  does not belong to this builder."
+          "Invalid dwelling_type_id  does not belong to this builder.",
         );
       }
     }
@@ -74,7 +73,7 @@ exports.createFloorPlan = async (req, res) => {
          FROM dwelling_type
          WHERE dwelling_type_id = $1
            AND builder_id = $2 AND is_active = true`,
-        [dwelling_type_id, builderId]
+        [dwelling_type_id, builderId],
       );
 
       if (dtActiveCheck.rowCount === 0) {
@@ -89,7 +88,7 @@ exports.createFloorPlan = async (req, res) => {
          FROM range
          WHERE range_id = $1
            AND builder_id = $2`,
-        [range_id, builderId]
+        [range_id, builderId],
       );
 
       if (rangeCheck.rowCount === 0) {
@@ -97,7 +96,7 @@ exports.createFloorPlan = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid range_id does not belong to this builder."
+          "Invalid range_id does not belong to this builder.",
         );
       }
     }
@@ -109,7 +108,7 @@ exports.createFloorPlan = async (req, res) => {
          WHERE range_id = $1
            AND builder_id = $2
            AND is_active = true`,
-        [range_id, builderId]
+        [range_id, builderId],
       );
 
       if (rangeActiveCheck.rowCount === 0) {
@@ -118,44 +117,12 @@ exports.createFloorPlan = async (req, res) => {
       }
     }
 
-    if (location_id) {
-      const locCheck = await client.query(
-        `SELECT location_id
-         FROM location
-         WHERE location_id = $1 AND builder_id = $2`,
-        [location_id, builderId]
-      );
-
-      if (locCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid location id does not belong to this builder."
-        );
-      }
-    }
-
-    if (location_id) {
-      const locActiveCheck = await client.query(
-        `SELECT location_id
-         FROM location
-         WHERE location_id = $1 AND builder_id = $2 AND status = true`,
-        [location_id, builderId]
-      );
-
-      if (locActiveCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive location.");
-      }
-    }
-
     const insertQuery = `
       INSERT INTO floor_plan (
         company_id, builder_id, name,
         min_land_width, min_land_depth, dwelling_area,
         dwelling_type_id, beds, baths, carpark, living,
-        range_id, location_id,
+        range_id,
         garage_area, porch_area, alfresco_area, total_area,
         detailed_image, simple_image, description,
         status, created_by, updated_by
@@ -163,12 +130,18 @@ exports.createFloorPlan = async (req, res) => {
         $1, $2, $3,
         $4, $5, $6,
         $7, $8, $9, $10, $11,
-        $12, $13,
-        $14, $15, $16, $17,
-        $18, $19, $20,
-        $21, $22, $22
+        $12,
+        $13, $14, $15, $16,
+        $17, $18, $19,
+        $20, $21, $21
       )
-      RETURNING *;
+      RETURNING floor_plan_id, name,
+        min_land_width, min_land_depth, dwelling_area,
+        dwelling_type_id, beds, baths, carpark, living,
+        range_id,
+        garage_area, porch_area, alfresco_area, total_area,
+        detailed_image, simple_image, description,
+        status;
     `;
 
     const values = [
@@ -184,7 +157,6 @@ exports.createFloorPlan = async (req, res) => {
       carpark || 0,
       living || 0,
       range_id || null,
-      location_id || null,
       garage_area || null,
       porch_area || null,
       alfresco_area || null,
@@ -203,7 +175,7 @@ exports.createFloorPlan = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Floor plan created successfully."
+      "Floor plan created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -226,7 +198,6 @@ exports.getFloorPlans = async (req, res) => {
       limit = 25,
       name,
       dwelling_type_id,
-      location_id,
       range_id,
       status,
     } = req.query;
@@ -251,12 +222,6 @@ exports.getFloorPlans = async (req, res) => {
       idx++;
     }
 
-    if (location_id) {
-      whereClauses.push(`h.location_id = $${idx}`);
-      values.push(location_id);
-      idx++;
-    }
-
     if (range_id) {
       whereClauses.push(`h.range_id = $${idx}`);
       values.push(range_id);
@@ -273,13 +238,17 @@ exports.getFloorPlans = async (req, res) => {
 
     const dataQuery = `
       SELECT 
-        h.*, 
+        h.floor_plan_id, h.name,
+        h.min_land_width, h.min_land_depth, h.dwelling_area,
+        h.dwelling_type_id, h.beds, h.baths, h.carpark, h.living,
+        h.range_id,
+        h.garage_area, h.porch_area, h.alfresco_area, h.total_area,
+        h.detailed_image, h.simple_image, h.description,
+        status, 
         dt.name AS dwelling_type_name, 
-        l.name AS location_name, 
         r.name AS range_name
       FROM floor_plan h
       LEFT JOIN dwelling_type dt ON dt.dwelling_type_id = h.dwelling_type_id
-      LEFT JOIN location l ON l.location_id = h.location_id
       LEFT JOIN range r ON r.range_id = h.range_id
       ${whereSQL}
       ORDER BY h.created_at DESC
@@ -334,7 +303,6 @@ exports.updateFloorPlan = async (req, res) => {
     carpark,
     living,
     range_id,
-    location_id,
     garage_area,
     porch_area,
     alfresco_area,
@@ -358,7 +326,7 @@ exports.updateFloorPlan = async (req, res) => {
     const existing = await client.query(
       `SELECT * FROM floor_plan 
        WHERE floor_plan_id = $1 AND builder_id = $2 FOR UPDATE`,
-      [floor_plan_id, builderId]
+      [floor_plan_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -388,7 +356,6 @@ exports.updateFloorPlan = async (req, res) => {
       "carpark",
       "living",
       "range_id",
-      "location_id",
       "garage_area",
       "porch_area",
       "alfresco_area",
@@ -399,7 +366,7 @@ exports.updateFloorPlan = async (req, res) => {
     ];
 
     const updatingOtherFields = fieldsToCheck.some((field) =>
-      Object.prototype.hasOwnProperty.call(body, field)
+      Object.prototype.hasOwnProperty.call(body, field),
     );
 
     if (statusInBody && typeof requestedStatus !== "boolean") {
@@ -407,7 +374,7 @@ exports.updateFloorPlan = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "The 'status' field must be a boolean (true or false)."
+        "The 'status' field must be a boolean (true or false).",
       );
     }
 
@@ -417,7 +384,7 @@ exports.updateFloorPlan = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To deactivate an active floor plan, 'status' must be the only field provided."
+          "To deactivate an active floor plan, 'status' must be the only field provided.",
         );
       }
     }
@@ -429,7 +396,7 @@ exports.updateFloorPlan = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To activate an inactive floor plan, only 'status' must be provided."
+            "To activate an inactive floor plan, only 'status' must be provided.",
           );
         }
       }
@@ -441,7 +408,7 @@ exports.updateFloorPlan = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Cannot update other fields when floor plan is inactive."
+          "Cannot update other fields when floor plan is inactive.",
         );
       }
 
@@ -458,7 +425,7 @@ exports.updateFloorPlan = async (req, res) => {
          WHERE builder_id = $1 
            AND LOWER(name) = LOWER($2)
            AND floor_plan_id != $3`,
-        [builderId, name, floor_plan_id]
+        [builderId, name, floor_plan_id],
       );
 
       if (dupCheck.rowCount > 0) {
@@ -472,7 +439,7 @@ exports.updateFloorPlan = async (req, res) => {
         `SELECT dwelling_type_id 
          FROM dwelling_type 
          WHERE dwelling_type_id = $1 AND builder_id = $2`,
-        [dwelling_type_id, builderId]
+        [dwelling_type_id, builderId],
       );
 
       if (dtCheck.rowCount === 0) {
@@ -486,7 +453,7 @@ exports.updateFloorPlan = async (req, res) => {
          WHERE dwelling_type_id = $1 
            AND builder_id = $2 
            AND is_active = true`,
-        [dwelling_type_id, builderId]
+        [dwelling_type_id, builderId],
       );
 
       if (dtActive.rowCount === 0) {
@@ -500,7 +467,7 @@ exports.updateFloorPlan = async (req, res) => {
         `SELECT range_id 
          FROM range
          WHERE range_id = $1 AND builder_id = $2`,
-        [range_id, builderId]
+        [range_id, builderId],
       );
 
       if (rangeCheck.rowCount === 0) {
@@ -514,40 +481,12 @@ exports.updateFloorPlan = async (req, res) => {
          WHERE range_id = $1 
            AND builder_id = $2 
            AND is_active = true`,
-        [range_id, builderId]
+        [range_id, builderId],
       );
 
       if (rangeActive.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Inactive range.");
-      }
-    }
-
-    if (location_id) {
-      const locCheck = await client.query(
-        `SELECT location_id 
-         FROM location
-         WHERE location_id = $1 AND builder_id = $2`,
-        [location_id, builderId]
-      );
-
-      if (locCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid location id.");
-      }
-
-      const locActive = await client.query(
-        `SELECT location_id 
-         FROM location
-         WHERE location_id = $1 
-           AND builder_id = $2 
-           AND status = true`,
-        [location_id, builderId]
-      );
-
-      if (locActive.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive location.");
       }
     }
 
@@ -581,7 +520,6 @@ exports.updateFloorPlan = async (req, res) => {
     addUpdate("carpark", carpark);
     addUpdate("living", living);
     addUpdate("range_id", range_id);
-    addUpdate("location_id", location_id);
     addUpdate("garage_area", garage_area);
     addUpdate("porch_area", porch_area);
     addUpdate("alfresco_area", alfresco_area);
@@ -607,7 +545,13 @@ exports.updateFloorPlan = async (req, res) => {
       UPDATE floor_plan 
       SET ${finalUpdates.join(", ")}
       WHERE floor_plan_id = $${idx}
-      RETURNING *;
+      RETURNING floor_plan_id, name,
+        min_land_width, min_land_depth, dwelling_area,
+        dwelling_type_id, beds, baths, carpark, living,
+        range_id,
+        garage_area, porch_area, alfresco_area, total_area,
+        detailed_image, simple_image, description,
+        status;
     `;
 
     const result = await client.query(updateQuery, updateValues);
@@ -617,7 +561,7 @@ exports.updateFloorPlan = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Floor plan updated successfully."
+      "Floor plan updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -654,7 +598,7 @@ exports.deleteFloorPlan = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Floor plan not found or you don't have permission to delete it."
+        "Floor plan not found or you don't have permission to delete it.",
       );
     }
 
@@ -709,7 +653,7 @@ exports.getFloorPlanFilters = async (req, res) => {
     return successResponse(
       res,
       filters,
-      "Floor plan filters fetched successfully."
+      "Floor plan filters fetched successfully.",
     );
   } catch (error) {
     console.error("Get floor plan filters error:", error);

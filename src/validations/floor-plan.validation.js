@@ -15,7 +15,7 @@ const imageRule = Joi.alternatives()
         .max(10 * 1024 * 1024)
         .required(), // enforce max 10MB
       location: Joi.string().uri().required(), // s3 URL added by multer-s3
-    }).unknown(true) // allow extra multer fields
+    }).unknown(true), // allow extra multer fields
   )
   .optional();
 
@@ -71,10 +71,6 @@ const createFloorPlanSchema = Joi.object({
     "string.guid": "Range ID must be a valid UUID",
   }),
 
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "Location ID must be a valid UUID",
-  }),
-
   garage_area: Joi.number()
     .min(0)
     .max(99999999.99)
@@ -104,9 +100,6 @@ const getFloorPlansSchema = Joi.object({
     "string.guid": "Range ID must be a valid UUID",
   }),
 
-  location_id: Joi.string().uuid().allow("", null).optional().messages({
-    "string.guid": "Location ID must be a valid UUID",
-  }),
   status: Joi.boolean().optional(),
   page: pageRule,
   limit: limitRule,
@@ -145,10 +138,6 @@ const updateFloorPlanSchema = Joi.object({
 
   range_id: Joi.string().uuid().optional().messages({
     "string.guid": "Range ID must be a valid UUID",
-  }),
-
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "Location ID must be a valid UUID",
   }),
 
   garage_area: Joi.number()
