@@ -1,4 +1,5 @@
 const getPool = require("../config/database");
+const { keysToCamelCase } = require("../utils/common");
 
 /**
  * USER REPOSITORY
@@ -13,19 +14,26 @@ const getPool = require("../config/database");
 async function findByEmail(email) {
   const pool = getPool();
   const res = await pool.query(
-    `SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = FALSE`,
+    `SELECT * FROM users WHERE LOWER(email) = LOWER($1)`,
     [email],
   );
-  return res.rows[0];
+  const user = res.rows[0];
+  if (user) {
+    return keysToCamelCase(user);
+  }
+  return null;
 }
 
 async function findByLoginId(loginId) {
   const pool = getPool();
-  const res = await pool.query(
-    `SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE`,
-    [loginId],
-  );
-  return res.rows[0];
+  const res = await pool.query(`SELECT * FROM users WHERE login_id = $1`, [
+    loginId,
+  ]);
+  const user = res.rows[0];
+  if (user) {
+    return keysToCamelCase(user);
+  }
+  return null;
 }
 
 async function getBasicUser(userId) {
@@ -33,7 +41,7 @@ async function getBasicUser(userId) {
   const res = await pool.query(
     `
       SELECT 
-        user_id,
+        users_id,
         builder_id,
         email,
         login_id,
@@ -44,11 +52,11 @@ async function getBasicUser(userId) {
         signature,
         address_id
       FROM users
-      WHERE user_id = $1 AND is_deleted = FALSE
+      WHERE users_id = $1 AND is_deleted = FALSE
       `,
     [userId],
   );
-  return res.rows[0];
+  return keysToCamelCase(res.rows[0]);
 }
 
 /* ============================================================
@@ -122,7 +130,7 @@ async function getUsers({ builderId, page, limit, search, role }) {
   );
 
   return {
-    users: res.rows,
+    users: res.rows.map((user) => keysToCamelCase(user)),
     total: countRes.rows[0].count,
   };
 }
@@ -152,7 +160,7 @@ async function getProfile(userId) {
       `,
     [userId],
   );
-  return res.rows[0];
+  return keysToCamelCase(res.rows[0]);
 }
 
 /* ============================================================
@@ -195,14 +203,14 @@ async function createUser(data) {
           phone, secondary_phone, initials, reporting_to,
           date_of_joining, date_of_birth, designation, remark,
           consultant_bio, address_id, use_builder_address,
-          root_user, has_login, next_login_password_change, builder_id
+          root_user, has_login, next_login_password_change, builder_id, is_verified
         )
         VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9,
           $10, $11, $12, $13,
           $14, $15, $16,
-          $17, $18, $19, $20
+          $17, $18, $19, $20, true
         )
         RETURNING *
         `,
@@ -231,7 +239,7 @@ async function createUser(data) {
     );
 
     await client.query("COMMIT");
-    return res.rows[0];
+    return keysToCamelCase(res.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -263,7 +271,7 @@ async function updateUser(userId, data) {
       `
         UPDATE users
         SET ${setClauses.join(", ")}, updated_at = NOW()
-        WHERE user_id = $${index}
+        WHERE users_id = $${index}
         `,
       [...values, userId],
     );
@@ -282,7 +290,7 @@ async function softDeleteUser(userId) {
     `
       UPDATE users
       SET is_deleted = TRUE, updated_at = NOW()
-      WHERE user_id = $1
+      WHERE users_id = $1
       `,
     [userId],
   );
@@ -298,7 +306,7 @@ async function updatePhoto(userId, url) {
     `
       UPDATE users
       SET photo = $1, updated_at = NOW()
-      WHERE user_id = $2
+      WHERE users_id = $2
       `,
     [url, userId],
   );
@@ -310,7 +318,7 @@ async function updateSignature(userId, url) {
     `
       UPDATE users
       SET signature = $1, updated_at = NOW()
-      WHERE user_id = $2
+      WHERE users_id = $2
       `,
     [url, userId],
   );
@@ -328,7 +336,7 @@ async function updatePassword(userId, encryptedPassword, askNextLogin) {
       SET password = $1,
           next_login_password_change = $2,
           updated_at = NOW()
-      WHERE user_id = $3
+      WHERE users_id = $3
       `,
     [encryptedPassword, askNextLogin, userId],
   );
@@ -344,7 +352,7 @@ async function updateLoginId(userId, newLoginId) {
     `
       UPDATE users
       SET login_id = $1, updated_at = NOW()
-      WHERE user_id = $2
+      WHERE users_id = $2
       `,
     [newLoginId, userId],
   );
@@ -360,7 +368,7 @@ async function updateActiveStatus(userId, isActive) {
     `
       UPDATE users
       SET is_active = $1, updated_at = NOW()
-      WHERE user_id = $2
+      WHERE users_id = $2
       `,
     [isActive, userId],
   );
@@ -372,9 +380,38 @@ async function updateLockStatus(userId, isLocked) {
     `
       UPDATE users
       SET is_locked = $1, updated_at = NOW()
-      WHERE user_id = $2
+      WHERE users_id = $2
       `,
     [isLocked, userId],
+  );
+}
+
+/* ============================================================
+    BUILDER MANAGEMENT
+============================================================ */
+
+async function getUserBuilder(userId) {
+  const pool = getPool();
+  const res = await pool.query(
+    `
+      SELECT builder_id
+      FROM users
+      WHERE users_id = $1 AND is_deleted = FALSE
+      `,
+    [userId],
+  );
+  return res.rows[0] || null;
+}
+
+async function setUserBuilder(userId, builderId) {
+  const pool = getPool();
+  await pool.query(
+    `
+      UPDATE users
+      SET builder_id = $1, updated_at = NOW()
+      WHERE users_id = $2
+      `,
+    [builderId, userId],
   );
 }
 
@@ -393,4 +430,6 @@ module.exports = {
   softDeleteUser,
   updatePhoto,
   updateSignature,
+  getUserBuilder,
+  setUserBuilder,
 };

@@ -367,6 +367,8 @@ exports.getAllConstructionChecklists = async (req, res) => {
         cc.milestone,
         cc.attachment_mandatory,
         cc.attachment_mandatory_name,
+        cc.po_folder_id,
+        cc.job_documents_folder_id,
         json_build_object(
           'id', ct.construction_type_id,
           'name', ct.types_name
@@ -411,7 +413,7 @@ exports.getAllConstructionChecklists = async (req, res) => {
             'constructionChecklistId', ccp.construction_checklist_id,
             'predecessorChecklistId', ccp.predecessor_checklist_id,
             'predecessorChecklistName', pred_cc.name,
-            'offSet', ccp.off_set,
+            'offset', ccp.off_set,
             'duration', ccp.duration
           )), '[]'::json)
           FROM construction_checklist_predecessor ccp

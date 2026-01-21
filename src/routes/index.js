@@ -87,6 +87,7 @@ const schedulerSettingRoutes = require("./scheduler-setting.routes");
 const portalSettingRoutes = require("./portal-setting.routes");
 const priceListRoutes = require("./price-list.routes");
 const priceListItemRoutes = require("./price-list-item.routes");
+const priceListItemConditionRoutes = require("./price-list-item-condition.routes");
 const supplierTypeRoutes = require("./supplier-type.route");
 const supplierRoutes = require("./supplier.routes");
 const supplierTypeMapRoutes = require("./supplier-supplier-type-map.routes");
@@ -226,6 +227,7 @@ module.exports = function (app) {
   app.use("/portal-setting", portalSettingRoutes);
   app.use("/price-list", priceListRoutes);
   app.use("/price-list-item", priceListItemRoutes);
+  app.use("/price-list-item-condition", priceListItemConditionRoutes);
   app.use("/supplier-type", supplierTypeRoutes);
   app.use("/supplier", supplierRoutes);
   app.use("/supplier-type-map", supplierTypeMapRoutes);

@@ -12,11 +12,11 @@ const generateRequestId = () => {
 const checkRequiredFields = (bodyFields, requiredFields) => {
   console.log(
     "🚀 ~ common.js:2 ~ checkRequiredFields ~ bodyFields:",
-    bodyFields
+    bodyFields,
   );
   console.log(
     "🚀 ~ common.js:2 ~ checkRequiredFields ~ requiredFields:",
-    requiredFields
+    requiredFields,
   );
   return requiredFields.every((field) => bodyFields.includes(field));
 };
@@ -76,7 +76,7 @@ function keysToSnakeCase(obj) {
       Object.entries(obj).map(([key, value]) => [
         toSnakeCase(key),
         keysToSnakeCase(value),
-      ])
+      ]),
     );
   }
   return obj;
@@ -92,7 +92,7 @@ function keysToCamelCase(obj) {
       Object.entries(obj).map(([key, value]) => [
         toCamelCase(key),
         keysToCamelCase(value),
-      ])
+      ]),
     );
   }
   return obj;
@@ -104,6 +104,51 @@ function allowedFileData() {
     size: ALLOWED_FILE_SIZE,
   };
 }
+
+const generateDynamicReferenceNumber = async ({
+  prefix,
+  tableName,
+  client,
+  user,
+  column = "reference_no",
+  padding = 4,
+  includeYear = true,
+}) => {
+  if (!prefix || !tableName || !client)
+    throw new Error("prefix, tableName and client are required");
+
+  const year = includeYear ? new Date().getFullYear().toString() : "";
+  const base = `${prefix}${year}`;
+
+  // Auto user scope
+  let where = [];
+  let values = [];
+
+  if (user?.company_id) {
+    where.push(`company_id = $${values.length + 1}`);
+    values.push(user.company_id);
+  }
+  if (user?.builder_id) {
+    where.push(`builder_id = $${values.length + 1}`);
+    values.push(user.builder_id);
+  }
+
+  where.push(`${column} LIKE $${values.length + 1}`);
+  values.push(`${base}%`);
+
+  const query = `
+    SELECT MAX(${column}) AS max_ref
+    FROM ${tableName}
+    WHERE ${where.join(" AND ")}
+  `;
+
+  const { rows } = await client.query(query, values);
+  const last = rows[0]?.max_ref;
+
+  const next = last ? parseInt(last.replace(base, ""), 10) + 1 : 1;
+
+  return `${base}${String(next).padStart(padding, "0")}`;
+};
 
 module.exports = {
   generateRequestId,
@@ -117,4 +162,5 @@ module.exports = {
   keysToSnakeCase,
   keysToCamelCase,
   allowedFileData,
+  generateDynamicReferenceNumber,
 };

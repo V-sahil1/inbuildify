@@ -36,7 +36,6 @@ const createUserSchema = Joi.object({
   remark: Joi.string().allow(null, ""),
   consultant_bio: Joi.string().allow(null, ""),
   use_builder_address: Joi.boolean().truthy("true").falsy("false"),
-  has_login: Joi.boolean().truthy("true").falsy("false"),
   password_option: Joi.string().valid("auto", "manual"),
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
@@ -44,6 +43,8 @@ const createUserSchema = Joi.object({
   builders: Joi.string().allow(null, ""), // JSON array as string
   builder_id: uuidRule.required().allow(null, ""), // Single builder ID instead of array
   address: Joi.string().allow(null, ""), // JSON as string
+  photo: Joi.string().allow("", null).optional(),
+  signature: Joi.string().allow("", null).optional(),
 });
 
 /* ---------------------------

@@ -29,8 +29,51 @@ exports.createPriceListItem = async (req, res) => {
       show_only_in_package,
       range_id,
       dwelling_type_id,
-      conditions,
     } = req.body;
+
+    if (range_id) {
+      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
+
+      for (const id of rangeIdsArray) {
+        if (id) {
+          const rangeCheck = await client.query(
+            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true`,
+            [id],
+          );
+
+          if (rangeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid range ID: ${id}. Range does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
+
+    if (dwelling_type_id) {
+      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
+        ? dwelling_type_id
+        : [dwelling_type_id];
+
+      for (const id of dwellingTypeIdsArray) {
+        if (id) {
+          const dwellingTypeCheck = await client.query(
+            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true`,
+            [id],
+          );
+
+          if (dwellingTypeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
 
     await client.query("BEGIN");
 
@@ -39,7 +82,7 @@ exports.createPriceListItem = async (req, res) => {
        FROM price_list 
        WHERE price_list_id = $1 AND builder_id = $2 
        LIMIT 1`,
-      [price_list_id, builderId]
+      [price_list_id, builderId],
     );
 
     if (checkPriceList.rowCount === 0) {
@@ -47,7 +90,7 @@ exports.createPriceListItem = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You cannot add items in another builder's price list."
+        "You cannot add items in another builder's price list.",
       );
     }
 
@@ -56,7 +99,7 @@ exports.createPriceListItem = async (req, res) => {
        FROM price_list 
        WHERE price_list_id = $1 AND builder_id = $2 AND is_active = true
        LIMIT 1`,
-      [price_list_id, builderId]
+      [price_list_id, builderId],
     );
 
     if (checkPriceListActive.rowCount === 0) {
@@ -64,70 +107,8 @@ exports.createPriceListItem = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You cannot add items in inactive price list."
+        "You cannot add items in inactive price list.",
       );
-    }
-
-    if (range_id) {
-      const checkRange = await client.query(
-        `SELECT range_id FROM range 
-         WHERE range_id = $1 AND builder_id = $2 LIMIT 1`,
-        [range_id, builderId]
-      );
-
-      if (checkRange.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid range_id. Range does not belong to this builder."
-        );
-      }
-    }
-
-    if (range_id) {
-      const checkRange = await client.query(
-        `SELECT range_id FROM range 
-         WHERE range_id = $1 AND builder_id = $2 AND is_active = true LIMIT 1`,
-        [range_id, builderId]
-      );
-
-      if (checkRange.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive range id.");
-      }
-    }
-
-    if (dwelling_type_id) {
-      const checkDwelling = await client.query(
-        `SELECT dwelling_type_id 
-         FROM dwelling_type 
-         WHERE dwelling_type_id = $1 AND builder_id = $2 LIMIT 1`,
-        [dwelling_type_id, builderId]
-      );
-
-      if (checkDwelling.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid dwelling_type_id. Dwelling type does not belong to this builder."
-        );
-      }
-    }
-
-    if (dwelling_type_id) {
-      const checkDwelling = await client.query(
-        `SELECT dwelling_type_id 
-         FROM dwelling_type 
-         WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true LIMIT 1`,
-        [dwelling_type_id, builderId]
-      );
-
-      if (checkDwelling.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive dwelling_type_id.");
-      }
     }
 
     if (cost_type === "Included") {
@@ -136,7 +117,7 @@ exports.createPriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "cost_type_text is required when cost_type = 'Included'."
+          "cost_type_text is required when cost_type = 'Included'.",
         );
       }
 
@@ -149,7 +130,7 @@ exports.createPriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "cost_option, cost, builder_cost are not allowed when cost_type = 'Included'."
+          "cost_option, cost, builder_cost are not allowed when cost_type = 'Included'.",
         );
       }
     }
@@ -160,7 +141,7 @@ exports.createPriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "cost_type_text is not allowed for cost_type = 'Fixed' or 'Variable'."
+          "cost_type_text is not allowed for cost_type = 'Fixed' or 'Variable'.",
         );
       }
 
@@ -173,7 +154,7 @@ exports.createPriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "cost_option, cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'."
+          "cost_option, cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'.",
         );
       }
     }
@@ -181,56 +162,26 @@ exports.createPriceListItem = async (req, res) => {
     let finalSortOrder = sort_order;
 
     if (finalSortOrder === undefined) {
-      const defaultSortCheckQuery = `
-    SELECT price_list_item_id
-    FROM price_list_item
-    WHERE sort_order = 0
-      AND company_id = $1
-      AND builder_id = $2
-      AND price_list_id = $3
-  `;
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) as max_sort
+        FROM price_list_item
+        WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3
+      `;
 
-      const defaultSortCheckResult = await client.query(defaultSortCheckQuery, [
+      const maxSortResult = await client.query(maxSortQuery, [
         companyId,
         builderId,
         price_list_id,
       ]);
 
-      if (defaultSortCheckResult.rowCount > 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Default sort order 0 already exists for this price list. Please provide a custom sort_order."
-        );
-      }
-
-      finalSortOrder = 0;
+      finalSortOrder = (maxSortResult.rows[0].max_sort || 0) + 1;
     } else {
-      const uniqueSortQuery = `
-    SELECT price_list_item_id
-    FROM price_list_item
-    WHERE sort_order = $1
-      AND company_id = $2
-      AND builder_id = $3
-      AND price_list_id = $4
-  `;
-
-      const uniqueSortResult = await client.query(uniqueSortQuery, [
-        finalSortOrder,
-        companyId,
-        builderId,
-        price_list_id,
-      ]);
-
-      if (uniqueSortResult.rowCount > 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          `Sort order ${finalSortOrder} already exists for this price list.`
-        );
-      }
+      await client.query(
+        `UPDATE price_list_item
+         SET sort_order = sort_order + 1
+         WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 AND sort_order >= $4`,
+        [companyId, builderId, price_list_id, finalSortOrder],
+      );
     }
 
     const insertQuery = `
@@ -254,13 +205,12 @@ exports.createPriceListItem = async (req, res) => {
         show_only_in_package,
         range_id,
         dwelling_type_id,
-        conditions,
         created_by,
         updated_by
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+        $13,$14,$15,$16,$17,$18,$19,$20,$21
       )
       RETURNING *;
     `;
@@ -285,7 +235,6 @@ exports.createPriceListItem = async (req, res) => {
       show_only_in_package || false,
       range_id || null,
       dwelling_type_id || null,
-      conditions || null,
       userId || null,
       userId || null,
     ];
@@ -297,7 +246,7 @@ exports.createPriceListItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Price list item created successfully."
+      "Price list item created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -397,7 +346,7 @@ exports.getAllPriceListItems = async (req, res) => {
         limit: limit,
         totalPages: Math.ceil(total / limit),
       },
-      "Price list items fetched successfully."
+      "Price list items fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching price list items:", error);
@@ -413,10 +362,11 @@ exports.deletePriceListItem = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
     const { priceListItemId } = req.params;
 
     const checkQuery = `
-      SELECT price_list_item_id, builder_id
+      SELECT price_list_item_id, builder_id, company_id, price_list_id, sort_order
       FROM price_list_item
       WHERE price_list_item_id = $1
     `;
@@ -432,15 +382,25 @@ exports.deletePriceListItem = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Permission denied. You can delete only your own record."
+        "Permission denied. You can delete only your own record.",
       );
     }
+
+    const deletedSortOrder = item.sort_order;
+    const priceListId = item.price_list_id;
 
     const deleteQuery = `
       DELETE FROM price_list_item
       WHERE price_list_item_id = $1
     `;
     await client.query(deleteQuery, [priceListItemId]);
+
+    await client.query(
+      `UPDATE price_list_item 
+       SET sort_order = sort_order - 1 
+       WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 AND sort_order > $4`,
+      [companyId, builderId, priceListId, deletedSortOrder],
+    );
 
     return successResponse(res, 200, "Price list item deleted successfully.");
   } catch (error) {
@@ -478,8 +438,51 @@ exports.updatePriceListItem = async (req, res) => {
       show_only_in_package,
       range_id,
       dwelling_type_id,
-      conditions,
     } = req.body;
+
+    if (range_id) {
+      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
+
+      for (const id of rangeIdsArray) {
+        if (id) {
+          const rangeCheck = await client.query(
+            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true`,
+            [id],
+          );
+
+          if (rangeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid range ID: ${id}. Range does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
+
+    if (dwelling_type_id) {
+      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
+        ? dwelling_type_id
+        : [dwelling_type_id];
+
+      for (const id of dwellingTypeIdsArray) {
+        if (id) {
+          const dwellingTypeCheck = await client.query(
+            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true`,
+            [id],
+          );
+
+          if (dwellingTypeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
 
     await client.query("BEGIN");
 
@@ -492,7 +495,7 @@ exports.updatePriceListItem = async (req, res) => {
         AND company_id = $3
       LIMIT 1
       `,
-      [price_list_item_id, builderId, companyId]
+      [price_list_item_id, builderId, companyId],
     );
 
     if (checkExisting.rowCount === 0) {
@@ -517,7 +520,7 @@ exports.updatePriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid value for status. Must be 'Active' or 'Inactive'."
+          "Invalid value for status. Must be 'Active' or 'Inactive'.",
         );
       }
     }
@@ -541,11 +544,10 @@ exports.updatePriceListItem = async (req, res) => {
       "show_only_in_package",
       "range_id",
       "dwelling_type_id",
-      "conditions",
     ];
 
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
 
     if (currentStatus === "active" && statusInBody) {
@@ -555,7 +557,7 @@ exports.updatePriceListItem = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To deactivate an active price list item, 'status' must be the only field provided in the request."
+            "To deactivate an active price list item, 'status' must be the only field provided in the request.",
           );
         }
       }
@@ -568,7 +570,7 @@ exports.updatePriceListItem = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "To activate an inactive price list item, 'status' must be the only field provided in the request."
+            "To activate an inactive price list item, 'status' must be the only field provided in the request.",
           );
         }
       }
@@ -579,7 +581,7 @@ exports.updatePriceListItem = async (req, res) => {
           return errorResponse(
             res,
             403,
-            "Cannot update non-'status' fields when the price list item is currently Inactive. Only 'status' can be changed (to 'Active')."
+            "Cannot update non-'status' fields when the price list item is currently Inactive. Only 'status' can be changed (to 'Active').",
           );
         }
       }
@@ -589,7 +591,7 @@ exports.updatePriceListItem = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Price list item is already Inactive. 'status' can only be updated to 'Active' from this state."
+          "Price list item is already Inactive. 'status' can only be updated to 'Active' from this state.",
         );
       }
     }
@@ -597,54 +599,6 @@ exports.updatePriceListItem = async (req, res) => {
     if (req.body.price_list_id) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "You cannot update price_list_id.");
-    }
-
-    if (range_id) {
-      const checkRange = await client.query(
-        `SELECT range_id FROM range WHERE range_id = $1 AND builder_id = $2 LIMIT 1`,
-        [range_id, builderId]
-      );
-
-      if (checkRange.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid range_id.");
-      }
-    }
-
-    if (range_id) {
-      const checkRange = await client.query(
-        `SELECT range_id FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true LIMIT 1`,
-        [range_id, builderId]
-      );
-
-      if (checkRange.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive range_id.");
-      }
-    }
-
-    if (dwelling_type_id) {
-      const checkDwelling = await client.query(
-        `SELECT dwelling_type_id FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 LIMIT 1`,
-        [dwelling_type_id, builderId]
-      );
-
-      if (checkDwelling.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid dwelling_type_id.");
-      }
-    }
-
-    if (dwelling_type_id) {
-      const checkDwelling = await client.query(
-        `SELECT dwelling_type_id FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true LIMIT 1`,
-        [dwelling_type_id, builderId]
-      );
-
-      if (checkDwelling.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive dwelling_type_id.");
-      }
     }
 
     let finalCostType = cost_type ?? old.cost_type;
@@ -663,7 +617,7 @@ exports.updatePriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "You cannot send cost_option, cost, or builder_cost when cost_type = 'Included'."
+          "You cannot send cost_option, cost, or builder_cost when cost_type = 'Included'.",
         );
       }
     }
@@ -687,7 +641,7 @@ exports.updatePriceListItem = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "cost_type_text is not allowed when cost_type is Fixed or Variable."
+            "cost_type_text is not allowed when cost_type is Fixed or Variable.",
           );
         }
 
@@ -706,7 +660,7 @@ exports.updatePriceListItem = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "cost_option, cost and builder_cost are required."
+            "cost_option, cost and builder_cost are required.",
           );
         }
       }
@@ -718,54 +672,39 @@ exports.updatePriceListItem = async (req, res) => {
     }
 
     let finalSortOrder = sort_order ?? old.sort_order;
+    const oldSortOrder = old.sort_order;
 
-    if (sort_order !== undefined) {
-      if (sort_order === 0) {
-        const checkDefault = await client.query(
-          `
-          SELECT price_list_item_id
-          FROM price_list_item
-          WHERE sort_order = 0
-            AND builder_id = $1
-            AND company_id = $2
-            AND price_list_id = $3
-            AND price_list_item_id != $4
-          `,
-          [builderId, companyId, old.price_list_id, price_list_item_id]
-        );
-
-        if (checkDefault.rowCount > 0) {
-          await client.query("ROLLBACK");
-          return errorResponse(res, 400, "Sort order 0 already exists.");
-        }
-      } else {
-        const checkSort = await client.query(
-          `
-          SELECT price_list_item_id
-          FROM price_list_item
-          WHERE sort_order = $1
-            AND builder_id = $2
-            AND company_id = $3
-            AND price_list_id = $4
-            AND price_list_item_id != $5
-          `,
+    if (sort_order !== undefined && sort_order !== oldSortOrder) {
+      if (sort_order < oldSortOrder) {
+        await client.query(
+          `UPDATE price_list_item
+           SET sort_order = sort_order + 1
+           WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 
+             AND sort_order >= $4 AND sort_order < $5 AND price_list_item_id != $6`,
           [
-            sort_order,
-            builderId,
             companyId,
+            builderId,
             old.price_list_id,
+            sort_order,
+            oldSortOrder,
             price_list_item_id,
-          ]
+          ],
         );
-
-        if (checkSort.rowCount > 0) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            400,
-            `Sort order ${sort_order} already exists.`
-          );
-        }
+      } else if (sort_order > oldSortOrder) {
+        await client.query(
+          `UPDATE price_list_item
+           SET sort_order = sort_order - 1
+           WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 
+             AND sort_order > $4 AND sort_order <= $5 AND price_list_item_id != $6`,
+          [
+            companyId,
+            builderId,
+            old.price_list_id,
+            oldSortOrder,
+            sort_order,
+            price_list_item_id,
+          ],
+        );
       }
     }
 
@@ -804,7 +743,6 @@ exports.updatePriceListItem = async (req, res) => {
     if (range_id !== undefined) push("range_id", range_id);
     if (dwelling_type_id !== undefined)
       push("dwelling_type_id", dwelling_type_id);
-    if (conditions !== undefined) push("conditions", conditions);
 
     push("updated_by", userId);
 
@@ -813,7 +751,7 @@ exports.updatePriceListItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -833,7 +771,7 @@ exports.updatePriceListItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Price list item updated successfully."
+      "Price list item updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

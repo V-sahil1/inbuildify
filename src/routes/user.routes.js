@@ -37,7 +37,7 @@ router.get(
   authMiddleware,
   roleMiddleware,
   validateRequest(getUsersSchema, REQUEST_SOURCE.QUERY),
-  userController.getUsers
+  userController.getUsers,
 );
 
 // GET logged-in user profile
@@ -55,12 +55,12 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(createUserSchema, REQUEST_SOURCE.FORM_DATA),
-  userController.createUser
+  userController.createUser,
 );
 
 // UPDATE an existing user
 router.put(
-  "/:userId",
+  "/:user_id",
   uploadPhoto.fields([
     { name: "photo", maxCount: 1 },
     { name: "signature", maxCount: 1 },
@@ -70,15 +70,15 @@ router.put(
   authMiddleware,
   roleMiddleware,
   validateRequest(updateUserSchema, REQUEST_SOURCE.FORM_DATA),
-  userController.updateUser
+  userController.updateUser,
 );
 
 // DELETE user (soft delete)
 router.delete(
-  "/:userId",
+  "/:user_id",
   authMiddleware,
   roleMiddleware,
-  userController.deleteUser
+  userController.deleteUser,
 );
 
 /**
@@ -94,7 +94,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(resetPasswordSchema),
-  userController.resetPassword
+  userController.resetPassword,
 );
 
 // CHANGE LOGIN ID (admin popup)
@@ -104,7 +104,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(changeLoginIdSchema),
-  userController.changeLoginId
+  userController.changeLoginId,
 );
 
 /**
@@ -118,7 +118,7 @@ router.post(
   "/:userId/toggle-active",
   authMiddleware,
   roleMiddleware,
-  userController.toggleActive
+  userController.toggleActive,
 );
 
 // Lock / Unlock user
@@ -126,7 +126,7 @@ router.post(
   "/:userId/toggle-lock",
   authMiddleware,
   roleMiddleware,
-  userController.toggleLock
+  userController.toggleLock,
 );
 
 /**
@@ -142,7 +142,7 @@ router.post(
   handleMulterError,
   authMiddleware,
   roleMiddleware,
-  userController.updatePhoto
+  userController.updatePhoto,
 );
 
 // Upload signature only
@@ -152,7 +152,7 @@ router.post(
   handleMulterError,
   authMiddleware,
   roleMiddleware,
-  userController.updateSignature
+  userController.updateSignature,
 );
 
 // Delete photo
@@ -160,7 +160,7 @@ router.delete(
   "/:userId/photo",
   authMiddleware,
   roleMiddleware,
-  userController.deletePhoto
+  userController.deletePhoto,
 );
 
 // Delete signature
@@ -168,7 +168,7 @@ router.delete(
   "/:userId/signature",
   authMiddleware,
   roleMiddleware,
-  userController.deleteSignature
+  userController.deleteSignature,
 );
 
 module.exports = router;

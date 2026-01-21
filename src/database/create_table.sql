@@ -1318,7 +1318,7 @@ CREATE TABLE price_list (
     sort_order INT DEFAULT 0,
     show_in_view_list BOOLEAN DEFAULT TRUE,
     is_active BOOLEAN DEFAULT TRUE,
-    location UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    location UUID REFERENCES location(location_id) ON DELETE SET NULL,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -2023,24 +2023,6 @@ CREATE TABLE master_price_list_categories_item (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- CREATE TABLE master_facade (
---   master_facade_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE NOT NULL,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE NOT NULL,
---   name VARCHAR(100) NOT NULL,
---   image VARCHAR(500),
---   range_type_id UUID REFERENCES range(range_id) ON DELETE CASCADE NOT NULL,
---   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE NOT NULL,
---   standard BOOLEAN DEFAULT FALSE,
---   upgrade BOOLEAN DEFAULT FALSE,
---   cost NUMERIC(12,2) DEFAULT 0,
---   is_deleted BOOLEAN DEFAULT FALSE,
---   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
---   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
---   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
---   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
--- );
-
 CREATE TABLE price_list_item (
     price_list_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     price_list_id UUID NOT NULL REFERENCES price_list(price_list_id) ON DELETE CASCADE,
@@ -2060,14 +2042,24 @@ CREATE TABLE price_list_item (
     allow_remove_from_quotation BOOLEAN DEFAULT FALSE,
     show_in_hl_package BOOLEAN DEFAULT FALSE,
     show_only_in_package BOOLEAN DEFAULT FALSE,
-    range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
-    dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
-    conditions TEXT,
+    range_id UUID[] DEFAULT '{}',                    -- REFERENCES range(range_id) ON DELETE SET NULL,
+    dwelling_type_id UUID[] DEFAULT '{}',            -- REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT chk_price_list_item_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE price_list_item_condition (
+    price_list_item_condition_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    price_list_item_id UUID NOT NULL REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+    condition_name VARCHAR(255) CHECK(condition_name IN ('site_fall', 'land_size', 'corner_block', 'land_fill')),
+    status BOOLEAN DEFAULT TRUE,                  -- if condition_name is corner block
+    range_start DOUBLE PRECISION,
+    range_end DOUBLE PRECISION,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE supplier_type (

@@ -47,15 +47,13 @@ const createPriceListItemSchema = Joi.object({
 
   show_only_in_package: Joi.boolean().default(false),
 
-  range_id: Joi.string().uuid().allow(null).messages({
-    "string.guid": "range_id must be a valid UUID",
+  range_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each range ID must be a valid UUID",
   }),
 
-  dwelling_type_id: Joi.string().uuid().allow(null).messages({
-    "string.guid": "dwelling_id must be a valid UUID",
+  dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each dwelling type ID must be a valid UUID",
   }),
-
-  conditions: Joi.string().allow(null, "").max(2000),
 });
 
 const getAllPriceListItemSchema = Joi.object({
@@ -141,15 +139,13 @@ const updatePriceListItemSchema = Joi.object({
 
   show_only_in_package: Joi.boolean(),
 
-  range_id: Joi.string().uuid().optional().messages({
-    "string.guid": "range ID must be a valid UUID",
+  range_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each range ID must be a valid UUID",
   }),
 
-  dwelling_type_id: Joi.string().uuid().allow(null).optional().messages({
-    "string.guid": "dwelling ID must be a valid UUID",
+  dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each dwelling type ID must be a valid UUID",
   }),
-
-  conditions: Joi.string().allow(null, "").max(2000).optional(),
 })
   .min(1)
   .messages({

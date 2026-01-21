@@ -83,10 +83,10 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
     const responseQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
-        ccp.construction_checklist_id as construction_checklist,
+        ccp.construction_checklist_id,
         ccp.predecessor_checklist_id,
         predecessor.name as predecessor_checklist_name,
-        ccp.off_set,
+        ccp.off_set As offset,
         ccp.duration,
         ccp.created_at,
         ccp.updated_at
@@ -163,10 +163,10 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
     const dataQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
-        ccp.construction_checklist_id as construction_checklist,
+        ccp.construction_checklist_id,
         ccp.predecessor_checklist_id,
         predecessor.name as predecessor_checklist_name,
-        ccp.off_set,
+        ccp.off_set AS offset,
         ccp.duration,
         ccp.created_at,
         ccp.updated_at
@@ -239,7 +239,7 @@ exports.getConstructionChecklistPredecessorById = async (req, res) => {
         ccp.construction_checklist_id as construction_checklist,
         ccp.predecessor_checklist_id,
         predecessor.name as predecessor_checklist_name,
-        ccp.off_set,
+        ccp.off_set AS offset,
         ccp.duration,
         ccp.created_at,
         ccp.updated_at
@@ -374,10 +374,10 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
     const responseQuery = `
       SELECT
         ccp.construction_checklist_predecessor_id,
-        ccp.construction_checklist_id as construction_checklist,
+        ccp.construction_checklist_id,
         ccp.predecessor_checklist_id,
         predecessor.name as predecessor_checklist_name,
-        ccp.off_set,
+        ccp.off_set AS offset,
         ccp.duration,
         ccp.created_at,
         ccp.updated_at

@@ -11,7 +11,7 @@ exports.createPriceList = async (req, res) => {
     const companyId = req.user.company_id;
     const userId = req.user.user_id;
 
-    let { name, sort_order = 0, show_in_view_list = true } = req.body;
+    let { name, sort_order = 0, show_in_view_list = true, location } = req.body;
 
     if (!name || name.trim() === "") {
       return errorResponse(res, 400, "Name is required.");
@@ -73,6 +73,21 @@ exports.createPriceList = async (req, res) => {
       builderId,
     ]);
 
+    if (location) {
+      const locationCheck = await client.query(
+        `SELECT 1 FROM location WHERE location_id = $1 AND status = true`,
+        [location],
+      );
+
+      if (locationCheck.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid location. Location does not exist.",
+        );
+      }
+    }
+
     const insertQuery = `
       INSERT INTO price_list (
         company_id,
@@ -80,10 +95,11 @@ exports.createPriceList = async (req, res) => {
         name,
         sort_order,
         show_in_view_list,
+        location,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING *;
     `;
 
@@ -93,6 +109,7 @@ exports.createPriceList = async (req, res) => {
       name.trim(),
       sort_order,
       show_in_view_list,
+      location,
       userId,
       userId,
     ];
@@ -289,7 +306,7 @@ exports.updatePriceList = async (req, res) => {
       return errorResponse(res, 400, "priceListId is required.");
     }
 
-    let { name, sort_order, show_in_view_list, is_active } = req.body;
+    let { name, sort_order, show_in_view_list, is_active, location } = req.body;
 
     await client.query("BEGIN");
 
@@ -339,30 +356,10 @@ exports.updatePriceList = async (req, res) => {
     }
 
     if (currentIsActive === false) {
-      if (requestedIsActiveTrue) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive price list, 'is_active' must be the only field provided in the request.",
-          );
-        }
-      }
-
-      if (updatingOtherFields) {
-        if (is_active === undefined || requestedIsActiveFalse) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Cannot update non-'is_active' fields when the price list is currently inactive. Only 'is_active' can be changed (to true).",
-          );
-        }
-      }
+      const performingActivation = is_active === true || is_active === "true";
 
       if (is_active !== undefined) {
-        if (requestedIsActiveFalse) {
+        if (is_active === false || is_active === "false") {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
@@ -370,6 +367,18 @@ exports.updatePriceList = async (req, res) => {
             "Price list is already inactive. 'is_active' can only be updated to true from this state.",
           );
         }
+      }
+
+      if (updatingOtherFields && !performingActivation) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          403,
+          "Cannot update non-'is_active' fields when price list is currently inactive. Only 'is_active' can be changed (to true).",
+        );
+      }
+
+      if (performingActivation && updatingOtherFields) {
       }
     }
 
@@ -448,6 +457,21 @@ exports.updatePriceList = async (req, res) => {
       }
     }
 
+    if (location) {
+      const locationCheck = await client.query(
+        `SELECT 1 FROM location WHERE location_id = $1 AND status = 'active'`,
+        [location],
+      );
+
+      if (locationCheck.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid location. Location does not exist.",
+        );
+      }
+    }
+
     let updateFields = [];
     let updateValues = [];
     let idx = 1;
@@ -468,7 +492,6 @@ exports.updatePriceList = async (req, res) => {
       updateFields.push(`is_active = $${idx++}`);
       updateValues.push(is_active);
     }
-
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(
