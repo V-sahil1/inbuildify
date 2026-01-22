@@ -17,7 +17,7 @@ exports.createEstate = async (req, res) => {
     featured,
   } = req.body || {};
 
-  const estate_logo = req.body.estate_logo || null;
+  const estate_logo = req.body.estate_logo;
 
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
@@ -33,7 +33,7 @@ exports.createEstate = async (req, res) => {
       `SELECT estate_id
        FROM estate
        WHERE builder_id = $1 AND LOWER(name) = LOWER($2)`,
-      [builderId, name]
+      [builderId, name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -44,7 +44,7 @@ exports.createEstate = async (req, res) => {
     if (state_id) {
       const stateCheck = await client.query(
         `SELECT state_id FROM state WHERE state_id = $1`,
-        [state_id]
+        [state_id],
       );
 
       if (stateCheck.rowCount === 0) {
@@ -56,7 +56,7 @@ exports.createEstate = async (req, res) => {
     if (country_id) {
       const countryCheck = await client.query(
         `SELECT country_id FROM country WHERE country_id = $1`,
-        [country_id]
+        [country_id],
       );
 
       if (countryCheck.rowCount === 0) {
@@ -89,7 +89,7 @@ exports.createEstate = async (req, res) => {
       state_id || null,
       country_id || null,
       zip || null,
-      estate_logo || null,
+      estate_logo,
       website || null,
       description || null,
       status || true,
@@ -104,7 +104,7 @@ exports.createEstate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Estate created successfully."
+      "Estate created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -203,7 +203,7 @@ exports.deleteEstate = async (req, res) => {
         AND builder_id = $2
         AND company_id = $3
       `,
-      [estate_id, builderId, companyId]
+      [estate_id, builderId, companyId],
     );
 
     if (check.rowCount === 0) {
@@ -211,7 +211,7 @@ exports.deleteEstate = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Estate not found or does not belong to this builder."
+        "Estate not found or does not belong to this builder.",
       );
     }
 
@@ -220,7 +220,7 @@ exports.deleteEstate = async (req, res) => {
       DELETE FROM estate
       WHERE estate_id = $1
       `,
-      [estate_id]
+      [estate_id],
     );
 
     await client.query("COMMIT");
@@ -275,7 +275,7 @@ exports.updateEstate = async (req, res) => {
       `SELECT * FROM estate 
        WHERE estate_id = $1 AND builder_id = $2 
        FOR UPDATE`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -298,7 +298,7 @@ exports.updateEstate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "The 'status' field must be a boolean (true or false)."
+          "The 'status' field must be a boolean (true or false).",
         );
       }
     }
@@ -317,7 +317,7 @@ exports.updateEstate = async (req, res) => {
     ];
 
     const updatingOtherFields = fieldsToCheck.some((f) =>
-      Object.prototype.hasOwnProperty.call(body, f)
+      Object.prototype.hasOwnProperty.call(body, f),
     );
 
     const currentStatus = oldData.status;
@@ -328,7 +328,7 @@ exports.updateEstate = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To deactivate an active estate, only 'status' must be provided."
+          "To deactivate an active estate, only 'status' must be provided.",
         );
       }
     }
@@ -341,7 +341,7 @@ exports.updateEstate = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Cannot update non-'status' fields while estate is Inactive. Only 'status' may be set to true."
+          "Cannot update non-'status' fields while estate is Inactive. Only 'status' may be set to true.",
         );
       }
 
@@ -350,7 +350,7 @@ exports.updateEstate = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Estate is already Inactive. You can only activate it."
+          "Estate is already Inactive. You can only activate it.",
         );
       }
     }
@@ -360,7 +360,7 @@ exports.updateEstate = async (req, res) => {
         `SELECT estate_id FROM estate
          WHERE builder_id = $1 AND LOWER(name) = LOWER($2)
          AND estate_id != $3`,
-        [builderId, name, estate_id]
+        [builderId, name, estate_id],
       );
 
       if (dupCheck.rowCount > 0) {
@@ -372,7 +372,7 @@ exports.updateEstate = async (req, res) => {
     if (state_id) {
       const sCheck = await client.query(
         `SELECT state_id FROM state WHERE state_id = $1`,
-        [state_id]
+        [state_id],
       );
       if (sCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -383,7 +383,7 @@ exports.updateEstate = async (req, res) => {
     if (country_id) {
       const cCheck = await client.query(
         `SELECT country_id FROM country WHERE country_id = $1`,
-        [country_id]
+        [country_id],
       );
       if (cCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -456,7 +456,7 @@ exports.updateEstate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Estate updated successfully."
+      "Estate updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");

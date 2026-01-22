@@ -16,7 +16,7 @@ exports.createEstateStage = async (req, res) => {
       `SELECT estate_id 
        FROM estate 
        WHERE estate_id = $1 AND builder_id = $2`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -24,7 +24,7 @@ exports.createEstateStage = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Estate not found or you do not have permission."
+        "Estate not found or you do not have permission.",
       );
     }
 
@@ -32,7 +32,7 @@ exports.createEstateStage = async (req, res) => {
       `SELECT estate_id 
        FROM estate 
        WHERE estate_id = $1 AND builder_id = $2 AND status = 'true'`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (estateActiveCheck.rowCount === 0) {
@@ -44,7 +44,7 @@ exports.createEstateStage = async (req, res) => {
       `SELECT estate_stage_id
        FROM estate_stages
        WHERE estate_id = $1 AND LOWER(name) = LOWER($2)`,
-      [estate_id, name]
+      [estate_id, name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -52,7 +52,7 @@ exports.createEstateStage = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Stage name already exists for this estate."
+        "Stage name already exists for this estate.",
       );
     }
 
@@ -72,7 +72,7 @@ exports.createEstateStage = async (req, res) => {
         (estate_id, name, release_date)
        VALUES ($1, $2, $3)
        RETURNING *;`,
-      [estate_id, name, release_date || null]
+      [estate_id, name, release_date || null],
     );
 
     await client.query("COMMIT");
@@ -80,7 +80,7 @@ exports.createEstateStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Estate stage created successfully."
+      "Estate stage created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -109,7 +109,7 @@ exports.getAllEstateStages = async (req, res) => {
        FROM estate_stages es
        JOIN estate e ON e.estate_id = es.estate_id
        WHERE e.builder_id = $1`,
-      [builderId]
+      [builderId],
     );
 
     const total = parseInt(countResult.rows[0].total, 10);
@@ -122,15 +122,17 @@ exports.getAllEstateStages = async (req, res) => {
        WHERE e.builder_id = $1
        ORDER BY es.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [builderId, limitNumber, offset]
+      [builderId, limitNumber, offset],
     );
 
     return successResponse(res, {
       estateStage: keysToCamelCase(result.rows),
-      records: total,
-      currentPage: pageNumber,
-      limit: limitNumber,
-      totalPages,
+      pagination: {
+        totalRecords: total,
+        currentPage: pageNumber,
+        limit: limitNumber,
+        totalPages,
+      },
     });
   } catch (err) {
     console.error("Get all estate stages error:", err);
@@ -154,7 +156,7 @@ exports.deleteEstateStage = async (req, res) => {
       `SELECT estate_id 
        FROM estate_stages
        WHERE estate_stage_id = $1`,
-      [estate_stage_id]
+      [estate_stage_id],
     );
 
     if (stageCheck.rowCount === 0) {
@@ -168,7 +170,7 @@ exports.deleteEstateStage = async (req, res) => {
       `SELECT estate_id
        FROM estate
        WHERE estate_id = $1 AND builder_id = $2`,
-      [estateId, builderId]
+      [estateId, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -176,14 +178,14 @@ exports.deleteEstateStage = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not allowed to delete stages from this estate."
+        "You are not allowed to delete stages from this estate.",
       );
     }
 
     await client.query(
       `DELETE FROM estate_stages
        WHERE estate_stage_id = $1`,
-      [estate_stage_id]
+      [estate_stage_id],
     );
 
     await client.query("COMMIT");
@@ -211,7 +213,7 @@ exports.updateEstateStage = async (req, res) => {
 
     const existing = await client.query(
       `SELECT estate_id, name FROM estate_stages WHERE estate_stage_id = $1`,
-      [estate_stage_id]
+      [estate_stage_id],
     );
 
     if (existing.rowCount === 0) {
@@ -224,7 +226,7 @@ exports.updateEstateStage = async (req, res) => {
 
     const estateCheck = await client.query(
       `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2`,
-      [estateId, builderId]
+      [estateId, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -234,7 +236,7 @@ exports.updateEstateStage = async (req, res) => {
 
     const estateActiveCheck = await client.query(
       `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2 ANd status = 'true'`,
-      [estateId, builderId]
+      [estateId, builderId],
     );
 
     if (estateActiveCheck.rowCount === 0) {
@@ -246,7 +248,7 @@ exports.updateEstateStage = async (req, res) => {
       const dupCheck = await client.query(
         `SELECT 1 FROM estate_stages 
          WHERE estate_id = $1 AND name = $2 AND estate_stage_id != $3`,
-        [estateId, name, estate_stage_id]
+        [estateId, name, estate_stage_id],
       );
 
       if (dupCheck.rowCount > 0) {
@@ -254,7 +256,7 @@ exports.updateEstateStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Stage name already exists for this estate"
+          "Stage name already exists for this estate",
         );
       }
     }
@@ -306,7 +308,7 @@ exports.updateEstateStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Estate stage updated successfully."
+      "Estate stage updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

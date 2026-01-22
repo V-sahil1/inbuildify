@@ -31,35 +31,35 @@ const upload = createUpload("estate");
 
 router.post(
   "/",
-  upload.single("estate_logo"),
+  upload.single("estateLogo"),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createEstateSchema, REQUEST_SOURCE.FORM_DATA),
-  createEstate
+  createEstate,
 );
 
 router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getAllEstateSchema, REQUEST_SOURCE.QUERY),
-  getAllEstate
+  getAllEstate,
 );
 
 router.delete(
   "/:estate_id",
   camelToSnakeMiddleware,
   validateRequest(deleteEstateSchema, REQUEST_SOURCE.PARAMS),
-  deleteEstate
+  deleteEstate,
 );
 
 router.put(
   "/:estate_id",
-  upload.single("estate_logo"),
+  upload.single("estateLogo"),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updateEstateParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateEstateSchema, REQUEST_SOURCE.BODY),
-  updateEstate
+  updateEstate,
 );
 
 module.exports = router;

@@ -19,36 +19,42 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
-
 const { REQUEST_SOURCE } = require("../config/constants");
+const { createUpload, handleMulterError } = require("../utils/s3Upload");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
-router.use(camelToSnakeMiddleware);
+const upload = createUpload("task");
 
 router.post(
   "/",
-  validateRequest(createTaskSchema, REQUEST_SOURCE.BODY),
-  createTask
+  upload.fields([{ name: "attachFiles", maxCount: 1 }]),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(createTaskSchema, REQUEST_SOURCE.FORM_DATA),
+  createTask,
 );
 
 router.get(
   "/",
   validateRequest(getAllTaskSchema, REQUEST_SOURCE.QUERY),
-  getAllTasks
+  getAllTasks,
 );
 
 router.delete(
   "/:task_id",
   validateRequest(deleteTaskSchema, REQUEST_SOURCE.PARAMS),
-  deleteTask
+  deleteTask,
 );
 
 router.put(
   "/:task_id",
+  upload.fields([{ name: "attachFiles", maxCount: 1 }]),
+  handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(updateTaskParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateTaskSchema, REQUEST_SOURCE.BODY),
-  updateTask
+  validateRequest(updateTaskSchema, REQUEST_SOURCE.FORM_DATA),
+  updateTask,
 );
 
 module.exports = router;

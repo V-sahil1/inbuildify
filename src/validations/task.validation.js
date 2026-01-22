@@ -24,6 +24,12 @@ const createTaskSchema = Joi.object({
 
   assignee_id: Joi.string().uuid().allow(null).optional(),
 
+  link_to: Joi.string().uuid().allow(null).optional().messages({
+    "string.uuid": "Link to must be a valid UUID",
+  }),
+
+  link_type: Joi.string().max(255).allow(null, "").optional(),
+
   priority: Joi.string()
     .max(20)
     .valid("Low", "Medium", "High")
@@ -33,6 +39,8 @@ const createTaskSchema = Joi.object({
     .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
     .default("Yet to Start"),
+
+  attach_files: Joi.string().max(500).allow(null, "").optional(),
 });
 
 const getAllTaskSchema = Joi.object({
@@ -48,6 +56,12 @@ const getAllTaskSchema = Joi.object({
     .optional(),
 
   assignee_id: Joi.string().uuid().allow(null).optional(),
+
+  link_to: Joi.string().uuid().allow(null).optional().messages({
+    "string.uuid": "Link to must be a valid UUID",
+  }),
+
+  link_type: Joi.string().max(255).allow(null, "").optional(),
 
   priority: Joi.string().valid("Low", "Medium", "High").optional(),
 
@@ -108,12 +122,20 @@ const updateTaskSchema = Joi.object({
 
   assignee_id: Joi.string().uuid().allow(null).optional(),
 
+  link_to: Joi.string().uuid().allow(null).optional().messages({
+    "string.uuid": "Link to must be a valid UUID",
+  }),
+
+  link_type: Joi.string().max(255).allow(null, "").optional(),
+
   priority: Joi.string().max(20).valid("Low", "Medium", "High").optional(),
 
   status: Joi.string()
     .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
     .optional(),
+
+  attach_files: Joi.string().max(500).allow(null, "").optional(),
 });
 
 module.exports = {

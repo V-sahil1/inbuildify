@@ -12,6 +12,7 @@ const {
   deleteLocationSchema,
   updateLocationParamsSchema,
   updateLocationShema,
+  getAllLocationSchema,
 } = require("../validations/location.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -31,7 +32,11 @@ router.post(
   createLocation,
 );
 
-router.get("/", getAllLocation);
+router.get(
+  "/",
+  validateRequest(getAllLocationSchema, REQUEST_SOURCE.QUERY),
+  getAllLocation,
+);
 
 router.delete(
   "/:location_id",

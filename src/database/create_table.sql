@@ -843,11 +843,53 @@ CREATE TABLE users (
   password_auto_generated BOOLEAN DEFAULT FALSE,
   email_login_credentials BOOLEAN DEFAULT FALSE,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
-  use_builder_address BOOLEAN DEFAULT FALSE,
+  use_company_address BOOLEAN DEFAULT FALSE,
   has_login BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- CREATE TABLE users (
+--   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
+--   name VARCHAR(100) NOT NULL,
+--   email VARCHAR(100) UNIQUE NOT NULL,
+--   login_id VARCHAR(100) UNIQUE NOT NULL,
+--   initials VARCHAR(10),
+--   phone VARCHAR(20),
+--   secondary_phone VARCHAR(20),
+--   role_id UUID REFERENCES role(role_id),
+--   reporting_to UUID REFERENCES users(user_id),
+--   country_id UUID REFERENCES country(country_id),
+--   state_id UUID REFERENCES state(state_id),
+--   designation VARCHAR(100),
+--   date_of_joining DATE,
+--   remark TEXT,
+--   date_of_birth DATE,
+--   consultant_bio TEXT,
+--   photo VARCHAR(500),
+--   signature VARCHAR(500),
+--   password VARCHAR(255) NOT NULL,
+--   is_verified BOOLEAN DEFAULT FALSE,
+--   is_active BOOLEAN DEFAULT TRUE,
+--   is_locked BOOLEAN DEFAULT FALSE,
+--   is_deleted BOOLEAN DEFAULT FALSE,
+--   root_user BOOLEAN DEFAULT FALSE,
+--   otp VARCHAR(10),
+--   expires_at TIMESTAMP,
+--   reset_password_token VARCHAR(255),
+--   reset_token_expires_at TIMESTAMP,
+--   failed_attempts INT DEFAULT 0,
+--   next_login_password_change BOOLEAN DEFAULT FALSE,
+--   password_auto_generated BOOLEAN DEFAULT FALSE,
+--   email_login_credentials BOOLEAN DEFAULT FALSE,
+--   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+--   use_company_address BOOLEAN DEFAULT FALSE,
+--   has_login BOOLEAN DEFAULT TRUE,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
+
 
 
 CREATE TABLE users_token (
@@ -1263,7 +1305,6 @@ CREATE TABLE sales_stage (
     CONSTRAINT uq_stage_per_process UNIQUE (sales_process_id, stage_name)
 );
 
-
 CREATE TABLE lead_source (  
     lead_source_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -1318,6 +1359,7 @@ CREATE TABLE price_list (
     sort_order INT DEFAULT 0,
     show_in_view_list BOOLEAN DEFAULT TRUE,
     is_active BOOLEAN DEFAULT TRUE,
+    is_suggested BOOLEAN DEFAULT FALSE,
     location UUID REFERENCES location(location_id) ON DELETE SET NULL,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2246,8 +2288,11 @@ CREATE TABLE task (
       due_date DATE,
       due_time TIME,
       assignee_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+      link_to UUID REFERENCES users(users_id) ON DELETE SET NULL,
+      link_type VARCHAR(255),
       priority VARCHAR(20) CHECK (priority IN ('Low', 'Medium', 'High')) DEFAULT 'Medium',
       status VARCHAR(20) CHECK (status IN ('Yet to Start', 'In Progress', 'Completed', 'Cancelled', 'Skipped')) DEFAULT 'Yet to Start',
+      attach_files VARCHAR(500),
       created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
       updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -2262,15 +2307,6 @@ CREATE TABLE task (
     action_id UUID NOT NULL, -- ID of the task/note/appointment record
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (entity_type, entity_id, action_type, action_id)
-);
-
-CREATE TABLE task_attachment (
-    attachment_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    task_id UUID REFERENCES task(task_id) ON DELETE CASCADE,
-    file_url TEXT NOT NULL,
-    file_name VARCHAR(255),
-    uploaded_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-    uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE location (

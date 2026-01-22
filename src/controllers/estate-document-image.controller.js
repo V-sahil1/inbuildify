@@ -28,7 +28,7 @@ exports.getEstateImages = async (req, res) => {
     ORDER BY created_at ASC
     LIMIT 1
     `,
-        [companyId, builderId]
+        [companyId, builderId],
       );
 
       if (estateRes.rowCount === 0) {
@@ -43,7 +43,7 @@ exports.getEstateImages = async (req, res) => {
       VALUES ('Default Estate', $1, $2, NOW())
       RETURNING estate_id
       `,
-          [companyId, builderId]
+          [companyId, builderId],
         );
 
         targetEstateId = newEstate.rows[0].estate_id;
@@ -59,7 +59,7 @@ exports.getEstateImages = async (req, res) => {
       WHERE estate_id = $1
       LIMIT 1
       `,
-      [targetEstateId]
+      [targetEstateId],
     );
 
     if (imageExists.rowCount === 0) {
@@ -73,7 +73,7 @@ exports.getEstateImages = async (req, res) => {
         )
         VALUES ($1, NULL, NOW(), $2)
         `,
-        [targetEstateId, userId]
+        [targetEstateId, userId],
       );
     }
 
@@ -94,13 +94,13 @@ exports.getEstateImages = async (req, res) => {
         AND (e.company_id = $2 OR e.builder_id = $3)
       ORDER BY ei.uploaded_at DESC
       `,
-      [targetEstateId, companyId, builderId]
+      [targetEstateId, companyId, builderId],
     );
 
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Estate images fetched successfully"
+      "Estate images fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching estate images:", error);
@@ -186,7 +186,7 @@ exports.updateEstateImage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Estate image updated successfully"
+      "Estate image updated successfully",
     );
   } catch (error) {
     console.error("Error updating estate image:", error);
@@ -231,7 +231,7 @@ exports.createEstateDocument = async (req, res) => {
       WHERE estate_id = $1 
         AND (company_id = $2 OR builder_id = $3)
       `,
-      [estate_id, companyId, builderId]
+      [estate_id, companyId, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -247,7 +247,7 @@ exports.createEstateDocument = async (req, res) => {
       WHERE estate_id = $1 
         AND LOWER(document_name) = LOWER($2)
       `,
-      [estate_id, document_name.trim()]
+      [estate_id, document_name.trim()],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -255,7 +255,7 @@ exports.createEstateDocument = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Document with this name already exists for this estate"
+        "Document with this name already exists for this estate",
       );
     }
 
@@ -267,7 +267,7 @@ exports.createEstateDocument = async (req, res) => {
       ) VALUES ($1, $2, $3, NOW(), $4, NOW(), $5)
       RETURNING *
       `,
-      [estate_id, document_name.trim(), file_url, userId, userId]
+      [estate_id, document_name.trim(), file_url, userId, userId],
     );
 
     // Get response with estate information
@@ -301,7 +301,7 @@ exports.createEstateDocument = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Estate document created successfully"
+      "Estate document created successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -343,7 +343,7 @@ exports.getEstateDocuments = async (req, res) => {
 
     // Add company/builder scope
     conditions.push(
-      `(e.company_id = $${paramIndex++} OR e.builder_id = $${paramIndex++})`
+      `(e.company_id = $${paramIndex++} OR e.builder_id = $${paramIndex++})`,
     );
     values.push(companyId, builderId);
 
@@ -401,7 +401,7 @@ exports.getEstateDocuments = async (req, res) => {
           limit: limitNum,
         },
       },
-      "Estate documents fetched successfully"
+      "Estate documents fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching estate documents:", error);
@@ -430,11 +430,6 @@ exports.updateEstateDocument = async (req, res) => {
       (req.body.fileUrl === "" ? null : req.body.fileUrl) ||
       (req.body.file_url === "" ? null : req.body.file_url);
 
-    if (!document_name) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 400, "document_name is required");
-    }
-
     const checkQuery = `
       SELECT ed.*
       FROM estate_documents ed
@@ -453,7 +448,7 @@ exports.updateEstateDocument = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Estate document not found or access denied"
+        "Estate document not found or access denied",
       );
     }
 
@@ -516,7 +511,7 @@ exports.updateEstateDocument = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Estate document updated successfully"
+      "Estate document updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");

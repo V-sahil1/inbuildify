@@ -6,6 +6,7 @@ const {
   getAllPriceList,
   deletePriceList,
   updatePriceList,
+  toggleSuggestedPriceList,
 } = require("../controllers/price-list.controller");
 const {
   createPriceListSchema,
@@ -29,25 +30,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createPriceListSchema, REQUEST_SOURCE.BODY),
-  createPriceList
+  createPriceList,
 );
 
 router.get(
   "/",
   validateRequest(getAllPriceListSchema, REQUEST_SOURCE.QUERY),
-  getAllPriceList
+  getAllPriceList,
 );
 
 router.delete(
   "/:priceListId",
   validateRequest(deletePriceListSchema, REQUEST_SOURCE.PARAMS),
-  deletePriceList
+  deletePriceList,
 );
 
 router.put(
   "/:priceListId",
   validateRequest(updatePriceListParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePriceListSchema, REQUEST_SOURCE.BODY),
-  updatePriceList
+  updatePriceList,
 );
+
+router.put(
+  "/suggested/:priceListId",
+  validateRequest(deletePriceListSchema, REQUEST_SOURCE.PARAMS),
+  toggleSuggestedPriceList,
+);
+
 module.exports = router;

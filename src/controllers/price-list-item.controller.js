@@ -243,9 +243,77 @@ exports.createPriceListItem = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Get the complete data with nested relationships
+    const getCreatedItemQuery = `
+      SELECT 
+        pli.*,
+        pl.name as price_list_name,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data
+      FROM price_list_item pli
+      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+      WHERE pli.price_list_item_id = $1
+    `;
+
+    const createdItemResult = await client.query(getCreatedItemQuery, [
+      result.rows[0].price_list_item_id,
+    ]);
+    const createdItem = keysToCamelCase(createdItemResult.rows[0]);
+
+    // Format the response to match the specified structure
+    const formattedItem = {
+      priceListItemId: createdItem.priceListItemId,
+      priceList: {
+        id: createdItem.priceListId,
+        name: createdItem.priceListName,
+      },
+      companyId: createdItem.companyId,
+      builderId: createdItem.builderId,
+      itemDescription: createdItem.itemDescription,
+      shortDescription: createdItem.shortDescription,
+      costType: createdItem.costType,
+      costTypeText: createdItem.costTypeText,
+      costOption: createdItem.costOption,
+      cost: createdItem.cost ? createdItem.cost.toString() : null,
+      builderCost: createdItem.builderCost
+        ? createdItem.builderCost.toString()
+        : null,
+      sortOrder: createdItem.sortOrder,
+      uom: createdItem.uom,
+      status: createdItem.status,
+      includeByDefault: createdItem.includeByDefault,
+      allowRemoveFromQuotation: createdItem.allowRemoveFromQuotation,
+      showInHlPackage: createdItem.showInHlPackage,
+      showOnlyInPackage: createdItem.showOnlyInPackage,
+      range: createdItem.rangeData || [],
+      dwellingType: createdItem.dwellingTypeData || [],
+      createdBy: createdItem.createdBy,
+      updatedBy: createdItem.updatedBy,
+      createdAt: createdItem.createdAt,
+      updatedAt: createdItem.updatedAt,
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      formattedItem,
       "Price list item created successfully.",
     );
   } catch (error) {
@@ -272,6 +340,10 @@ exports.getAllPriceListItems = async (req, res) => {
       cost_option,
       price,
       item_description,
+      price_list_id,
+      dwelling_type_id,
+      range_id,
+      location_id,
       sort_order = "asc",
     } = req.query;
 
@@ -288,30 +360,50 @@ exports.getAllPriceListItems = async (req, res) => {
     let values = [];
     let index = 1;
 
-    conditions.push(`builder_id = $${index++}`);
+    conditions.push(`pli.builder_id = $${index++}`);
     values.push(builderId);
 
-    conditions.push(`company_id = $${index++}`);
+    conditions.push(`pli.company_id = $${index++}`);
     values.push(companyId);
 
     if (status) {
-      conditions.push(`status = $${index++}`);
+      conditions.push(`pli.status = $${index++}`);
       values.push(status);
     }
 
     if (cost_option) {
-      conditions.push(`cost_option = $${index++}`);
+      conditions.push(`pli.cost_option = $${index++}`);
       values.push(cost_option);
     }
 
     if (price) {
-      conditions.push(`cost = $${index++}`);
+      conditions.push(`pli.cost = $${index++}`);
       values.push(price);
     }
 
     if (item_description) {
-      conditions.push(`item_description ILIKE $${index++}`);
+      conditions.push(`pli.item_description ILIKE $${index++}`);
       values.push(`%${item_description}%`);
+    }
+
+    if (price_list_id) {
+      conditions.push(`pli.price_list_id = $${index++}`);
+      values.push(price_list_id);
+    }
+
+    if (dwelling_type_id) {
+      conditions.push(`$${index++} = ANY(pli.dwelling_type_id)`);
+      values.push(dwelling_type_id);
+    }
+
+    if (range_id) {
+      conditions.push(`$${index++} = ANY(pli.range_id)`);
+      values.push(range_id);
+    }
+
+    if (location_id) {
+      conditions.push(`pl.location = $${index++}`);
+      values.push(location_id);
     }
 
     const whereClause = conditions.length
@@ -320,7 +412,8 @@ exports.getAllPriceListItems = async (req, res) => {
 
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM price_list_item
+      FROM price_list_item pli
+      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
       ${whereClause}
     `;
 
@@ -328,23 +421,83 @@ exports.getAllPriceListItems = async (req, res) => {
     const total = parseInt(countResult.rows[0].total, 10);
 
     const mainQuery = `
-      SELECT *
-      FROM price_list_item
+      SELECT 
+        pli.*,
+        pl.name as price_list_name,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data
+      FROM price_list_item pli
+      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
       ${whereClause}
-      ORDER BY sort_order ${sort_order}
+      ORDER BY pli.sort_order ${sort_order}
       LIMIT ${limit} OFFSET ${offset}
     `;
 
     const result = await client.query(mainQuery, values);
 
+    // Format the response to match the specified structure
+    const formattedItems = result.rows.map((row) => {
+      const item = keysToCamelCase(row);
+
+      return {
+        priceListItemId: item.priceListItemId,
+        priceList: {
+          id: item.priceListId,
+          name: item.priceListName,
+        },
+        companyId: item.companyId,
+        builderId: item.builderId,
+        itemDescription: item.itemDescription,
+        shortDescription: item.shortDescription,
+        costType: item.costType,
+        costTypeText: item.costTypeText,
+        costOption: item.costOption,
+        cost: item.cost ? item.cost.toString() : null,
+        builderCost: item.builderCost ? item.builderCost.toString() : null,
+        sortOrder: item.sortOrder,
+        uom: item.uom,
+        status: item.status,
+        includeByDefault: item.includeByDefault,
+        allowRemoveFromQuotation: item.allowRemoveFromQuotation,
+        showInHlPackage: item.showInHlPackage,
+        showOnlyInPackage: item.showOnlyInPackage,
+        range: item.rangeData || [],
+        dwellingType: item.dwellingTypeData || [],
+        createdBy: item.createdBy,
+        updatedBy: item.updatedBy,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
+
     return successResponse(
       res,
       {
-        records: keysToCamelCase(result.rows),
-        totalRecords: total,
-        currentPage: page,
-        limit: limit,
-        totalPages: Math.ceil(total / limit),
+        priceListItem: formattedItems,
+        pagination: {
+          totalRecords: total,
+          currentPage: page,
+          limit: limit,
+          totalPages: Math.ceil(total / limit),
+        },
       },
       "Price list items fetched successfully.",
     );
@@ -768,9 +921,77 @@ exports.updatePriceListItem = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Get the complete updated data with nested relationships
+    const getUpdatedItemQuery = `
+      SELECT 
+        pli.*,
+        pl.name as price_list_name,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data
+      FROM price_list_item pli
+      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+      WHERE pli.price_list_item_id = $1
+    `;
+
+    const updatedItemResult = await client.query(getUpdatedItemQuery, [
+      price_list_item_id,
+    ]);
+    const updatedItem = keysToCamelCase(updatedItemResult.rows[0]);
+
+    // Format the response to match the specified structure
+    const formattedItem = {
+      priceListItemId: updatedItem.priceListItemId,
+      priceList: {
+        id: updatedItem.priceListId,
+        name: updatedItem.priceListName,
+      },
+      companyId: updatedItem.companyId,
+      builderId: updatedItem.builderId,
+      itemDescription: updatedItem.itemDescription,
+      shortDescription: updatedItem.shortDescription,
+      costType: updatedItem.costType,
+      costTypeText: updatedItem.costTypeText,
+      costOption: updatedItem.costOption,
+      cost: updatedItem.cost ? updatedItem.cost.toString() : null,
+      builderCost: updatedItem.builderCost
+        ? updatedItem.builderCost.toString()
+        : null,
+      sortOrder: updatedItem.sortOrder,
+      uom: updatedItem.uom,
+      status: updatedItem.status,
+      includeByDefault: updatedItem.includeByDefault,
+      allowRemoveFromQuotation: updatedItem.allowRemoveFromQuotation,
+      showInHlPackage: updatedItem.showInHlPackage,
+      showOnlyInPackage: updatedItem.showOnlyInPackage,
+      range: updatedItem.rangeData || [],
+      dwellingType: updatedItem.dwellingTypeData || [],
+      createdBy: updatedItem.createdBy,
+      updatedBy: updatedItem.updatedBy,
+      createdAt: updatedItem.createdAt,
+      updatedAt: updatedItem.updatedAt,
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(updated.rows[0]),
+      formattedItem,
       "Price list item updated successfully.",
     );
   } catch (error) {

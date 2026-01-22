@@ -5,6 +5,10 @@ const createLocationSchema = Joi.object({
   status: Joi.boolean().default(true),
 });
 
+const getAllLocationSchema = Joi.object({
+  status: Joi.boolean().optional(),
+});
+
 const deleteLocationSchema = Joi.object({
   location_id: Joi.string().uuid().required().messages({
     "string.guid": "location ID must be a valid UUID",
@@ -29,4 +33,5 @@ module.exports = {
   deleteLocationSchema,
   updateLocationParamsSchema,
   updateLocationShema,
+  getAllLocationSchema,
 };

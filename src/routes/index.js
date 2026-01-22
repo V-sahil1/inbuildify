@@ -101,7 +101,7 @@ const packageLabelMapRoutes = require("./package-label-map.routes");
 const packageDwellingMapRoutes = require("./package-dwelling-map.routes");
 const packagePriceListItemMapRoutes = require("./package-pricelist-item-map.routes");
 const taskRoutes = require("./task.routes");
-const taskAttachmentRoutes = require("./task-attachment.routes");
+
 const locationRoutes = require("./location.routes");
 const estateRoutes = require("./estate.routes");
 const estateFeatureRoutes = require("./estate-feature.routes");
@@ -241,7 +241,6 @@ module.exports = function (app) {
   app.use("/package-dwelling-map", packageDwellingMapRoutes);
   app.use("/package-price-list-item-map", packagePriceListItemMapRoutes);
   app.use("/task", taskRoutes);
-  app.use("/task-attachment", taskAttachmentRoutes);
   app.use("/location", locationRoutes);
   app.use("/estate", estateRoutes);
   app.use("/estate-feature", estateFeatureRoutes);

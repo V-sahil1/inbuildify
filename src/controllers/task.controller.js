@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createTask = async (req, res) => {
   const pool = getPool();
@@ -19,9 +20,13 @@ exports.createTask = async (req, res) => {
       due_date,
       due_time,
       assignee_id,
+      link_to,
+      link_type,
       priority = "Medium",
       status = "Yet to Start",
     } = req.body;
+
+    const attach_files = req.files?.attachFiles?.[0]?.location || null;
 
     if (!builderId || !companyId) {
       await client.query("ROLLBACK");
@@ -30,12 +35,23 @@ exports.createTask = async (req, res) => {
 
     if (assignee_id) {
       const assigneeCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
-        [assignee_id]
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        [assignee_id],
       );
       if (assigneeCheck.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Invalid assignee_id");
+      }
+    }
+
+    if (link_to) {
+      const linkToCheck = await client.query(
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        [link_to],
+      );
+      if (linkToCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid link_to user_id");
       }
     }
 
@@ -59,12 +75,15 @@ exports.createTask = async (req, res) => {
         due_date,
         due_time,
         assignee_id,
+        link_to,
+        link_type,
         priority,
         status,
+        attach_files,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `;
 
@@ -76,8 +95,11 @@ exports.createTask = async (req, res) => {
       due_date || null,
       due_time || null,
       assignee_id || null,
+      link_to || null,
+      link_type || null,
       priority,
       status,
+      attach_files || null,
       createdBy,
       createdBy,
     ]);
@@ -86,10 +108,8 @@ exports.createTask = async (req, res) => {
 
     return successResponse(
       res,
-      {
-        task: keysToCamelCase(result.rows[0]),
-      },
-      "Task created successfully"
+      keysToCamelCase(result.rows[0]),
+      "Task created successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -119,6 +139,8 @@ exports.getAllTasks = async (req, res) => {
       status,
       priority,
       assignee_id,
+      link_to,
+      link_type,
     } = req.query;
 
     const pageValue = parseInt(page, 10);
@@ -163,6 +185,18 @@ exports.getAllTasks = async (req, res) => {
       index++;
     }
 
+    if (link_to) {
+      filters.push(`t.link_to = $${index}`);
+      values.push(link_to);
+      index++;
+    }
+
+    if (link_type) {
+      filters.push(`t.link_type = $${index}`);
+      values.push(link_type);
+      index++;
+    }
+
     const whereClause =
       filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
 
@@ -197,7 +231,7 @@ exports.getAllTasks = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Tasks fetched successfully"
+      "Tasks fetched successfully",
     );
   } catch (error) {
     console.error("Error in getAllTasks:", error);
@@ -236,7 +270,7 @@ exports.deleteTask = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You cannot delete tasks of another builder"
+        "You cannot delete tasks of another builder",
       );
     }
 
@@ -265,9 +299,14 @@ exports.updateTask = async (req, res) => {
     due_date,
     due_time,
     assignee_id,
+    link_to,
+    link_type,
     priority,
     status,
   } = req.body;
+
+  const attach_files =
+    req.files?.attachFiles?.[0]?.location || req.body.attach_files || null;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -286,7 +325,7 @@ exports.updateTask = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Task not found or you do not have permission to update it"
+        "Task not found or you do not have permission to update it",
       );
     }
 
@@ -343,8 +382,8 @@ exports.updateTask = async (req, res) => {
 
     if (assignee_id) {
       const assigneeCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
-        [assignee_id]
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        [assignee_id],
       );
 
       if (assigneeCheck.rows.length === 0) {
@@ -352,13 +391,73 @@ exports.updateTask = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid assignee_id. You can assign only your own builder users"
+          "Invalid assignee_id. You can assign only your own builder users",
         );
       }
 
       fields.push(`assignee_id = $${index}`);
       values.push(assignee_id);
       index++;
+    }
+
+    if (link_to) {
+      const linkToCheck = await client.query(
+        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        [link_to],
+      );
+
+      if (linkToCheck.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid link_to user_id");
+      }
+
+      fields.push(`link_to = $${index}`);
+      values.push(link_to);
+      index++;
+    }
+
+    if (link_type !== undefined) {
+      fields.push(`link_type = $${index}`);
+      values.push(link_type);
+      index++;
+    }
+
+    if (attach_files !== undefined || req.files?.attachFiles) {
+      const existingTask = findResult.rows[0];
+      const newAttachFiles =
+        req.files?.attachFiles?.[0]?.location || attach_files;
+
+      // If there's a new file and it's different from the existing one, delete the old file
+      if (
+        newAttachFiles &&
+        existingTask.attach_files &&
+        newAttachFiles !== existingTask.attach_files
+      ) {
+        try {
+          await deleteFromS3(existingTask.attach_files);
+        } catch (s3Error) {
+          console.error("Error deleting old attachment from S3:", s3Error);
+          // Continue with the update even if S3 deletion fails
+        }
+      }
+
+      // Handle case where attach_files is explicitly set to null/empty to remove the file
+      if (attach_files === "" || attach_files === null) {
+        if (existingTask.attach_files) {
+          try {
+            await deleteFromS3(existingTask.attach_files);
+          } catch (s3Error) {
+            console.error("Error deleting old attachment from S3:", s3Error);
+          }
+        }
+        fields.push(`attach_files = $${index}`);
+        values.push(null);
+        index++;
+      } else if (newAttachFiles) {
+        fields.push(`attach_files = $${index}`);
+        values.push(newAttachFiles);
+        index++;
+      }
     }
 
     if (fields.length === 0) {
@@ -389,7 +488,7 @@ exports.updateTask = async (req, res) => {
       {
         task: keysToCamelCase(updateResult.rows[0]),
       },
-      "Task updated successfully"
+      "Task updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");

@@ -15,7 +15,7 @@ exports.createEstateFeature = async (req, res) => {
     const estateCheck = await client.query(
       `SELECT estate_id FROM estate 
        WHERE estate_id = $1 AND builder_id = $2`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -23,14 +23,14 @@ exports.createEstateFeature = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Estate not found or does not belong to this builder."
+        "Estate not found or does not belong to this builder.",
       );
     }
 
     const estateActiveCheck = await client.query(
       `SELECT estate_id FROM estate 
        WHERE estate_id = $1 AND builder_id = $2 AND status = 'true'`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (estateActiveCheck.rowCount === 0) {
@@ -41,7 +41,7 @@ exports.createEstateFeature = async (req, res) => {
     const dupCheck = await client.query(
       `SELECT estate_feature_id FROM estate_features 
        WHERE estate_id = $1 AND LOWER(feature_name) = LOWER($2)`,
-      [estate_id, feature_name]
+      [estate_id, feature_name],
     );
 
     if (dupCheck.rowCount > 0) {
@@ -49,7 +49,7 @@ exports.createEstateFeature = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Feature name already exists for this estate."
+        "Feature name already exists for this estate.",
       );
     }
 
@@ -66,7 +66,7 @@ exports.createEstateFeature = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Estate feature created successfully."
+      "Estate feature created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -118,13 +118,13 @@ exports.getAllEstateFeatures = async (req, res) => {
     return successResponse(
       res,
       {
-        data: dataResult.rows,
+        estateFeature: keysToCamelCase(dataResult.rows),
         records: total,
         currentPage: page,
         limit,
         totalPages: Math.ceil(total / limit),
       },
-      "Estate features fetched successfully."
+      "Estate features fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching estate features:", err);
@@ -145,14 +145,14 @@ exports.getEstateFeaturesByEstateId = async (req, res) => {
     const estateCheck = await client.query(
       `SELECT estate_id FROM estate 
        WHERE estate_id = $1 AND builder_id = $2`,
-      [estate_id, builderId]
+      [estate_id, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Estate not found or does not belong to this builder."
+        "Estate not found or does not belong to this builder.",
       );
     }
 
@@ -171,8 +171,8 @@ exports.getEstateFeaturesByEstateId = async (req, res) => {
 
     return successResponse(
       res,
-      result.rows,
-      "Estate features fetched successfully."
+      keysToCamelCase(result.rows),
+      "Estate features fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching estate features:", err);
@@ -196,7 +196,7 @@ exports.deleteEstateFeature = async (req, res) => {
       `SELECT estate_id 
        FROM estate_features 
        WHERE estate_feature_id = $1`,
-      [estate_feature_id]
+      [estate_feature_id],
     );
 
     if (featureCheck.rowCount === 0) {
@@ -210,7 +210,7 @@ exports.deleteEstateFeature = async (req, res) => {
       `SELECT estate_id 
        FROM estate
        WHERE estate_id = $1 AND builder_id = $2`,
-      [estateId, builderId]
+      [estateId, builderId],
     );
 
     if (estateCheck.rowCount === 0) {
@@ -218,14 +218,14 @@ exports.deleteEstateFeature = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not allowed to delete features from this estate."
+        "You are not allowed to delete features from this estate.",
       );
     }
 
     await client.query(
       `DELETE FROM estate_features 
        WHERE estate_feature_id = $1`,
-      [estate_feature_id]
+      [estate_feature_id],
     );
 
     await client.query("COMMIT");

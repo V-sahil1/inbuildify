@@ -139,17 +139,167 @@ exports.getAllPriceList = async (req, res) => {
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
+    const userId = req.user?.users_id;
 
-    let { page = 1, limit = 25, is_active, search } = req.query;
+    let { page = 1, limit = 25, is_active, is_suggested, search } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
 
     const offset = (page - 1) * limit;
 
+    const existingQuery = `
+      SELECT price_list_id
+      FROM price_list
+      WHERE company_id = $1 AND builder_id = $2
+      LIMIT 1
+    `;
+    const existingResult = await client.query(existingQuery, [
+      companyId,
+      builderId,
+    ]);
+
+    if (existingResult.rowCount === 0) {
+      const defaultPriceLists = [
+        {
+          name: "Standard Package",
+          sort_order: 1,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Premium Package",
+          sort_order: 2,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Deluxe Package",
+          sort_order: 3,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Basic Package",
+          sort_order: 4,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Custom Package",
+          sort_order: 5,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Economy Package",
+          sort_order: 6,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Luxury Package",
+          sort_order: 7,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Executive Package",
+          sort_order: 8,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Family Package",
+          sort_order: 9,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+        {
+          name: "Business Package",
+          sort_order: 10,
+          show_in_view_list: true,
+          is_active: true,
+          is_suggested: true,
+        },
+      ];
+
+      const insertQuery = `
+        INSERT INTO price_list (
+          company_id,
+          builder_id,
+          name,
+          sort_order,
+          show_in_view_list,
+          is_active,
+          is_suggested,
+          created_by,
+          updated_by
+        ) VALUES
+        ${defaultPriceLists
+          .map(
+            (_, i) =>
+              `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4},
+                $${i * 9 + 5}, $${i * 9 + 6}, $${i * 9 + 7}, $${i * 9 + 8}, $${i * 9 + 9})`,
+          )
+          .join(", ")}
+        RETURNING *;
+      `;
+
+      const insertValues = [];
+      defaultPriceLists.forEach((priceList) => {
+        insertValues.push(
+          companyId,
+          builderId,
+          priceList.name,
+          priceList.sort_order,
+          priceList.show_in_view_list,
+          priceList.is_active,
+          priceList.is_suggested,
+          userId,
+          userId,
+        );
+      });
+
+      await client.query(insertQuery, insertValues);
+
+      if (!is_active && !is_suggested && !search) {
+        return successResponse(
+          res,
+          {
+            priceList: [],
+            pagination: {
+              priceList: 0,
+              currentPage: page,
+              limit,
+              totalPages: 0,
+            },
+          },
+          "Price list fetched successfully.",
+        );
+      }
+    }
+
     let conditions = [`company_id = $1`, `builder_id = $2`];
     let values = [companyId, builderId];
     let index = 3;
+
+    if (is_suggested !== undefined) {
+      conditions.push(`is_suggested = $${index}`);
+      values.push(is_suggested === "true");
+      index++;
+    } else {
+      conditions.push(`is_suggested = false`);
+    }
 
     if (is_active !== undefined) {
       conditions.push(`is_active = $${index}`);
@@ -527,6 +677,86 @@ exports.updatePriceList = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating price list:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.toggleSuggestedPriceList = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+    const { priceListId } = req.params;
+
+    if (!priceListId) {
+      return errorResponse(res, 400, "priceListId is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const existing = await client.query(
+      `
+      SELECT price_list_id, is_suggested
+      FROM price_list
+      WHERE price_list_id = $1
+        AND company_id = $2
+        AND builder_id = $3
+      `,
+      [priceListId, companyId, builderId],
+    );
+
+    if (existing.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        404,
+        "Price list not found or you do not have permission to modify this.",
+      );
+    }
+
+    const currentPriceList = existing.rows[0];
+
+    if (currentPriceList.is_suggested === false) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Cannot change is_suggested from false to true. Only allowed to change from true to false.",
+      );
+    }
+
+    const updateQuery = `
+      UPDATE price_list
+      SET is_suggested = false,
+          updated_by = $1,
+          updated_at = NOW()
+      WHERE price_list_id = $2
+        AND company_id = $3
+        AND builder_id = $4
+      RETURNING *;
+    `;
+
+    const updateResult = await client.query(updateQuery, [
+      req.user?.users_id,
+      priceListId,
+      companyId,
+      builderId,
+    ]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(updateResult.rows[0]),
+      "Price list is_suggested status updated successfully.",
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error toggling is_suggested price list:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();

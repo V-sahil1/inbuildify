@@ -35,7 +35,7 @@ const createUserSchema = Joi.object({
   designation: Joi.string().max(100).allow(null, ""),
   remark: Joi.string().allow(null, ""),
   consultant_bio: Joi.string().allow(null, ""),
-  use_builder_address: Joi.boolean().truthy("true").falsy("false"),
+  use_company_address: Joi.boolean().truthy("true").falsy("false"),
   password_option: Joi.string().valid("auto", "manual"),
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().truthy("true").falsy("false"),

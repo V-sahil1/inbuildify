@@ -189,7 +189,7 @@ async function createUser(data) {
       remark,
       consultant_bio,
       address_id,
-      use_builder_address,
+      use_company_address,
       root_user,
       has_login,
       next_login_password_change,
@@ -202,7 +202,7 @@ async function createUser(data) {
           name, email, login_id, password, role_id,
           phone, secondary_phone, initials, reporting_to,
           date_of_joining, date_of_birth, designation, remark,
-          consultant_bio, address_id, use_builder_address,
+          consultant_bio, address_id, use_company_address,
           root_user, has_login, next_login_password_change, builder_id, is_verified
         )
         VALUES (
@@ -230,7 +230,7 @@ async function createUser(data) {
         remark,
         consultant_bio,
         address_id,
-        use_builder_address,
+        use_company_address,
         root_user,
         has_login,
         next_login_password_change,

@@ -22,7 +22,7 @@ async function getBuilderAddress(builderId) {
       WHERE b.builder_id = $1
       LIMIT 1
       `,
-      [builderId]
+      [builderId],
     );
 
     return result.rows[0] || null;
@@ -32,5 +32,5 @@ async function getBuilderAddress(builderId) {
 }
 
 module.exports = {
-    getBuilderAddress
-}
+  getBuilderAddress,
+};

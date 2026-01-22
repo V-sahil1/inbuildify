@@ -67,6 +67,22 @@ const getAllPriceListItemSchema = Joi.object({
 
   sort_order: Joi.string().valid("asc", "desc").default("asc"),
 
+  price_list_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "price_list_id must be a valid UUID",
+  }),
+
+  range_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "range_id must be a valid UUID",
+  }),
+
+  dwelling_type_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "dwelling_type_id must be a valid UUID",
+  }),
+
+  location_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "location_id must be a valid UUID",
+  }),
+
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

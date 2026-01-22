@@ -18,13 +18,7 @@ module.exports.validateRequest =
         dataToValidate = req.params;
         break;
       case REQUEST_SOURCE.FORM_DATA:
-        dataToValidate = {
-          ...req.body,
-          ...(req.file && {
-            [req.file.fieldname]: req.file.location || req.file.path,
-          }),
-        };
-
+        dataToValidate = { ...req.body };
         break;
       default:
         dataToValidate = req[source];

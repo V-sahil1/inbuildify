@@ -62,7 +62,7 @@ async function createUser(currentUser, body, files) {
     designation,
     remark,
     consultant_bio,
-    use_builder_address,
+    use_company_address,
     password_option,
     manual_password,
     next_login_password_change,
@@ -145,7 +145,7 @@ async function createUser(currentUser, body, files) {
 
   let addressId = null;
 
-  if (use_builder_address === "true") {
+  if (use_company_address === "true") {
     const builderAddress = await builderRepo.getBuilderAddress(
       currentUser.builder_id,
     );
@@ -176,7 +176,7 @@ async function createUser(currentUser, body, files) {
     remark,
     consultant_bio,
     address_id: addressId,
-    use_builder_address: use_builder_address === "true",
+    use_company_address: use_company_address === "true",
     root_user: false,
     has_login: true,
     next_login_password_change: next_login_password_change === "true",
@@ -275,7 +275,7 @@ async function updateUser(currentUser, userId, body, files) {
     --------------------------- */
   let addressId = targetUser.address_id;
 
-  if (body.use_builder_address === "true") {
+  if (body.use_company_address === "true") {
     const builderAddress = await builderRepo.getBuilderAddress(
       targetUser.builder_id,
     );
@@ -296,7 +296,7 @@ async function updateUser(currentUser, userId, body, files) {
     ...body,
     email: body.email?.toLowerCase(),
     address_id: addressId,
-    use_builder_address: body.use_builder_address === "true",
+    use_company_address: body.use_company_address === "true",
   };
 
   await userRepo.updateUser(userId, updateData);

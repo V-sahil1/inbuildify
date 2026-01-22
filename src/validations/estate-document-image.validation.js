@@ -44,7 +44,7 @@ const createEstateDocumentSchema = Joi.object({
 });
 
 const updateEstateDocumentSchema = Joi.object({
-  document_name: Joi.string().max(255).required(),
+  document_name: Joi.string().max(255).optional(),
   file_url: Joi.string().uri().max(500).allow(null, "").optional(),
   fileUrl: Joi.string().uri().max(500).allow(null, "").optional(),
 });

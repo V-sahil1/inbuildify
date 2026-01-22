@@ -17,7 +17,7 @@ const fileData = allowedFileData();
 const allowedTypes = new RegExp(fileData.types.replace(/^\/|\/$/g, ""), "i");
 const fileFilter = (req, file, cb) => {
   const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
+    path.extname(file.originalname).toLowerCase(),
   );
   const mimetype = allowedTypes.test(file.mimetype);
 
@@ -44,7 +44,7 @@ const createUpload = (folderName = "uploads") =>
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const filename = `${folderName}/${uniqueSuffix}${path.extname(
-          file.originalname
+          file.originalname,
         )}`;
         cb(null, filename);
       },
@@ -75,7 +75,7 @@ const deleteFromS3 = async (fileUrl) => {
       new DeleteObjectCommand({
         Bucket: bucketName,
         Key: key,
-      })
+      }),
     );
     console.log(`Deleted old file from S3: ${key}`);
   } catch (err) {

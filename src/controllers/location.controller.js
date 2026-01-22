@@ -71,18 +71,37 @@ exports.getAllLocation = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
+    const { status } = req.query;
 
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    const dataQuery = `
+    let dataQuery = `
       SELECT *
       FROM location
       WHERE builder_id = $1 AND company_id = $2
-      ORDER BY created_at DESC
     `;
-    const dataResult = await client.query(dataQuery, [builderId, companyId]);
+    const queryParams = [builderId, companyId];
+    let paramIndex = 3;
+
+    if (status !== undefined) {
+      if (status === "true" || status === "false") {
+        dataQuery += ` AND status = $${paramIndex}`;
+        queryParams.push(status === "true");
+        paramIndex++;
+      } else {
+        return errorResponse(
+          res,
+          400,
+          "Status parameter must be 'true' or 'false'.",
+        );
+      }
+    }
+
+    dataQuery += ` ORDER BY created_at DESC`;
+
+    const dataResult = await client.query(dataQuery, queryParams);
 
     return successResponse(
       res,
@@ -186,56 +205,43 @@ exports.updateLocation = async (req, res) => {
       (field) => req.body[field] !== undefined,
     );
 
-    if (statusInBody && typeof requestedStatus !== "boolean") {
+    const requestedStatusTrue = status === true || status === "true";
+    const requestedStatusFalse = status === false || status === "false";
+
+    if (statusInBody && !requestedStatusTrue && !requestedStatusFalse) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "The 'status' field must be a boolean (true or false).",
+        "The 'status' field must be a boolean (true or false) or string 'true'/'false'.",
       );
     }
 
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active location, 'status' must be the only field provided in the request.",
-        );
-      }
-    }
+    // if (currentStatus === true && statusInBody) {
+    //   if (requestedStatusFalse) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To deactivate an active location, 'status' must be the only field provided in the request.",
+    //       );
+    //     }
+    //   }
+    // }
 
     if (currentStatus === false) {
-      if (statusInBody && requestedStatus === true) {
-        if (updatingOtherFields) {
+      const performingActivation = requestedStatusTrue;
+
+      if (statusInBody) {
+        if (requestedStatusFalse) {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
             403,
-            "To activate an inactive location, 'status' must be the only field provided in the request.",
+            "Location is already inactive. 'status' can only be updated to true from this state.",
           );
         }
-      }
-
-      const performingActivation = statusInBody && requestedStatus === true;
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the location is currently Inactive. Only 'status' can be changed (to true/Active).",
-        );
-      }
-
-      if (statusInBody && requestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Location is already Inactive. 'status' can only be updated to true (Active) from this state.",
-        );
       }
     }
 
@@ -268,7 +274,7 @@ exports.updateLocation = async (req, res) => {
 
     if (status !== undefined) {
       fields.push(`status = $${index++}`);
-      values.push(status);
+      values.push(requestedStatusTrue);
     }
 
     if (fields.length === 0) {

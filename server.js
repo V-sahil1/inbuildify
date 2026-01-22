@@ -8,7 +8,7 @@ const app = express();
 app.use(
   cors({
     origin: "*",
-  })
+  }),
 );
 app.use(express.json());
 
@@ -20,7 +20,7 @@ app.use("*path", (req, res) => {
   return errorResponse(
     res,
     404,
-    "Please check endPoint, not any api of this route!"
+    "Please check endPoint, not any api of this route!",
   );
 });
 
