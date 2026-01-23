@@ -332,6 +332,20 @@ async function deleteCostCenter(costCenterId, builderId, companyId) {
 
     const existing = existingCheck.rows[0];
 
+    // Remove cost_center_id from all construction_checklist records that reference it
+    const updateConstructionChecklistsQuery = `
+      UPDATE construction_checklist 
+      SET cost_center_id = array_remove(cost_center_id, $1)
+      WHERE $1 = ANY(cost_center_id)
+      AND (company_id = $2 OR builder_id = $3)
+    `;
+
+    await client.query(updateConstructionChecklistsQuery, [
+      costCenterId,
+      companyId,
+      builderId,
+    ]);
+
     await client.query(
       `
       UPDATE cost_center

@@ -18,7 +18,6 @@ const createUserGroupSchema = Joi.object({
     "boolean.base": "is_active must be a boolean value (true/false).",
   }),
 });
-
 const getAllUserGroupSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 

@@ -20,6 +20,14 @@ const createPackageSchema = Joi.object({
 
   status: Joi.boolean().optional().default(true),
 
+  range_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each range ID must be a valid UUID",
+  }),
+
+  dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each dwelling type ID must be a valid UUID",
+  }),
+
   allow_add_item_from_pricelist: Joi.boolean().optional().default(false),
   allow_remove_package_items: Joi.boolean().optional().default(true),
 });
@@ -74,6 +82,14 @@ const updatePackageSchema = Joi.object({
   sort_order: Joi.number().integer().default(0).min(0).optional(),
 
   status: Joi.boolean().optional(),
+
+  range_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each range ID must be a valid UUID",
+  }),
+
+  dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each dwelling type ID must be a valid UUID",
+  }),
 
   allow_add_item_from_pricelist: Joi.boolean().optional(),
   allow_remove_package_items: Joi.boolean().optional(),

@@ -140,6 +140,9 @@ const updateFloorPlanSchema = Joi.object({
     "string.guid": "Range ID must be a valid UUID",
   }),
 
+  location_id: Joi.string().uuid().optional().messages({
+    "string.guid": "location ID must be a valid UUID",
+  }),
   garage_area: Joi.number()
     .min(0)
     .max(99999999.99)

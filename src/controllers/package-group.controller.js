@@ -15,14 +15,29 @@ exports.createPackageGroup = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized. Builder or Company required."
+        "Unauthorized. Builder or Company required.",
       );
     }
 
-    const { name, no_of_packages, is_active } = req.body;
+    const { name, no_of_packages, package_id } = req.body;
 
     if (!name || name.trim() === "") {
       return errorResponse(res, 400, "Package group name is required.");
+    }
+
+    if (package_id) {
+      const packageCheck = await client.query(
+        `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
+        [package_id, builderId],
+      );
+
+      if (packageCheck.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid package_id or package does not belong to this builder.",
+        );
+      }
     }
 
     const duplicateCheck = await client.query(
@@ -31,14 +46,14 @@ exports.createPackageGroup = async (req, res) => {
        WHERE LOWER(name) = LOWER($1) 
        AND builder_id = $2 
        AND company_id = $3`,
-      [name.trim(), builderId, companyId]
+      [name.trim(), builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
       return errorResponse(
         res,
         409,
-        "Package group with this name already exists."
+        "Package group with this name already exists.",
       );
     }
 
@@ -48,7 +63,7 @@ exports.createPackageGroup = async (req, res) => {
         builder_id,
         name,
         no_of_packages,
-        is_active,
+        package_id,
         created_at,
         updated_at
       ) VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
@@ -60,18 +75,24 @@ exports.createPackageGroup = async (req, res) => {
       builderId,
       name.trim(),
       Number(no_of_packages) || 0,
-      is_active !== undefined ? Boolean(is_active) : true,
+      package_id || null,
     ];
 
     const result = await client.query(insertQuery, values);
 
-    return successResponse(
-      res,
-      {
-        packageGroup: keysToCamelCase(result.rows[0]),
-      },
-      "Package group created successfully"
-    );
+    const packageGroup = keysToCamelCase(result.rows[0]);
+    const response = {
+      packageGroupId: packageGroup.packageGroupId,
+      packageId: packageGroup.packageId,
+      companyId: packageGroup.companyId,
+      builderId: packageGroup.builderId,
+      name: packageGroup.name,
+      noOfPackages: packageGroup.noOfPackages,
+      createdAt: packageGroup.createdAt,
+      updatedAt: packageGroup.updatedAt,
+    };
+
+    return successResponse(res, response, "Package group created successfully");
   } catch (error) {
     console.error("createPackageGroup error:", error);
     return errorResponse(res, 500, error.message);
@@ -92,7 +113,7 @@ exports.getAllPackageGroups = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized. Builder or Company required."
+        "Unauthorized. Builder or Company required.",
       );
     }
 
@@ -115,11 +136,12 @@ exports.getAllPackageGroups = async (req, res) => {
     const totalPages = Math.ceil(total / limit);
 
     const dataQuery = `
-      SELECT *
-      FROM package_group
-      WHERE builder_id = $1
-        AND company_id = $2
-      ORDER BY created_at DESC
+      SELECT 
+        pg.*
+      FROM package_group pg
+      WHERE pg.builder_id = $1
+        AND pg.company_id = $2
+      ORDER BY pg.created_at DESC
       LIMIT $3 OFFSET $4
     `;
 
@@ -130,16 +152,32 @@ exports.getAllPackageGroups = async (req, res) => {
       offset,
     ]);
 
+    // Format the response
+    const formattedPackageGroups = dataResult.rows.map((row) => {
+      const pg = keysToCamelCase(row);
+
+      return {
+        packageGroupId: pg.packageGroupId,
+        packageId: pg.packageId,
+        companyId: pg.companyId,
+        builderId: pg.builderId,
+        name: pg.name,
+        noOfPackages: pg.noOfPackages,
+        createdAt: pg.createdAt,
+        updatedAt: pg.updatedAt,
+      };
+    });
+
     return successResponse(
       res,
       {
-        packageGroups: dataResult.rows,
+        packageGroups: formattedPackageGroups,
         total,
         page,
         totalPages,
         limit,
       },
-      "Package groups fetched successfully"
+      "Package groups fetched successfully",
     );
   } catch (error) {
     console.error("getAllPackageGroups error:", error);
@@ -180,7 +218,7 @@ exports.deletePackageGroup = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Package group not found or you don't have permission to delete it."
+        "Package group not found or you don't have permission to delete it.",
       );
     }
 
@@ -209,7 +247,7 @@ exports.updatePackageGroup = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    const { name, no_of_packages, is_active } = req.body;
+    const { name, no_of_packages } = req.body;
 
     if (!package_group_id) {
       return errorResponse(res, 400, "Package Group ID is required.");
@@ -235,77 +273,16 @@ exports.updatePackageGroup = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Package group not found or you don't have permission to update it."
+        "Package group not found or you don't have permission to update it.",
       );
     }
 
     const existing = findResult.rows[0];
 
-    const currentIsActive = existing.is_active;
-    const isActiveInBody = is_active !== undefined;
-    const requestedIsActive = is_active;
-
     const fieldsToCheck = ["name", "no_of_packages"];
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
-
-    if (isActiveInBody && typeof requestedIsActive !== "boolean") {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "The 'is_active' field must be a boolean (true or false)."
-      );
-    }
-
-    if (
-      currentIsActive === true &&
-      isActiveInBody &&
-      requestedIsActive === false
-    ) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active package group, 'is_active' must be the only field provided in the request."
-        );
-      }
-    }
-
-    if (currentIsActive === false) {
-      if (isActiveInBody && requestedIsActive === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive package group, 'is_active' must be the only field provided in the request."
-          );
-        }
-      }
-
-      const performingActivation = isActiveInBody && requestedIsActive === true;
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when the package group is currently Inactive. Only 'is_active' can be changed (to true/Active)."
-        );
-      }
-
-      if (isActiveInBody && requestedIsActive === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Package group is already Inactive. 'is_active' can only be updated to true (Active) from this state."
-        );
-      }
-    }
 
     if (name) {
       const duplicateCheck = await client.query(
@@ -316,7 +293,7 @@ exports.updatePackageGroup = async (req, res) => {
           AND company_id = $3
           AND package_group_id <> $4
         `,
-        [name.trim(), builderId, companyId, package_group_id]
+        [name.trim(), builderId, companyId, package_group_id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -336,10 +313,6 @@ exports.updatePackageGroup = async (req, res) => {
     if (no_of_packages !== undefined) {
       fields.push(`no_of_packages = $${index++}`);
       values.push(no_of_packages);
-    }
-    if (is_active !== undefined) {
-      fields.push(`is_active = $${index++}`);
-      values.push(is_active);
     }
 
     if (fields.length === 0) {
@@ -362,10 +335,23 @@ exports.updatePackageGroup = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const updatedPackageGroup = keysToCamelCase(updateResult.rows[0]);
+
+    const response = {
+      packageGroupId: updatedPackageGroup.packageGroupId,
+      packageId: updatedPackageGroup.packageId,
+      companyId: updatedPackageGroup.companyId,
+      builderId: updatedPackageGroup.builderId,
+      name: updatedPackageGroup.name,
+      noOfPackages: updatedPackageGroup.noOfPackages,
+      createdAt: updatedPackageGroup.createdAt,
+      updatedAt: updatedPackageGroup.updatedAt,
+    };
+
     return successResponse(
       res,
+      response,
       "Package group updated successfully.",
-      updateResult.rows[0]
     );
   } catch (error) {
     await client.query("ROLLBACK");

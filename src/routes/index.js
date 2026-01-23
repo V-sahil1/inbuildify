@@ -96,9 +96,6 @@ const supplierDocumentRoutes = require("./supplier-document.routes");
 const surveyTemplateRoutes = require("./survey-template.routes");
 const surveyTemplateQuestionRoutes = require("./survey-template-question.routes");
 const packageGroupRoutes = require("./package-group.routes");
-const packageGroupMapRoutes = require("./package-group-map.routes");
-const packageLabelMapRoutes = require("./package-label-map.routes");
-const packageDwellingMapRoutes = require("./package-dwelling-map.routes");
 const packagePriceListItemMapRoutes = require("./package-pricelist-item-map.routes");
 const taskRoutes = require("./task.routes");
 
@@ -127,6 +124,7 @@ const roleTypeRoutes = require("./role-type.routes");
 const costCenterRoutes = require("./cost-center.routes");
 const complianceTypeRoutes = require("./compliance-type.routes");
 const driveRoutes = require("./drive.routes");
+const colorGrouprouts = require("./color-group.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -236,9 +234,6 @@ module.exports = function (app) {
   app.use("/survey-template", surveyTemplateRoutes);
   app.use("/survey-template-question", surveyTemplateQuestionRoutes);
   app.use("/package-group", packageGroupRoutes);
-  app.use("/package-group-map", packageGroupMapRoutes);
-  app.use("/package-label-map", packageLabelMapRoutes);
-  app.use("/package-dwelling-map", packageDwellingMapRoutes);
   app.use("/package-price-list-item-map", packagePriceListItemMapRoutes);
   app.use("/task", taskRoutes);
   app.use("/location", locationRoutes);
@@ -275,4 +270,5 @@ module.exports = function (app) {
   app.use("/cost-center", costCenterRoutes);
   app.use("/compliance-type", complianceTypeRoutes);
   app.use("/drive", driveRoutes);
+  app.use("/color-group", colorGrouprouts);
 };

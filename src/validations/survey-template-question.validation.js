@@ -26,7 +26,7 @@ const createSurveyQuestionSchema = Joi.object({
     then: Joi.array()
       .items(Joi.string().trim().required())
       .min(1)
-      .required()
+      .optional()
       .messages({
         "any.required": "options array is required when option_type is radio",
         "array.min": "options array cannot be empty when option_type is radio",

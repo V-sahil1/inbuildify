@@ -310,6 +310,8 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
       );
     }
 
+    await client.query("BEGIN");
+
     const ownershipQuery = `
       SELECT document_common_folder_id, sort_order
       FROM document_common_folder
@@ -323,6 +325,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     ]);
 
     if (ownershipResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         403,
@@ -331,6 +334,20 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     }
 
     const deletedSortOrder = ownershipResult.rows[0].sort_order;
+
+    // Remove document_common_folder_id from all document_file_naming_rule records that reference it
+    const updateFileNamingRulesQuery = `
+      UPDATE document_file_naming_rule 
+      SET folder_ids = array_remove(folder_ids, $1)
+      WHERE $1 = ANY(folder_ids)
+      AND (company_id = $2 OR builder_id = $3)
+    `;
+
+    await client.query(updateFileNamingRulesQuery, [
+      document_common_folder_id,
+      companyId,
+      builderId,
+    ]);
 
     const deleteQuery = `
       DELETE FROM document_common_folder
@@ -342,6 +359,7 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
     ]);
 
     if (deleteResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Folder not found or already deleted.");
     }
 
@@ -357,12 +375,15 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
       companyId,
     ]);
 
+    await client.query("COMMIT");
+
     return successResponse(
       res,
       null,
       "Document common folder deleted successfully.",
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting document common folder:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {

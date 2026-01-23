@@ -23,21 +23,21 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
       return errorResponse(res, 400, "Invalid option_type.");
     }
 
-    if (option_type === "radio") {
-      if (!Array.isArray(options) || options.length === 0) {
-        return errorResponse(
-          res,
-          400,
-          "options array is required when option_type = radio."
-        );
-      }
-    } else if (options?.length) {
-      return errorResponse(
-        res,
-        400,
-        "options are allowed only when option_type = radio."
-      );
-    }
+    // if (option_type === "radio") {
+    //   if (!Array.isArray(options) || options.length === 0) {
+    //     return errorResponse(
+    //       res,
+    //       400,
+    //       "options array is required when option_type = radio.",
+    //     );
+    //   }
+    // } else if (options?.length) {
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "options are allowed only when option_type = radio.",
+    //   );
+    // }
 
     await client.query("BEGIN");
 
@@ -49,7 +49,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
         AND builder_id = $2
         AND status = true
       `,
-      [survey_template_id, builderId]
+      [survey_template_id, builderId],
     );
 
     if (templateCheck.rowCount === 0) {
@@ -63,7 +63,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
       FROM survey_template_questions
       WHERE survey_template_id = $1
       `,
-      [survey_template_id]
+      [survey_template_id],
     );
 
     const maxSortOrder = Number(maxOrderRes.rows[0].max_sort_order);
@@ -78,7 +78,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -91,7 +91,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
         WHERE survey_template_id = $1
           AND sort_order >= $2
         `,
-        [survey_template_id, finalSortOrder]
+        [survey_template_id, finalSortOrder],
       );
     }
 
@@ -116,7 +116,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
         option_type === "radio" ? options : null,
         finalSortOrder,
         userId,
-      ]
+      ],
     );
 
     // Get survey template info for response
@@ -150,7 +150,7 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseData),
-      "Survey template question created successfully."
+      "Survey template question created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -233,13 +233,13 @@ exports.getAllSurveyTemplateQuestions = async (req, res) => {
       {
         questions: keysToCamelCase(dataResult.rows),
         pagination: {
-          total_records: totalRecords,
-          current_page: pageValue,
-          total_pages: totalPages,
+          totalRecords: totalRecords,
+          currentPage: pageValue,
+          totalPages: totalPages,
           limit: limitValue,
         },
       },
-      "Survey template questions fetched successfully."
+      "Survey template questions fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching survey template questions:", error);
@@ -278,7 +278,7 @@ exports.deleteSurveyTemplateQuestion = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Survey template question not found or not owned by this builder."
+        "Survey template question not found or not owned by this builder.",
       );
     }
 
@@ -306,7 +306,7 @@ exports.deleteSurveyTemplateQuestion = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Survey template question deleted successfully."
+      "Survey template question deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting survey template question:", error);
@@ -349,7 +349,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Survey template question not found or not owned by this builder."
+        "Survey template question not found or not owned by this builder.",
       );
     }
 
@@ -374,7 +374,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -384,7 +384,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
         FROM survey_template_questions
         WHERE survey_question_id = $1
         `,
-        [survey_question_id]
+        [survey_question_id],
       );
 
       const currentSortOrder = currentSortOrderResult.rows[0].sort_order;
@@ -443,7 +443,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid option_type. Must be one of: ${validTypes.join(", ")}`
+          `Invalid option_type. Must be one of: ${validTypes.join(", ")}`,
         );
       }
 
@@ -462,7 +462,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Options can only be updated when option_type is radio."
+          "Options can only be updated when option_type is radio.",
         );
       }
       if (!Array.isArray(options)) {
@@ -525,7 +525,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseData),
-      "Survey template question updated successfully."
+      "Survey template question updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

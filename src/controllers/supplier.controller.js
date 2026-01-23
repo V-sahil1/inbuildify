@@ -366,14 +366,29 @@ exports.deleteSupplier = async (req, res) => {
       );
     }
 
+    await client.query("BEGIN");
+
+    // Remove supplier_id from all color_category records that reference it
+    const updateColorCategoriesQuery = `
+      UPDATE color_category 
+      SET suppliers = array_remove(suppliers, $1)
+      WHERE $1 = ANY(suppliers)
+    `;
+
+    await client.query(updateColorCategoriesQuery, [supplier_id]);
+
+    // Delete the supplier
     const deleteQuery = `
       DELETE FROM supplier
       WHERE supplier_id = $1 AND company_id = $2 AND builder_id = $3
     `;
     await client.query(deleteQuery, [supplier_id, companyId, builderId]);
 
+    await client.query("COMMIT");
+
     return successResponse(res, null, "Supplier deleted successfully.");
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting supplier:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {

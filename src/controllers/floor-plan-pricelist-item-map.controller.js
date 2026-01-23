@@ -25,7 +25,6 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
       return errorResponse(res, 400, "price_list_item_id is required");
     }
 
-    // Check if floor plan exists and user has access
     const floorPlanCheck = await client.query(
       `SELECT floor_plan_id FROM floor_plan WHERE floor_plan_id = $1 AND (builder_id = $2 OR company_id = $3)`,
       [floor_plan_id, builderId, companyId],
@@ -34,9 +33,8 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
       return errorResponse(res, 400, "Invalid floor_plan_id or access denied");
     }
 
-    // Check if price list item exists and user has access
     const priceListItemCheck = await client.query(
-      `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND (builder_id = $2 OR company_id = $3)`,
+      `SELECT price_list_item_id, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND (builder_id = $2 OR company_id = $3)`,
       [price_list_item_id, builderId, companyId],
     );
     if (priceListItemCheck.rowCount === 0) {
@@ -44,6 +42,32 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
         res,
         400,
         "Invalid price_list_item_id or access denied",
+      );
+    }
+
+    const priceListItem = priceListItemCheck.rows[0];
+
+    if (
+      priceListItem.cost_type === "fixed" &&
+      quantity !== undefined &&
+      quantity !== null &&
+      quantity !== ""
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Quantity cannot be set for price list items with fixed cost type",
+      );
+    }
+
+    if (
+      priceListItem.cost_type !== "fixed" &&
+      (quantity === undefined || quantity === null || quantity === "")
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Quantity is required for price list items with variable cost type",
       );
     }
 
@@ -107,7 +131,6 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
   } catch (error) {
     console.error("Create Floor Plan Price List Item Map Error:", error);
 
-    // Handle unique constraint violation
     if (error.code === "23505") {
       return errorResponse(
         res,
@@ -341,11 +364,6 @@ exports.updateFloorPlanPricelistItemMap = async (req, res) => {
     if (modify !== undefined) {
       updateFields.push(`modify = $${idx++}`);
       updateValues.push(modify);
-    }
-
-    if (quantity !== undefined) {
-      updateFields.push(`quantity = $${idx++}`);
-      updateValues.push(quantity);
     }
 
     if (updateFields.length === 0) {

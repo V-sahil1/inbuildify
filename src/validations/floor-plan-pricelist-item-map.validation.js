@@ -27,9 +27,6 @@ const updateFloorPlanPricelistItemMapValidation = Joi.object({
   modify: Joi.boolean().optional().messages({
     "boolean.base": "Modify must be a boolean",
   }),
-  quantity: Joi.number().integer().optional().allow(null).messages({
-    "number.integer": "Quantity must be an integer",
-  }),
 }).min(1);
 
 const getFloorPlanPricelistItemMapByIdValidation = Joi.object({

@@ -32,7 +32,7 @@ exports.createSurveyTemplate = async (req, res) => {
         AND builder_id = $2
         AND LOWER(name) = LOWER($3)
       `,
-      [companyId, builderId, name]
+      [companyId, builderId, name],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -40,7 +40,7 @@ exports.createSurveyTemplate = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Survey template with this name already exists."
+        "Survey template with this name already exists.",
       );
     }
 
@@ -50,7 +50,7 @@ exports.createSurveyTemplate = async (req, res) => {
       FROM survey_template
       WHERE company_id = $1 AND builder_id = $2
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const maxSortOrder = Number(maxOrderRes.rows[0].max_sort_order);
@@ -65,7 +65,7 @@ exports.createSurveyTemplate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -79,7 +79,7 @@ exports.createSurveyTemplate = async (req, res) => {
           AND builder_id = $2
           AND sort_order >= $3
         `,
-        [companyId, builderId, finalSortOrder]
+        [companyId, builderId, finalSortOrder],
       );
     }
 
@@ -91,7 +91,7 @@ exports.createSurveyTemplate = async (req, res) => {
         WHERE company_id = $1
           AND builder_id = $2
         `,
-        [companyId, builderId]
+        [companyId, builderId],
       );
     }
 
@@ -118,7 +118,7 @@ exports.createSurveyTemplate = async (req, res) => {
         is_recommended,
         status,
         userId,
-      ]
+      ],
     );
 
     await client.query("COMMIT");
@@ -126,7 +126,7 @@ exports.createSurveyTemplate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertRes.rows[0]),
-      "Survey template created successfully."
+      "Survey template created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -136,7 +136,7 @@ exports.createSurveyTemplate = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Survey template with this name already exists."
+        "Survey template with this name already exists.",
       );
     }
 
@@ -152,34 +152,64 @@ exports.getAllSurveyTemplate = async (req, res) => {
 
   try {
     const builderId = req.user.builder_id;
-    const { page = 1, limit = 25 } = req.query;
+    const { page = 1, limit = 25, name, sort_order, status } = req.query;
 
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
+    let conditions = ["builder_id = $1"];
+    let values = [builderId];
+    let paramIndex = 2;
+
+    if (name !== undefined && name.trim() !== "") {
+      conditions.push(`LOWER(name) LIKE LOWER($${paramIndex})`);
+      values.push(`%${name.trim()}%`);
+      paramIndex++;
+    }
+
+    if (status !== undefined) {
+      if (!["true", "false"].includes(status)) {
+        return errorResponse(res, 400, "status must be true or false");
+      }
+      conditions.push(`status = $${paramIndex}`);
+      values.push(status === "true");
+      paramIndex++;
+    }
+
+    if (sort_order !== undefined) {
+      const sortValue = parseInt(sortOrder, 10);
+      if (!isNaN(sortValue)) {
+        conditions.push(`sort_order = $${paramIndex}`);
+        values.push(sortValue);
+        paramIndex++;
+      }
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
     const dataQuery = `
       SELECT 
         *
       FROM survey_template
-      WHERE builder_id = $1
+      ${whereClause}
       ORDER BY sort_order ASC
-      LIMIT $2 OFFSET $3;
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1};
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    values.push(limitValue, offset);
+
+    const dataResult = await client.query(dataQuery, values);
 
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM survey_template
-      WHERE builder_id = $1;
+      ${whereClause};
     `;
 
-    const countResult = await client.query(countQuery, [builderId]);
+    const countValues = values.slice(0, -2);
+    const countResult = await client.query(countQuery, countValues);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
@@ -194,7 +224,7 @@ exports.getAllSurveyTemplate = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Survey templates fetched successfully."
+      "Survey templates fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching survey templates:", error);
@@ -230,7 +260,7 @@ exports.deleteSurveyTemplate = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you are not allowed to delete this record."
+        "Record not found or you are not allowed to delete this record.",
       );
     }
 
@@ -262,7 +292,7 @@ exports.deleteSurveyTemplate = async (req, res) => {
       res,
       200,
       "Survey template deleted successfully.",
-      null
+      null,
     );
   } catch (error) {
     console.error("Delete Survey Template Error:", error);
@@ -312,7 +342,7 @@ exports.updateSurveyTemplate = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you are not allowed to update this record."
+        "Record not found or you are not allowed to update this record.",
       );
     }
 
@@ -324,7 +354,7 @@ exports.updateSurveyTemplate = async (req, res) => {
     const fieldsToCheck = ["name", "sort_order", "is_recommended"];
 
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
 
     if (statusInBody && typeof requestedStatus !== "boolean") {
@@ -332,52 +362,8 @@ exports.updateSurveyTemplate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "The 'status' field must be a boolean (true or false)."
+        "The 'status' field must be a boolean (true or false).",
       );
-    }
-
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active survey template, 'status' must be the only field provided in the request."
-        );
-      }
-    }
-
-    if (currentStatus === false) {
-      if (statusInBody && requestedStatus === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive survey template, 'status' must be the only field provided in the request."
-          );
-        }
-      }
-
-      const performingActivation = statusInBody && requestedStatus === true;
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the survey template is currently Inactive. Only 'status' can be changed (to true/Active)."
-        );
-      }
-
-      if (statusInBody && requestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Survey template is already Inactive. 'status' can only be updated to true (Active) from this state."
-        );
-      }
     }
 
     if (name) {
@@ -401,7 +387,7 @@ exports.updateSurveyTemplate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Survey template name already exists for this builder."
+          "Survey template name already exists for this builder.",
         );
       }
     }
@@ -425,7 +411,7 @@ exports.updateSurveyTemplate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -534,7 +520,7 @@ exports.updateSurveyTemplate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Survey template updated successfully."
+      "Survey template updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

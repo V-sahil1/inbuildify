@@ -2228,6 +2228,8 @@ CREATE TABLE package (
     builder_cost NUMERIC(12,2),
     sort_order INT DEFAULT 0,
     status BOOLEAN DEFAULT TRUE, -- Active / Inactive
+    range_id UUID[] DEFAULT '{}',
+    dwelling_type_id UUID[] DEFAULT '{}',
     allow_add_item_from_pricelist BOOLEAN DEFAULT FALSE,  
     allow_remove_package_items BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2240,36 +2242,14 @@ CREATE TABLE package (
 
 CREATE TABLE package_group (
     package_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    package_id UUID REFERENCES package(package_id) ON DELETE CASCADE,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     no_of_packages INT DEFAULT 0, -- calculated or maintained manually
-    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_package_group UNIQUE (company_id, builder_id, name),
     CONSTRAINT chk_package_group_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-);
-
-CREATE TABLE package_group_map (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
-    package_group_id UUID NOT NULL REFERENCES package_group(package_group_id) ON DELETE CASCADE,
-    UNIQUE (package_id, package_group_id)
-);
-
-CREATE TABLE package_label_map (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
-    range_id UUID NOT NULL REFERENCES range(range_id) ON DELETE CASCADE,
-    UNIQUE (package_id, range_id)
-);
-
-CREATE TABLE package_dwelling_map (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    package_id UUID NOT NULL REFERENCES package(package_id) ON DELETE CASCADE,
-    dwelling_type_id UUID NOT NULL REFERENCES dwelling_type(dwelling_type_id) ON DELETE CASCADE,
-    UNIQUE (package_id, dwelling_type_id)
 );
 
 CREATE TABLE package_pricelist_item_map (
@@ -2364,6 +2344,7 @@ CREATE TABLE floor_plan (
     detailed_image VARCHAR(500),
     simple_image VARCHAR(500),
     description TEXT,
+    location_id UUID REFERENCES location(location_id),
     status BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2749,7 +2730,8 @@ CREATE TABLE color_group(
 
 CREATE TABLE color_item(
   color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  color_group_id UUID REFERENCES color_group(color_group_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   item_name VARCHAR(255) NOT NULL,
   item_code VARCHAR(100) NOT NULL,
   supplier_id UUID REFERENCES supplier(supplier_id) ON DELETE SET NULL,
@@ -2758,11 +2740,19 @@ CREATE TABLE color_item(
   cost NUMERIC (10,2),                   --if cost_type is upgrade
   features VARCHAR(500),
   description VARCHAR(500),
-  specification VARCHAR(500),
   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
   color_image VARCHAR(500),
   specification VARCHAR(500),
   status BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_color_item_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE color_group_item_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_group_id UUID REFERENCES color_group(color_group_id) ON DELETE CASCADE,
+  color_item_id UUID REFERENCES color_item(color_item_id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )

@@ -135,7 +135,6 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
     let values = [];
     let paramIndex = 1;
 
-    // Add filters
     if (construction_checklist_id) {
       whereClause += ` AND csc.construction_checklist_id = $${paramIndex++}`;
       values.push(construction_checklist_id);

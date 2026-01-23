@@ -215,6 +215,20 @@ exports.deleteSupplierType = async (req, res) => {
       );
     }
 
+    // Remove supplier_type_id from all supplier records that reference it
+    const updateSuppliersQuery = `
+      UPDATE supplier 
+      SET supplier_type_id = array_remove(supplier_type_id, $1)
+      WHERE $1 = ANY(supplier_type_id)
+      AND (company_id = $2 OR builder_id = $3)
+    `;
+
+    await client.query(updateSuppliersQuery, [
+      supplier_type_id,
+      companyId,
+      builderId,
+    ]);
+
     const deleteQuery = `
       DELETE FROM supplier_type
       WHERE supplier_type_id = $1;

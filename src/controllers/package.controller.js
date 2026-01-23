@@ -23,6 +23,8 @@ exports.createPackage = async (req, res) => {
       status,
       allow_add_item_from_pricelist,
       allow_remove_package_items,
+      range_id,
+      dwelling_type_id,
     } = req.body || {};
 
     const duplicateNameQuery = `
@@ -42,6 +44,50 @@ exports.createPackage = async (req, res) => {
       return errorResponse(res, 409, "Package name already exists.");
     }
 
+    if (range_id) {
+      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
+
+      for (const id of rangeIdsArray) {
+        if (id) {
+          const rangeCheck = await client.query(
+            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2`,
+            [id, builderId],
+          );
+
+          if (rangeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid range ID: ${id}. Range does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
+
+    if (dwelling_type_id) {
+      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
+        ? dwelling_type_id
+        : [dwelling_type_id];
+
+      for (const id of dwellingTypeIdsArray) {
+        if (id) {
+          const dwellingTypeCheck = await client.query(
+            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2`,
+            [id, builderId],
+          );
+
+          if (dwellingTypeCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
+
     const finalSortOrder = sort_order ?? 0;
 
     const duplicateSortQuery = `
@@ -51,19 +97,12 @@ exports.createPackage = async (req, res) => {
       AND sort_order = $3
     `;
 
-    const duplicateSortResult = await client.query(duplicateSortQuery, [
-      companyId,
-      builderId,
-      finalSortOrder,
-    ]);
-
-    if (duplicateSortResult.rowCount > 0) {
-      return errorResponse(
-        res,
-        400,
-        `Sort order ${finalSortOrder} already exists.`
-      );
-    }
+    await client.query(
+      `UPDATE package
+       SET sort_order = sort_order + 1
+       WHERE company_id = $1 AND builder_id = $2 AND sort_order >= $3`,
+      [companyId, builderId, finalSortOrder],
+    );
 
     const insertQuery = `
       INSERT INTO package (
@@ -76,10 +115,12 @@ exports.createPackage = async (req, res) => {
         status,
         allow_add_item_from_pricelist,
         allow_remove_package_items,
+        range_id,
+        dwelling_type_id,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *;
     `;
 
@@ -93,16 +134,71 @@ exports.createPackage = async (req, res) => {
       status ?? true,
       allow_add_item_from_pricelist ?? false,
       allow_remove_package_items ?? true,
+      range_id || null,
+      dwelling_type_id || null,
       userId,
       userId,
     ];
 
     const result = await client.query(insertQuery, values);
 
+    const getCreatedPackageQuery = `
+      SELECT 
+        p.*,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(p.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data
+      FROM package p
+      WHERE p.package_id = $1
+    `;
+
+    const createdPackageResult = await client.query(getCreatedPackageQuery, [
+      result.rows[0].package_id,
+    ]);
+    const createdPackage = keysToCamelCase(createdPackageResult.rows[0]);
+
+    const formattedPackage = {
+      packageId: createdPackage.packageId,
+      companyId: createdPackage.companyId,
+      builderId: createdPackage.builderId,
+      name: createdPackage.name,
+      cost: createdPackage.cost ? createdPackage.cost.toString() : null,
+      builderCost: createdPackage.builderCost
+        ? createdPackage.builderCost.toString()
+        : null,
+      sortOrder: createdPackage.sortOrder,
+      status: createdPackage.status,
+      allowAddItemFromPricelist: createdPackage.allowAddItemFromPricelist,
+      allowRemovePackageItems: createdPackage.allowRemovePackageItems,
+      range: createdPackage.rangeData || [],
+      dwellingType: createdPackage.dwellingTypeData || [],
+      createdBy: createdPackage.createdBy,
+      updatedBy: createdPackage.updatedBy,
+      createdAt: createdPackage.createdAt,
+      updatedAt: createdPackage.updatedAt,
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
-      "Package created successfully."
+      formattedPackage,
+      "Package created successfully.",
     );
   } catch (error) {
     console.error("Create Package Error:", error);
@@ -111,7 +207,7 @@ exports.createPackage = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Package name or sort order already exists."
+        "Package name or sort order already exists.",
       );
     }
 
@@ -140,7 +236,7 @@ exports.getAllPackages = async (req, res) => {
     const values = [];
     let i = 1;
 
-    conditions.push(`builder_id = $${i}`);
+    conditions.push(`p.builder_id = $${i}`);
     values.push(builderId);
     i++;
 
@@ -169,7 +265,7 @@ exports.getAllPackages = async (req, res) => {
       i++;
     }
 
-    let orderBy = "ORDER BY created_at ASC";
+    let orderBy = "ORDER BY sort_order ASC";
     if (sort_order) {
       if (!["asc", "desc"].includes(sort_order.toLowerCase())) {
         return errorResponse(res, 400, "sort_direction must be ASC or DESC");
@@ -183,7 +279,7 @@ exports.getAllPackages = async (req, res) => {
 
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM package
+      FROM package p
       ${whereClause};
     `;
 
@@ -192,8 +288,39 @@ exports.getAllPackages = async (req, res) => {
     const totalPages = Math.ceil(total / limitValue);
 
     const fetchQuery = `
-      SELECT *
-      FROM package
+      SELECT 
+        p.*,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(p.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', pg.package_group_id,
+              'name', pg.name
+            )
+          )
+          FROM package_group pg
+          WHERE pg.package_id = p.package_id
+        ) as package_group_data
+      FROM package p
       ${whereClause}
       ${orderBy}
       LIMIT ${limitValue} OFFSET ${offset};
@@ -201,13 +328,42 @@ exports.getAllPackages = async (req, res) => {
 
     const packagesResult = await client.query(fetchQuery, values);
 
-    return successResponse(res, "Packages fetched successfully", {
-      package: packagesResult.rows,
-      trcords: total,
-      currentPage: page,
-      totalPages,
-      limit: limitValue,
+    const formattedPackages = packagesResult.rows.map((row) => {
+      const pkg = keysToCamelCase(row);
+      return {
+        packageId: pkg.packageId,
+        companyId: pkg.companyId,
+        builderId: pkg.builderId,
+        name: pkg.name,
+        cost: pkg.cost ? pkg.cost.toString() : null,
+        builderCost: pkg.builderCost ? pkg.builderCost.toString() : null,
+        sortOrder: pkg.sortOrder,
+        status: pkg.status,
+        allowAddItemFromPricelist: pkg.allowAddItemFromPricelist,
+        allowRemovePackageItems: pkg.allowRemovePackageItems,
+        packageGroup: pkg.packageGroupData || [],
+        range: pkg.rangeData || [],
+        dwellingType: pkg.dwellingTypeData || [],
+        createdBy: pkg.createdBy,
+        updatedBy: pkg.updatedBy,
+        createdAt: pkg.createdAt,
+        updatedAt: pkg.updatedAt,
+      };
     });
+
+    return successResponse(
+      res,
+      {
+        package: formattedPackages,
+        pagination: {
+          totalRecords: total,
+          currentPage: page,
+          totalPages,
+          limit: limitValue,
+        },
+      },
+      "Packages fetched successfully.",
+    );
   } catch (error) {
     console.error("getAllPackages error:", error);
     return errorResponse(res, 500, error.message);
@@ -223,18 +379,28 @@ exports.deletePackage = async (req, res) => {
   try {
     const { package_id } = req.params;
     const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
 
     const check = await client.query(
-      `SELECT 1 FROM package WHERE package_id = $1 AND builder_id = $2`,
-      [package_id, builderId]
+      `SELECT sort_order FROM package WHERE package_id = $1 AND builder_id = $2`,
+      [package_id, builderId],
     );
     if (check.rowCount === 0) {
       return errorResponse(res, 404, "Package not found");
     }
 
+    const deletedSortOrder = check.rows[0].sort_order;
+
     await client.query(
       `DELETE FROM package WHERE package_id = $1 AND builder_id = $2`,
-      [package_id, builderId]
+      [package_id, builderId],
+    );
+
+    await client.query(
+      `UPDATE package 
+       SET sort_order = sort_order - 1 
+       WHERE company_id = $1 AND builder_id = $2 AND sort_order > $3`,
+      [companyId, builderId, deletedSortOrder],
     );
 
     return successResponse(res, null, "Package deleted successfully.");
@@ -265,17 +431,18 @@ exports.updatePackage = async (req, res) => {
       cost,
       builder_cost,
       sort_order,
-      status, // This field takes the logic of 'is_active'
+      status,
       allow_add_item_from_pricelist,
       allow_remove_package_items,
+      range_id,
+      dwelling_type_id,
     } = req.body;
 
     await client.query("BEGIN");
 
-    // Check if package exists and belongs to builder, and LOCK THE ROW FOR UPDATE
     const existingRes = await client.query(
       `SELECT * FROM package WHERE package_id = $1 AND builder_id = $2 FOR UPDATE`,
-      [package_id, builderId]
+      [package_id, builderId],
     );
 
     if (existingRes.rowCount === 0) {
@@ -284,6 +451,52 @@ exports.updatePackage = async (req, res) => {
     }
 
     const existing = existingRes.rows[0];
+
+    if (range_id) {
+      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
+
+      for (const id of rangeIdsArray) {
+        if (id) {
+          const rangeCheck = await client.query(
+            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2`,
+            [id, builderId],
+          );
+
+          if (rangeCheck.rowCount === 0) {
+            await client.query("ROLLBACK");
+            return errorResponse(
+              res,
+              400,
+              `Invalid range ID: ${id}. Range does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
+
+    if (dwelling_type_id) {
+      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
+        ? dwelling_type_id
+        : [dwelling_type_id];
+
+      for (const id of dwellingTypeIdsArray) {
+        if (id) {
+          const dwellingTypeCheck = await client.query(
+            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2`,
+            [id, builderId],
+          );
+
+          if (dwellingTypeCheck.rowCount === 0) {
+            await client.query("ROLLBACK");
+            return errorResponse(
+              res,
+              400,
+              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
+            );
+          }
+        }
+      }
+    }
 
     const currentStatus = existing.status;
     const statusInBody = status !== undefined;
@@ -296,65 +509,38 @@ exports.updatePackage = async (req, res) => {
       "sort_order",
       "allow_add_item_from_pricelist",
       "allow_remove_package_items",
+      "range_id",
+      "dwelling_type_id",
     ];
 
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
-
-    if (statusInBody && typeof requestedStatus !== "boolean") {
-    }
 
     let effectiveRequestedStatus = requestedStatus;
     if (statusInBody && typeof requestedStatus === "string") {
       effectiveRequestedStatus = requestedStatus.toLowerCase() === "true";
     }
 
-    if (
-      currentStatus === true &&
-      statusInBody &&
-      effectiveRequestedStatus === false
-    ) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active package, 'status' must be the only field provided in the request."
+    if (sort_order !== undefined && sort_order !== existing.sort_order) {
+      const newSortOrder = Number(sort_order);
+      const oldSortOrder = existing.sort_order;
+
+      if (newSortOrder > oldSortOrder) {
+        await client.query(
+          `UPDATE package
+           SET sort_order = sort_order - 1
+           WHERE company_id = $1 AND builder_id = $2 
+           AND sort_order > $3 AND sort_order <= $4`,
+          [companyId, builderId, oldSortOrder, newSortOrder],
         );
-      }
-    }
-
-    if (currentStatus === false) {
-      if (statusInBody && effectiveRequestedStatus === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive package, 'status' must be the only field provided in the request."
-          );
-        }
-      }
-
-      const performingActivation =
-        statusInBody && effectiveRequestedStatus === true;
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the package is currently Inactive. Only 'status' can be changed (to true/Active)."
-        );
-      }
-
-      if (statusInBody && effectiveRequestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Package is already Inactive. 'status' can only be updated to true (Active) from this state."
+      } else if (newSortOrder < oldSortOrder) {
+        await client.query(
+          `UPDATE package
+           SET sort_order = sort_order + 1
+           WHERE company_id = $1 AND builder_id = $2 
+           AND sort_order >= $3 AND sort_order < $4`,
+          [companyId, builderId, newSortOrder, oldSortOrder],
         );
       }
     }
@@ -403,20 +589,23 @@ exports.updatePackage = async (req, res) => {
     addField(
       "allow_add_item_from_pricelist",
       allow_add_item_from_pricelist,
-      "boolean"
+      "boolean",
     );
     addField(
       "allow_remove_package_items",
       allow_remove_package_items,
-      "boolean"
+      "boolean",
     );
+    if (range_id !== undefined) addField("range_id", range_id);
+    if (dwelling_type_id !== undefined)
+      addField("dwelling_type_id", dwelling_type_id);
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -427,7 +616,7 @@ exports.updatePackage = async (req, res) => {
           AND builder_id = $2 
           AND company_id = $3
           AND package_id != $4`,
-        [name.trim(), builderId, companyId, package_id]
+        [name.trim(), builderId, companyId, package_id],
       );
       if (duplicateNameCheck.rowCount > 0) {
         await client.query("ROLLBACK");
@@ -442,14 +631,14 @@ exports.updatePackage = async (req, res) => {
           AND builder_id = $2
           AND company_id = $3
           AND package_id != $4`,
-        [Number(sort_order), builderId, companyId, package_id]
+        [Number(sort_order), builderId, companyId, package_id],
       );
       if (duplicateSortCheck.rowCount > 0) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           409,
-          `Sort order ${sort_order} already exists.`
+          `Sort order ${sort_order} already exists.`,
         );
       }
     }
@@ -472,12 +661,63 @@ exports.updatePackage = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const getUpdatedPackageQuery = `
+      SELECT 
+        p.*,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(p.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data
+      FROM package p
+      WHERE p.package_id = $1
+    `;
+
+    const updatedPackageResult = await client.query(getUpdatedPackageQuery, [
+      package_id,
+    ]);
+    const updatedPackage = keysToCamelCase(updatedPackageResult.rows[0]);
+
+    const formattedPackage = {
+      packageId: updatedPackage.packageId,
+      companyId: updatedPackage.companyId,
+      builderId: updatedPackage.builderId,
+      name: updatedPackage.name,
+      cost: updatedPackage.cost ? updatedPackage.cost.toString() : null,
+      builderCost: updatedPackage.builderCost
+        ? updatedPackage.builderCost.toString()
+        : null,
+      sortOrder: updatedPackage.sortOrder,
+      status: updatedPackage.status,
+      allowAddItemFromPricelist: updatedPackage.allowAddItemFromPricelist,
+      allowRemovePackageItems: updatedPackage.allowRemovePackageItems,
+      range: updatedPackage.rangeData || [],
+      dwellingType: updatedPackage.dwellingTypeData || [],
+      createdBy: updatedPackage.createdBy,
+      updatedBy: updatedPackage.updatedBy,
+      createdAt: updatedPackage.createdAt,
+      updatedAt: updatedPackage.updatedAt,
+    };
+
     return successResponse(
       res,
-      {
-        package: keysToCamelCase(result.rows[0]),
-      },
-      "Package updated successfully"
+      formattedPackage,
+      "Package updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");

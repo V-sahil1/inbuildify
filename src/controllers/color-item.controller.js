@@ -1,403 +1,621 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
-const { deleteFromS3 } = require("../utils/s3Upload");
 
-const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
-  
-  const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+exports.createColorItem = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
 
-  const usersQuery = `
-    SELECT users_id, name 
-    FROM users 
-    WHERE users_id = ANY($1::uuid[])
-  `;
-  const usersResult = await client.query(usersQuery, [validUserIds]);
-  
-  return usersResult.rows.reduce((acc, row) => {
-    acc[row.users_id] = row.name;
-    return acc;
-  }, {});
-};
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
-  return {
-    id: userId,
-    name: usersMap[userId] || null
-  };
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    const {
+      item_name,
+      item_code,
+      supplier_id,
+      upgrade_option,
+      cost_type = "standard",
+      cost,
+      features,
+      description,
+      units = "non_mandatory",
+      specification,
+      color_image,
+      status = true,
+    } = req.body;
+
+    const specificationImage = req.files?.specification?.[0]?.location || null;
+    const colorItemImage = req.files?.color_image?.[0]?.location || null;
+
+    if (!item_name || item_name.trim() === "") {
+      return errorResponse(res, 400, "Item name is required.");
+    }
+
+    if (!item_code || item_code.trim() === "") {
+      return errorResponse(res, 400, "Item code is required.");
+    }
+
+    if (
+      upgrade_option &&
+      !["fixed", "start_from", "tba"].includes(upgrade_option)
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Upgrade option must be one of: fixed, start_from, tba",
+      );
+    }
+
+    if (cost_type && !["standard", "upgrade"].includes(cost_type)) {
+      return errorResponse(
+        res,
+        400,
+        "Cost type must be one of: standard, upgrade",
+      );
+    }
+
+    if (
+      units &&
+      !["mandatory", "non_mandatory", "not_required"].includes(units)
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Units must be one of: mandatory, non_mandatory, not_required",
+      );
+    }
+
+    await client.query("BEGIN");
+
+    // Check for duplicate item code within the same builder/company
+    const duplicateCheck = await client.query(
+      `
+      SELECT 1
+      FROM color_item
+      WHERE (company_id = $1 OR builder_id = $2)
+        AND item_code = $3
+      `,
+      [companyId, builderId, item_code.trim()],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 409, "Item code already exists.");
+    }
+
+    if (supplier_id) {
+      const supplierCheck = await client.query(
+        `
+        SELECT 1
+        FROM supplier
+        WHERE supplier_id = $1
+          AND (company_id = $2 OR builder_id = $3)
+        `,
+        [supplier_id, companyId, builderId],
+      );
+
+      if (supplierCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid supplier ID.");
+      }
+    }
+
+    const insertQuery = `
+      INSERT INTO color_item (
+        company_id,
+        builder_id,
+        item_name,
+        item_code,
+        supplier_id,
+        upgrade_option,
+        cost_type,
+        cost,
+        features,
+        description,
+        units,
+        color_image,
+        specification,
+        status,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+      RETURNING *;
+    `;
+
+    const values = [
+      companyId,
+      builderId,
+      item_name.trim(),
+      item_code.trim(),
+      supplier_id || null,
+      upgrade_option || null,
+      cost_type,
+      cost || null,
+      features?.trim() || null,
+      description?.trim() || null,
+      units,
+      colorItemImage,
+      specificationImage,
+      status,
+    ];
+
+    const result = await client.query(insertQuery, values);
+    const createdColorItem = keysToCamelCase(result.rows[0]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      createdColorItem,
+      "Color item created successfully.",
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Create Color Item Error:", error);
+
+    if (error.code === "23505") {
+      return errorResponse(res, 409, "Item code already exists.");
+    }
+
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
 };
 
 exports.getAllColorItems = async (req, res) => {
-  const { color_sub_category_id: colorSubCategoryId } = req.params;
-  const { limit, offset } = req.query;
-  const parsedLimit = parseInt(limit, 10) || 25;
-  const parsedOffset = parseInt(offset, 10) || 0;
-
   const pool = getPool();
   const client = await pool.connect();
+
   try {
-    const params = [req.user.builder_id, parsedLimit, parsedOffset];
-    let filterClause = "";
-    if (colorSubCategoryId) {
-      params.push(colorSubCategoryId);
-      filterClause = ` AND ci.color_sub_category_id = $4 `;
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+
+    let {
+      page = 1,
+      limit = 25,
+      status,
+      search,
+      costType,
+      upgradeOption,
+      units,
+    } = req.query;
+
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
+    const offset = (page - 1) * limit;
+
+    let conditions = [`(ci.company_id = $1 OR ci.builder_id = $2)`];
+    let values = [companyId, builderId];
+    let index = 3;
+
+    if (status !== undefined) {
+      if (!["true", "false"].includes(status)) {
+        return errorResponse(res, 400, "status must be true or false");
+      }
+      conditions.push(`ci.status = $${index}`);
+      values.push(status === "true");
+      index++;
     }
 
-    const result = await client.query(
-      `SELECT ci.*
-       FROM color_items ci
-       JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE ci.is_deleted = false AND cc.builder_id = $1 ${filterClause}
-       ORDER BY ci.created_at DESC LIMIT $2 OFFSET $3`,
-      params
-    );
-
-    const countParams = [req.user.builder_id];
-    let countFilter = "";
-    if (colorSubCategoryId) {
-      countParams.push(colorSubCategoryId);
-      countFilter = ` AND ci.color_sub_category_id = $2 `;
+    if (costType !== undefined) {
+      if (!["standard", "upgrade"].includes(costType)) {
+        return errorResponse(res, 400, "cost_type must be standard or upgrade");
+      }
+      conditions.push(`ci.cost_type = $${index}`);
+      values.push(costType);
+      index++;
     }
 
-    const totalResult = await client.query(
-      `SELECT COUNT(*)
-       FROM color_items ci
-       JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE ci.is_deleted = false AND cc.builder_id = $1 ${countFilter}`,
-      countParams
-    );
+    if (upgradeOption !== undefined) {
+      if (!["fixed", "start_from", "tba"].includes(upgradeOption)) {
+        return errorResponse(
+          res,
+          400,
+          "upgrade_option must be fixed, start_from, or tba",
+        );
+      }
+      conditions.push(`ci.upgrade_option = $${index}`);
+      values.push(upgradeOption);
+      index++;
+    }
 
-    const userIds = new Set();
-    result.rows.forEach(row => {
-      if (row.created_by_id) userIds.add(row.created_by_id);
-      if (row.updated_by_id) userIds.add(row.updated_by_id);
-      if (row.supplier_id) userIds.add(row.supplier_id);
-    });
+    if (units !== undefined) {
+      if (!["mandatory", "non_mandatory", "not_required"].includes(units)) {
+        return errorResponse(
+          res,
+          400,
+          "units must be mandatory, non_mandatory, or not_required",
+        );
+      }
+      conditions.push(`ci.units = $${index}`);
+      values.push(units);
+      index++;
+    }
 
-    const usersMap = await getUsersDetails(client, Array.from(userIds));
+    if (search !== undefined && search.trim() !== "") {
+      conditions.push(
+        `(LOWER(ci.item_name) LIKE LOWER($${index}) OR LOWER(ci.item_code) LIKE LOWER($${index}))`,
+      );
+      values.push(`%${search.trim()}%`);
+      index++;
+    }
 
-    const colorItems = result.rows.map(row => {
-      const formatted = keysToCamelCase(row);
-      return {
-        ...formatted,
-        createdBy: formatUserObject(row.created_by_id, usersMap),
-        updatedBy: formatUserObject(row.updated_by_id, usersMap),
-        supplier: formatUserObject(row.supplier_id, usersMap)
-      };
-    });
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const totalItems = parseInt(totalResult.rows[0].count, 10);
-    const totalPages = Math.ceil(totalItems / parsedLimit);
-    const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM color_item ci
+      ${whereClause};
+    `;
+
+    const listQuery = `
+      SELECT ci.*
+      FROM color_item ci
+      ${whereClause}
+      ORDER BY ci.created_at DESC
+      LIMIT ${limit} OFFSET ${offset};
+    `;
+
+    const [countResult, listResult] = await Promise.all([
+      client.query(countQuery, values),
+      client.query(listQuery, values),
+    ]);
+
+    const rows = keysToCamelCase(listResult.rows);
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    const pagination = {
+      totalRecords: total,
+      currentPage: page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
 
     return successResponse(
       res,
       {
-        colorItems,
-        pagination: { totalItems, totalPages, currentPage, limit: parsedLimit },
+        colorItems: rows,
+        pagination,
       },
-      "Color items fetched successfully."
+      "Color items fetched successfully.",
     );
   } catch (error) {
-    return errorResponse(res, error?.statusCode || 400, error?.message || "Failed to fetch color items.");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getColorItemById = async (req, res) => {
-  const { color_item_id } = req.params;
-  const builderId = req.user.builder_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const result = await client.query(
-      `SELECT ci.* FROM color_items ci
-       JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE ci.color_item_id = $1 AND cc.builder_id = $2 AND ci.is_deleted = false`,
-      [color_item_id, builderId]
-    );
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Color item not found.");
-    }
-
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
-
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap),
-      supplier: formatUserObject(row.supplier_id, usersMap)
-    };
-
-    return successResponse(res, response, "Color item fetched successfully.");
-  } catch (error) {
-    console.error("Get color item by ID error:", error);
-    return errorResponse(res, 500, "Failed to fetch color item.");
-  } finally {
-    client.release();
-  }
-};
-
-exports.createColorItem = async (req, res) => {
-  const {
-    colorSubCategoryId,
-    name,
-    code,
-    standard,
-    upgrade,
-    units,
-    notes,
-    highlightNotesOnPdf,
-    supplierId,
-  } = req.body;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-  const imageUrl = req.file?.location;
-
-  if (!imageUrl) {
-    return errorResponse(res, 400, "Image is required.");
-  }
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    // Ensure sub-category belongs to this builder
-    const parent = await client.query(
-      `SELECT 1 FROM color_sub_category sc
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE sc.color_sub_category_id = $1 AND cc.builder_id = $2 AND sc.is_deleted = false`,
-      [colorSubCategoryId, builderId]
-    );
-    if (parent.rowCount === 0) {
-      return errorResponse(res, 400, "Invalid colorSubCategoryId.");
-    }
-
-    let supplierIdParam = null;
-    if (supplierId) {
-      // Ensure supplier belongs to this builder
-      const supplier = await client.query(
-        `SELECT 1 FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
-        [supplierId, builderId]
-      );
-      if (supplier.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid supplierId.");
-      }
-      supplierIdParam = supplierId;
-    }
-
-    const result = await client.query(
-      `INSERT INTO color_items (
-        color_sub_category_id,
-        builder_id,
-        name,
-        code,
-        standard,
-        upgrade,
-        units,
-        notes,
-        highlight_notes_on_pdf,
-        supplier_id,
-        image,
-        created_by_id,
-        updated_by_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [
-        colorSubCategoryId,
-        builderId,
-        name,
-        code,
-        Boolean(standard) || false,
-        Boolean(upgrade) || false,
-        units ?? null,
-        notes ?? null,
-        Boolean(highlightNotesOnPdf) || false,
-        supplierIdParam,
-        imageUrl,
-        userId,
-        userId,
-      ]
-    );
-
-    const row = result.rows[0];
-    const userIds = [userId, row.supplier_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
-
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap),
-      supplier: formatUserObject(row.supplier_id, usersMap)
-    };
-
-    return successResponse(res, response, "Color item created successfully.");
-  } catch (error) {
-    console.error("Create color item error:", error);
-    return errorResponse(res, 500, "Failed to create color item.");
+    console.error("Error fetching color items:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.updateColorItem = async (req, res) => {
-  const { color_item_id } = req.params;
-  const {
-    name,
-    code,
-    standard,
-    upgrade,
-    units,
-    notes,
-    highlightNotesOnPdf,
-    supplierId,
-  } = req.body;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-  let imageUrl = null;
-  if (req.file) {
-    imageUrl = req.file.location;
-  }
-
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    // verify ownership of item
-    const owned = await client.query(
-      `SELECT ci.color_item_id, ci.image, ci.supplier_id FROM color_items ci
-       JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE ci.color_item_id = $1 AND cc.builder_id = $2 AND ci.is_deleted = false`,
-      [color_item_id, builderId]
-    );
-    if (owned.rowCount === 0) {
-      return errorResponse(res, 404, "Color item not found or already deleted.");
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+    const { colorItemId } = req.params;
+
+    if (!colorItemId) {
+      return errorResponse(res, 400, "Color item ID is required.");
     }
 
-    // if supplierId is not null, verify it belongs to builder
-    if (supplierId) {
-      const supplier = await client.query(
-        `SELECT 1 FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
-        [supplierId, builderId]
+    const {
+      item_name,
+      item_code,
+      supplier_id,
+      upgrade_option,
+      cost_type,
+      cost,
+      features,
+      description,
+      units,
+      specification,
+      color_image,
+      status,
+    } = req.body;
+
+    // Handle image uploads
+    const specificationImage = req.files?.specification?.[0]?.location;
+    const colorItemImage = req.files?.color_image?.[0]?.location;
+
+    await client.query("BEGIN");
+
+    // Check if color item exists
+    const existingCheck = await client.query(
+      `
+      SELECT color_item_id, item_code, color_image
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [colorItemId, companyId, builderId],
+    );
+
+    if (existingCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found.");
+    }
+
+    const existing = existingCheck.rows[0];
+
+    // Validate fields
+    if (
+      upgrade_option &&
+      !["fixed", "start_from", "tba"].includes(upgrade_option)
+    ) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Upgrade option must be one of: fixed, start_from, tba",
       );
-      if (supplier.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid supplierId.");
+    }
+
+    if (cost_type && !["standard", "upgrade"].includes(cost_type)) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Cost type must be one of: standard, upgrade",
+      );
+    }
+
+    if (
+      units &&
+      !["mandatory", "non_mandatory", "not_required"].includes(units)
+    ) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Units must be one of: mandatory, non_mandatory, not_required",
+      );
+    }
+
+    if (item_code && item_code.trim() !== existing.item_code) {
+      const duplicateCheck = await client.query(
+        `
+        SELECT 1
+        FROM color_item
+        WHERE (company_id = $1 OR builder_id = $2)
+          AND item_code = $3
+          AND color_item_id != $4
+        `,
+        [companyId, builderId, item_code.trim(), colorItemId],
+      );
+
+      if (duplicateCheck.rowCount > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Item code already exists.");
       }
     }
 
-    const result = await client.query(
-      `UPDATE color_items SET
-        name = COALESCE($1, name),
-        code = COALESCE($2, code),
-        standard = COALESCE($3, standard),
-        upgrade = COALESCE($4, upgrade),
-        units = COALESCE($5, units),
-        notes = COALESCE($6, notes),
-        highlight_notes_on_pdf = COALESCE($7, highlight_notes_on_pdf),
-        supplier_id = COALESCE($8, supplier_id),
-        image = COALESCE($9, image),
-        updated_by_id = $10,
-        updated_at = NOW()
-       WHERE color_item_id = $11 AND is_deleted = false
-       RETURNING *`,
-      [
-        name ?? null,
-        code ?? null,
-        standard ?? null,
-        upgrade ?? null,
-        units ?? null,
-        notes ?? null,
-        highlightNotesOnPdf ?? null,
-        supplierId ?? owned.rows[0].supplier_id,
-        imageUrl ?? owned.rows[0].image,
-        userId,
-        color_item_id,
-      ]
-    );
+    if (supplier_id) {
+      const supplierCheck = await client.query(
+        `
+        SELECT 1
+        FROM supplier
+        WHERE supplier_id = $1
+          AND (company_id = $2 OR builder_id = $3)
+        `,
+        [supplier_id, companyId, builderId],
+      );
 
-    // after update old image delete if new image is uploaded
-    if (imageUrl && owned.rows[0].image) {
-      await deleteFromS3(owned.rows[0].image);
+      if (supplierCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid supplier ID.");
+      }
     }
 
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
 
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap),
-      supplier: formatUserObject(row.supplier_id, usersMap)
-    };
+    if (item_name !== undefined) {
+      updateFields.push(`item_name = $${paramIndex++}`);
+      updateValues.push(item_name.trim());
+    }
 
-    return successResponse(res, response, "Color item updated successfully.");
+    if (item_code !== undefined) {
+      updateFields.push(`item_code = $${paramIndex++}`);
+      updateValues.push(item_code.trim());
+    }
+
+    if (supplier_id !== undefined) {
+      updateFields.push(`supplier_id = $${paramIndex++}`);
+      updateValues.push(supplier_id);
+    }
+
+    if (upgrade_option !== undefined) {
+      updateFields.push(`upgrade_option = $${paramIndex++}`);
+      updateValues.push(upgrade_option);
+    }
+
+    if (cost_type !== undefined) {
+      updateFields.push(`cost_type = $${paramIndex++}`);
+      updateValues.push(cost_type);
+    }
+
+    if (cost !== undefined) {
+      updateFields.push(`cost = $${paramIndex++}`);
+      updateValues.push(cost);
+    }
+
+    if (features !== undefined) {
+      updateFields.push(`features = $${paramIndex++}`);
+      updateValues.push(features?.trim() || null);
+    }
+
+    if (description !== undefined) {
+      updateFields.push(`description = $${paramIndex++}`);
+      updateValues.push(description?.trim() || null);
+    }
+
+    if (units !== undefined) {
+      updateFields.push(`units = $${paramIndex++}`);
+      updateValues.push(units);
+    }
+
+    if (colorItemImage !== undefined) {
+      updateFields.push(`color_image = $${paramIndex++}`);
+      updateValues.push(colorItemImage);
+    }
+
+    if (specificationImage !== undefined) {
+      updateFields.push(`specification = $${paramIndex++}`);
+      updateValues.push(specificationImage);
+    }
+
+    if (status !== undefined) {
+      if (typeof status !== "boolean") {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Status must be a boolean value.");
+      }
+      updateFields.push(`status = $${paramIndex++}`);
+      updateValues.push(status);
+    }
+
+    if (updateFields.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "At least one field is required for update.",
+      );
+    }
+
+    updateFields.push(`updated_at = NOW()`);
+    updateValues.push(colorItemId);
+
+    const updateQuery = `
+      UPDATE color_item
+      SET ${updateFields.join(", ")}
+      WHERE color_item_id = $${paramIndex}
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, updateValues);
+    const updatedColorItem = keysToCamelCase(result.rows[0]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      updatedColorItem,
+      "Color item updated successfully.",
+    );
   } catch (error) {
-    console.error("Update color item error:", error);
-    await deleteFromS3(imageUrl);
-    return errorResponse(res, 500, "Failed to update color item.");
+    await client.query("ROLLBACK");
+    console.error("Update Color Item Error:", error);
+
+    if (error.code === "23505") {
+      return errorResponse(res, 409, "Item code already exists.");
+    }
+
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.deleteColorItem = async (req, res) => {
-  const { color_item_id } = req.params;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-
   const pool = getPool();
   const client = await pool.connect();
+
   try {
-    const exists = await client.query(
-      `SELECT ci.color_item_id FROM color_items ci
-       JOIN color_sub_category sc ON ci.color_sub_category_id = sc.color_sub_category_id
-       JOIN color_category cc ON sc.color_category_id = cc.color_category_id
-       WHERE ci.color_item_id = $1 AND cc.builder_id = $2 AND ci.is_deleted = false`,
-      [color_item_id, builderId]
-    );
-    if (exists.rowCount === 0) {
-      return errorResponse(res, 404, "Color item not found or already deleted.");
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+    const { colorItemId } = req.params;
+
+    if (!colorItemId) {
+      return errorResponse(res, 400, "Color item ID is required.");
     }
 
-    const result = await client.query(
-      `UPDATE color_items 
-       SET is_deleted = true, updated_by_id = $2, updated_at = NOW()
-       WHERE color_item_id = $1 AND is_deleted = false RETURNING *`,
-      [color_item_id, userId]
+    await client.query("BEGIN");
+
+    // Check if color item exists
+    const existingCheck = await client.query(
+      `
+      SELECT color_item_id
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [colorItemId, companyId, builderId],
     );
 
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id, row.supplier_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
+    if (existingCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found.");
+    }
 
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap),
-      supplier: formatUserObject(row.supplier_id, usersMap)
-    };
+    await client.query(
+      `
+      DELETE FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [colorItemId, companyId, builderId],
+    );
 
-    return successResponse(res, response, "Color item deleted successfully.");
+    await client.query("COMMIT");
+
+    return successResponse(res, null, "Color item deleted successfully.");
   } catch (error) {
-    console.error("Delete color item error:", error);
-    return errorResponse(res, 500, "Failed to delete color item.");
+    await client.query("ROLLBACK");
+    console.error("Delete Color Item Error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getColorItemById = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+    const { colorItemId } = req.params;
+
+    if (!colorItemId) {
+      return errorResponse(res, 400, "Color item ID is required.");
+    }
+
+    const query = `
+      SELECT *
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+    `;
+
+    const result = await client.query(query, [
+      colorItemId,
+      companyId,
+      builderId,
+    ]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "Color item not found.");
+    }
+
+    const colorItem = keysToCamelCase(result.rows[0]);
+
+    return successResponse(res, colorItem, "Color item fetched successfully.");
+  } catch (error) {
+    console.error("Error fetching color item:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
     client.release();
   }

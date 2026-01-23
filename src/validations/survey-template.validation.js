@@ -35,6 +35,20 @@ const getAllSurveyTemplateSchema = Joi.object({
     "number.min": "Limit must be at least 1",
     "number.max": "Limit must not exceed 100",
   }),
+
+  name: Joi.string().trim().max(255).allow("").optional().messages({
+    "string.max": "Name search term must not exceed 255 characters",
+  }),
+
+  sort_order: Joi.number().integer().min(0).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+    "number.min": "Sort order must be 0 or greater",
+  }),
+
+  status: Joi.string().valid("true", "false").optional().messages({
+    "any.only": "Status must be either 'true' or 'false'",
+  }),
 });
 
 const deleteSurveyTemplateSchema = Joi.object({

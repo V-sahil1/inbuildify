@@ -459,9 +459,31 @@ exports.deleteRange = async (req, res) => {
       return errorResponse(res, 404, "Range not found for this builder");
     }
 
-    const query = `DELETE FROM range WHERE range_id = $1 AND builder_id = $2`;
+    await client.query("BEGIN");
 
+    // Remove range_id from all price_list_item records that reference it
+    const updatePriceListItemsQuery = `
+      UPDATE price_list_item 
+      SET range_id = array_remove(range_id, $1)
+      WHERE $1 = ANY(range_id)
+    `;
+
+    await client.query(updatePriceListItemsQuery, [range_id]);
+
+    // Remove range_id from all package records that reference it
+    const updatePackagesQuery = `
+      UPDATE package 
+      SET range_id = array_remove(range_id, $1)
+      WHERE $1 = ANY(range_id)
+    `;
+
+    await client.query(updatePackagesQuery, [range_id]);
+
+    // Delete the range
+    const query = `DELETE FROM range WHERE range_id = $1 AND builder_id = $2`;
     const result = await client.query(query, [range_id, builderId]);
+
+    await client.query("COMMIT");
 
     return successResponse(
       res,
@@ -469,6 +491,7 @@ exports.deleteRange = async (req, res) => {
       "Range deleted successfully.",
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {

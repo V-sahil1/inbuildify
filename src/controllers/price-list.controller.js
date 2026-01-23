@@ -163,70 +163,60 @@ exports.getAllPriceList = async (req, res) => {
       const defaultPriceLists = [
         {
           name: "Standard Package",
-          sort_order: 1,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Premium Package",
-          sort_order: 2,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Deluxe Package",
-          sort_order: 3,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Basic Package",
-          sort_order: 4,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Custom Package",
-          sort_order: 5,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Economy Package",
-          sort_order: 6,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Luxury Package",
-          sort_order: 7,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Executive Package",
-          sort_order: 8,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Family Package",
-          sort_order: 9,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
         },
         {
           name: "Business Package",
-          sort_order: 10,
           show_in_view_list: true,
           is_active: true,
           is_suggested: true,
@@ -278,7 +268,7 @@ exports.getAllPriceList = async (req, res) => {
           {
             priceList: [],
             pagination: {
-              priceList: 0,
+              totalRecords: 0,
               currentPage: page,
               limit,
               totalPages: 0,
@@ -340,7 +330,7 @@ exports.getAllPriceList = async (req, res) => {
     const total = parseInt(countResult.rows[0].total, 10);
 
     const pagination = {
-      priceList: total,
+      totalRecords: total,
       currentPage: page,
       limit,
       totalPages: Math.ceil(total / limit),
@@ -727,6 +717,69 @@ exports.toggleSuggestedPriceList = async (req, res) => {
         400,
         "Cannot change is_suggested from false to true. Only allowed to change from true to false.",
       );
+    }
+
+    const cleanupDuplicatesQuery = `
+      WITH numbered_records AS (
+        SELECT 
+          price_list_id,
+          ROW_NUMBER() OVER (ORDER BY COALESCE(sort_order, 999999), created_at) as new_order
+        FROM price_list
+        WHERE company_id = $1
+          AND builder_id = $2
+      )
+      UPDATE price_list p
+      SET sort_order = nr.new_order,
+          updated_at = NOW()
+      FROM numbered_records nr
+      WHERE p.price_list_id = nr.price_list_id
+        AND p.sort_order != nr.new_order
+    `;
+    await client.query(cleanupDuplicatesQuery, [companyId, builderId]);
+
+    const getCurrentSortOrderQuery = `
+      SELECT sort_order as current_sort_order
+      FROM price_list
+      WHERE price_list_id = $1
+    `;
+    const sortOrderResult = await client.query(getCurrentSortOrderQuery, [
+      priceListId,
+    ]);
+    const currentSortOrder = sortOrderResult.rows[0].current_sort_order;
+
+    if (currentSortOrder === null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+        FROM price_list
+        WHERE company_id = $1
+          AND builder_id = $2
+      `;
+      const maxSortResult = await client.query(maxSortQuery, [
+        companyId,
+        builderId,
+      ]);
+      const newSortOrder = maxSortResult.rows[0].max_sort_order + 1;
+
+      await client.query(
+        `UPDATE price_list SET sort_order = $1, updated_at = NOW() WHERE price_list_id = $2`,
+        [newSortOrder, priceListId],
+      );
+    } else {
+      const shiftQuery = `
+        UPDATE price_list
+        SET sort_order = sort_order - 1,
+            updated_at = NOW()
+        WHERE company_id = $1
+          AND builder_id = $2
+          AND price_list_id != $3
+          AND sort_order > $4
+      `;
+      await client.query(shiftQuery, [
+        companyId,
+        builderId,
+        priceListId,
+        currentSortOrder,
+      ]);
     }
 
     const updateQuery = `

@@ -28,7 +28,7 @@ exports.createConstructionOption = async (req, res) => {
         FROM construction_option
         WHERE company_id = $1 AND builder_id = $2 AND option_name = $3
       `,
-      [companyId, builderId, option_name.trim()]
+      [companyId, builderId, option_name.trim()],
     );
 
     if (existingOption.rowCount > 0) {
@@ -36,7 +36,7 @@ exports.createConstructionOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Construction option already exists for this company and builder."
+        "Construction option already exists for this company and builder.",
       );
     }
 
@@ -65,7 +65,7 @@ exports.createConstructionOption = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction option created successfully."
+      "Construction option created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -88,7 +88,7 @@ exports.getAllConstructionOptions = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context (company_id or builder_id missing)."
+        "Invalid user context (company_id or builder_id missing).",
       );
     }
 
@@ -130,7 +130,7 @@ exports.getAllConstructionOptions = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Construction options fetched successfully."
+      "Construction options fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching construction options:", err);
@@ -157,7 +157,7 @@ exports.deleteConstructionOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context (company_id or builder_id missing)."
+        "Invalid user context (company_id or builder_id missing).",
       );
     }
 
@@ -181,9 +181,23 @@ exports.deleteConstructionOption = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Construction option not found or access denied."
+        "Construction option not found or access denied.",
       );
     }
+
+    // Remove construction_option_id from all construction_checklist records that reference it
+    const updateConstructionChecklistsQuery = `
+      UPDATE construction_checklist 
+      SET construction_option_id = array_remove(construction_option_id, $1)
+      WHERE $1 = ANY(construction_option_id)
+      AND (company_id = $2 OR builder_id = $3)
+    `;
+
+    await client.query(updateConstructionChecklistsQuery, [
+      id,
+      companyId,
+      builderId,
+    ]);
 
     const deleteQuery = `
       DELETE FROM construction_option
@@ -196,7 +210,7 @@ exports.deleteConstructionOption = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Construction option deleted successfully."
+      "Construction option deleted successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -238,7 +252,7 @@ exports.updateConstructionOption = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or does not belong to this builder."
+        "Record not found or does not belong to this builder.",
       );
     }
 
@@ -264,7 +278,7 @@ exports.updateConstructionOption = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Construction option already exists with this option name."
+        "Construction option already exists with this option name.",
       );
     }
 
@@ -300,7 +314,7 @@ exports.updateConstructionOption = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Construction option updated successfully."
+      "Construction option updated successfully.",
     );
   } catch (error) {
     console.error("Error updating construction option:", error);

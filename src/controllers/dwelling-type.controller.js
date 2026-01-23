@@ -235,8 +235,31 @@ exports.deleteDwellingType = async (req, res) => {
       );
     }
 
+    await client.query("BEGIN");
+
+    // Remove dwelling_type_id from all price_list_item records that reference it
+    const updatePriceListItemsQuery = `
+      UPDATE price_list_item 
+      SET dwelling_type_id = array_remove(dwelling_type_id, $1)
+      WHERE $1 = ANY(dwelling_type_id)
+    `;
+
+    await client.query(updatePriceListItemsQuery, [dwelling_type_id]);
+
+    // Remove dwelling_type_id from all package records that reference it
+    const updatePackagesQuery = `
+      UPDATE package 
+      SET dwelling_type_id = array_remove(dwelling_type_id, $1)
+      WHERE $1 = ANY(dwelling_type_id)
+    `;
+
+    await client.query(updatePackagesQuery, [dwelling_type_id]);
+
+    // Delete the dwelling type
     const query = `delete FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2;`;
     const result = await client.query(query, [dwelling_type_id, builderId]);
+
+    await client.query("COMMIT");
 
     return successResponse(
       res,
@@ -244,6 +267,7 @@ exports.deleteDwellingType = async (req, res) => {
       "Dwelling type deleted successfully.",
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
   } finally {
