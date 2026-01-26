@@ -8,6 +8,7 @@ const {
   createCostCenterChecklistMapSchema,
   costCenterChecklistMapQuerySchema,
   costCenterChecklistMapParamsSchema,
+  getAllCostCentersSchema,
 } = require("../validations/cost-center.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -26,7 +27,11 @@ router.post(
   costCenterController.createCostCenter,
 );
 
-router.get("/", costCenterController.getCostCenters);
+router.get(
+  "/",
+  validateRequest(getAllCostCentersSchema, REQUEST_SOURCE.QUERY),
+  costCenterController.getCostCenters,
+);
 
 //get cost center checklist map
 router.get(

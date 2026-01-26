@@ -43,7 +43,7 @@ const getAllColorItemsSchema = Joi.object({
 });
 
 const getColorItemByIdSchema = Joi.object({
-  colorItemId: Joi.string().uuid().required().messages({
+  color_item_id: Joi.string().uuid().required().messages({
     "any.required": "Color item ID is required",
     "string.uuid": "Color item ID must be a valid UUID",
     "string.guid": "Color item ID must be a valid UUID",
@@ -184,11 +184,21 @@ const updateColorItemSchema = Joi.object({
   .message({ "object.min": "At least one field is required to update" });
 
 const deleteColorItemSchema = Joi.object({
-  colorItemId: Joi.string().uuid().required().messages({
+  color_item_id: Joi.string().uuid().required().messages({
     "any.required": "Color item ID is required",
     "string.uuid": "Color item ID must be a valid UUID",
     "string.guid": "Color item ID must be a valid UUID",
   }),
+});
+
+const deleteImageFieldSchema = Joi.object({
+  field_name: Joi.string()
+    .valid("color_image", "specification")
+    .required()
+    .messages({
+      "any.required": "Field name is required",
+      "any.only": "Field name must be either 'color_image' or 'specification'",
+    }),
 });
 
 module.exports = {
@@ -197,4 +207,5 @@ module.exports = {
   createColorItemSchema,
   updateColorItemSchema,
   deleteColorItemSchema,
+  deleteImageFieldSchema,
 };

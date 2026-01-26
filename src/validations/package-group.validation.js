@@ -3,10 +3,6 @@ const Joi = require("joi");
 const createPackageGroupSchema = Joi.object({
   name: Joi.string().trim().max(150).required(),
   no_of_packages: Joi.number().integer().min(0).default(0),
-  package_id: Joi.string().uuid().required().messages({
-    "string.guid": "Package ID must be a valid UUID",
-    "any.required": "Package ID is required",
-  }),
 });
 
 const getAllPackageGroupSchema = Joi.object({

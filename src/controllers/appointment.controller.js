@@ -17,6 +17,7 @@ exports.createAppointment = async (req, res) => {
       start_time,
       end_time,
       location_id,
+      link_to,
       select_users,
       notes,
     } = req.body;
@@ -25,7 +26,7 @@ exports.createAppointment = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "start_time must be earlier than end_time."
+        "start_time must be earlier than end_time.",
       );
     }
 
@@ -34,14 +35,14 @@ exports.createAppointment = async (req, res) => {
         `SELECT location_id 
          FROM location 
          WHERE location_id = $1 AND (company_id = $2 OR builder_id = $3)`,
-        [location_id, companyId, builderId]
+        [location_id, companyId, builderId],
       );
 
       if (locationCheck.rowCount === 0) {
         return errorResponse(
           res,
           400,
-          "Invalid location_id. Location not found for this builder/company."
+          "Invalid location_id. Location not found for this builder/company.",
         );
       }
     }
@@ -51,7 +52,7 @@ exports.createAppointment = async (req, res) => {
         `SELECT location_id 
          FROM location 
          WHERE location_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true`,
-        [location_id, companyId, builderId]
+        [location_id, companyId, builderId],
       );
 
       if (locationActiveCheck.rowCount === 0) {
@@ -64,14 +65,14 @@ exports.createAppointment = async (req, res) => {
         `SELECT users_id 
          FROM users
          WHERE users_id = ANY($1) AND is_deleted = false`,
-        [select_users]
+        [select_users],
       );
 
       if (userCheck.rowCount !== select_users.length) {
         return errorResponse(
           res,
           400,
-          "One or more user IDs in select_users are invalid or do not belong to this builder/company."
+          "One or more user IDs in select_users are invalid or do not belong to this builder/company.",
         );
       }
     }
@@ -98,6 +99,7 @@ exports.createAppointment = async (req, res) => {
         start_time,
         end_time,
         location_id,
+        link_to,
         select_users,
         notes,
         created_by,
@@ -110,7 +112,8 @@ exports.createAppointment = async (req, res) => {
         $8,
         $9,
         $10,
-        $11
+        $11,
+        $12
       )
       RETURNING *
     `;
@@ -123,6 +126,7 @@ exports.createAppointment = async (req, res) => {
       start_time,
       end_time,
       location_id || null,
+      link_to || null,
       select_users || [],
       notes || null,
       userId,
@@ -136,7 +140,7 @@ exports.createAppointment = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Appointment created successfully."
+      "Appointment created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -159,7 +163,7 @@ exports.getAllAppointments = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -168,7 +172,7 @@ exports.getAllAppointments = async (req, res) => {
     limit = parseInt(limit);
 
     const offset = (page - 1) * limit;
-    const { title, date, location_id, is_deleted } = req.query;
+    const { title, date, location_id, link_to, is_deleted } = req.query;
 
     let whereClauses = [];
     let values = [];
@@ -199,6 +203,12 @@ exports.getAllAppointments = async (req, res) => {
     if (location_id) {
       whereClauses.push(`location_id = $${idx}`);
       values.push(location_id);
+      idx++;
+    }
+
+    if (link_to) {
+      whereClauses.push(`link_to = $${idx}`);
+      values.push(link_to);
       idx++;
     }
 
@@ -297,7 +307,7 @@ exports.deleteAppointment = async (req, res) => {
     return errorResponse(
       res,
       500,
-      err.message || "Failed to delete appointment."
+      err.message || "Failed to delete appointment.",
     );
   } finally {
     client.release();
@@ -320,6 +330,7 @@ exports.updateAppointment = async (req, res) => {
       start_time,
       end_time,
       location_id,
+      link_to,
       select_users,
       notes,
     } = req.body;
@@ -328,7 +339,7 @@ exports.updateAppointment = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Unauthorized. Builder or company login required."
+        "Unauthorized. Builder or company login required.",
       );
     }
 
@@ -369,7 +380,7 @@ exports.updateAppointment = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "start_time must be earlier than existing end_time."
+          "start_time must be earlier than existing end_time.",
         );
       }
     }
@@ -379,7 +390,7 @@ exports.updateAppointment = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "end_time must be later than existing start_time."
+          "end_time must be later than existing start_time.",
         );
       }
     }
@@ -389,7 +400,7 @@ exports.updateAppointment = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "start_time must be earlier than end_time."
+          "start_time must be earlier than end_time.",
         );
       }
     }
@@ -403,7 +414,7 @@ exports.updateAppointment = async (req, res) => {
       if (select_users.length > 0) {
         const userCheck = await client.query(
           `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
-          [select_users]
+          [select_users],
         );
 
         if (userCheck.rowCount !== select_users.length) {
@@ -416,7 +427,7 @@ exports.updateAppointment = async (req, res) => {
     if (location_id !== undefined) {
       const locationCheck = await client.query(
         `SELECT location_id FROM location WHERE location_id = $1 AND builder_id = $2`,
-        [location_id, builderId]
+        [location_id, builderId],
       );
       if (locationCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -427,7 +438,7 @@ exports.updateAppointment = async (req, res) => {
     if (location_id !== undefined) {
       const locationActiveCheck = await client.query(
         `SELECT location_id FROM location WHERE location_id = $1 AND status = true AND builder_id = $2`,
-        [location_id, builderId]
+        [location_id, builderId],
       );
       if (locationActiveCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -475,6 +486,11 @@ exports.updateAppointment = async (req, res) => {
       values.push(location_id);
       index++;
     }
+    if (link_to !== undefined) {
+      fields.push(`link_to = $${index}`);
+      values.push(link_to);
+      index++;
+    }
     if (select_users !== undefined) {
       fields.push(`select_users = $${index}`);
       values.push(select_users);
@@ -513,7 +529,7 @@ exports.updateAppointment = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Appointment updated successfully."
+      "Appointment updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -521,7 +537,101 @@ exports.updateAppointment = async (req, res) => {
     return errorResponse(
       res,
       500,
-      err.message || "Failed to update appointment."
+      err.message || "Failed to update appointment.",
+    );
+  } finally {
+    client.release();
+  }
+};
+
+exports.searchUserBuilderTables = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { search } = req.query;
+
+    if (!search || search.trim().length < 2) {
+      return errorResponse(
+        res,
+        400,
+        "Search term must be at least 2 characters long.",
+      );
+    }
+
+    const searchTerm = `%${search.trim().toLowerCase()}%`;
+
+    // First, find the user by name
+    const userQuery = `
+      SELECT users_id, name, email, builder_id
+      FROM users
+      WHERE (LOWER(name) LIKE $1 OR LOWER(email) LIKE $1)
+        AND is_deleted = false
+      LIMIT 1
+    `;
+
+    const userResult = await client.query(userQuery, [searchTerm]);
+
+    if (userResult.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "No user found with the provided name or email.",
+      );
+    }
+
+    const foundUser = userResult.rows[0];
+    const userBuilderId = foundUser.builder_id;
+
+    // Check if builder exists in construction, users, and sales tables
+    const tableCheckQuery = `
+      SELECT 'construction_type' as table_name, COUNT(*) as count
+      FROM construction_type
+      WHERE builder_id = $1
+      
+      UNION ALL
+      
+      SELECT 'users' as table_name, COUNT(*) as count
+      FROM users
+      WHERE builder_id = $1 AND is_deleted = false
+      
+      UNION ALL
+      
+      SELECT 'sales_process' as table_name, COUNT(*) as count
+      FROM sales_process
+      WHERE builder_id = $1
+    `;
+
+    const tableResult = await client.query(tableCheckQuery, [userBuilderId]);
+
+    const existingTables = tableResult.rows
+      .filter((row) => parseInt(row.count) > 0)
+      .map((row) => row.table_name);
+
+    if (existingTables.length === 0) {
+      return errorResponse(
+        res,
+        404,
+        `No records found for user "${foundUser.name}" in construction, users, or sales tables.`,
+      );
+    }
+
+    return successResponse(
+      res,
+      {
+        userName: foundUser.name,
+        builderId: userBuilderId,
+        existingTables: existingTables,
+        searchTerm: search,
+      },
+      "User builder table existence checked successfully.",
+    );
+  } catch (err) {
+    console.error("Error searching user builder tables:", err);
+    return errorResponse(
+      res,
+      500,
+      err.message || "Failed to search user builder tables.",
     );
   } finally {
     client.release();

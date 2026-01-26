@@ -125,6 +125,9 @@ const costCenterRoutes = require("./cost-center.routes");
 const complianceTypeRoutes = require("./compliance-type.routes");
 const driveRoutes = require("./drive.routes");
 const colorGrouprouts = require("./color-group.routes");
+const colorGroupItemMapRoutes = require("./color-group-item-map.routes");
+const contractFormatRoutes = require("./contract-format.routes");
+const contractSectionRoutes = require("./contract-section.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -158,6 +161,7 @@ module.exports = function (app) {
   app.use("/color-category", colorCategoryRoutes);
   app.use("/color-sub-category", colorSubCategoryRoutes);
   app.use("/color-item", colorItemRoutes);
+  app.use("/color-group-item-map", colorGroupItemMapRoutes);
   app.use("/workflow-process-task", workflowProcessTaskRoutes);
   app.use("/invoice", invoiceRoutes);
   app.use("/screen", screenRoutes);
@@ -271,4 +275,6 @@ module.exports = function (app) {
   app.use("/compliance-type", complianceTypeRoutes);
   app.use("/drive", driveRoutes);
   app.use("/color-group", colorGrouprouts);
+  app.use("/contract-format", contractFormatRoutes);
+  app.use("/contract-section", contractSectionRoutes);
 };

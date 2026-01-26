@@ -24,6 +24,10 @@ const createPackageSchema = Joi.object({
     "array.includes": "Each range ID must be a valid UUID",
   }),
 
+  package_group_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each package group ID must be a valid UUID",
+  }),
+
   dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.includes": "Each dwelling type ID must be a valid UUID",
   }),
@@ -41,6 +45,19 @@ const getAllPackagesSchema = Joi.object({
     .max(9999999999.99)
     .optional()
     .allow(null),
+
+  range_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each range ID must be a valid UUID",
+  }),
+
+  dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each dwelling type ID must be a valid UUID",
+  }),
+
+  package_group_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each package group ID must be a valid UUID",
+  }),
+
   sort_order: Joi.string().trim().valid("ASC", "DESC").optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({
@@ -89,6 +106,10 @@ const updatePackageSchema = Joi.object({
 
   dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.includes": "Each dwelling type ID must be a valid UUID",
+  }),
+
+  package_group_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.includes": "Each package group ID must be a valid UUID",
   }),
 
   allow_add_item_from_pricelist: Joi.boolean().optional(),

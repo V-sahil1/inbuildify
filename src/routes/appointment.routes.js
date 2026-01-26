@@ -6,6 +6,7 @@ const {
   getAllAppointments,
   deleteAppointment,
   updateAppointment,
+  searchUserBuilderTables,
 } = require("../controllers/appointment.controller");
 const {
   createAppointmentSchema,
@@ -29,25 +30,27 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createAppointmentSchema, REQUEST_SOURCE.BODY),
-  createAppointment
+  createAppointment,
 );
 router.get(
   "/",
   validateRequest(getAllAppointmentSchema, REQUEST_SOURCE.QUERY),
-  getAllAppointments
+  getAllAppointments,
 );
+
+router.get("/search", searchUserBuilderTables);
 
 router.delete(
   "/:appointment_id",
   validateRequest(deleteAppointmentSchema, REQUEST_SOURCE.PARAMS),
-  deleteAppointment
+  deleteAppointment,
 );
 
 router.put(
   "/:appointment_id",
   validateRequest(updateAppointmentParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateAppointmentSchema, REQUEST_SOURCE.BODY),
-  updateAppointment
+  updateAppointment,
 );
 
 module.exports = router;

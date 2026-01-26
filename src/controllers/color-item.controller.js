@@ -24,13 +24,11 @@ exports.createColorItem = async (req, res) => {
       features,
       description,
       units = "non_mandatory",
-      specification,
-      color_image,
       status = true,
     } = req.body;
 
     const specificationImage = req.files?.specification?.[0]?.location || null;
-    const colorItemImage = req.files?.color_image?.[0]?.location || null;
+    const colorItemImage = req.files?.colorImage?.[0]?.location || null;
 
     if (!item_name || item_name.trim() === "") {
       return errorResponse(res, 400, "Item name is required.");
@@ -242,10 +240,10 @@ exports.getAllColorItems = async (req, res) => {
 
     if (search !== undefined && search.trim() !== "") {
       conditions.push(
-        `(LOWER(ci.item_name) LIKE LOWER($${index}) OR LOWER(ci.item_code) LIKE LOWER($${index}))`,
+        `(LOWER(ci.item_name) LIKE LOWER($${index}) OR LOWER(ci.item_code) LIKE LOWER($${index + 1}))`,
       );
-      values.push(`%${search.trim()}%`);
-      index++;
+      values.push(`%${search.trim()}%`, `%${search.trim()}%`);
+      index += 2;
     }
 
     const whereClause =
@@ -303,9 +301,9 @@ exports.updateColorItem = async (req, res) => {
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
-    const { colorItemId } = req.params;
+    const { color_item_id } = req.params;
 
-    if (!colorItemId) {
+    if (!color_item_id) {
       return errorResponse(res, 400, "Color item ID is required.");
     }
 
@@ -319,18 +317,14 @@ exports.updateColorItem = async (req, res) => {
       features,
       description,
       units,
-      specification,
-      color_image,
       status,
     } = req.body;
 
-    // Handle image uploads
     const specificationImage = req.files?.specification?.[0]?.location;
     const colorItemImage = req.files?.color_image?.[0]?.location;
 
     await client.query("BEGIN");
 
-    // Check if color item exists
     const existingCheck = await client.query(
       `
       SELECT color_item_id, item_code, color_image
@@ -338,7 +332,7 @@ exports.updateColorItem = async (req, res) => {
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
-      [colorItemId, companyId, builderId],
+      [color_item_id, companyId, builderId],
     );
 
     if (existingCheck.rowCount === 0) {
@@ -348,7 +342,6 @@ exports.updateColorItem = async (req, res) => {
 
     const existing = existingCheck.rows[0];
 
-    // Validate fields
     if (
       upgrade_option &&
       !["fixed", "start_from", "tba"].includes(upgrade_option)
@@ -391,7 +384,7 @@ exports.updateColorItem = async (req, res) => {
           AND item_code = $3
           AND color_item_id != $4
         `,
-        [companyId, builderId, item_code.trim(), colorItemId],
+        [companyId, builderId, item_code.trim(), color_item_id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -495,7 +488,7 @@ exports.updateColorItem = async (req, res) => {
     }
 
     updateFields.push(`updated_at = NOW()`);
-    updateValues.push(colorItemId);
+    updateValues.push(color_item_id);
 
     const updateQuery = `
       UPDATE color_item
@@ -535,15 +528,14 @@ exports.deleteColorItem = async (req, res) => {
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
-    const { colorItemId } = req.params;
+    const { color_item_id } = req.params;
 
-    if (!colorItemId) {
+    if (!color_item_id) {
       return errorResponse(res, 400, "Color item ID is required.");
     }
 
     await client.query("BEGIN");
 
-    // Check if color item exists
     const existingCheck = await client.query(
       `
       SELECT color_item_id
@@ -551,7 +543,7 @@ exports.deleteColorItem = async (req, res) => {
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
-      [colorItemId, companyId, builderId],
+      [color_item_id, companyId, builderId],
     );
 
     if (existingCheck.rowCount === 0) {
@@ -565,7 +557,7 @@ exports.deleteColorItem = async (req, res) => {
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
-      [colorItemId, companyId, builderId],
+      [color_item_id, companyId, builderId],
     );
 
     await client.query("COMMIT");
@@ -580,6 +572,71 @@ exports.deleteColorItem = async (req, res) => {
   }
 };
 
+exports.deleteImageField = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+    const { color_item_id } = req.params;
+    const { field_name } = req.body;
+
+    if (!color_item_id) {
+      return errorResponse(res, 400, "Color item ID is required.");
+    }
+
+    if (!field_name || !["color_image", "specification"].includes(field_name)) {
+      return errorResponse(
+        res,
+        400,
+        "Field name must be 'color_image' or 'specification'",
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const existingCheck = await client.query(
+      `
+      SELECT color_item_id
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [color_item_id, companyId, builderId],
+    );
+
+    if (existingCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found.");
+    }
+
+    const updateQuery = `
+      UPDATE color_item
+      SET ${field_name} = NULL, updated_at = NOW()
+      WHERE color_item_id = $1
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [color_item_id]);
+    const updatedColorItem = keysToCamelCase(result.rows[0]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      updatedColorItem,
+      `${field_name} deleted successfully.`,
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Image Field Error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
 exports.getColorItemById = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -587,9 +644,9 @@ exports.getColorItemById = async (req, res) => {
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
-    const { colorItemId } = req.params;
+    const { color_item_id } = req.params;
 
-    if (!colorItemId) {
+    if (!color_item_id) {
       return errorResponse(res, 400, "Color item ID is required.");
     }
 
@@ -601,7 +658,7 @@ exports.getColorItemById = async (req, res) => {
     `;
 
     const result = await client.query(query, [
-      colorItemId,
+      color_item_id,
       companyId,
       builderId,
     ]);

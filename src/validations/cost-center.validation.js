@@ -34,6 +34,14 @@ const costCenterChecklistMapParamsSchema = Joi.object({
   id: Joi.string().uuid().required(),
 });
 
+const getAllCostCentersSchema = Joi.object({
+  code: Joi.string().max(10).optional(),
+  name: Joi.string().max(255).optional(),
+  description: Joi.string().max(500).optional(),
+  sort_order: Joi.number().integer().min(1).optional(),
+  status: Joi.boolean().optional(),
+});
+
 module.exports = {
   createCostCenterSchema,
   updateCostCenterSchema,
@@ -41,4 +49,5 @@ module.exports = {
   createCostCenterChecklistMapSchema,
   costCenterChecklistMapQuerySchema,
   costCenterChecklistMapParamsSchema,
+  getAllCostCentersSchema,
 };

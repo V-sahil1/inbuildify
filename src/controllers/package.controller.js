@@ -25,6 +25,7 @@ exports.createPackage = async (req, res) => {
       allow_remove_package_items,
       range_id,
       dwelling_type_id,
+      package_group_id,
     } = req.body || {};
 
     const duplicateNameQuery = `
@@ -88,6 +89,29 @@ exports.createPackage = async (req, res) => {
       }
     }
 
+    if (package_group_id) {
+      const packageGroupIdsArray = Array.isArray(package_group_id)
+        ? package_group_id
+        : [package_group_id];
+
+      for (const id of packageGroupIdsArray) {
+        if (id) {
+          const packageGroupCheck = await client.query(
+            `SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+            [id, companyId, builderId],
+          );
+
+          if (packageGroupCheck.rowCount === 0) {
+            return errorResponse(
+              res,
+              400,
+              `Invalid package group ID: ${id}. Package group does not exist or does not belong to your organization.`,
+            );
+          }
+        }
+      }
+    }
+
     const finalSortOrder = sort_order ?? 0;
 
     const duplicateSortQuery = `
@@ -117,10 +141,11 @@ exports.createPackage = async (req, res) => {
         allow_remove_package_items,
         range_id,
         dwelling_type_id,
+        package_group_id,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *;
     `;
 
@@ -136,6 +161,7 @@ exports.createPackage = async (req, res) => {
       allow_remove_package_items ?? true,
       range_id || null,
       dwelling_type_id || null,
+      package_group_id || null,
       userId,
       userId,
     ];
@@ -164,7 +190,17 @@ exports.createPackage = async (req, res) => {
           )
           FROM dwelling_type dt
           WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', pg.package_group_id,
+              'name', pg.name
+            )
+          )
+          FROM package_group pg
+          WHERE pg.package_group_id = ANY(p.package_group_id)
+        ) as package_group_data
       FROM package p
       WHERE p.package_id = $1
     `;
@@ -189,6 +225,7 @@ exports.createPackage = async (req, res) => {
       allowRemovePackageItems: createdPackage.allowRemovePackageItems,
       range: createdPackage.rangeData || [],
       dwellingType: createdPackage.dwellingTypeData || [],
+      packageGroup: createdPackage.packageGroupData || [],
       createdBy: createdPackage.createdBy,
       updatedBy: createdPackage.updatedBy,
       createdAt: createdPackage.createdAt,
@@ -230,7 +267,8 @@ exports.getAllPackages = async (req, res) => {
       Number(req.query.limit) > 0 ? Number(req.query.limit) : 25;
     const offset = (page - 1) * limitValue;
 
-    const { name, cost, status, sort_order } = req.query;
+    const { name, cost, status, sort_order, dwelling_type_id, range_id } =
+      req.query;
 
     const conditions = [];
     const values = [];
@@ -262,6 +300,18 @@ exports.getAllPackages = async (req, res) => {
       }
       conditions.push(`status = $${i}`);
       values.push(status === "true");
+      i++;
+    }
+
+    if (dwelling_type_id !== undefined && dwelling_type_id !== "") {
+      conditions.push(`$${i} = ANY(p.dwelling_type_id)`);
+      values.push(dwelling_type_id);
+      i++;
+    }
+
+    if (range_id !== undefined && range_id !== "") {
+      conditions.push(`$${i} = ANY(p.range_id)`);
+      values.push(range_id);
       i++;
     }
 
@@ -318,7 +368,7 @@ exports.getAllPackages = async (req, res) => {
             )
           )
           FROM package_group pg
-          WHERE pg.package_id = p.package_id
+          WHERE pg.package_group_id = ANY(p.package_group_id)
         ) as package_group_data
       FROM package p
       ${whereClause}
@@ -436,6 +486,7 @@ exports.updatePackage = async (req, res) => {
       allow_remove_package_items,
       range_id,
       dwelling_type_id,
+      package_group_id,
     } = req.body;
 
     await client.query("BEGIN");
@@ -498,6 +549,30 @@ exports.updatePackage = async (req, res) => {
       }
     }
 
+    if (package_group_id) {
+      const packageGroupIdsArray = Array.isArray(package_group_id)
+        ? package_group_id
+        : [package_group_id];
+
+      for (const id of packageGroupIdsArray) {
+        if (id) {
+          const packageGroupCheck = await client.query(
+            `SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+            [id, companyId, builderId],
+          );
+
+          if (packageGroupCheck.rowCount === 0) {
+            await client.query("ROLLBACK");
+            return errorResponse(
+              res,
+              400,
+              `Invalid package group ID: ${id}. Package group does not exist or does not belong to your organization.`,
+            );
+          }
+        }
+      }
+    }
+
     const currentStatus = existing.status;
     const statusInBody = status !== undefined;
     const requestedStatus = status;
@@ -511,6 +586,7 @@ exports.updatePackage = async (req, res) => {
       "allow_remove_package_items",
       "range_id",
       "dwelling_type_id",
+      "package_group_id",
     ];
 
     const updatingOtherFields = fieldsToCheck.some(
@@ -599,6 +675,8 @@ exports.updatePackage = async (req, res) => {
     if (range_id !== undefined) addField("range_id", range_id);
     if (dwelling_type_id !== undefined)
       addField("dwelling_type_id", dwelling_type_id);
+    if (package_group_id !== undefined)
+      addField("package_group_id", package_group_id);
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -683,7 +761,17 @@ exports.updatePackage = async (req, res) => {
           )
           FROM dwelling_type dt
           WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', pg.package_group_id,
+              'name', pg.name
+            )
+          )
+          FROM package_group pg
+          WHERE pg.package_group_id = ANY(p.package_group_id)
+        ) as package_group_data
       FROM package p
       WHERE p.package_id = $1
     `;
@@ -708,6 +796,7 @@ exports.updatePackage = async (req, res) => {
       allowRemovePackageItems: updatedPackage.allowRemovePackageItems,
       range: updatedPackage.rangeData || [],
       dwellingType: updatedPackage.dwellingTypeData || [],
+      packageGroup: updatedPackage.packageGroupData || [],
       createdBy: updatedPackage.createdBy,
       updatedBy: updatedPackage.updatedBy,
       createdAt: updatedPackage.createdAt,

@@ -2229,6 +2229,7 @@ CREATE TABLE package (
     sort_order INT DEFAULT 0,
     status BOOLEAN DEFAULT TRUE, -- Active / Inactive
     range_id UUID[] DEFAULT '{}',
+    package_group_id UUID[] DEFAULT '{}',
     dwelling_type_id UUID[] DEFAULT '{}',
     allow_add_item_from_pricelist BOOLEAN DEFAULT FALSE,  
     allow_remove_package_items BOOLEAN DEFAULT TRUE,
@@ -2640,6 +2641,7 @@ CREATE TABLE appointment(
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+  link_to UUID,
   select_users UUID[] DEFAULT '{}',
   notes VARCHAR(255),
   is_deleted BOOLEAN DEFAULT FALSE,
@@ -2779,4 +2781,29 @@ CREATE TABLE cost_center_checklist_map(
     construction_checklist_id UUID NOT NULL REFERENCES construction_checklist(construction_checklist_id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_cost_center_checklist_map UNIQUE (cost_center_id, construction_checklist_id)
+);
+
+CREATE TABLE contract_format(
+  contract_format_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE SET NULL,
+  format_name VARCHAR(255) NOT NULL,
+  dafualt_format BOOLEAN DEFAULT TRUE,
+  status BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_contract_format_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE contract_section(
+  contract_section_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  contract_format_id UUID REFERENCES contract_format(contract_format_id) ON DELETE CASCADE,
+  section_name VARCHAR(255),
+  sort_order INT DEFAULT 1,
+  section_url VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

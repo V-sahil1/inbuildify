@@ -19,34 +19,18 @@ exports.createPackageGroup = async (req, res) => {
       );
     }
 
-    const { name, no_of_packages, package_id } = req.body;
+    const { name, no_of_packages } = req.body;
 
     if (!name || name.trim() === "") {
       return errorResponse(res, 400, "Package group name is required.");
-    }
-
-    if (package_id) {
-      const packageCheck = await client.query(
-        `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
-        [package_id, builderId],
-      );
-
-      if (packageCheck.rowCount === 0) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid package_id or package does not belong to this builder.",
-        );
-      }
     }
 
     const duplicateCheck = await client.query(
       `SELECT package_group_id 
        FROM package_group 
        WHERE LOWER(name) = LOWER($1) 
-       AND builder_id = $2 
-       AND company_id = $3`,
-      [name.trim(), builderId, companyId],
+       AND (company_id = $2 OR builder_id = $3)`,
+      [name.trim(), companyId, builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -63,10 +47,9 @@ exports.createPackageGroup = async (req, res) => {
         builder_id,
         name,
         no_of_packages,
-        package_id,
         created_at,
         updated_at
-      ) VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,NOW(),NOW())
       RETURNING *;
     `;
 
@@ -75,7 +58,6 @@ exports.createPackageGroup = async (req, res) => {
       builderId,
       name.trim(),
       Number(no_of_packages) || 0,
-      package_id || null,
     ];
 
     const result = await client.query(insertQuery, values);
@@ -83,7 +65,6 @@ exports.createPackageGroup = async (req, res) => {
     const packageGroup = keysToCamelCase(result.rows[0]);
     const response = {
       packageGroupId: packageGroup.packageGroupId,
-      packageId: packageGroup.packageId,
       companyId: packageGroup.companyId,
       builderId: packageGroup.builderId,
       name: packageGroup.name,
@@ -127,11 +108,10 @@ exports.getAllPackageGroups = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM package_group
-      WHERE builder_id = $1
-        AND company_id = $2
+      WHERE (company_id = $1 OR builder_id = $2)
     `;
 
-    const countResult = await client.query(countQuery, [builderId, companyId]);
+    const countResult = await client.query(countQuery, [companyId, builderId]);
     const total = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(total / limit);
 
@@ -139,15 +119,14 @@ exports.getAllPackageGroups = async (req, res) => {
       SELECT 
         pg.*
       FROM package_group pg
-      WHERE pg.builder_id = $1
-        AND pg.company_id = $2
+      WHERE (pg.company_id = $1 OR pg.builder_id = $2)
       ORDER BY pg.created_at DESC
       LIMIT $3 OFFSET $4
     `;
 
     const dataResult = await client.query(dataQuery, [
-      builderId,
       companyId,
+      builderId,
       limit,
       offset,
     ]);
@@ -158,7 +137,6 @@ exports.getAllPackageGroups = async (req, res) => {
 
       return {
         packageGroupId: pg.packageGroupId,
-        packageId: pg.packageId,
         companyId: pg.companyId,
         builderId: pg.builderId,
         name: pg.name,
@@ -204,14 +182,13 @@ exports.deletePackageGroup = async (req, res) => {
       SELECT package_group_id 
       FROM package_group
       WHERE package_group_id = $1
-        AND builder_id = $2
-        AND company_id = $3
+        AND (company_id = $2 OR builder_id = $3)
     `;
 
     const checkResult = await client.query(checkQuery, [
       package_group_id,
-      builderId,
       companyId,
+      builderId,
     ]);
 
     if (checkResult.rowCount === 0) {
@@ -258,14 +235,13 @@ exports.updatePackageGroup = async (req, res) => {
     const findQuery = `
       SELECT * FROM package_group
       WHERE package_group_id = $1
-        AND builder_id = $2
-        AND company_id = $3
+        AND (company_id = $2 OR builder_id = $3)
       FOR UPDATE
     `;
     const findResult = await client.query(findQuery, [
       package_group_id,
-      builderId,
       companyId,
+      builderId,
     ]);
 
     if (findResult.rowCount === 0) {
@@ -289,11 +265,10 @@ exports.updatePackageGroup = async (req, res) => {
         `
         SELECT 1 FROM package_group
         WHERE LOWER(name) = LOWER($1)
-          AND builder_id = $2
-          AND company_id = $3
+          AND (company_id = $2 OR builder_id = $3)
           AND package_group_id <> $4
         `,
-        [name.trim(), builderId, companyId, package_group_id],
+        [name.trim(), companyId, builderId, package_group_id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -339,7 +314,6 @@ exports.updatePackageGroup = async (req, res) => {
 
     const response = {
       packageGroupId: updatedPackageGroup.packageGroupId,
-      packageId: updatedPackageGroup.packageId,
       companyId: updatedPackageGroup.companyId,
       builderId: updatedPackageGroup.builderId,
       name: updatedPackageGroup.name,

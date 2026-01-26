@@ -39,6 +39,7 @@ exports.getCostCenters = async (req, res) => {
     const costCenters = await costCenterService.getCostCenters(
       builder_id,
       company_id,
+      req.query,
     );
 
     res.status(200).json({

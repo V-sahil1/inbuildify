@@ -101,17 +101,49 @@ async function createCostCenter(payload, builderId, companyId, userId) {
 /**
  * GET ALL COST CENTERS
  */
-async function getCostCenters(builderId, companyId) {
+async function getCostCenters(builderId, companyId, filters = {}) {
   const pool = getPool();
+
+  let whereClause = "WHERE (company_id = $1 OR builder_id = $2)";
+  let values = [companyId, builderId];
+  let paramIndex = 3;
+
+  if (filters.code) {
+    whereClause += ` AND code ILIKE $${paramIndex++}`;
+    values.push(`%${filters.code}%`);
+  }
+
+  if (filters.name) {
+    whereClause += ` AND name ILIKE $${paramIndex++}`;
+    values.push(`%${filters.name}%`);
+  }
+
+  if (filters.description) {
+    whereClause += ` AND description ILIKE $${paramIndex++}`;
+    values.push(`%${filters.description}%`);
+  }
+
+  if (filters.sortOrder !== undefined) {
+    whereClause += ` AND sort_order = $${paramIndex++}`;
+    values.push(filters.sortOrder);
+  } else if (filters.sort_order !== undefined) {
+    whereClause += ` AND sort_order = $${paramIndex++}`;
+    values.push(filters.sort_order);
+  }
+
+  if (filters.status !== undefined) {
+    whereClause += ` AND status = $${paramIndex++}`;
+    values.push(filters.status);
+  }
 
   const { rows } = await pool.query(
     `
     SELECT *
     FROM cost_center
-    WHERE company_id = $1 OR builder_id = $2
+    ${whereClause}
     ORDER BY sort_order
     `,
-    [companyId, builderId],
+    values,
   );
 
   return keysToCamelCase(rows);

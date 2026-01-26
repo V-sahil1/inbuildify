@@ -7,6 +7,7 @@ const {
   getColorItemById,
   updateColorItem,
   deleteColorItem,
+  deleteImageField,
 } = require("../controllers/color-item.controller");
 const {
   createColorItemSchema,
@@ -14,6 +15,7 @@ const {
   getColorItemByIdSchema,
   updateColorItemSchema,
   deleteColorItemSchema,
+  deleteImageFieldSchema,
 } = require("../validations/color-item.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -37,6 +39,7 @@ router.post(
     { name: "colorImage", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(createColorItemSchema, REQUEST_SOURCE.FORM_DATA),
   createColorItem,
 );
@@ -48,27 +51,36 @@ router.get(
 );
 
 router.get(
-  "/:colorItemId",
+  "/:color_item_id",
+  camelToSnakeMiddleware,
   validateRequest(getColorItemByIdSchema, REQUEST_SOURCE.PARAMS),
   getColorItemById,
 );
 
 router.put(
-  "/:colorItemId",
+  "/:color_item_id",
   upload.fields([
     { name: "specification", maxCount: 1 },
     { name: "colorImage", maxCount: 1 },
   ]),
   handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(getColorItemByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateColorItemSchema, REQUEST_SOURCE.FORM_DATA),
   updateColorItem,
 );
 
 router.delete(
-  "/:colorItemId",
+  "/:color_item_id",
   validateRequest(deleteColorItemSchema, REQUEST_SOURCE.PARAMS),
   deleteColorItem,
+);
+
+router.delete(
+  "/image/:color_item_id",
+  validateRequest(getColorItemByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(deleteImageFieldSchema, REQUEST_SOURCE.BODY),
+  deleteImageField,
 );
 
 module.exports = router;
