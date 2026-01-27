@@ -28,9 +28,20 @@ router.post(
     { name: "companyLogo", maxCount: 1 },
   ]),
   handleMulterError,
+  (req, res, next) => {
+    // Parse address if it's a string in form data
+    if (req.body.address && typeof req.body.address === "string") {
+      try {
+        req.body.address = JSON.parse(req.body.address);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid address format" });
+      }
+    }
+    next();
+  },
   camelToSnakeMiddleware,
   validateRequest(upsertCompanySchema, REQUEST_SOURCE.FORM_DATA),
-  upsertCompany
+  upsertCompany,
 );
 
 module.exports = router;

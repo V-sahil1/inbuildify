@@ -21,7 +21,7 @@ exports.createHoliday = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Either company_id or builder_id must be present."
+        "Either company_id or builder_id must be present.",
       );
     }
 
@@ -57,7 +57,7 @@ exports.createHoliday = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "holiday_start_date cannot be greater than holiday_end_date."
+        "holiday_start_date cannot be greater than holiday_end_date.",
       );
     }
 
@@ -144,7 +144,7 @@ exports.createHoliday = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseData),
-      "Holiday created successfully."
+      "Holiday created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -167,7 +167,7 @@ exports.getAllHolidays = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Either company_id or builder_id must be present."
+        "Either company_id or builder_id must be present.",
       );
     }
 
@@ -189,7 +189,7 @@ exports.getAllHolidays = async (req, res) => {
     let index = 1;
 
     whereClauses.push(
-      `(h.company_id = $${index} OR h.builder_id = $${index + 1})`
+      `(h.company_id = $${index} OR h.builder_id = $${index + 1})`,
     );
     values.push(companyId || null, builderId || null);
     index += 2;
@@ -228,20 +228,18 @@ exports.getAllHolidays = async (req, res) => {
       ? "WHERE " + whereClauses.join(" AND ")
       : "";
 
-    /* ---------------- COUNT ---------------- */
     const countResult = await client.query(
       `
       SELECT COUNT(*) AS total
       FROM holiday h
       ${whereSQL}
       `,
-      values
+      values,
     );
 
     const totalRecords = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(totalRecords / limitValue);
 
-    /* ---------------- DATA ---------------- */
     const dataQuery = `
       SELECT
         h.holiday_id,
@@ -290,7 +288,7 @@ exports.getAllHolidays = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Holidays fetched successfully."
+      "Holidays fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching holidays:", error);
@@ -370,7 +368,7 @@ exports.toggleHolidayStatus = async (req, res) => {
     const existingHoliday = await client.query(
       `SELECT * FROM holiday 
        WHERE holiday_id = $1 AND company_id = $2 AND builder_id = $3 FOR UPDATE`,
-      [holiday_id, companyId, builderId]
+      [holiday_id, companyId, builderId],
     );
 
     if (existingHoliday.rowCount === 0) {
@@ -430,7 +428,7 @@ exports.toggleHolidayStatus = async (req, res) => {
       keysToCamelCase(responseData),
       `Holiday status updated to ${
         newStatus ? "active" : "inactive"
-      } successfully.`
+      } successfully.`,
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -468,7 +466,7 @@ exports.updateHoliday = async (req, res) => {
     const existingHoliday = await client.query(
       `SELECT * FROM holiday 
        WHERE holiday_id = $1 AND company_id = $2 AND builder_id = $3 FOR UPDATE`,
-      [holiday_id, companyId, builderId]
+      [holiday_id, companyId, builderId],
     );
 
     if (existingHoliday.rowCount === 0) {
@@ -490,7 +488,7 @@ exports.updateHoliday = async (req, res) => {
     ];
 
     const updatingOtherFields = fieldsToCheck.some((field) =>
-      req.body.hasOwnProperty(field)
+      req.body.hasOwnProperty(field),
     );
 
     if (statusInBody && typeof requestedStatus !== "boolean") {
@@ -498,41 +496,8 @@ exports.updateHoliday = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "The 'status' field must be a boolean (true or false)."
+        "The 'status' field must be a boolean (true or false).",
       );
-    }
-
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active holiday, 'status' must be the only field provided in the request."
-        );
-      }
-    }
-
-    if (currentStatus === false) {
-      const performingActivation = statusInBody && requestedStatus === true;
-
-      if (statusInBody && requestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Holiday is already Inactive. 'status' can only be updated to true (Active) from this state."
-        );
-      }
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the holiday is currently Inactive. Only 'status' can be changed (to true/Active)."
-        );
-      }
     }
 
     if (state) {
@@ -540,7 +505,7 @@ exports.updateHoliday = async (req, res) => {
 
       const stateCheck = await client.query(
         `SELECT state_id FROM state WHERE state_id = ANY($1::uuid[])`,
-        [stateArray]
+        [stateArray],
       );
 
       if (stateCheck.rowCount !== stateArray.length) {
@@ -571,7 +536,7 @@ exports.updateHoliday = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "holiday_end_date cannot be earlier than holiday_start_date."
+        "holiday_end_date cannot be earlier than holiday_start_date.",
       );
     }
 
@@ -661,7 +626,7 @@ exports.updateHoliday = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseData),
-      "Holiday updated successfully."
+      "Holiday updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

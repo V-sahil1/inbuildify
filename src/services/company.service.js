@@ -1,11 +1,14 @@
 const getPool = require("../config/database");
+const addressRepo = require("../repositories/address.repository");
 
 const { keysToCamelCase } = require("../utils/common");
 
 async function getCompanyByBuilderId(builderId, client) {
   const result = await client.query(
-    `SELECT * FROM company WHERE builder_id = $1 LIMIT 1`,
-
+    `SELECT c.*, a.address_line1, a.address_line2, a.city, a.state_id, a.country_id, a.zip_code 
+     FROM company c 
+     LEFT JOIN address a ON c.address_id = a.address_id 
+     WHERE c.builder_id = $1 LIMIT 1`,
     [builderId],
   );
 
@@ -16,7 +19,6 @@ async function getCompanyByBuilderId(builderId, client) {
   if (company.timezone_id) {
     const tzResult = await client.query(
       `SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1`,
-
       [company.timezone_id],
     );
 
@@ -28,34 +30,38 @@ async function getCompanyByBuilderId(builderId, client) {
     company.timezone = null;
   }
 
+  // Create address object if address exists
+  if (company.address_id) {
+    company.address = {
+      address_line1: company.address_line1,
+      address_line2: company.address_line2,
+      city: company.city,
+      state_id: company.state_id,
+      country_id: company.country_id,
+      zip_code: company.zip_code,
+    };
+    // Remove individual address fields
+    delete company.address_line1;
+    delete company.address_line2;
+    delete company.city;
+    delete company.state_id;
+    delete company.country_id;
+    delete company.zip_code;
+  }
+
   return keysToCamelCase(company);
 }
 
 async function upsertCompany(builderId, payload, client) {
   const existingCompany = await getCompanyByBuilderId(builderId, client);
 
-  if (payload.country_id) {
-    const countryCheck = await client.query(
-      `SELECT country_id FROM country WHERE country_id = $1`,
-
-      [payload.country_id],
+  // Handle address object
+  let addressId = null;
+  if (payload.address) {
+    addressId = await addressRepo.createOrUpdateAddress(
+      existingCompany?.addressId || null,
+      payload.address,
     );
-
-    if (countryCheck.rowCount === 0) {
-      throw new Error("Invalid country_id.");
-    }
-  }
-
-  if (payload.state_id) {
-    const stateCheck = await client.query(
-      `SELECT state_id FROM state WHERE state_id = $1`,
-
-      [payload.state_id],
-    );
-
-    if (stateCheck.rowCount === 0) {
-      throw new Error("Invalid state_id.");
-    }
   }
 
   const mapTimezone = async (company) => {
@@ -92,17 +98,7 @@ async function upsertCompany(builderId, payload, client) {
 
         timezone_id,
 
-        address1,
-
-        address2,
-
-        city,
-
-        zip_postal_code,
-
-        state_id,
-
-        country_id,
+        address_id,
 
         bank_name,
 
@@ -118,7 +114,7 @@ async function upsertCompany(builderId, payload, client) {
 
       )
 
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 
       RETURNING *;
 
@@ -133,17 +129,7 @@ async function upsertCompany(builderId, payload, client) {
 
       payload.timezone_id,
 
-      payload.address1,
-
-      payload.address2,
-
-      payload.city,
-
-      payload.zip_postal_code,
-
-      payload.state_id,
-
-      payload.country_id,
+      addressId,
 
       payload.bank_name,
 
@@ -193,29 +179,19 @@ async function upsertCompany(builderId, payload, client) {
 
       timezone_id = $4,
 
-      address1 = $5,
+      address_id = $5,
 
-      address2 = $6,
+      bank_name = $6,
 
-      city = $7,
+      account_name = $7,
 
-      zip_postal_code = $8,
+      account_number = $8,
 
-      state_id = $9,
+      account_bsb = $9,
 
-      country_id = $10,
+      email_signature_logo = $10,
 
-      bank_name = $11,
-
-      account_name = $12,
-
-      account_number = $13,
-
-      account_bsb = $14,
-
-      email_signature_logo = $15,
-
-      company_logo = $16,
+      company_logo = $11,
 
       updated_at = NOW()
 
@@ -234,17 +210,7 @@ async function upsertCompany(builderId, payload, client) {
 
     payload.timezone_id,
 
-    payload.address1,
-
-    payload.address2,
-
-    payload.city,
-
-    payload.zip_postal_code,
-
-    payload.state_id,
-
-    payload.country_id,
+    addressId,
 
     payload.bank_name,
 

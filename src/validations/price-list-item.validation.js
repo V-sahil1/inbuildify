@@ -65,7 +65,11 @@ const getAllPriceListItemSchema = Joi.object({
 
   item_description: Joi.string().max(255).optional(),
 
-  sort_order: Joi.string().valid("asc", "desc").default("asc"),
+  sort_order: Joi.number().integer().min(0).optional(),
+
+  cost_type: Joi.string().valid("Included", "Fixed", "Variable").optional(),
+
+  uom: Joi.string().allow(null, "").trim().max(50).optional(),
 
   price_list_id: Joi.string().uuid().optional().messages({
     "string.uuid": "price_list_id must be a valid UUID",

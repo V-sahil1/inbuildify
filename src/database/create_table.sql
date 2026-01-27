@@ -750,12 +750,7 @@ CREATE TABLE company (
   name VARCHAR(150) NOT NULL,
   abn_number VARCHAR(20),
   timezone_id UUID NOT NULL,
-  address1 VARCHAR(255) NOT NULL,
-  address2 VARCHAR(255),
-  city VARCHAR(255) NOT NULL,
-  zip_postal_code VARCHAR(20) NOT NULL,
-  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
-  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
   bank_name VARCHAR(150),
   account_name VARCHAR(150),
   account_number VARCHAR(50),
@@ -763,7 +758,7 @@ CREATE TABLE company (
   email_signature_logo VARCHAR(500),
   company_logo VARCHAR(500),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT fk_timezone FOREIGN KEY (timezone_id) REFERENCES timezones(timezone_id) ON DELETE CASCADE,
 );
 

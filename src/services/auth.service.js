@@ -125,7 +125,7 @@ async function resendOtp(email) {
     const lowerEmail = email.toLowerCase();
 
     const userRes = await client.query(
-      `SELECT users_id, is_verified, otp_resend_count, last_otp_sent_at
+      `SELECT users_id, is_verified
          FROM users WHERE LOWER(email) = $1`,
       [lowerEmail],
     );

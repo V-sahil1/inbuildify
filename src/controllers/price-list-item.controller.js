@@ -338,23 +338,20 @@ exports.getAllPriceListItems = async (req, res) => {
       limit = 25,
       status,
       cost_option,
+      cost_type,
+      uom,
       price,
       item_description,
       price_list_id,
       dwelling_type_id,
       range_id,
       location_id,
-      sort_order = "asc",
+      sort_order,
     } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
-
-    const allowedSort = ["asc", "desc"];
-    if (!allowedSort.includes(sort_order.toLowerCase())) {
-      sort_order = "asc";
-    }
 
     let conditions = [];
     let values = [];
@@ -374,6 +371,16 @@ exports.getAllPriceListItems = async (req, res) => {
     if (cost_option) {
       conditions.push(`pli.cost_option = $${index++}`);
       values.push(cost_option);
+    }
+
+    if (cost_type) {
+      conditions.push(`pli.cost_type = $${index++}`);
+      values.push(cost_type);
+    }
+
+    if (uom) {
+      conditions.push(`pli.uom = $${index++}`);
+      values.push(uom);
     }
 
     if (price) {
@@ -406,6 +413,15 @@ exports.getAllPriceListItems = async (req, res) => {
       values.push(location_id);
     }
 
+    if (sort_order !== undefined && sort_order !== "") {
+      const sortValue = Number(sort_order);
+      if (isNaN(sortValue)) {
+        return errorResponse(res, 400, "sort_order must be a valid number");
+      }
+      conditions.push(`pli.sort_order = $${index++}`);
+      values.push(sortValue);
+    }
+
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`
       : "";
@@ -423,7 +439,7 @@ exports.getAllPriceListItems = async (req, res) => {
     const mainQuery = `
       SELECT 
         pli.*,
-        pl.name as price_list_name,
+        pl.name AS price_list_name,
         (
           SELECT json_agg(
             jsonb_build_object(
@@ -432,8 +448,9 @@ exports.getAllPriceListItems = async (req, res) => {
             )
           )
           FROM range r
-          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
-        ) as range_data,
+          WHERE r.range_id = ANY(pli.range_id)
+            AND r.is_active = true
+        ) AS range_data,
         (
           SELECT json_agg(
             jsonb_build_object(
@@ -442,18 +459,18 @@ exports.getAllPriceListItems = async (req, res) => {
             )
           )
           FROM dwelling_type dt
-          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data
+          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id)
+            AND dt.is_active = true
+        ) AS dwelling_type_data
       FROM price_list_item pli
       LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
       ${whereClause}
-      ORDER BY pli.sort_order ${sort_order}
+      ORDER BY pli.sort_order ASC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
     const result = await client.query(mainQuery, values);
 
-    // Format the response to match the specified structure
     const formattedItems = result.rows.map((row) => {
       const item = keysToCamelCase(row);
 

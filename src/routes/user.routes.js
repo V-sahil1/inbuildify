@@ -9,6 +9,7 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware");
 
 const {
   createUserSchema,
@@ -20,7 +21,6 @@ const {
 
 const { REQUEST_SOURCE } = require("../config/constants");
 
-// Upload handlers (multer-s3)
 const uploadPhoto = createUpload("users/photo");
 const uploadSignature = createUpload("users/signature");
 
@@ -40,10 +40,8 @@ router.get(
   userController.getUsers,
 );
 
-// GET logged-in user profile
 router.get("/profile", camelToSnake, authMiddleware, userController.getProfile);
 
-// CREATE new user (with photo/signature optional)
 router.post(
   "/",
   uploadPhoto.fields([
@@ -51,6 +49,16 @@ router.post(
     { name: "signature", maxCount: 1 },
   ]),
   handleMulterError,
+  (req, res, next) => {
+    if (req.body.address && typeof req.body.address === "string") {
+      try {
+        req.body.address = JSON.parse(req.body.address);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid address format" });
+      }
+    }
+    next();
+  },
   camelToSnake,
   authMiddleware,
   roleMiddleware,
@@ -66,6 +74,17 @@ router.put(
     { name: "signature", maxCount: 1 },
   ]),
   handleMulterError,
+  (req, res, next) => {
+    // Parse address if it's a string in form data
+    if (req.body.address && typeof req.body.address === "string") {
+      try {
+        req.body.address = JSON.parse(req.body.address);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid address format" });
+      }
+    }
+    next();
+  },
   camelToSnake,
   authMiddleware,
   roleMiddleware,
@@ -90,7 +109,7 @@ router.delete(
 // RESET PASSWORD (admin popup)
 router.post(
   "/:userId/reset-password",
-  camelToSnake,
+  camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(resetPasswordSchema),
@@ -115,7 +134,7 @@ router.post(
 
 // Activate / Deactivate user
 router.post(
-  "/:userId/toggle-active",
+  "/:userId/is-active",
   authMiddleware,
   roleMiddleware,
   userController.toggleActive,

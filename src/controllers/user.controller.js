@@ -52,6 +52,19 @@ module.exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.user_id;
 
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only update users from your own builder.",
+      );
+    }
+
     const photo = req.files?.photo?.[0] || null;
     const signature = req.files?.signature?.[0] || null;
 
@@ -72,7 +85,22 @@ module.exports.updateUser = async (req, res) => {
 
 module.exports.deleteUser = async (req, res) => {
   try {
-    const data = await userService.deleteUser(req.user, req.params.user_id);
+    const userId = req.params.user_id;
+
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only delete users from your own builder.",
+      );
+    }
+
+    const data = await userService.deleteUser(req.user, userId);
     return successResponse(
       res,
       keysToCamelCase(data),
@@ -89,11 +117,22 @@ module.exports.deleteUser = async (req, res) => {
 
 module.exports.resetPassword = async (req, res) => {
   try {
-    const data = await userService.resetPassword(
-      req.user,
-      req.params.user_id,
-      req.body,
-    );
+    const userId = req.params.user_id;
+
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only reset password for users from your own builder.",
+      );
+    }
+
+    const data = await userService.resetPassword(req.user, userId, req.body);
     return successResponse(
       res,
       keysToCamelCase(data),
@@ -106,11 +145,22 @@ module.exports.resetPassword = async (req, res) => {
 
 module.exports.changeLoginId = async (req, res) => {
   try {
-    const data = await userService.changeLoginId(
-      req.user,
-      req.params.user_id,
-      req.body,
-    );
+    const userId = req.params.user_id;
+
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only change login ID for users from your own builder.",
+      );
+    }
+
+    const data = await userService.changeLoginId(req.user, userId, req.body);
     return successResponse(
       res,
       keysToCamelCase(data),
@@ -127,7 +177,22 @@ module.exports.changeLoginId = async (req, res) => {
 
 module.exports.toggleActive = async (req, res) => {
   try {
-    const data = await userService.toggleActive(req.params.user_id);
+    const userId = req.params.userId;
+
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only toggle active status for users from your own builder.",
+      );
+    }
+
+    const data = await userService.toggleActive(req.user, userId);
     return successResponse(
       res,
       keysToCamelCase(data),
@@ -144,7 +209,22 @@ module.exports.toggleActive = async (req, res) => {
 
 module.exports.toggleLock = async (req, res) => {
   try {
-    const data = await userService.toggleLock(req.params.user_id);
+    const userId = req.params.userId;
+
+    const targetUser = await userService.getBasicUser(userId);
+    if (!targetUser) {
+      return errorResponse(res, 404, "User not found.");
+    }
+
+    if (targetUser.builderId !== req.user.builder_id) {
+      return errorResponse(
+        res,
+        403,
+        "You can only toggle lock status for users from your own builder.",
+      );
+    }
+
+    const data = await userService.toggleLock(req.user, userId);
     return successResponse(
       res,
       keysToCamelCase(data),

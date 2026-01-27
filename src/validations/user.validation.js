@@ -41,8 +41,15 @@ const createUserSchema = Joi.object({
   next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
   email_login_credentials: Joi.boolean().truthy("true").falsy("false"),
   builders: Joi.string().allow(null, ""), // JSON array as string
-  builder_id: uuidRule.required().allow(null, ""), // Single builder ID instead of array
-  address: Joi.string().allow(null, ""), // JSON as string
+  builder_id: uuidRule.allow(null, ""), // Optional since it comes from token
+  address: Joi.when("use_company_address", {
+    is: false,
+    then: Joi.object().required().messages({
+      "any.required": "Address is required when use_company_address is false",
+      "object.base": "Address must be an object",
+    }),
+    otherwise: Joi.object().allow(null),
+  }),
   photo: Joi.string().allow("", null).optional(),
   signature: Joi.string().allow("", null).optional(),
 });
@@ -61,8 +68,8 @@ const updateUserSchema = createUserSchema.fork(
 const resetPasswordSchema = Joi.object({
   password_option: Joi.string().valid("auto", "manual").required(),
   manual_password: Joi.string().allow(null, ""),
-  next_login_password_change: Joi.boolean().truthy("true").falsy("false"),
-  email_password: Joi.boolean().truthy("true").falsy("false"),
+  next_login_password_change: Joi.boolean().optional(),
+  email_password: Joi.boolean().optional(),
 });
 
 /* ---------------------------
@@ -70,7 +77,7 @@ const resetPasswordSchema = Joi.object({
 ---------------------------- */
 const changeLoginIdSchema = Joi.object({
   new_login_id: loginIdRule.required(),
-  email_login_id: Joi.boolean().truthy("true").falsy("false"),
+  email_login_id: Joi.boolean().optional(),
 });
 
 /* ---------------------------

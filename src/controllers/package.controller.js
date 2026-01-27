@@ -267,8 +267,16 @@ exports.getAllPackages = async (req, res) => {
       Number(req.query.limit) > 0 ? Number(req.query.limit) : 25;
     const offset = (page - 1) * limitValue;
 
-    const { name, cost, status, sort_order, dwelling_type_id, range_id } =
-      req.query;
+    const {
+      name,
+      cost,
+      status,
+      sort_order,
+      dwelling_type_id,
+      range_id,
+      add,
+      remove,
+    } = req.query;
 
     const conditions = [];
     const values = [];
@@ -302,7 +310,6 @@ exports.getAllPackages = async (req, res) => {
       values.push(status === "true");
       i++;
     }
-
     if (dwelling_type_id !== undefined && dwelling_type_id !== "") {
       conditions.push(`$${i} = ANY(p.dwelling_type_id)`);
       values.push(dwelling_type_id);
@@ -315,13 +322,43 @@ exports.getAllPackages = async (req, res) => {
       i++;
     }
 
-    let orderBy = "ORDER BY sort_order ASC";
-    if (sort_order) {
-      if (!["asc", "desc"].includes(sort_order.toLowerCase())) {
-        return errorResponse(res, 400, "sort_direction must be ASC or DESC");
+    if (add !== undefined && add !== "") {
+      if (!["true", "false"].includes(add)) {
+        return errorResponse(
+          res,
+          400,
+          "allow_add_item_from_pricelist must be true or false",
+        );
       }
-      orderBy = `ORDER BY sort_order ${sort_order.toUpperCase()}`;
+      conditions.push(`allow_add_item_from_pricelist = $${i}`);
+      values.push(add === "true");
+      i++;
     }
+
+    if (remove !== undefined && remove !== "") {
+      if (!["true", "false"].includes(remove)) {
+        return errorResponse(
+          res,
+          400,
+          "allow_remove_package_items must be true or false",
+        );
+      }
+      conditions.push(`allow_remove_package_items = $${i}`);
+      values.push(remove === "true");
+      i++;
+    }
+
+    if (sort_order !== undefined && sort_order !== "") {
+      const sortValue = Number(sort_order);
+      if (isNaN(sortValue)) {
+        return errorResponse(res, 400, "sort_order must be a valid number");
+      }
+      conditions.push(`sort_order = $${i}`);
+      values.push(sortValue);
+      i++;
+    }
+
+    const orderBy = "ORDER BY sort_order ASC";
 
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`

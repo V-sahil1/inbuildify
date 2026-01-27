@@ -178,7 +178,7 @@ exports.getAllSurveyTemplate = async (req, res) => {
     }
 
     if (sort_order !== undefined) {
-      const sortValue = parseInt(sortOrder, 10);
+      const sortValue = parseInt(sort_order, 10);
       if (!isNaN(sortValue)) {
         conditions.push(`sort_order = $${paramIndex}`);
         values.push(sortValue);
