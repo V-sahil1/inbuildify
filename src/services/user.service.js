@@ -369,7 +369,8 @@ async function updateUser(currentUser, userId, body, files) {
     await userRepo.updateSignature(userId, files.signature.location);
   }
 
-  return { userId };
+  // Return the updated user profile with address object
+  return await userRepo.getProfile(userId);
 }
 
 /* ----------------------------------------

@@ -27,7 +27,6 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-// Create floor plan price list item map
 router.post(
   "/",
   validateRequest(
@@ -37,14 +36,12 @@ router.post(
   createFloorPlanPricelistItemMap,
 );
 
-// Get all floor plan price list item maps
 router.get(
   "/",
   validateRequest(queryValidation, REQUEST_SOURCE.QUERY),
   getAllFloorPlanPricelistItemMaps,
 );
 
-// Get floor plan price list item map by ID
 router.get(
   "/:id",
   validateRequest(
@@ -54,7 +51,6 @@ router.get(
   getFloorPlanPricelistItemMapById,
 );
 
-// Update floor plan price list item map
 router.put(
   "/:id",
   validateRequest(
@@ -68,7 +64,6 @@ router.put(
   updateFloorPlanPricelistItemMap,
 );
 
-// Delete floor plan price list item map
 router.delete(
   "/:id",
   validateRequest(

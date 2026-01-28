@@ -48,10 +48,11 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
     const priceListItem = priceListItemCheck.rows[0];
 
     if (
-      priceListItem.cost_type === "fixed" &&
-      quantity !== undefined &&
-      quantity !== null &&
-      quantity !== ""
+      priceListItem.cost_type === "fixed" ||
+      (priceListItem.cost_type === "Included" &&
+        quantity !== undefined &&
+        quantity !== null &&
+        quantity !== "")
     ) {
       return errorResponse(
         res,
@@ -61,8 +62,9 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
     }
 
     if (
-      priceListItem.cost_type !== "fixed" &&
-      (quantity === undefined || quantity === null || quantity === "")
+      priceListItem.cost_type !== "fixed" ||
+      (priceListItem.cost_type !== "Included" &&
+        (quantity === undefined || quantity === null || quantity === ""))
     ) {
       return errorResponse(
         res,
@@ -76,7 +78,7 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
       INSERT INTO floor_plan_pricelist_item_map (
         floor_plan_id,
         price_list_item_id,
-        inclide_default,
+        include_default,
         modify,
         quantity
       )
@@ -97,19 +99,12 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
     const responseQuery = `
       SELECT
         fppim.id,
-        fppim.inclide_default,
+        fppim.floor_plan_id,
+        fppim.price_list_item_id,
+        fppim.include_default,
         fppim.modify,
         fppim.quantity,
-      
-        json_build_object(
-          'id', fp.floor_plan_id,
-          'name', fp.name
-        ) as floor_plan,
-        json_build_object(
-          'id', pli.price_list_item_id,
-          'name', pli.item_description
-        ) as pricelist_item,
-           fppim.created_at,
+        fppim.created_at,
         fppim.updated_at
       FROM floor_plan_pricelist_item_map fppim
       LEFT JOIN floor_plan fp ON fp.floor_plan_id = fppim.floor_plan_id
@@ -169,7 +164,6 @@ exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
     let values = [builderId, companyId];
     let paramIndex = values.length + 1;
 
-    // Add filters
     if (floor_plan_id) {
       whereClause += ` AND fppim.floor_plan_id = $${paramIndex++}`;
       values.push(floor_plan_id);
@@ -181,7 +175,7 @@ exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
     }
 
     if (include_default !== undefined) {
-      whereClause += ` AND fppim.inclide_default = $${paramIndex++}`;
+      whereClause += ` AND fppim.include_default = $${paramIndex++}`;
       values.push(include_default === "true");
     }
 
@@ -193,19 +187,12 @@ exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
     const dataQuery = `
       SELECT
         fppim.id,
-        fppim.inclide_default,
+        fppim.floor_plan_id,
+        fppim.price_list_item_id,
+        fppim.include_default,
         fppim.modify,
         fppim.quantity,
-      
-        json_build_object(
-          'id', fp.floor_plan_id,
-          'name', fp.name
-        ) as floor_plan,
-        json_build_object(
-          'id', pli.price_list_item_id,
-          'name', pli.item_description
-        ) as pricelist_item,
-           fppim.created_at,
+        fppim.created_at,
         fppim.updated_at
       FROM floor_plan_pricelist_item_map fppim
       LEFT JOIN floor_plan fp ON fp.floor_plan_id = fppim.floor_plan_id
@@ -269,19 +256,12 @@ exports.getFloorPlanPricelistItemMapById = async (req, res) => {
     const query = `
       SELECT
         fppim.id,
-        fppim.inclide_default,
+        fppim.floor_plan_id,
+        fppim.price_list_item_id,
+        fppim.include_default,
         fppim.modify,
         fppim.quantity,
-       
-        json_build_object(
-          'id', fp.floor_plan_id,
-          'name', fp.name
-        ) as floor_plan,
-        json_build_object(
-          'id', pli.price_list_item_id,
-          'name', pli.item_description
-        ) as pricelist_item,
-          fppim.created_at,
+        fppim.created_at,
         fppim.updated_at
       FROM floor_plan_pricelist_item_map fppim
       LEFT JOIN floor_plan fp ON fp.floor_plan_id = fppim.floor_plan_id
@@ -357,7 +337,7 @@ exports.updateFloorPlanPricelistItemMap = async (req, res) => {
     let idx = 1;
 
     if (include_default !== undefined) {
-      updateFields.push(`inclide_default = $${idx++}`);
+      updateFields.push(`include_default = $${idx++}`);
       updateValues.push(include_default);
     }
 
@@ -385,19 +365,12 @@ exports.updateFloorPlanPricelistItemMap = async (req, res) => {
     const responseQuery = `
       SELECT
         fppim.id,
-        fppim.inclide_default,
+        fppim.floor_plan_id,
+        fppim.price_list_item_id,
+        fppim.include_default,
         fppim.modify,
         fppim.quantity,
-      
-        json_build_object(
-          'id', fp.floor_plan_id,
-          'name', fp.name
-        ) as floor_plan,
-        json_build_object(
-          'id', pli.price_list_item_id,
-          'name', pli.item_description
-        ) as pricelist_item,
-           fppim.created_at,
+        fppim.created_at,
         fppim.updated_at
       FROM floor_plan_pricelist_item_map fppim
       LEFT JOIN floor_plan fp ON fp.floor_plan_id = fppim.floor_plan_id

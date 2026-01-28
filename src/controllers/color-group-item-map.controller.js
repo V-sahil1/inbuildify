@@ -97,14 +97,8 @@ exports.createColorGroupItemMap = async (req, res) => {
     const newMapping = rows[0];
     const response = {
       id: newMapping.id,
-      colorGroup: {
-        id: colorGroupCheck.rows[0].color_group_id,
-        name: colorGroupCheck.rows[0].name,
-      },
-      colorItem: {
-        id: colorItemCheck.rows[0].color_item_id,
-        name: colorItemCheck.rows[0].item_name,
-      },
+      colorGroupId: newMapping.color_group_id,
+      colorItemId: newMapping.color_item_id,
       createdAt: newMapping.created_at,
       updatedAt: newMapping.updated_at,
     };
@@ -172,9 +166,7 @@ exports.getAllColorGroupItemMaps = async (req, res) => {
         cgim.color_group_id,
         cgim.color_item_id,
         cgim.created_at,
-        cgim.updated_at,
-        cg.name as color_group_name,
-        ci.item_name as color_item_name
+        cgim.updated_at
       FROM color_group_item_map cgim
       INNER JOIN color_group cg ON cg.color_group_id = cgim.color_group_id
       INNER JOIN color_item ci ON ci.color_item_id = cgim.color_item_id
@@ -194,14 +186,8 @@ exports.getAllColorGroupItemMaps = async (req, res) => {
     const mappings = listResult.rows.map((row) =>
       keysToCamelCase({
         id: row.id,
-        colorGroup: {
-          id: row.color_group_id,
-          name: row.color_group_name,
-        },
-        colorItem: {
-          id: row.color_item_id,
-          name: row.color_item_name,
-        },
+        colorGroupId: row.color_group_id,
+        colorItemId: row.color_item_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }),

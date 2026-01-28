@@ -83,7 +83,7 @@ async function createCostCenter(payload, builderId, companyId, userId) {
         payload.name,
         payload.description || null,
         finalSortOrder,
-        payload.status,
+        payload.status || true,
         userId,
       ],
     );
@@ -193,13 +193,13 @@ async function updateCostCenter(
       SELECT cost_center_id, code, sort_order, company_id, builder_id
       FROM cost_center
       WHERE cost_center_id = $1
-        AND (company_id = $2 OR builder_id = $3) AND status = true
+        AND (company_id = $2 OR builder_id = $3)
       `,
       [costCenterId, companyId, builderId],
     );
 
     if (existingCheck.rows.length === 0) {
-      throw new Error("Cost center not found or inactive.");
+      throw new Error("Cost center not found.");
     }
 
     const existing = existingCheck.rows[0];
@@ -327,6 +327,14 @@ async function updateCostCenter(
       `,
       [...updateValues, costCenterId],
     );
+
+    // If status is being set to false, delete cost center checklist map records
+    if (payload.status === false) {
+      await client.query(
+        "DELETE FROM cost_center_checklist_map WHERE cost_center_id = $1",
+        [costCenterId],
+      );
+    }
 
     await client.query("COMMIT");
     return keysToCamelCase(rows[0]);
@@ -531,18 +539,12 @@ async function createCostCenterChecklistMap(
 
     await client.query("COMMIT");
 
-    // Transform the response to match the GET API format
+    // Transform the response to return just IDs
     const newMapping = rows[0];
     return {
       id: newMapping.id,
-      costCenter: {
-        id: costCenterCheck.rows[0].cost_center_id,
-        name: costCenterCheck.rows[0].name,
-      },
-      constructionChecklist: {
-        id: checklistCheck.rows[0].construction_checklist_id,
-        name: checklistCheck.rows[0].name,
-      },
+      costCenterId: newMapping.cost_center_id,
+      constructionChecklistId: newMapping.construction_checklist_id,
       createdAt: newMapping.created_at,
     };
   } catch (error) {
@@ -558,6 +560,9 @@ async function createCostCenterChecklistMap(
  */
 async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
   const pool = getPool();
+
+  const { page = 1, limit = 25 } = filters;
+  const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
   let values = [companyId, builderId];
@@ -579,35 +584,63 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
       cccm.id,
       cccm.cost_center_id,
       cccm.construction_checklist_id,
-      cccm.created_at,
-      cc.name as cost_center_name,
-      cc.code as cost_center_code,
-      ccl.name as construction_checklist_name,
-      ccl.sort_order as construction_checklist_sort_order
+      cccm.created_at
     FROM cost_center_checklist_map cccm
     INNER JOIN cost_center cc ON cc.cost_center_id = cccm.cost_center_id
     INNER JOIN construction_checklist ccl ON ccl.construction_checklist_id = cccm.construction_checklist_id
     ${whereClause}
     ORDER BY cc.sort_order, ccl.sort_order, cccm.created_at DESC
+    LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `,
-    values,
+    [...values, limit, offset],
   );
 
-  // Transform the response to match the requested format
-  return rows.map((row) =>
-    keysToCamelCase({
-      id: row.id,
-      costCenter: {
-        id: row.cost_center_id,
-        name: row.cost_center_name,
-      },
-      constructionChecklist: {
-        id: row.construction_checklist_id,
-        name: row.construction_checklist_name,
-      },
-      createdAt: row.created_at,
-    }),
+  // Get total count
+  const countValues = [companyId, builderId];
+  let countParamIndex = 3;
+  let countWhereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
+
+  if (filters.cost_center_id) {
+    countWhereClause += ` AND cccm.cost_center_id = $${countParamIndex++}`;
+    countValues.push(filters.cost_center_id);
+  }
+
+  if (filters.construction_checklist_id) {
+    countWhereClause += ` AND cccm.construction_checklist_id = $${countParamIndex++}`;
+    countValues.push(filters.construction_checklist_id);
+  }
+
+  const countResult = await pool.query(
+    `
+    SELECT COUNT(*)::int as total
+    FROM cost_center_checklist_map cccm
+    INNER JOIN cost_center cc ON cc.cost_center_id = cccm.cost_center_id
+    INNER JOIN construction_checklist ccl ON ccl.construction_checklist_id = cccm.construction_checklist_id
+    ${countWhereClause}
+    `,
+    countValues,
   );
+
+  // Transform the response to return just IDs
+  const mappings = rows.map((row) => ({
+    id: row.id,
+    costCenterId: row.cost_center_id,
+    constructionChecklistId: row.construction_checklist_id,
+    createdAt: row.created_at,
+  }));
+
+  const totalRecords = countResult.rows[0].total;
+  const totalPages = Math.ceil(totalRecords / limit);
+
+  return {
+    mappings: keysToCamelCase(mappings),
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalRecords,
+      limit,
+    },
+  };
 }
 
 /**

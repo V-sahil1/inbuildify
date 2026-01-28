@@ -968,26 +968,19 @@ CREATE TABLE range (
 
 CREATE TABLE screen (
   screen_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
---   CONSTRAINT chk_screen_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
---   CONSTRAINT uq_screen_scope UNIQUE (company_id, builder_id, name)
 );
 
 CREATE TABLE functionality (
   functionality_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   screen_id UUID NOT NULL REFERENCES screen(screen_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
---   CONSTRAINT chk_functionality_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 ); 
 
 CREATE TABLE construction_type(
@@ -1160,31 +1153,22 @@ CREATE TABLE notes_tag (
 
 CREATE TABLE role (
   role_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,           -- e.g., 'Task Manager', 'Company Admin (My Home)'
---   type VARCHAR(100),                    -- e.g., 'Sales Executive', 'Accounts Manager'
   description TEXT,
---   is_active BOOLEAN DEFAULT TRUE,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
---   CONSTRAINT chk_role_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
---   CONSTRAINT uq_role_scope UNIQUE (name, company_id, builder_id)
 );
 
 CREATE TABLE role_type(
     role_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    -- company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-    -- builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES role(role_id) ON DELETE CASCADE,
     type_name VARCHAR(100) NOT NULL,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
-    -- CONSTRAINT chk_role_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE user_role_mapping (
@@ -2353,12 +2337,21 @@ CREATE TABLE floor_plan_pricelist_item_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
   price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
-  inclide_default BOOLEAN DEFAULT FALSE,
+  include_default BOOLEAN DEFAULT FALSE,
   modify BOOLEAN DEFAULT FALSE,
   quantity INT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT uq_floor_plan_pricelist_item_map UNIQUE (floor_plan_id, price_list_item_id)
+);
+
+CREATE TABLE floor_plan_facade_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE CASCADE,
+  facade_id UUID REFERENCES facade(facade_id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_floor_plan_facade_map UNIQUE (floor_plan_id, facade_id)
 );
 
 CREATE TABLE estate (
@@ -2801,4 +2794,50 @@ CREATE TABLE contract_section(
   section_url VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CREATE TABLE agent_referral_partner(
+--   agent_referral_partner_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+--   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+--   name VARCHAR(255) NOT NULL,
+--   email VARCHAR(255) NOT NULL,
+--   phone VARCHAR(255) NOT NULL,
+--   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+--   account_name VARCHAR(255),
+--   account_bsb VARCHAR(255),
+--   account_number VARCHAR(255),
+--   abn VARCHAR(255),
+--   company_name VARCHAR(255),
+--   referred_user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--   create_login BOOLEAN DEFAULT FALSE,
+--   login_id VARCHAR(100),
+--   password VARCHAR(255),
+--   password_auto_generated BOOLEAN DEFAULT FALSE,
+--   next_login_password_change BOOLEAN DEFAULT FALSE,
+--   email_login_credentials BOOLEAN DEFAULT FALSE,
+--   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   CONSTRAINT chk_agent_referral_partner_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+-- );
+
+CREATE TABLE agent_referral_partner(
+  agent_referral_partner_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  account_name VARCHAR(255),
+  account_bsb VARCHAR(255),
+  account_number VARCHAR(255),
+  abn VARCHAR(255),
+  company_name VARCHAR(255),
+  referred_user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_agent_referral_partner_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );

@@ -83,7 +83,6 @@ async function getUsers({ builderId, page, limit, search, role }) {
   let queryParams = [builderId, searchFilter];
   let paramIndex = 3;
 
-  // Add role filter if provided
   if (role) {
     whereClause += ` AND r.name = $${paramIndex++}`;
     queryParams.push(role);
@@ -97,15 +96,49 @@ async function getUsers({ builderId, page, limit, search, role }) {
         u.email,
         u.login_id,
         u.role_id,
+        r.name AS role_name,
         u.phone,
         u.secondary_phone,
+        u.initials,
+        u.reporting_to,
+        ru.name AS reporting_to_name,
+        u.designation,
+        u.date_of_joining,
+        u.date_of_birth,
+        u.remark,
+        u.consultant_bio,
+        u.photo,
+        u.signature,
         u.is_active,
         u.is_locked,
+        u.is_verified,
+        u.root_user,
+        u.failed_attempts,
+        u.next_login_password_change,
+        u.password_auto_generated,
+        u.email_login_credentials,
+        u.address_id,
+        u.use_company_address,
+        u.has_login,
+        jsonb_build_object(
+          'address_id', a.address_id,
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'state_id', a.state_id,
+          'country_id', a.country_id,
+          'zip_code', a.zip_code,
+          'state_name', s.name,
+          'country_name', c.name
+        ) AS address,
         u.created_at,
-        u.updated_at,
-        r.name AS role_name
+        u.updated_at
       FROM users u
       LEFT JOIN role r ON r.role_id = u.role_id
+      LEFT JOIN users ru ON ru.users_id = u.reporting_to
+      LEFT JOIN address a ON a.address_id = u.address_id
+      LEFT JOIN state s ON s.state_id = a.state_id
+      LEFT JOIN country c ON c.country_id = a.country_id
       ${whereClause}
       ORDER BY u.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -147,12 +180,15 @@ async function getProfile(userId) {
         u.*,
         b.name AS builder_name,
         b.logo AS builder_logo,
-        a.address_line1,
-        a.address_line2,
-        a.city,
-        a.zip_code,
-        a.country_id,
-        a.state_id
+        jsonb_build_object(
+          'address_id', a.address_id,
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'zip_code', a.zip_code,
+          'country_id', a.country_id,
+          'state_id', a.state_id
+        ) AS address
       FROM users u
       LEFT JOIN builder b ON b.builder_id = u.builder_id
       LEFT JOIN address a ON a.address_id = u.address_id
