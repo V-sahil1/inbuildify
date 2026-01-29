@@ -48,14 +48,28 @@ module.exports.getAgentReferralPartnerById = async (req, res) => {
 
 module.exports.getAgentReferralPartners = async (req, res) => {
   try {
+    const { page = 1, limit = 25 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
     const data = await agentReferralPartnerService.getAgentReferralPartners(
       req.user,
       req.query,
     );
 
+    const totalPages = Math.ceil(data.total / limitNum);
+
     return successResponse(
       res,
-      data,
+      {
+        agent: data.data,
+        pagination: {
+          totalRecords: data.total,
+          currentPage: pageNum,
+          totalPages,
+          limit: limitNum,
+        },
+      },
       "Agent referral partners retrieved successfully.",
     );
   } catch (err) {

@@ -100,7 +100,6 @@ const surveyTemplateQuestionRoutes = require("./survey-template-question.routes"
 const packageGroupRoutes = require("./package-group.routes");
 const packagePriceListItemMapRoutes = require("./package-pricelist-item-map.routes");
 const taskRoutes = require("./task.routes");
-
 const locationRoutes = require("./location.routes");
 const estateRoutes = require("./estate.routes");
 const estateFeatureRoutes = require("./estate-feature.routes");
@@ -130,6 +129,7 @@ const colorGrouprouts = require("./color-group.routes");
 const colorGroupItemMapRoutes = require("./color-group-item-map.routes");
 const contractFormatRoutes = require("./contract-format.routes");
 const contractSectionRoutes = require("./contract-section.routes");
+const quotationFormatMasterSectionRoutes = require("./quotation-format-master-section.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -281,4 +281,5 @@ module.exports = function (app) {
   app.use("/color-group", colorGrouprouts);
   app.use("/contract-format", contractFormatRoutes);
   app.use("/contract-section", contractSectionRoutes);
+  app.use("/quotation-format", quotationFormatMasterSectionRoutes);
 };

@@ -22,14 +22,13 @@ const { encrypt } = require("../utils/crypto.util");
   ---------------------------------------- */
 async function getUsers(currentUser, query) {
   const builderId = currentUser.builder_id;
-  const { page = 1, limit = 25, search = "", role = "" } = query;
+  const { search = "", role = "", role_id = "" } = query;
 
-  return await userRepo.getUsers({
+  return await userRepo.getAllUsers({
     builderId,
-    page,
-    limit,
     search,
     role,
+    role_id,
   });
 }
 

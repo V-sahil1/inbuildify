@@ -2841,3 +2841,73 @@ CREATE TABLE agent_referral_partner(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_agent_referral_partner_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
+
+
+CREATE TABLE quotation_format(
+  quotation_format_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  builder UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  logo_alignment VARCHAR(100) NOT NULL CHECK(logo_alignment IN("center", "left", "right")),
+  logo_size_height DECIMAL(10, 2),
+  logo_size_width DECIMAL(10,2),
+  log pedding VARCHAR(255),
+  show_job_address BOOLEAN DEFAULT FALSE,
+  label_logo_size_height DECIMAL(10, 2),
+  label_logo_size_width DECIMAL(10,2),
+  -- custom foot table
+  format_name VARCHAR(255),
+  show_account VARCHAR(255) NOT NULL CHECK(show_account IN("company_account", "builder_account")),
+  show_excel BOOLEAN DEFAULT FALSE,
+  hide_logo_first_page BOOLEAN FALSE,
+  watermark VARCHAR(500),                 --image
+  default_facade VARCHAR(500)             --image
+  draft_background BOOLEAN DEFAULT FALSE,
+  hide_watermark BOOLEAN DEFAULT FALSE,
+  status BOOLEAN DEFAULT TRUE,
+  make_default BOOLEAN FALSE,
+  include_package_price_list BOOLEAN DEFAULT FALSE,
+  show-quotation_with_builder BOOLEAN DEFAULT FALSE,       -- if the show_account = company_account
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_quotation_format_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE master_section(
+  master_section_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  master_name VARCHAR(255) NOT NULL,
+  status BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_master_section_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE master_section_header(
+  master_section_header_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  master_section UUID REFERENCES master_section(master_section_id) ON DELETE CASCADE,
+  heading_name VARCHAR(255) NOT NULL,
+  effective_start_date DATE,
+  effective_end_date DATE,
+  sort_order int DEFAULT 1,
+  status BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+);
+
+CREATE TABLE master_section_item(
+  master_section_item_id UUID DEFAULT uuid_generate_v4(),
+  master_section_header_id REFERENCES master_section_header(master_section_header_id) ON DELETE CASCADE,
+  item_name VARCHAR(2000) NOT NULL,
+  effective_start_date DATE,
+  effective_end_date DATE,
+  sort_order int DEFAULT 1,
+  status BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+);

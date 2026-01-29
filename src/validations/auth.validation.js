@@ -59,13 +59,25 @@ const registerRootSchema = Joi.object({
 });
 
 const loginUserSchema = Joi.object({
-  email: emailRule,
+  email: Joi.string().email().lowercase().trim().optional().allow("").messages({
+    "string.base": "Email must be a string",
+    "string.email": "Please provide a valid email address",
+  }),
+  login_id: Joi.string().min(2).max(100).trim().optional().allow("").messages({
+    "string.base": "Login ID must be a string",
+    "string.min": "Login ID must be at least 2 characters long",
+    "string.max": "Login ID must not exceed 100 characters",
+  }),
   password: Joi.string().required().messages({
     "string.base": "Password must be a string",
     "string.empty": "Password is required",
     "any.required": "Password is required",
   }),
-});
+})
+  .or("email", "login_id")
+  .messages({
+    "object.missing": "Either email or login ID is required",
+  });
 
 const verifyEmailSchema = Joi.object({
   email: emailRule,

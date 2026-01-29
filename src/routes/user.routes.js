@@ -66,7 +66,6 @@ router.post(
   userController.createUser,
 );
 
-// UPDATE an existing user
 router.put(
   "/:user_id",
   uploadPhoto.fields([

@@ -63,7 +63,7 @@ async function getBasicUser(userId) {
         USER LISTING
   ============================================================ */
 
-async function getUsers({ builderId, page, limit, search, role }) {
+async function getUsers({ builderId, page, limit, search, role, role_id }) {
   const pool = getPool();
   const offset = (page - 1) * limit;
 
@@ -86,6 +86,11 @@ async function getUsers({ builderId, page, limit, search, role }) {
   if (role) {
     whereClause += ` AND r.name = $${paramIndex++}`;
     queryParams.push(role);
+  }
+
+  if (role_id) {
+    whereClause += ` AND u.role_id = $${paramIndex++}`;
+    queryParams.push(role_id);
   }
 
   const res = await pool.query(
@@ -166,6 +171,99 @@ async function getUsers({ builderId, page, limit, search, role }) {
     users: res.rows.map((user) => keysToCamelCase(user)),
     total: countRes.rows[0].count,
   };
+}
+
+/* ============================================================
+        GET ALL USERS (NO PAGINATION)
+  ============================================================ */
+
+async function getAllUsers({ builderId, search, role, role_id }) {
+  const pool = getPool();
+
+  const searchFilter = search ? `%${search}%` : "%";
+
+  let whereClause = `
+    WHERE
+      u.is_deleted = FALSE
+      AND u.builder_id = $1
+      AND (
+        LOWER(u.name) LIKE LOWER($2)
+        OR LOWER(u.email) LIKE LOWER($2)
+        OR LOWER(u.login_id) LIKE LOWER($2)
+      )
+  `;
+
+  let queryParams = [builderId, searchFilter];
+  let paramIndex = 3;
+
+  if (role) {
+    whereClause += ` AND r.name = $${paramIndex++}`;
+    queryParams.push(role);
+  }
+
+  if (role_id) {
+    whereClause += ` AND u.role_id = $${paramIndex++}`;
+    queryParams.push(role_id);
+  }
+
+  const res = await pool.query(
+    `
+      SELECT 
+        u.users_id,
+        u.name,
+        u.email,
+        u.login_id,
+        u.role_id,
+        r.name AS role_name,
+        u.phone,
+        u.secondary_phone,
+        u.initials,
+        u.reporting_to,
+        ru.name AS reporting_to_name,
+        u.designation,
+        u.date_of_joining,
+        u.date_of_birth,
+        u.remark,
+        u.consultant_bio,
+        u.photo,
+        u.signature,
+        u.is_active,
+        u.is_locked,
+        u.is_verified,
+        u.root_user,
+        u.failed_attempts,
+        u.next_login_password_change,
+        u.password_auto_generated,
+        u.email_login_credentials,
+        u.address_id,
+        u.use_company_address,
+        u.has_login,
+        jsonb_build_object(
+          'address_id', a.address_id,
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'state_id', a.state_id,
+          'country_id', a.country_id,
+          'zip_code', a.zip_code,
+          'state_name', s.name,
+          'country_name', c.name
+        ) AS address,
+        u.created_at,
+        u.updated_at
+      FROM users u
+      LEFT JOIN role r ON r.role_id = u.role_id
+      LEFT JOIN users ru ON ru.users_id = u.reporting_to
+      LEFT JOIN address a ON a.address_id = u.address_id
+      LEFT JOIN state s ON s.state_id = a.state_id
+      LEFT JOIN country c ON c.country_id = a.country_id
+      ${whereClause}
+      ORDER BY u.created_at DESC
+    `,
+    queryParams,
+  );
+
+  return res.rows.map((user) => keysToCamelCase(user));
 }
 
 /* ============================================================
@@ -459,6 +557,7 @@ module.exports = {
   getBasicUser,
   getProfile,
   getUsers,
+  getAllUsers,
   updatePassword,
   updateLoginId,
   updateActiveStatus,

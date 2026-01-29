@@ -9,46 +9,43 @@ const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware");
 const {
   createAgentReferralPartnerSchema,
   updateAgentReferralPartnerSchema,
-} = require("../validation/agent-referral-partner.validation");
+  getAgentReferralPartnerSchema,
+  paramsIdSchema,
+} = require("../validations/agent-referral-partner.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { REQUEST_SOURCE } = require("../config/constants");
 
+router.use(authMiddleware);
+router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
+
 router.post(
   "/",
-  camelToSnakeMiddleware,
-  authMiddleware,
-  roleMiddleware,
   validateRequest(createAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
   agentReferralPartnerController.createAgentReferralPartner,
 );
 
 router.get(
   "/",
-  authMiddleware,
-  roleMiddleware,
+  validateRequest(getAgentReferralPartnerSchema, REQUEST_SOURCE.QUERY),
   agentReferralPartnerController.getAgentReferralPartners,
 );
 
 router.get(
   "/:partner_id",
-  authMiddleware,
-  roleMiddleware,
   agentReferralPartnerController.getAgentReferralPartnerById,
 );
 
 router.put(
   "/:partner_id",
-  camelToSnakeMiddleware,
-  authMiddleware,
-  roleMiddleware,
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
   agentReferralPartnerController.updateAgentReferralPartner,
 );
 
 router.delete(
   "/:partner_id",
-  authMiddleware,
-  roleMiddleware,
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
   agentReferralPartnerController.deleteAgentReferralPartner,
 );
 

@@ -125,7 +125,7 @@ async function resendOtp(email) {
     const lowerEmail = email.toLowerCase();
 
     const userRes = await client.query(
-      `SELECT users_id, is_verified
+      `SELECT users_id, is_verified, otp_resend_count, last_otp_sent_at
          FROM users WHERE LOWER(email) = $1`,
       [lowerEmail],
     );
@@ -149,7 +149,10 @@ async function resendOtp(email) {
 
     if (lastSent && new Date(lastSent) > oneHourAgo) {
       if (resendCount >= 4) {
-        throw { statusCode: 429, message: "OTP resend limit reached." };
+        throw {
+          statusCode: 429,
+          message: "OTP resend limit reached. Please try again after 1 hour.",
+        };
       }
     } else {
       resendCount = 0; // reset
@@ -175,20 +178,30 @@ async function resendOtp(email) {
 }
 
 // LOGIN
-async function login({ email, password }) {
+async function login({ email, login_id, password }) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const lowerEmail = email.toLowerCase();
+    let userRes;
 
-    const userRes = await client.query(
-      `SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE`,
-      [lowerEmail],
-    );
+    if (email) {
+      const lowerEmail = email.toLowerCase();
+      userRes = await client.query(
+        `SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE`,
+        [lowerEmail],
+      );
+    } else if (login_id) {
+      userRes = await client.query(
+        `SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE`,
+        [login_id],
+      );
+    } else {
+      throw { statusCode: 400, message: "Email or login ID is required." };
+    }
 
     if (userRes.rowCount === 0) {
-      throw { statusCode: 401, message: "Invalid email or password." };
+      throw { statusCode: 401, message: "Invalid credentials." };
     }
 
     const user = userRes.rows[0];

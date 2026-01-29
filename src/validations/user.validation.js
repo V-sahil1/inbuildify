@@ -88,6 +88,7 @@ const getUsersSchema = Joi.object({
   limit: Joi.number().min(1).max(100).default(25),
   search: Joi.string().allow("", null),
   role: Joi.string().allow("", null).max(255).optional(),
+  role_id: uuidRule.allow(null, "").optional(),
 });
 
 module.exports = {

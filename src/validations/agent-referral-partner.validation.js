@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { join } = require("lodash");
 
 const createAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
@@ -108,17 +109,17 @@ const updateAgentReferralPartnerSchema = Joi.object({
     zip_code: Joi.string().max(20).allow(""),
   }).optional(),
   user: Joi.object({
-    name: Joi.string().min(2).max(255).required().messages({
+    name: Joi.string().min(2).max(255).optional().messages({
       "string.empty": "Name is required.",
       "string.min": "Name must be at least 2 characters.",
       "string.max": "Name must not exceed 255 characters.",
       "any.required": "Name is required.",
     }),
-    email: Joi.string().email().required().messages({
+    email: Joi.string().email().optional().messages({
       "string.email": "Please provide a valid email address.",
       "any.required": "Email is required.",
     }),
-    phone: Joi.string().min(5).max(20).required().messages({
+    phone: Joi.string().min(5).max(20).optional().messages({
       "string.empty": "Phone is required.",
       "string.min": "Phone must be at least 5 characters.",
       "string.max": "Phone must not exceed 20 characters.",
@@ -186,7 +187,30 @@ const updateAgentReferralPartnerSchema = Joi.object({
   referred_user_id: Joi.string().uuid().allow(null),
 });
 
+const getAgentReferralPartnerSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be greater than 0",
+  }),
+
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
+});
+
+const paramsIdSchema = Joi.object({
+  partner_id: Joi.string().uuid().required().messages({
+    "string.guid": "agent ID must be a valid UUID",
+    "any.required": "agent ID is required",
+  }),
+});
 module.exports = {
   createAgentReferralPartnerSchema,
   updateAgentReferralPartnerSchema,
+  getAgentReferralPartnerSchema,
+  paramsIdSchema,
 };

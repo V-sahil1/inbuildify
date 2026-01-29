@@ -47,24 +47,25 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
 
     const priceListItem = priceListItemCheck.rows[0];
 
+    // For fixed and included cost types: quantity should not be provided
     if (
-      priceListItem.cost_type === "fixed" ||
-      (priceListItem.cost_type === "Included" &&
-        quantity !== undefined &&
-        quantity !== null &&
-        quantity !== "")
+      (priceListItem.cost_type === "Fixed" ||
+        priceListItem.cost_type === "Included") &&
+      quantity !== undefined &&
+      quantity !== null &&
+      quantity !== ""
     ) {
       return errorResponse(
         res,
         400,
-        "Quantity cannot be set for price list items with fixed cost type",
+        "Quantity cannot be set for price list items with fixed or included cost type",
       );
     }
 
+    // For variable cost type: quantity is required
     if (
-      priceListItem.cost_type !== "fixed" ||
-      (priceListItem.cost_type !== "Included" &&
-        (quantity === undefined || quantity === null || quantity === ""))
+      priceListItem.cost_type === "Variable" &&
+      (quantity === undefined || quantity === null || quantity === "")
     ) {
       return errorResponse(
         res,

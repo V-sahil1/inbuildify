@@ -5,11 +5,7 @@ const { keysToCamelCase } = require("../utils/common");
 module.exports.getUsers = async (req, res) => {
   try {
     const data = await userService.getUsers(req.user, req.query);
-    return successResponse(
-      res,
-      keysToCamelCase(data),
-      "Users fetched successfully.",
-    );
+    return successResponse(res, data, "Users fetched successfully.");
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
