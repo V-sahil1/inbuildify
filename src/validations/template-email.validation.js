@@ -1,17 +1,31 @@
 const Joi = require("joi");
 
 const createTemplateEmailSchema = Joi.object({
-  name: Joi.string().min(3).max(200).required().messages({
-    "string.empty": "Template name is required.",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Template name must contain at least one letter",
+      "any.required": "Template name is required.",
+    }),
   type: Joi.string()
     .max(50)
     .valid("standard", "customized")
     .default("standard"),
-  subject: Joi.string().allow(null, "").max(255).optional(),
-  email_content: Joi.string().required().messages({
-    "string.empty": "Email content is required.",
-  }),
+  subject: Joi.string()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .min(2)
+    .max(255)
+    .optional(),
+  email_content: Joi.string()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Email content must contain at least one letter",
+      "any.required": "Email content is required.",
+    }),
   additional_recipient_users: Joi.array()
     .items(Joi.string().uuid())
     .default([])
@@ -28,8 +42,11 @@ const createTemplateEmailSchema = Joi.object({
 });
 
 const getAllTemplateEmailSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
-  type: Joi.string().valid("standard", "customized").optional(),
+  name: Joi.string()
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
+  type: Joi.string().max(100).valid("standard", "customized").optional(),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -52,9 +69,14 @@ const updateTemplateEmailParamsSchema = Joi.object({
 });
 
 const updateTemplateEmailSchem = Joi.object({
-
-  subject: Joi.string().allow(null, "").max(255).optional(),
-  email_content: Joi.string().optional(),
+  subject: Joi.string()
+    .allow(null, "")
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .max(255)
+    .optional(),
+  email_content: Joi.string()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   additional_recipient_users: Joi.array()
     .items(Joi.string().uuid())
     .default([])

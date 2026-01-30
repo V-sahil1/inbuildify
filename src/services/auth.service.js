@@ -2,6 +2,7 @@ const getPool = require("../config/database");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../helper/sendMail");
+const { upsertCompany } = require("./company.service");
 
 const {
   generateOtp,
@@ -59,6 +60,22 @@ async function registerRoot({ name, email, password, role_id }) {
         true,
       ],
     );
+
+    // Create default company for the new user
+    const defaultCompanyPayload = {
+      name: `${name}'s Company`,
+      abn_number: null,
+      timezone_id: null,
+      address: null,
+      bank_name: null,
+      account_name: null,
+      account_number: null,
+      account_bsb: null,
+      email_signature_logo: null,
+      company_logo: null,
+    };
+
+    await upsertCompany(builder_id, defaultCompanyPayload, client);
 
     // Send OTP Email
     await sendEmail(lowerEmail, "Verify Email - OTP", `Your OTP is: ${otp}`);

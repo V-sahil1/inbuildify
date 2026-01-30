@@ -1,30 +1,51 @@
 const express = require("express");
 const router = express.Router();
+
 const {
-  getAllColorCategories,
-  getColorCategoryById,
   createColorCategory,
+  getColorCategories,
+  getColorCategoryById,
   updateColorCategory,
   deleteColorCategory,
 } = require("../controllers/color-category.controller");
+
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const { REQUEST_SOURCE } = require("../config/constants");
 const {
-  getAllColorCategoriesSchema,
   createColorCategorySchema,
   updateColorCategorySchema,
-  colorCategoryIdParamSchema,
+  paramsIdSchema,
 } = require("../validations/color-category.validation");
-const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-router.get("/", validateRequest(getAllColorCategoriesSchema, REQUEST_SOURCE.QUERY), getAllColorCategories);
-router.get("/:color_category_id", validateRequest(colorCategoryIdParamSchema, REQUEST_SOURCE.PARAMS), getColorCategoryById);
-router.post("/", validateRequest(createColorCategorySchema, REQUEST_SOURCE.BODY), createColorCategory);
-router.put("/:color_category_id", validateRequest(updateColorCategorySchema, REQUEST_SOURCE.BODY), updateColorCategory);
-router.delete("/:color_category_id", validateRequest(colorCategoryIdParamSchema, REQUEST_SOURCE.PARAMS), deleteColorCategory);
+router.post(
+  "/",
+  camelToSnakeMiddleware,
+  validateRequest(createColorCategorySchema, REQUEST_SOURCE.BODY),
+  createColorCategory,
+);
+
+router.get("/", getColorCategories);
+
+router.get("/:id", getColorCategoryById);
+
+router.put(
+  "/:id",
+  camelToSnakeMiddleware,
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateColorCategorySchema, REQUEST_SOURCE.BODY),
+  updateColorCategory,
+);
+
+router.delete(
+  "/:id",
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
+  deleteColorCategory,
+);
 
 module.exports = router;

@@ -23,7 +23,6 @@ exports.createColorGroup = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Check for duplicate name
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -59,14 +58,7 @@ exports.createColorGroup = async (req, res) => {
       RETURNING *;
     `;
 
-    const values = [
-      companyId,
-      builderId,
-      name.trim(),
-      true, // Set status to true by default
-      userId,
-      userId,
-    ];
+    const values = [companyId, builderId, name.trim(), true, userId, userId];
 
     const result = await client.query(insertQuery, values);
     const createdColorGroup = keysToCamelCase(result.rows[0]);
@@ -238,7 +230,6 @@ exports.updateColorGroup = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Check if color group exists
     const existingCheck = await client.query(
       `
       SELECT color_group_id, name
@@ -257,7 +248,6 @@ exports.updateColorGroup = async (req, res) => {
 
     const existing = existingCheck.rows[0];
 
-    // Check for duplicate name (if name is being updated)
     if (name && name.trim() !== existing.name) {
       const duplicateCheck = await client.query(
         `
@@ -372,26 +362,6 @@ exports.deleteColorGroup = async (req, res) => {
       return errorResponse(res, 404, "Color group not found.");
     }
 
-    // Check if there are any color items associated with this group
-    const colorItemsCheck = await client.query(
-      `
-      SELECT COUNT(*) as count
-      FROM color_item
-      WHERE color_group_id = $1
-      `,
-      [colorGroupId],
-    );
-
-    if (parseInt(colorItemsCheck.rows[0].count) > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "Cannot delete color group. It has associated color items.",
-      );
-    }
-
-    // Remove color_group_id from all color_category records that reference it
     const updateColorCategoriesQuery = `
       UPDATE color_category 
       SET color_group = array_remove(color_group, $1)
@@ -400,7 +370,6 @@ exports.deleteColorGroup = async (req, res) => {
 
     await client.query(updateColorCategoriesQuery, [colorGroupId]);
 
-    // Delete the color group
     await client.query(
       `
       DELETE FROM color_group

@@ -36,7 +36,6 @@ exports.createSupplier = async (req, res) => {
       return errorResponse(res, 400, "company_name is required");
     }
 
-    // Validate supplier_type_id if provided
     if (supplier_type_id) {
       if (!Array.isArray(supplier_type_id)) {
         await client.query("ROLLBACK");
@@ -48,7 +47,6 @@ exports.createSupplier = async (req, res) => {
       }
 
       if (supplier_type_id.length > 0) {
-        // Check if all supplier_type_id values are valid UUIDs and exist in supplier_type table
         const checkSupplierTypes = await client.query(
           `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[])`,
           [supplier_type_id],

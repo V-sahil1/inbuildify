@@ -1,30 +1,74 @@
 const Joi = require("joi");
 
-const getAllColorCategoriesSchema = Joi.object({
-  limit: Joi.number().optional().default(25).max(50),
-  offset: Joi.number().optional().default(0).max(1000),
-});
-
 const createColorCategorySchema = Joi.object({
-  name: Joi.string().required().min(2).max(100),
-  description: Joi.string().trim().max(255).optional(),
+  color_id: Joi.string().uuid().required().messages({
+    "string.guid": "Color ID must be a valid UUID",
+    "any.required": "Color ID is required",
+  }),
+  category_name: Joi.string().trim().max(255).required().messages({
+    "any.required": "Category name is required",
+    "string.max": "Category name must not exceed 255 characters",
+  }),
+  selection_type: Joi.string()
+    .valid("single", "multiple")
+    .default("multiple")
+    .messages({
+      "any.only": "Selection type must be either 'single' or 'multiple'",
+    }),
+  sort_order: Joi.number().integer().default(1).messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+  }),
+  status: Joi.boolean().default(true).messages({
+    "boolean.base": "Status must be a boolean",
+  }),
+  suppliers: Joi.array().items(Joi.string().uuid()).default([]).messages({
+    "array.base": "Suppliers must be an array",
+    "string.guid": "Each supplier ID must be a valid UUID",
+  }),
+  color_group: Joi.array().items(Joi.string().uuid()).default([]).messages({
+    "array.base": "Color group must be an array",
+    "string.guid": "Each color group ID must be a valid UUID",
+  }),
 });
 
 const updateColorCategorySchema = Joi.object({
-  name: Joi.string().optional().min(2).max(100),
-  description: Joi.string().trim().max(255).optional(),
-}).min(1).message({ "object.min": "At least one field is required to update" });
+  category_name: Joi.string().trim().max(255).optional().messages({
+    "string.max": "Category name must not exceed 255 characters",
+  }),
+  selection_type: Joi.string().valid("single", "multiple").optional().messages({
+    "any.only": "Selection type must be either 'single' or 'multiple'",
+  }),
+  sort_order: Joi.number().integer().optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+  }),
+  status: Joi.boolean().optional().messages({
+    "boolean.base": "Status must be a boolean",
+  }),
+  suppliers: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.base": "Suppliers must be an array",
+    "string.guid": "Each supplier ID must be a valid UUID",
+  }),
+  color_group: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.base": "Color group must be an array",
+    "string.guid": "Each color group ID must be a valid UUID",
+  }),
+})
+  .min(1)
+  .message({
+    "object.min": "At least one field must be provided for update",
+  });
 
-const colorCategoryIdParamSchema = Joi.object({
-  color_category_id: Joi.string().uuid().required().messages({
-    "string.guid": "Color Category ID must be a valid UUID",
-    "any.required": "Color Category ID is required",
+const paramsIdSchema = Joi.object({
+  id: Joi.string().uuid().required().messages({
+    "string.guid": "ID must be a valid UUID",
+    "any.required": "ID is required",
   }),
 });
 
 module.exports = {
-  getAllColorCategoriesSchema,
   createColorCategorySchema,
   updateColorCategorySchema,
-  colorCategoryIdParamSchema,
+  paramsIdSchema,
 };

@@ -1,53 +1,87 @@
 const Joi = require("joi");
 
 const createSurveyorSchema = Joi.object({
-  name: Joi.string().trim().max(150).required().messages({
-    "string.base": "Name must be a string.",
-    "string.max": "Name cannot exceed 150 characters.",
-    "any.required": "Name is required.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Name must contain at least one letter",
+      "any.required": "Name is required.",
+    }),
 
   email: Joi.string()
     .trim()
     .email()
-    .max(150)
+    .max(250)
     .allow(null, "")
     .optional()
     .messages({
       "string.email": "Email must be a valid email address.",
-      "string.max": "Email cannot exceed 150 characters.",
+      "string.max": "Email cannot exceed 250 characters.",
     }),
   phone: Joi.string()
     .trim()
     .min(10)
-    .max(50)
+    .max(15)
     .allow(null, "")
     .optional()
     .messages({
-      "string.max": "Phone cannot exceed 50 characters.",
+      "string.max": "Phone cannot exceed 15 characters.",
     }),
   abn_number: Joi.string()
     .trim()
     .min(11)
-    .max(20)
+    .max(11)
     .allow(null, "")
     .optional()
     .messages({
-      "string.max": "ABN number cannot exceed 20 characters.",
+      "string.max": "ABN number cannot exceed 11 characters.",
     }),
   registration_number: Joi.string()
     .trim()
+    .min(5)
     .max(100)
     .allow(null, "")
     .optional()
     .messages({
+      "string.min": "Registration number must be at least 5 characters long",
       "string.max": "Registration number cannot exceed 100 characters.",
     }),
-  address1: Joi.string().trim().max(255).required(),
-  address2: Joi.string().trim().max(255).optional(),
-  city: Joi.string().trim().max(150).required(),
+  address1: Joi.string()
+    .trim()
+    .min(10)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Address line 1 must contain at least one letter",
+      "any.required": "Address line 1 is required",
+      "string.min": "Address line 1 must be at least 10 characters long",
+      "string.max": "Address line 1 must not exceed 255 characters",
+    }),
+  address2: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Address line 2 must contain at least one letter",
+      "string.min": "Address line 2 must be at least 2 characters long",
+      "string.max": "Address line 2 must not exceed 255 characters",
+    }),
+  city: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   state_id: Joi.string().uuid().required().messages({
     "string.guid": "state ID must be a valid UUID",
+    "any.required": "state ID is required",
   }),
   zip_postal_code: Joi.string().trim().max(20).required(),
 });
@@ -82,10 +116,16 @@ const updateSurveyorIdParamsSchema = Joi.object({
 });
 
 const updateSurveyorSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional().messages({
-    "string.base": "Name must be a string.",
-    "string.max": "Name cannot exceed 150 characters.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Name must contain at least one letter",
+      "string.max": "Name cannot exceed 150 characters.",
+    }),
   email: Joi.string()
     .trim()
     .email()
@@ -99,36 +139,67 @@ const updateSurveyorSchema = Joi.object({
   phone: Joi.string()
     .trim()
     .min(10)
-    .max(50)
+    .max(15)
     .allow(null, "")
     .optional()
     .messages({
-      "string.max": "Phone cannot exceed 50 characters.",
+      "string.max": "Phone cannot exceed 15 characters.",
     }),
   abn_number: Joi.string()
     .trim()
     .min(11)
-    .max(20)
+    .max(11)
     .allow(null, "")
     .optional()
     .messages({
-      "string.max": "ABN number cannot exceed 20 characters.",
+      "string.max": "ABN number cannot exceed 11 characters.",
     }),
   registration_number: Joi.string()
     .trim()
+    .min(5)
     .max(100)
     .allow(null, "")
     .optional()
     .messages({
+      "string.min": "Registration number must be at least 5 characters long",
       "string.max": "Registration number cannot exceed 100 characters.",
     }),
-  address1: Joi.string().trim().max(255).optional(),
-  address2: Joi.string().trim().max(255).optional(),
-  city: Joi.string().trim().max(150).optional(),
+  address1: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Address line 2 must contain at least one letter",
+      "string.min": "Address line 2 must be at least 2 characters long",
+      "string.max": "Address line 2 must not exceed 255 characters",
+    }),
+  address2: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .allow(null, "")
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Address line 1 must contain at least one letter",
+      "string.min": "Address line 1 must be at least 2 characters long",
+      "string.max": "Address line 1 must not exceed 255 characters",
+    }),
+  city: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   state_id: Joi.string().uuid().optional().messages({
     "string.guid": "state ID must be a valid UUID",
   }),
-  zip_postal_code: Joi.string().trim().max(20).optional(),
+  zip_postal_code: Joi.string().trim().min(4).max(4).optional().messages({
+    "string.min": "Zip code must be at least 4 characters long",
+    "string.max": "Zip code must not exceed 4 characters",
+  }),
 });
 
 module.exports = {

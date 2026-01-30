@@ -18,7 +18,7 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Invalid token or token not found"
+        "Unauthorized: Invalid token or token not found",
       );
     }
 
@@ -37,7 +37,7 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Invalid token or token not found"
+        "Unauthorized: Invalid token or token not found",
       );
     }
 
@@ -47,7 +47,7 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing user or builder_id."
+        "Unauthorized: Missing user or builder_id.",
       );
     }
 
@@ -69,7 +69,9 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     // ✅ Detect create-company API
     // adjust path/method if needed
     const isCreateCompanyRequest =
+      (req.method === "GET" && req.originalUrl.includes("/company")) ||
       (req.method === "POST" && req.originalUrl.includes("/company")) ||
+      (req.method === "GET" && req.originalUrl.includes("/timezone")) ||
       (req.method === "POST" && req.originalUrl.includes("/address")) ||
       (req.method === "GET" && req.originalUrl.includes("/state")) ||
       (req.method === "GET" && req.originalUrl.includes("/country")) ||
@@ -125,7 +127,7 @@ const authMiddleware = (req, res, next) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: No Authorization header or API Key provided"
+        "Unauthorized: No Authorization header or API Key provided",
       );
     }
 
@@ -138,7 +140,7 @@ const authMiddleware = (req, res, next) => {
       return errorResponse(
         res,
         400,
-        "Unauthorized: Invalid authorization scheme or no token provided."
+        "Unauthorized: Invalid authorization scheme or no token provided.",
       );
     }
     return handleTokenAuthorization(requestId, token, req, res, next);

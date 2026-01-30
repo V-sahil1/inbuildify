@@ -2,281 +2,536 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
-const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
-  
-  const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
-
-  const usersQuery = `
-    SELECT users_id, name 
-    FROM users 
-    WHERE users_id = ANY($1::uuid[])
-  `;
-  const usersResult = await client.query(usersQuery, [validUserIds]);
-  
-  return usersResult.rows.reduce((acc, row) => {
-    acc[row.users_id] = row.name;
-    return acc;
-  }, {});
-};
-
-const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
-  return {
-    id: userId,
-    name: usersMap[userId] || null
-  };
-};
-
-exports.getAllColorCategories = async (req, res) => {
-  const { limit, offset } = req.query;
-  const parsedLimit = parseInt(limit, 10) || 25;
-  const parsedOffset = parseInt(offset, 10) || 0;
-
+exports.createColorCategory = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT * FROM color_category WHERE builder_id = $1 AND is_deleted = false
-       ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-      [req.user.builder_id, parsedLimit, parsedOffset]
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    const {
+      color_id,
+      category_name,
+      selection_type,
+      sort_order,
+      status,
+      suppliers,
+      color_group,
+    } = req.body;
+
+    if (!color_id) {
+      return errorResponse(res, 400, "Color ID is required.");
+    }
+
+    if (!category_name || category_name.trim() === "") {
+      return errorResponse(res, 400, "Category name is required.");
+    }
+
+    let finalSortOrder = sort_order || 1;
+
+    await client.query("BEGIN");
+
+    // Validate color exists and belongs to user's scope
+    const colorCheck = await client.query(
+      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      [color_id, builderId, companyId],
     );
 
-    const totalResult = await client.query(
-      `SELECT COUNT(*) FROM color_category WHERE builder_id = $1 AND is_deleted = false`,
-      [req.user.builder_id]
+    if (colorCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Invalid color ID or color not found or inactive..",
+      );
+    }
+
+    // Shift existing color categories to make room for the new sort order
+    const shiftCategoriesQuery = `
+      UPDATE color_category 
+      SET sort_order = sort_order + 1 
+      WHERE color_id = $1 
+        AND sort_order >= $2
+    `;
+    await client.query(shiftCategoriesQuery, [color_id, finalSortOrder]);
+
+    // Check for duplicate category name within the same color
+    const duplicateCheck = await client.query(
+      `
+      SELECT 1
+      FROM color_category
+      WHERE color_id = $1
+        AND LOWER(category_name) = LOWER($2)
+      `,
+      [color_id, category_name.trim()],
     );
 
-    const userIds = new Set();
-    result.rows.forEach(row => {
-      if (row.created_by_id) userIds.add(row.created_by_id);
-      if (row.updated_by_id) userIds.add(row.updated_by_id);
-    });
+    if (duplicateCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        409,
+        "Category with this name already exists for this color.",
+      );
+    }
 
-    const usersMap = await getUsersDetails(client, Array.from(userIds));
+    // Validate suppliers array if provided
+    if (suppliers && suppliers.length > 0) {
+      const supplierCheck = await client.query(
+        `SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        [suppliers, companyId, builderId],
+      );
 
-    const colorCategories = result.rows.map(row => {
-      const formatted = keysToCamelCase(row);
-      return {
-        ...formatted,
-        createdBy: formatUserObject(row.created_by_id, usersMap),
-        updatedBy: formatUserObject(row.updated_by_id, usersMap)
-      };
-    });
+      if (supplierCheck.rowCount !== suppliers.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more supplier IDs are invalid or not in your scope.",
+        );
+      }
+    }
 
-    const totalItems = parseInt(totalResult.rows[0].count, 10);
-    const totalPages = Math.ceil(totalItems / parsedLimit);
-    const currentPage = Math.floor(parsedOffset / parsedLimit) + 1;
+    // Validate color_group array if provided
+    if (color_group && color_group.length > 0) {
+      const colorGroupCheck = await client.query(
+        `SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        [color_group, companyId, builderId],
+      );
+
+      if (colorGroupCheck.rowCount !== color_group.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more color group IDs are invalid or not in your scope.",
+        );
+      }
+    }
+
+    const insertQuery = `
+      INSERT INTO color_category (
+        color_id, category_name, selection_type, sort_order, status, 
+        suppliers, color_group, created_by, updated_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *;
+    `;
+
+    const values = [
+      color_id,
+      category_name.trim(),
+      selection_type || "multiple",
+      finalSortOrder,
+      status !== undefined ? status : true,
+      suppliers || [],
+      color_group || [],
+      userId,
+      userId,
+    ];
+
+    const result = await client.query(insertQuery, values);
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Color category created successfully.",
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating color category:", err);
+    return errorResponse(res, 400, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getColorCategories = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const { color_id, page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    let whereClause =
+      "WHERE c.color_id IN (SELECT color_id FROM color WHERE builder_id = $1 AND company_id = $2)";
+    const queryParams = [builderId, companyId];
+    let paramIndex = 3;
+
+    if (color_id) {
+      whereClause += ` AND c.color_id = $${paramIndex}`;
+      queryParams.push(color_id);
+      paramIndex++;
+    }
+
+    const query = `
+      SELECT c.*, 
+             col.color_name as color_name
+      FROM color_category c
+      LEFT JOIN color col ON c.color_id = col.color_id
+      ${whereClause}
+      ORDER BY c.sort_order ASC, c.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1};
+    `;
+
+    queryParams.push(limit, offset);
+
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM color_category c
+      ${whereClause};
+    `;
+
+    const [result, countResult] = await Promise.all([
+      client.query(query, queryParams),
+      client.query(countQuery, queryParams.slice(0, -2)),
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
 
     return successResponse(
       res,
       {
-        colorCategories,
+        colorCategories: keysToCamelCase(result.rows),
         pagination: {
-          totalItems,
+          currentPage: parseInt(page),
           totalPages,
-          currentPage,
-          limit: parsedLimit,
+          total,
+          limit: parseInt(limit),
         },
       },
-      "Color categories fetched successfully."
+      "Color categories fetched successfully.",
     );
-  } catch (error) {
-    return errorResponse(
-      res,
-      error?.statusCode || 400,
-      error?.message || "Failed to fetch color categories."
-    );
+  } catch (err) {
+    console.error("Error fetching color categories:", err);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.getColorCategoryById = async (req, res) => {
-  const { color_category_id } = req.params;
-  const builderId = req.user.builder_id;
-
   const pool = getPool();
   const client = await pool.connect();
-
   try {
-    const result = await client.query(
-      `SELECT * FROM color_category WHERE color_category_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [color_category_id, builderId]
-    );
+    const { id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    const query = `
+      SELECT c.*, 
+             col.color_name as color_name
+      FROM color_category c
+      LEFT JOIN color col ON c.color_id = col.color_id
+      WHERE c.color_category_id = $1 
+        AND col.builder_id = $2 
+        AND col.company_id = $3
+      LIMIT 1;
+    `;
+
+    const result = await client.query(query, [id, builderId, companyId]);
 
     if (result.rowCount === 0) {
       return errorResponse(res, 404, "Color category not found.");
     }
 
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
-
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
-    };
-
     return successResponse(
       res,
-      response,
-      "Color category fetched successfully."
+      keysToCamelCase(result.rows[0]),
+      "Color category fetched successfully.",
     );
-  } catch (error) {
-    console.error("Get color category by ID error:", error);
-    return errorResponse(res, 500, "Failed to fetch color category.");
-  } finally {
-    client.release();
-  }
-};
-
-exports.createColorCategory = async (req, res) => {
-  const { name, description } = req.body;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const checkNameExists = await client.query(
-      `SELECT 1 FROM color_category WHERE name = $1 AND builder_id = $2 AND is_deleted = false`,
-      [name, builderId]
-    );
-    if (checkNameExists.rowCount > 0) {
-      return errorResponse(res, 400, "Color category name already exists.");
-    }
-
-    const result = await client.query(
-      `INSERT INTO color_category (builder_id, name, description, created_by_id, updated_by_id) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [builderId, name, description || null, userId, userId]
-    );
-
-    const row = result.rows[0];
-    const usersMap = await getUsersDetails(client, [userId]);
-
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
-    };
-
-    return successResponse(
-      res,
-      response,
-      "Color category created successfully."
-    );
-  } catch (error) {
-    console.error("Create color category error:", error);
-    return errorResponse(res, 500, "Failed to create color category.");
+  } catch (err) {
+    console.error("Error fetching color category:", err);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.updateColorCategory = async (req, res) => {
-  const { color_category_id } = req.params;
-  const { name, description } = req.body;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-
   const pool = getPool();
   const client = await pool.connect();
-
   try {
-    const checkNameExists = await client.query(
-      `SELECT 1 FROM color_category WHERE name = $1 AND builder_id = $2 AND color_category_id != $3 AND is_deleted = false`,
-      [name, builderId, color_category_id]
-    );
-    if (checkNameExists.rowCount > 0) {
-      return errorResponse(res, 400, "Color category name already exists.");
+    const { id } = req.params;
+    const {
+      category_name,
+      selection_type,
+      sort_order,
+      status,
+      suppliers,
+      color_group,
+    } = req.body;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const result = await client.query(
-      `UPDATE color_category
-       SET name = COALESCE($1, name),
-           description = COALESCE($2, description),
-           updated_by_id = $3,
-           updated_at = NOW()
-       WHERE color_category_id = $4 AND builder_id = $5 AND is_deleted = false
-       RETURNING *`,
-      [name || null, description || null, userId, color_category_id, builderId]
-    );
+    await client.query("BEGIN");
 
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Color category not found or already deleted.");
+    // Get existing color category record with color info
+    const existingCategoryQuery = `
+      SELECT cc.color_category_id, cc.category_name, cc.sort_order, cc.color_id,
+             col.builder_id, col.company_id
+      FROM color_category cc
+      LEFT JOIN color col ON cc.color_id = col.color_id
+      WHERE cc.color_category_id = $1 
+        AND col.builder_id = $2 
+        AND col.company_id = $3
+      LIMIT 1
+    `;
+    const existingCategoryResult = await client.query(existingCategoryQuery, [
+      id,
+      builderId,
+      companyId,
+    ]);
+
+    if (existingCategoryResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color category not found.");
     }
 
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
+    const existingCategory = existingCategoryResult.rows[0];
+    const updatedSortOrder =
+      sort_order !== undefined ? sort_order : existingCategory.sort_order;
 
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
-    };
+    // Handle sort order shifting if sort_order is being updated
+    if (
+      sort_order !== undefined &&
+      sort_order !== existingCategory.sort_order
+    ) {
+      if (sort_order > existingCategory.sort_order) {
+        // Moving down: decrement sort orders of items in between
+        const shiftCategoriesQuery = `
+          UPDATE color_category 
+          SET sort_order = sort_order - 1 
+          WHERE color_id = $1 
+            AND sort_order > $2 
+            AND sort_order <= $3
+            AND color_category_id != $4
+        `;
+        await client.query(shiftCategoriesQuery, [
+          existingCategory.color_id,
+          existingCategory.sort_order,
+          sort_order,
+          id,
+        ]);
+      } else {
+        // Moving up: increment sort orders of items in between
+        const shiftCategoriesQuery = `
+          UPDATE color_category 
+          SET sort_order = sort_order + 1 
+          WHERE color_id = $1 
+            AND sort_order >= $2 
+            AND sort_order < $3
+            AND color_category_id != $4
+        `;
+        await client.query(shiftCategoriesQuery, [
+          existingCategory.color_id,
+          sort_order,
+          existingCategory.sort_order,
+          id,
+        ]);
+      }
+    }
+
+    // Validate suppliers array if provided
+    if (suppliers && suppliers.length > 0) {
+      const supplierCheck = await client.query(
+        `SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3`,
+        [suppliers, companyId, builderId],
+      );
+
+      if (supplierCheck.rowCount !== suppliers.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more supplier IDs are invalid or not in your scope.",
+        );
+      }
+    }
+
+    // Validate color_group array if provided
+    if (color_group && color_group.length > 0) {
+      const colorGroupCheck = await client.query(
+        `SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        [color_group, companyId, builderId],
+      );
+
+      if (colorGroupCheck.rowCount !== color_group.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more color group IDs are invalid or not in your scope.",
+        );
+      }
+    }
+
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    if (category_name !== undefined) {
+      updateFields.push(`category_name = $${paramIndex}`);
+      updateValues.push(category_name);
+      paramIndex++;
+    }
+
+    if (selection_type !== undefined) {
+      updateFields.push(`selection_type = $${paramIndex}`);
+      updateValues.push(selection_type);
+      paramIndex++;
+    }
+
+    if (sort_order !== undefined) {
+      updateFields.push(`sort_order = $${paramIndex}`);
+      updateValues.push(sort_order);
+      paramIndex++;
+    }
+
+    if (status !== undefined) {
+      updateFields.push(`status = $${paramIndex}`);
+      updateValues.push(status);
+      paramIndex++;
+    }
+
+    if (suppliers !== undefined) {
+      updateFields.push(`suppliers = $${paramIndex}`);
+      updateValues.push(suppliers);
+      paramIndex++;
+    }
+
+    if (color_group !== undefined) {
+      updateFields.push(`color_group = $${paramIndex}`);
+      updateValues.push(color_group);
+      paramIndex++;
+    }
+
+    updateFields.push(`updated_by = $${paramIndex}`);
+    updateValues.push(userId);
+    paramIndex++;
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    if (updateValues.length === 1) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "At least one field must be provided for update.",
+      );
+    }
+
+    const updateQuery = `
+      UPDATE color_category 
+      SET ${updateFields.join(", ")}
+      WHERE color_category_id = $${paramIndex}
+      RETURNING *;
+    `;
+
+    updateValues.push(id);
+
+    const result = await client.query(updateQuery, updateValues);
+    await client.query("COMMIT");
 
     return successResponse(
       res,
-      response,
-      "Color category updated successfully."
+      keysToCamelCase(result.rows[0]),
+      "Color category updated successfully.",
     );
-  } catch (error) {
-    console.error("Update color category error:", error);
-    return errorResponse(res, 500, "Failed to update color category.");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating color category:", err);
+    return errorResponse(res, 400, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
 };
 
 exports.deleteColorCategory = async (req, res) => {
-  const { color_category_id } = req.params;
-  const builderId = req.user.builder_id;
-  const userId = req.user.users_id;
-
   const pool = getPool();
   const client = await pool.connect();
-
   try {
-    const result = await client.query(
-      `UPDATE color_category 
-       SET is_deleted = true, updated_by_id = $3, updated_at = NOW()
-       WHERE color_category_id = $1 AND builder_id = $2 AND is_deleted = false
-       RETURNING *`,
-      [color_category_id, builderId, userId]
-    );
+    const { id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Color category not found or already deleted.");
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const row = result.rows[0];
-    const userIds = [row.created_by_id, row.updated_by_id].filter(Boolean);
-    const usersMap = await getUsersDetails(client, userIds);
+    await client.query("BEGIN");
 
-    const formatted = keysToCamelCase(row);
-    const response = {
-      ...formatted,
-      createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
-    };
+    // Get existing color category record before deletion
+    const existingCategoryQuery = `
+      SELECT cc.color_category_id, cc.sort_order, cc.color_id,
+             col.builder_id, col.company_id
+      FROM color_category cc
+      LEFT JOIN color col ON cc.color_id = col.color_id
+      WHERE cc.color_category_id = $1 
+        AND col.builder_id = $2 
+        AND col.company_id = $3
+      LIMIT 1
+    `;
+    const existingCategoryResult = await client.query(existingCategoryQuery, [
+      id,
+      builderId,
+      companyId,
+    ]);
 
-    return successResponse(
-      res,
-      response,
-      "Color category deleted successfully."
-    );
-  } catch (error) {
-    console.error("Delete color category error:", error);
-    return errorResponse(res, 500, "Failed to delete color category.");
+    if (existingCategoryResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color category not found.");
+    }
+
+    const existingCategory = existingCategoryResult.rows[0];
+
+    // Shift remaining color categories to fill the gap
+    const shiftCategoriesQuery = `
+      UPDATE color_category 
+      SET sort_order = sort_order - 1 
+      WHERE color_id = $1 
+        AND sort_order > $2
+    `;
+    await client.query(shiftCategoriesQuery, [
+      existingCategory.color_id,
+      existingCategory.sort_order,
+    ]);
+
+    // Delete the color category
+    const deleteQuery = `
+      DELETE FROM color_category WHERE color_category_id = $1 RETURNING *;
+    `;
+
+    const result = await client.query(deleteQuery, [id]);
+    await client.query("COMMIT");
+
+    return successResponse(res, "Color category deleted successfully.");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting color category:", err);
+    return errorResponse(res, 400, err.message || "Internal Server Error");
   } finally {
     client.release();
   }

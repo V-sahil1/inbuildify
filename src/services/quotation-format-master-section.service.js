@@ -948,6 +948,30 @@ async function updateMasterSectionItem(currentUser, itemId, payload) {
     }
 
     if (sort_order !== undefined) {
+      const currentItemQuery = await client.query(
+        `SELECT msi.sort_order, msi.master_section_header_id FROM master_section_item msi WHERE msi.master_section_item_id = $1`,
+        [itemId],
+      );
+
+      const currentSortOrder = currentItemQuery.rows[0].sort_order;
+      const headerId = currentItemQuery.rows[0].master_section_header_id;
+
+      if (sort_order !== currentSortOrder) {
+        if (sort_order < currentSortOrder) {
+          await client.query(
+            `UPDATE master_section_item SET sort_order = sort_order + 1 
+             WHERE master_section_header_id = $1 AND sort_order >= $2 AND sort_order < $3`,
+            [headerId, sort_order, currentSortOrder],
+          );
+        } else {
+          await client.query(
+            `UPDATE master_section_item SET sort_order = sort_order - 1 
+             WHERE master_section_header_id = $1 AND sort_order > $2 AND sort_order <= $3`,
+            [headerId, currentSortOrder, sort_order],
+          );
+        }
+      }
+
       updateFields.push(`sort_order = $${paramIndex++}`);
       updateValues.push(sort_order);
     }
@@ -1021,7 +1045,6 @@ async function deleteMasterSectionItem(currentUser, itemId) {
       [itemId],
     );
 
-    // Shift sort order: decrement sort_order for all items > deleted item
     const shiftSortOrderQuery = `
       UPDATE master_section_item
       SET sort_order = sort_order - 1

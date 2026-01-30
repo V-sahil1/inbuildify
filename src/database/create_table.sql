@@ -749,7 +749,7 @@ CREATE TABLE company (
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   abn_number VARCHAR(20),
-  timezone_id UUID NOT NULL,
+  timezone_id UUID,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
   bank_name VARCHAR(150),
   account_name VARCHAR(150),
@@ -2679,7 +2679,7 @@ CREATE TABLE color(
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   color_name VARCHAR(255) NOT NULL,
   sort_order INT DEFAULT 1,
-  status BOOLEAN DEFAULT TRUE,    -- active / inactive
+  status BOOLEAN DEFAULT TRUE,    
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2690,8 +2690,6 @@ CREATE TABLE color(
 CREATE TABLE color_category(
   color_category_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   color_id UUID NOT NULL REFERENCES color(color_id) ON DELETE CASCADE,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   category_name VARCHAR(255) NOT NULL,
   selection_type VARCHAR(100) CHECK (selection_type IN ('single', 'multiple')) DEFAULT 'multiple',
   sort_order INT DEFAULT 1,
@@ -2701,8 +2699,7 @@ CREATE TABLE color_category(
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT chk_color_category_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE color_group(
@@ -2737,6 +2734,17 @@ CREATE TABLE color_item(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_color_item_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE color_item_custom_field(
+  color_item_custom_field_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  color_item UUID REFERENCES color_item(color_item_id) ON DELETE CASCADE,
+  field_type VARCHAR(255) CHECK(field_type IN('text', 'checkbox', 'dropdown_list', 'radio_button')),
+  field_name VARCHAR(255),
+  required_field BOOLEAN DEFAULT FALSE,
+  sort_order INT DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE color_group_item_map(
@@ -2902,12 +2910,12 @@ CREATE TABLE master_section_header(
 
 CREATE TABLE master_section_item(
   master_section_item_id UUID DEFAULT uuid_generate_v4(),
-  master_section_header_id REFERENCES master_section_header(master_section_header_id) ON DELETE CASCADE,
+  master_section_header_id UUID REFERENCES master_section_header(master_section_header_id) ON DELETE CASCADE,
   item_name VARCHAR(2000) NOT NULL,
   effective_start_date DATE,
   effective_end_date DATE,
   sort_order int DEFAULT 1,
   status BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

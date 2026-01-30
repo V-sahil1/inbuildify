@@ -18,14 +18,14 @@ exports.getCompany = async (req, res) => {
 
     const company = await getCompanyByBuilderId(builderId, client);
 
-    if (!company) {
-      return errorResponse(res, 404, "Company not found");
-    }
+    // if (!company) {
+    //   return errorResponse(res, 404, "Company not found");
+    // }
 
     return successResponse(
       res,
       keysToCamelCase(company),
-      "Company fetched successfully"
+      "Company fetched successfully",
     );
   } catch (err) {
     console.error(err);
@@ -54,7 +54,7 @@ exports.upsertCompany = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(company),
-      "Company saved successfully"
+      "Company saved successfully",
     );
   } catch (err) {
     await client.query("ROLLBACK");

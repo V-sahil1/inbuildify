@@ -1,9 +1,15 @@
 const Joi = require("joi");
 
 const createNoteTageSchema = Joi.object({
-  name: Joi.string().trim().min(3).max(100).required().messages({
-    "string.empty": "Tag name is required.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.empty": "Tag name is required.",
+    }),
   background_color: Joi.string()
     .trim()
     .max(20)
@@ -58,10 +64,16 @@ const deleteNoteTagSchema = Joi.object({
 });
 
 const updateNoteTagSchema = Joi.object({
-  name: Joi.string().trim().min(3).max(150).optional().messages({
-    "string.base": "Name must be a string.",
-    "string.max": "Name cannot exceed 100 characters.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Name must contain at least one letter",
+      "string.max": "Name cannot exceed 150 characters.",
+    }),
 
   background_color: Joi.string()
     .trim()

@@ -29,7 +29,7 @@ exports.createCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline."
+        "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.",
       );
     }
 
@@ -37,7 +37,7 @@ exports.createCustomField = async (req, res) => {
 
     const validateModule = await client.query(
       `SELECT module_id FROM custom_field_module WHERE module_id = $1`,
-      [module_id]
+      [module_id],
     );
 
     if (validateModule.rowCount === 0) {
@@ -45,7 +45,7 @@ exports.createCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid module_id. Module not found in custom_field_module."
+        "Invalid module_id. Module not found in custom_field_module.",
       );
     }
 
@@ -58,7 +58,7 @@ exports.createCustomField = async (req, res) => {
         AND company_id = $3
         AND LOWER(field_name) = LOWER($4)
       `,
-      [module_id, builderId, companyId, field_name.trim()]
+      [module_id, builderId, companyId, field_name.trim()],
     );
 
     if (duplicateField.rowCount > 0) {
@@ -66,7 +66,7 @@ exports.createCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Custom field with this name already exists for this module."
+        "Custom field with this name already exists for this module.",
       );
     }
 
@@ -95,7 +95,7 @@ exports.createCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -150,7 +150,7 @@ exports.createCustomField = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field created successfully."
+      "Custom field created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -173,7 +173,7 @@ exports.getAllCustomFields = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Builder ID is missing from user context."
+        "Builder ID is missing from user context.",
       );
     }
 
@@ -226,7 +226,7 @@ exports.getAllCustomFields = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Custom fields fetched successfully."
+      "Custom fields fetched successfully.",
     );
   } catch (error) {
     console.error(error);
@@ -242,33 +242,81 @@ exports.deleteCustomField = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
     const { id } = req.params;
 
-    if (!builderId) {
-      return errorResponse(res, 400, "Builder ID missing from user context.");
+    if (!builderId || !companyId) {
+      return errorResponse(
+        res,
+        400,
+        "Builder ID or Company ID missing from user context.",
+      );
     }
 
     if (!id) {
       return errorResponse(res, 400, "Custom Field ID is required.");
     }
+
+    await client.query("BEGIN");
+
     const checkQuery = `
-      SELECT custom_field_id 
+      SELECT custom_field_id, sort_order, module_id
       FROM custom_field 
-      WHERE custom_field_id = $1 AND builder_id = $2;
+      WHERE custom_field_id = $1 
+        AND (
+          (builder_id = $2 AND $2 IS NOT NULL)
+          OR (company_id = $3 AND $3 IS NOT NULL)
+        );
     `;
-    const checkResult = await client.query(checkQuery, [id, builderId]);
+    const checkResult = await client.query(checkQuery, [
+      id,
+      builderId,
+      companyId,
+    ]);
 
     if (checkResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Custom field not found.");
     }
+
+    const existingField = checkResult.rows[0];
+
+    const shiftFieldsQuery = `
+      UPDATE custom_field 
+      SET sort_order = sort_order - 1 
+      WHERE module_id = $1 
+        AND sort_order > $2
+        AND (
+          (builder_id = $3 AND $3 IS NOT NULL)
+          OR (company_id = $4 AND $4 IS NOT NULL)
+        );
+    `;
+    await client.query(shiftFieldsQuery, [
+      existingField.module_id,
+      existingField.sort_order,
+      builderId,
+      companyId,
+    ]);
+
     const deleteQuery = `
       DELETE FROM custom_field 
-      WHERE custom_field_id = $1 AND builder_id = $2;
+      WHERE custom_field_id = $1 
+        AND (
+          (builder_id = $2 AND $2 IS NOT NULL)
+          OR (company_id = $3 AND $3 IS NOT NULL)
+        );
     `;
-    await client.query(deleteQuery, [id, builderId]);
+    const result = await client.query(deleteQuery, [id, builderId, companyId]);
 
-    return successResponse(res, null, "Custom field deleted successfully.");
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Custom field deleted successfully.",
+    );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting custom field:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
   } finally {
@@ -305,7 +353,7 @@ exports.updateCustomField = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Custom field not found or not owned by this builder."
+        "Custom field not found or not owned by this builder.",
       );
     }
 
@@ -336,7 +384,7 @@ exports.updateCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Field type cannot be updated because options already exist for this field."
+        "Field type cannot be updated because options already exist for this field.",
       );
     }
 
@@ -347,10 +395,14 @@ exports.updateCustomField = async (req, res) => {
         FROM custom_field
         WHERE module_id = $1 
           AND LOWER(field_name) = LOWER($2)
-          AND builder_id = $3
-          AND custom_field_id != $4;
+          AND is_active = true
+          AND (
+            (company_id = $3 AND company_id IS NOT NULL) OR 
+            (builder_id = $4 AND builder_id IS NOT NULL)
+          )
+          AND custom_field_id != $5;
         `,
-        [moduleId, field_name, builderId, id]
+        [moduleId, field_name, companyId, builderId, id],
       );
 
       if (duplicateField.rowCount > 0) {
@@ -358,7 +410,7 @@ exports.updateCustomField = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Custom field with this name already exists."
+          "Custom field with this name already exists.",
         );
       }
     }
@@ -370,8 +422,11 @@ exports.updateCustomField = async (req, res) => {
     SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
     FROM custom_field
     WHERE module_id = $1
-      AND company_id = $2
-      AND builder_id = $3;
+      AND is_active = true
+      AND (
+        (company_id = $2 AND company_id IS NOT NULL) OR 
+        (builder_id = $3 AND builder_id IS NOT NULL)
+      );
   `;
 
       const maxSortResult = await client.query(maxSortQuery, [
@@ -382,12 +437,12 @@ exports.updateCustomField = async (req, res) => {
 
       const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      if (sort_order < 1 || sort_order > maxSortOrder + 1) {
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -401,10 +456,13 @@ exports.updateCustomField = async (req, res) => {
           AND sort_order <= $2
           AND custom_field_id != $3
           AND module_id = $4
-          AND company_id = $5
-          AND builder_id = $6;
+          AND is_active = true
+          AND (
+            (company_id = $5 AND company_id IS NOT NULL) OR 
+            (builder_id = $6 AND builder_id IS NOT NULL)
+          );
         `,
-            [existingSortOrder, sort_order, id, moduleId, companyId, builderId]
+            [existingSortOrder, sort_order, id, moduleId, companyId, builderId],
           );
         } else {
           await client.query(
@@ -415,10 +473,13 @@ exports.updateCustomField = async (req, res) => {
           AND sort_order < $2
           AND custom_field_id != $3
           AND module_id = $4
-          AND company_id = $5
-          AND builder_id = $6;
+          AND is_active = true
+          AND (
+            (company_id = $5 AND company_id IS NOT NULL) OR 
+            (builder_id = $6 AND builder_id IS NOT NULL)
+          );
         `,
-            [sort_order, existingSortOrder, id, moduleId, companyId, builderId]
+            [sort_order, existingSortOrder, id, moduleId, companyId, builderId],
           );
         }
       }
@@ -437,7 +498,7 @@ exports.updateCustomField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline."
+        "Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.",
       );
     }
 
@@ -470,7 +531,7 @@ exports.updateCustomField = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field updated successfully."
+      "Custom field updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -499,7 +560,7 @@ exports.updateCustomFieldIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -510,7 +571,7 @@ exports.updateCustomFieldIsActive = async (req, res) => {
       WHERE custom_field_id = $1
         AND builder_id = $2
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -532,7 +593,7 @@ exports.updateCustomFieldIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "custom field status updated successfully."
+      "custom field status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating custom field is_active:", error);
@@ -557,7 +618,7 @@ exports.createOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "custom_field_id and options array are required."
+        "custom_field_id and options array are required.",
       );
     }
 
@@ -587,7 +648,7 @@ exports.createOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Options can only be added to fields of type 'list'."
+        "Options can only be added to fields of type 'list'.",
       );
     }
 
@@ -623,7 +684,7 @@ exports.createOption = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Options added successfully."
+      "Options added successfully.",
     );
   } catch (error) {
     console.error("Create Option Error:", error);
@@ -649,7 +710,7 @@ exports.deleteOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "custom_field_id (params) and options (array in body) are required."
+        "custom_field_id (params) and options (array in body) are required.",
       );
     }
 
@@ -684,7 +745,7 @@ exports.deleteOption = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Options can only be deleted from list type fields."
+        "Options can only be deleted from list type fields.",
       );
     }
 
@@ -693,7 +754,7 @@ exports.deleteOption = async (req, res) => {
     const optionsToDelete = options.map((o) => o.toLowerCase());
 
     const filteredOptions = existingOptions.filter(
-      (opt) => !optionsToDelete.includes(opt.toLowerCase())
+      (opt) => !optionsToDelete.includes(opt.toLowerCase()),
     );
 
     if (filteredOptions.length === existingOptions.length) {
@@ -722,7 +783,7 @@ exports.deleteOption = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Option(s) deleted successfully."
+      "Option(s) deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
