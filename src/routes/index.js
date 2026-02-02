@@ -132,6 +132,7 @@ const colorGroupItemMapRoutes = require("./color-group-item-map.routes");
 const contractFormatRoutes = require("./contract-format.routes");
 const contractSectionRoutes = require("./contract-section.routes");
 const quotationFormatMasterSectionRoutes = require("./quotation-format-master-section.routes");
+const contactRoutes = require("./contact.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -286,4 +287,5 @@ module.exports = function (app) {
   app.use("/contract-format", contractFormatRoutes);
   app.use("/contract-section", contractSectionRoutes);
   app.use("/quotation-format", quotationFormatMasterSectionRoutes);
+  app.use("/contact", contactRoutes);
 };

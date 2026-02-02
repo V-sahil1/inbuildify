@@ -12,7 +12,7 @@ const updateSalesModuleSettingSchema = Joi.object({
       "either_email_or_phone",
       "email_not_mandatory",
       "phone_not_mandatory",
-      "email_and_phone_not_mandatory"
+      "email_and_phone_not_mandatory",
     )
     .optional(),
 

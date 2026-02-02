@@ -3,6 +3,7 @@ const Joi = require("joi");
 const createJobColorColumnSectionSchema = Joi.object({
   section_name: Joi.string()
     .trim()
+    .max(100)
     .valid("attach_pdf_beginning", "attach_pdf_end")
     .required()
     .messages({
@@ -52,6 +53,7 @@ const updateJobColorColumnSectionParamsSchema = Joi.object({
 const updateJobColorColumnSectionSchema = Joi.object({
   section_name: Joi.string()
     .trim()
+    .max(100)
     .valid("attach_pdf_beginning", "attach_pdf_end")
     .optional()
     .messages({

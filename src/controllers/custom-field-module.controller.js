@@ -13,13 +13,13 @@ exports.createCustomFieldModule = async (req, res) => {
     }
     const existsName = await client.query(
       `SELECT * FROM custom_field_module WHERE name = $1`,
-      [name]
+      [name],
     );
     if (existsName.rowCount > 0) {
       return errorResponse(
         res,
         400,
-        "Custom field module with this name already exists."
+        "Custom field module with this name already exists.",
       );
     }
     const query = `
@@ -33,7 +33,7 @@ exports.createCustomFieldModule = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field module created successfully."
+      "Custom field module created successfully.",
     );
   } catch (error) {
     console.error(error);
@@ -54,12 +54,10 @@ exports.getAllCustomFieldModule = async (req, res) => {
     const limitValue = parseInt(limit) || 10;
     const offset = (pageValue - 1) * limitValue;
 
-    // Get total count
     const countQuery = `SELECT COUNT(*) AS total FROM custom_field_module;`;
     const countResult = await client.query(countQuery);
     const total = parseInt(countResult.rows[0].total);
 
-    // Fetch paginated data
     const query = `
       SELECT 
         module_id,
@@ -84,7 +82,7 @@ exports.getAllCustomFieldModule = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Custom field modules fetched successfully."
+      "Custom field modules fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching custom field modules:", error);
@@ -103,10 +101,9 @@ exports.deleteCustomFieldModule = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    //  Check if record exists in the correct table
     const checkExists = await client.query(
       `SELECT * FROM custom_field_module WHERE module_id = $1`,
-      [module_id]
+      [module_id],
     );
 
     if (checkExists.rowCount === 0) {
@@ -114,7 +111,6 @@ exports.deleteCustomFieldModule = async (req, res) => {
       return errorResponse(res, 404, "Custom field module not found.");
     }
 
-    //  Delete record
     const deleteQuery = `
       DELETE FROM custom_field_module
       WHERE module_id = $1
@@ -125,7 +121,6 @@ exports.deleteCustomFieldModule = async (req, res) => {
 
     await client.query("COMMIT");
 
-    //  Safety check before accessing result.rows[0]
     if (result.rowCount === 0) {
       return errorResponse(res, 404, "Failed to delete custom field module.");
     }
@@ -133,7 +128,7 @@ exports.deleteCustomFieldModule = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field module deleted successfully."
+      "Custom field module deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -156,7 +151,7 @@ exports.updateCustomFieldModule = async (req, res) => {
 
     const existingModule = await client.query(
       `SELECT * FROM custom_field_module WHERE module_id = $1`,
-      [module_id]
+      [module_id],
     );
 
     if (existingModule.rowCount === 0) {
@@ -168,23 +163,21 @@ exports.updateCustomFieldModule = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided for update."
+        "At least one field must be provided for update.",
       );
     }
 
-    // Check duplicate name if updating name
     const existsName = await client.query(
       `SELECT * FROM custom_field_module WHERE name = $1`,
-      [name]
+      [name],
     );
     if (existsName.rowCount > 0) {
       return errorResponse(
         res,
         400,
-        "Custom field module with this name already exists."
+        "Custom field module with this name already exists.",
       );
     }
-    // Build dynamic update query
     const fields = [];
     const values = [];
     let paramIndex = 1;
@@ -217,7 +210,7 @@ exports.updateCustomFieldModule = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field module updated successfully."
+      "Custom field module updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

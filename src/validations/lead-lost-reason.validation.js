@@ -1,11 +1,15 @@
 const Joi = require("joi");
-const { join } = require("lodash");
 
 const createLeadLostReasonSchema = Joi.object({
-  lost_reason: Joi.string().trim().max(255).required().messages({
-    "string.empty": "Lost reason is required",
-    "any.required": "Lost reason is required",
-  }),
+  lost_reason: Joi.string()
+    .trim()
+    .max(255)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.empty": "Lost reason is required",
+      "any.required": "Lost reason is required",
+    }),
 
   sort_order: Joi.number().integer().min(1).optional().default(1).messages({
     "number.base": "Sort order must be a number",
@@ -45,9 +49,14 @@ const updateLeadLostReasonParamsSchema = Joi.object({
 });
 
 const updateLeadLostReasonSchema = Joi.object({
-  lost_reason: Joi.string().trim().max(255).optional().messages({
-    "string.empty": "Lost reason is can not be empty.",
-  }),
+  lost_reason: Joi.string()
+    .trim()
+    .max(255)
+    .optional()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.empty": "Lost reason is can not be empty.",
+    }),
 
   sort_order: Joi.number().integer().min(1).optional().messages({
     "number.base": "Sort order must be a number",

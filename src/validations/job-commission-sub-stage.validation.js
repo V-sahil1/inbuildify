@@ -6,13 +6,22 @@ const createJobCommissionSubStageSchema = Joi.object({
     "string.guid": "job_commission_id must be a valid UUID",
   }),
 
-  name: Joi.string().trim().max(150).required().messages({
-    "any.required": "name is required",
-    "string.empty": "name cannot be empty",
-    "string.max": "name cannot exceed 150 characters",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "any.required": "name is required",
+      "string.empty": "name cannot be empty",
+      "string.max": "name cannot exceed 150 characters",
+    }),
 
-  commission_unit: Joi.string().valid("percentage", "amount").required(),
+  commission_unit: Joi.string()
+    .max(50)
+    .valid("percentage", "amount")
+    .required(),
   commission_value: Joi.alternatives()
     .conditional("commission_unit", {
       is: "percentage",
@@ -95,12 +104,19 @@ const updateJobCommissionSubStageParamsSchema = Joi.object({
 });
 
 const updateJobCommissionSubStageSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional().messages({
-    "string.empty": "name cannot be empty",
-    "string.max": "name cannot exceed 150 characters",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.empty": "name cannot be empty",
+      "string.max": "name cannot exceed 150 characters",
+    }),
 
   commission_unit: Joi.string()
+    .min(50)
     .valid("percentage", "amount")
     .optional()
     .messages({

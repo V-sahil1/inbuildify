@@ -14,15 +14,23 @@ const upsertSettingsSchema = Joi.object({
 ======================== */
 
 const createListItemSchema = Joi.object({
-  field_type: Joi.string().valid("category", "item").required(),
-  description: Joi.string().max(500).required(),
+  field_type: Joi.string().max(20).valid("category", "item").required(),
+  description: Joi.string()
+    .min(2)
+    .max(500)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   sort_order: Joi.number().integer().min(1).optional(),
   parent_id: Joi.string().uuid().optional().allow(null),
   add_defaults: Joi.boolean().optional(),
 });
 
 const updateListItemSchema = Joi.object({
-  description: Joi.string().max(500).optional(),
+  description: Joi.string()
+    .min(2)
+    .max(500)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   sort_order: Joi.number().integer().min(1).when("field_type", {
     is: "item",
     then: Joi.required(),
@@ -33,7 +41,7 @@ const updateListItemSchema = Joi.object({
 
 const getListItemChema = Joi.object({
   id: Joi.string().uuid().optional(),
-  field_type: Joi.string().valid("category", "item").optional(),
+  field_type: Joi.string().max(20).valid("category", "item").optional(),
 });
 
 module.exports = {

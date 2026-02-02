@@ -335,7 +335,6 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
 
     const deletedSortOrder = ownershipResult.rows[0].sort_order;
 
-    // Remove document_common_folder_id from all document_file_naming_rule records that reference it
     const updateFileNamingRulesQuery = `
       UPDATE document_file_naming_rule 
       SET folder_ids = array_remove(folder_ids, $1)

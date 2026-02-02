@@ -57,6 +57,11 @@ const createColorItemSchema = Joi.object({
     "string.max": "Item name must not exceed 255 characters",
   }),
 
+  color_category_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.uuid": "color category ID must be a valid UUID",
+    "string.guid": "color category ID must be a valid UUID",
+  }),
+
   item_code: Joi.string().trim().min(1).max(100).required().messages({
     "any.required": "Item code is required",
     "string.empty": "Item code cannot be empty",
@@ -201,6 +206,19 @@ const deleteImageFieldSchema = Joi.object({
     }),
 });
 
+const colorItemMoveSchema = Joi.object({
+  color_id: Joi.string().uuid().required().messages({
+    "any.required": "Color ID is required",
+    "string.uuid": "Color ID must be a valid UUID",
+    "string.guid": "Color ID must be a valid UUID",
+  }),
+
+  color_category_id: Joi.string().uuid().required().messages({
+    "any.required": "Color category ID is required",
+    "string.uuid": "Color category ID must be a valid UUID",
+    "string.guid": "Color categroy ID must be a valid UUID",
+  }),
+});
 module.exports = {
   getAllColorItemsSchema,
   getColorItemByIdSchema,
@@ -208,4 +226,5 @@ module.exports = {
   updateColorItemSchema,
   deleteColorItemSchema,
   deleteImageFieldSchema,
+  colorItemMoveSchema,
 };

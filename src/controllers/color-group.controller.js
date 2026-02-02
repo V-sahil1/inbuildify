@@ -345,7 +345,6 @@ exports.deleteColorGroup = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Check if color group exists
     const existingCheck = await client.query(
       `
       SELECT color_group_id

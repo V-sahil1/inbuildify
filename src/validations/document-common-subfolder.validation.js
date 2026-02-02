@@ -6,7 +6,7 @@ const createDocumentCommonSubfolderSchem = Joi.object({
     "any.required": "Document common folder ID is required",
   }),
 
-  name: Joi.string().trim().max(150).required().messages({
+  name: Joi.string().trim().min(1).max(150).required().messages({
     "string.base": "Name must be a string.",
     "string.max": "Name cannot exceed 150 characters.",
   }),
@@ -50,7 +50,7 @@ const updateDocumentCommonSubfolderParamsSchema = Joi.object({
 });
 
 const updateDocumentCommonSubfolderSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional().messages({
+  name: Joi.string().trim().min(1).max(150).optional().messages({
     "string.base": "Name must be a string.",
     "string.max": "Name cannot exceed 150 characters.",
   }),

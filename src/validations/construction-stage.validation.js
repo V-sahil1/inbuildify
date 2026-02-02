@@ -10,7 +10,12 @@ const createConstructionStageSchema = Joi.object({
     "string.guid": "construction type ID must be a valid UUID",
     "any.required": "construction type ID is required",
   }),
-  stage_name: Joi.string().trim().max(255).required(),
+  stage_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   days: Joi.number().integer().min(1).max(365),
   sort_order: Joi.number().integer().min(1).default(1).optional(),
   site_image: Joi.boolean().default(false),
@@ -77,7 +82,12 @@ const updateConstructionStageParamsSchema = Joi.object({
 });
 
 const updateConstructionStageSchema = Joi.object({
-  stage_name: Joi.string().trim().max(255).optional(),
+  stage_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   days: Joi.number().integer().min(1).max(365).optional(),
   sort_order: Joi.number().integer().min(1).default(1).optional(),
   site_image: Joi.boolean().optional(),

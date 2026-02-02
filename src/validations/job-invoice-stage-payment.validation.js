@@ -1,12 +1,18 @@
 const Joi = require("joi");
 
 const createJobInvoiceStagePaymentSchema = Joi.object({
-  description: Joi.string().trim().max(150).required().messages({
-    "string.base": "Description must be a string.",
-    "string.empty": "Description is required.",
-    "string.max": "Description cannot exceed 150 characters.",
-    "any.required": "Description is required.",
-  }),
+  description: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.base": "Description must be a string.",
+      "string.empty": "Description is required.",
+      "string.max": "Description cannot exceed 150 characters.",
+      "any.required": "Description is required.",
+    }),
 
   percentage: Joi.number()
     .min(0.0)
@@ -55,10 +61,16 @@ const updateJobInvoiceStagePaymentParamsSchema = Joi.object({
 });
 
 const updateJobInvoiceStagePaymentSchema = Joi.object({
-  description: Joi.string().trim().max(150).optional().messages({
-    "string.base": "Description must be a string.",
-    "string.max": "Description cannot exceed 150 characters.",
-  }),
+  description: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.base": "Description must be a string.",
+      "string.max": "Description cannot exceed 150 characters.",
+    }),
 
   percentage: Joi.number()
     .min(0.0)

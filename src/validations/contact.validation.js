@@ -8,62 +8,38 @@ const uuidRule = Joi.string()
   .guid({ version: ["uuidv4", "uuidv1"] })
   .messages({ "string.guid": "Invalid UUID format." });
 
-const nameRule = Joi.string()
-  .min(2)
-  .max(100)
-  .required()
-  .messages({
-    "string.base": "Name must be a string",
-    "string.min": "Name must be at least 2 characters",
-    "string.max": "Name must not exceed 100 characters",
-    "any.required": "Name is required"
-  });
+const nameRule = Joi.string().min(2).max(100).required().messages({
+  "string.base": "Name must be a string",
+  "string.min": "Name must be at least 2 characters",
+  "string.max": "Name must not exceed 100 characters",
+  "any.required": "Name is required",
+});
 
-const emailRule = Joi.string()
-  .email()
-  .trim()
-  .lowercase()
-  .required()
-  .messages({
-    "string.email": "Email must be valid",
-    "any.required": "Email is required"
-  });
+const emailRule = Joi.string().email().trim().lowercase().required().messages({
+  "string.email": "Email must be valid",
+  "any.required": "Email is required",
+});
 
 const phoneRule = Joi.string()
   .pattern(/^[0-9]{8,15}$/)
   .allow(null, "")
   .messages({
-    "string.pattern.base": "Phone must be 8–15 digits only"
+    "string.pattern.base": "Phone must be 8–15 digits only",
   });
 
 const remarkRule = Joi.string().allow(null, "").max(500);
 
-const addressJsonRule = Joi.string()
-  .allow(null, "")
-  .custom((value, helpers) => {
-    if (!value) return value;
-    try {
-      const obj = JSON.parse(value);
-
-      const addressSchema = Joi.object({
-        address_line1: Joi.string().max(255).required(),
-        address_line2: Joi.string().max(255).allow("", null),
-        city: Joi.string().max(100).allow("", null),
-        zip_code: Joi.string().max(20).allow("", null),
-        country_id: uuidRule.allow(null),
-        state_id: uuidRule.allow(null)
-      });
-
-      const { error } = addressSchema.validate(obj);
-      if (error) return helpers.error("any.invalid");
-      return value;
-    } catch (e) {
-      return helpers.error("any.invalid");
-    }
-  })
-  .messages({
-    "any.invalid": "Address must be a valid JSON object with correct fields"
-  });
+const addressJsonRule = Joi.object({
+  address_line1: Joi.string().max(255).required(),
+  address_line2: Joi.string().max(255).allow("", null),
+  city: Joi.string().max(100).allow("", null),
+  zip_code: Joi.alternatives().try(
+    Joi.string().min(4).max(4).allow("", null),
+    Joi.number().integer().min(1000).max(9999).allow(null),
+  ),
+  country_id: uuidRule.allow(null),
+  state_id: uuidRule.allow(null),
+}).allow(null);
 
 /* ============================================================
     CREATE CONTACT
@@ -76,7 +52,7 @@ const createContactSchema = Joi.object({
   secondary_phone: phoneRule,
   remark: remarkRule,
   role_id: uuidRule.required(),
-  address: addressJsonRule
+  address: addressJsonRule,
 });
 
 /* ============================================================
@@ -90,7 +66,7 @@ const updateContactSchema = Joi.object({
   secondary_phone: phoneRule.optional(),
   remark: remarkRule.optional(),
   role_id: uuidRule.optional(),
-  address: addressJsonRule.optional()
+  address: addressJsonRule.optional(),
 });
 
 /* ============================================================
@@ -99,8 +75,8 @@ const updateContactSchema = Joi.object({
 
 const convertContactSchema = Joi.object({
   role_id: uuidRule.required().messages({
-    "any.required": "Role ID is required to convert a contact into a user."
-  })
+    "any.required": "Role ID is required to convert a contact into a user.",
+  }),
 });
 
 /* ============================================================
@@ -108,14 +84,23 @@ const convertContactSchema = Joi.object({
 ============================================================ */
 
 const getContactsSchema = Joi.object({
-  page: Joi.number().min(1).default(1),
-  limit: Joi.number().min(1).max(100).default(25),
-  search: Joi.string().allow("", null)
+  page: Joi.number().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.min": "Page must be greater than 0",
+  }),
+  limit: Joi.number().min(1).max(100).default(25).messages({
+    "number.base": "Limit must be a number",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit cannot exceed 100",
+  }),
+  search: Joi.string().allow("", null).max(100).messages({
+    "string.max": "Search term cannot exceed 100 characters",
+  }),
 });
 
 module.exports = {
   createContactSchema,
   updateContactSchema,
   convertContactSchema,
-  getContactsSchema
+  getContactsSchema,
 };

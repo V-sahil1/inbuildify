@@ -24,7 +24,7 @@ exports.createChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "checklist_id, description, type, and sort are required."
+        "checklist_id, description, type, and sort are required.",
       );
     }
 
@@ -32,7 +32,7 @@ exports.createChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid type. Allowed: checkbox, dropdown."
+        "Invalid type. Allowed: checkbox, dropdown.",
       );
     }
 
@@ -95,7 +95,7 @@ exports.createChecklistItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid construction_stage_id or mismatch with construction_type."
+          "Invalid construction_stage_id or mismatch with construction_type.",
         );
       }
     }
@@ -121,7 +121,7 @@ exports.createChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Description with this name already exists for this checklist."
+        "Description with this name already exists for this checklist.",
       );
     }
 
@@ -147,7 +147,7 @@ exports.createChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -196,7 +196,7 @@ exports.createChecklistItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Checklist item created successfully."
+      "Checklist item created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -257,7 +257,7 @@ exports.getAllChecklistItem = async (req, res) => {
         sortOrder: sortDirection,
         totalPages: Math.ceil(total / limitValue),
       },
-      "Checklist items fetched successfully."
+      "Checklist items fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching checklist items:", error);
@@ -293,7 +293,7 @@ exports.getChecklistItemsByChecklistId = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Checklist does not belong to this builder."
+        "Checklist does not belong to this builder.",
       );
     }
 
@@ -309,7 +309,7 @@ exports.getChecklistItemsByChecklistId = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(items.rows),
-      "Checklist items fetched successfully."
+      "Checklist items fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching checklist items by checklist ID:", error);
@@ -348,7 +348,7 @@ exports.deleteChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Checklist item not found or you are not allowed to delete this item"
+        "Checklist item not found or you are not allowed to delete this item",
       );
     }
 
@@ -360,7 +360,7 @@ exports.deleteChecklistItem = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase({ message: "Checklist item deleted successfully" })
+      keysToCamelCase({ message: "Checklist item deleted successfully" }),
     );
   } catch (err) {
     console.error("Error deleting checklist item:", err);
@@ -405,7 +405,7 @@ exports.updateChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not allowed to update this checklist item."
+        "You are not allowed to update this checklist item.",
       );
     }
 
@@ -427,7 +427,7 @@ exports.updateChecklistItem = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Checklist does not belong to this builder."
+          "Checklist does not belong to this builder.",
         );
       }
 
@@ -461,7 +461,7 @@ exports.updateChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Description with this name already exists for this checklist."
+        "Description with this name already exists for this checklist.",
       );
     }
 
@@ -470,7 +470,7 @@ exports.updateChecklistItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid type. Allowed: checkbox, dropdown."
+        "Invalid type. Allowed: checkbox, dropdown.",
       );
     }
 
@@ -494,7 +494,7 @@ exports.updateChecklistItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -510,7 +510,7 @@ exports.updateChecklistItem = async (req, res) => {
           AND checklist_item_id != $3
           AND checklist_id = $4;
         `,
-            [existingSortOrder, sort, checklist_item_id, finalChecklistId]
+            [existingSortOrder, sort, checklist_item_id, finalChecklistId],
           );
         } else {
           await client.query(
@@ -523,7 +523,7 @@ exports.updateChecklistItem = async (req, res) => {
           AND checklist_item_id != $3
           AND checklist_id = $4;
         `,
-            [sort, existingSortOrder, checklist_item_id, finalChecklistId]
+            [sort, existingSortOrder, checklist_item_id, finalChecklistId],
           );
         }
       }
@@ -581,7 +581,7 @@ exports.updateChecklistItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Checklist item updated successfully."
+      "Checklist item updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

@@ -22,7 +22,7 @@ exports.createLeadLostReason = async (req, res) => {
         WHERE builder_id = $1
           AND LOWER(lost_reason) = LOWER($2)
       `,
-      [builderId, lost_reason]
+      [builderId, lost_reason],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -57,7 +57,7 @@ exports.createLeadLostReason = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -103,7 +103,7 @@ exports.createLeadLostReason = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Lead lost reason created successfully."
+      "Lead lost reason created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -134,7 +134,7 @@ exports.getAllLeadLostReasons = async (req, res) => {
         FROM lead_lost_reason
         WHERE company_id = $1 AND builder_id = $2
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const total = parseInt(countResult.rows[0].total);
@@ -147,15 +147,17 @@ exports.getAllLeadLostReasons = async (req, res) => {
         ORDER BY sort_order ASC
         LIMIT $3 OFFSET $4
       `,
-      [companyId, builderId, limit, offset]
+      [companyId, builderId, limit, offset],
     );
 
     return successResponse(res, {
       leadLostReason: keysToCamelCase(result.rows),
-      total,
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      pagination: {
+        totalRecord: total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        limit,
+      },
     });
   } catch (err) {
     console.error("Error fetching lead lost reasons:", err);
@@ -178,20 +180,20 @@ exports.deleteLeadLostReason = async (req, res) => {
     }
     const existingSurveyor = await client.query(
       `SELECT lead_lost_reason FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existingSurveyor.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "lead lost reason not found for this builder."
+        "lead lost reason not found for this builder.",
       );
     }
 
     await client.query(
       `DELETE FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
-      [id]
+      [id],
     );
 
     return successResponse(res, null, "lead lost reason deleted successfully.");
@@ -227,7 +229,7 @@ exports.updateLeadLostReason = async (req, res) => {
         AND company_id = $2
         AND builder_id = $3
       `,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (record.rows.length === 0) {
@@ -244,7 +246,7 @@ exports.updateLeadLostReason = async (req, res) => {
         AND builder_id = $3
         AND is_active = true
       `,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (activeRecord.rows.length === 0) {
@@ -256,7 +258,7 @@ exports.updateLeadLostReason = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -269,7 +271,7 @@ exports.updateLeadLostReason = async (req, res) => {
           AND LOWER(lost_reason) = LOWER($3)
           AND lead_lost_reason_id <> $4
         `,
-        [companyId, builderId, lost_reason, id]
+        [companyId, builderId, lost_reason, id],
       );
 
       if (dupCheck.rows.length > 0) {
@@ -281,7 +283,7 @@ exports.updateLeadLostReason = async (req, res) => {
     if (sort_order !== undefined && sort_order !== null) {
       const existingSortOrderResult = await client.query(
         `SELECT sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
-        [id]
+        [id],
       );
       const existingSortOrder = existingSortOrderResult.rows[0].sort_order;
 
@@ -300,7 +302,7 @@ exports.updateLeadLostReason = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -315,7 +317,7 @@ exports.updateLeadLostReason = async (req, res) => {
           AND lead_lost_reason_id != $3
           AND builder_id = $4
         `,
-            [existingSortOrder, sort_order, id, builderId]
+            [existingSortOrder, sort_order, id, builderId],
           );
         } else {
           await client.query(
@@ -327,7 +329,7 @@ exports.updateLeadLostReason = async (req, res) => {
           AND lead_lost_reason_id != $3
           AND builder_id = $4
         `,
-            [sort_order, existingSortOrder, id, builderId]
+            [sort_order, existingSortOrder, id, builderId],
           );
         }
       }
@@ -371,7 +373,7 @@ exports.updateLeadLostReason = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Lead lost reason updated successfully."
+      "Lead lost reason updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -400,7 +402,7 @@ exports.updateLeadLostReasonIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -411,14 +413,14 @@ exports.updateLeadLostReasonIsActive = async (req, res) => {
       WHERE lead_lost_reason_id = $1
         AND builder_id = $2
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "lead lost reason not found for this builder"
+        "lead lost reason not found for this builder",
       );
     }
 
@@ -437,7 +439,7 @@ exports.updateLeadLostReasonIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "lead lost reason status updated successfully."
+      "lead lost reason status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating lead source is_active:", error);

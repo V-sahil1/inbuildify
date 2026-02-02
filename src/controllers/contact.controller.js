@@ -12,7 +12,7 @@ module.exports.getContacts = async (req, res) => {
 
 module.exports.getContactById = async (req, res) => {
   try {
-    const contactId = req.params.contactId;
+    const contactId = req.params.contact_id;
     const data = await contactService.getContactById(req.user, contactId);
     return successResponse(res, data, "Contact fetched successfully.");
   } catch (err) {
@@ -31,11 +31,11 @@ module.exports.createContact = async (req, res) => {
 
 module.exports.updateContact = async (req, res) => {
   try {
-    const contactId = req.params.contactId;
+    const contactId = req.params.contact_id;
     const data = await contactService.updateContact(
       req.user,
       contactId,
-      req.body
+      req.body,
     );
     return successResponse(res, data, "Contact updated successfully.");
   } catch (err) {
@@ -45,7 +45,7 @@ module.exports.updateContact = async (req, res) => {
 
 module.exports.deleteContact = async (req, res) => {
   try {
-    const contactId = req.params.contactId;
+    const contactId = req.params.contact_id;
     const data = await contactService.deleteContact(req.user, contactId);
     return successResponse(res, data, "Contact deleted successfully.");
   } catch (err) {
@@ -59,12 +59,12 @@ module.exports.convertContactToUser = async (req, res) => {
     const data = await contactService.convertContactToUser(
       req.user,
       contactId,
-      req.body
+      req.body,
     );
     return successResponse(
       res,
       data,
-      "Contact converted to user and credentials generated."
+      "Contact converted to user and credentials generated.",
     );
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);

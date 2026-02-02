@@ -1,8 +1,13 @@
 const Joi = require("joi");
 
 const createTemplateNoteSchema = Joi.object({
-  name: Joi.string().trim().max(200).required(),
-  content: Joi.string().max(1000).optional(),
+  name: Joi.string()
+    .trim()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .min(2)
+    .max(200)
+    .required(),
+  content: Joi.string().min(2).max(1000).optional(),
   is_active: Joi.boolean().default(true),
 });
 const getAllTemplateNotesSchema = Joi.object({
@@ -35,8 +40,8 @@ const updateTemplateNoteParamsSchema = Joi.object({
 });
 
 const updateTemplateNoteSchema = Joi.object({
-  name: Joi.string().trim().max(200).optional(),
-  content: Joi.string().max(1000).optional(),
+  name: Joi.string().trim().min(2).max(200).optional(),
+  content: Joi.string().allow("", null).max(1000).optional(),
   // is_active: Joi.boolean().optional(),
 });
 

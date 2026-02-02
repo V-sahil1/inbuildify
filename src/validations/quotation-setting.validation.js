@@ -29,7 +29,12 @@ const createQuotationSettingSchems = Joi.object({
     .max(365)
     .default(0)
     .optional(),
-  rename_send_for_approval_button: Joi.string().trim().max(150).optional(),
+  rename_send_for_approval_button: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   default_pricelist_id: Joi.string().uuid().optional().messages({
     "string.guid": "price list ID must be a valid UUID",
   }),
@@ -71,7 +76,12 @@ const updateQuotationSettingSchema = Joi.object({
     .max(365)
     .default(0)
     .optional(),
-  rename_send_for_approval_button: Joi.string().trim().max(150).optional(),
+  rename_send_for_approval_button: Joi.string()
+    .allow("", null)
+    .trim()
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   default_pricelist_id: Joi.string().uuid().optional().messages({
     "string.guid": "price list ID must be a valid UUID",
   }),

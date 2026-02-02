@@ -36,7 +36,6 @@ exports.createColorCategory = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Validate color exists and belongs to user's scope
     const colorCheck = await client.query(
       `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
       [color_id, builderId, companyId],
@@ -51,7 +50,6 @@ exports.createColorCategory = async (req, res) => {
       );
     }
 
-    // Shift existing color categories to make room for the new sort order
     const shiftCategoriesQuery = `
       UPDATE color_category 
       SET sort_order = sort_order + 1 
@@ -60,7 +58,6 @@ exports.createColorCategory = async (req, res) => {
     `;
     await client.query(shiftCategoriesQuery, [color_id, finalSortOrder]);
 
-    // Check for duplicate category name within the same color
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -288,7 +285,6 @@ exports.updateColorCategory = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Get existing color category record with color info
     const existingCategoryQuery = `
       SELECT cc.color_category_id, cc.category_name, cc.sort_order, cc.color_id,
              col.builder_id, col.company_id
@@ -314,13 +310,11 @@ exports.updateColorCategory = async (req, res) => {
     const updatedSortOrder =
       sort_order !== undefined ? sort_order : existingCategory.sort_order;
 
-    // Handle sort order shifting if sort_order is being updated
     if (
       sort_order !== undefined &&
       sort_order !== existingCategory.sort_order
     ) {
       if (sort_order > existingCategory.sort_order) {
-        // Moving down: decrement sort orders of items in between
         const shiftCategoriesQuery = `
           UPDATE color_category 
           SET sort_order = sort_order - 1 
@@ -336,7 +330,6 @@ exports.updateColorCategory = async (req, res) => {
           id,
         ]);
       } else {
-        // Moving up: increment sort orders of items in between
         const shiftCategoriesQuery = `
           UPDATE color_category 
           SET sort_order = sort_order + 1 
@@ -354,7 +347,6 @@ exports.updateColorCategory = async (req, res) => {
       }
     }
 
-    // Validate suppliers array if provided
     if (suppliers && suppliers.length > 0) {
       const supplierCheck = await client.query(
         `SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3`,
@@ -371,7 +363,6 @@ exports.updateColorCategory = async (req, res) => {
       }
     }
 
-    // Validate color_group array if provided
     if (color_group && color_group.length > 0) {
       const colorGroupCheck = await client.query(
         `SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
@@ -483,7 +474,6 @@ exports.deleteColorCategory = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Get existing color category record before deletion
     const existingCategoryQuery = `
       SELECT cc.color_category_id, cc.sort_order, cc.color_id,
              col.builder_id, col.company_id
@@ -507,7 +497,6 @@ exports.deleteColorCategory = async (req, res) => {
 
     const existingCategory = existingCategoryResult.rows[0];
 
-    // Shift remaining color categories to fill the gap
     const shiftCategoriesQuery = `
       UPDATE color_category 
       SET sort_order = sort_order - 1 
@@ -519,7 +508,6 @@ exports.deleteColorCategory = async (req, res) => {
       existingCategory.sort_order,
     ]);
 
-    // Delete the color category
     const deleteQuery = `
       DELETE FROM color_category WHERE color_category_id = $1 RETURNING *;
     `;

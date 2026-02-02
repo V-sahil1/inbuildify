@@ -10,6 +10,7 @@ const {
 } = require("../utils/password.util");
 
 const { encrypt } = require("../utils/common");
+const getPool = require("../config/database");
 
 /* ------------------------------------------------------------
       LIST CONTACTS
@@ -32,10 +33,10 @@ async function getContacts(currentUser, query) {
 /* ------------------------------------------------------------
       GET ONE CONTACT
   ------------------------------------------------------------ */
-async function getContactById(currentUser, contactId) {
+async function getContactById(currentUser, contact_id) {
   const contact = await contactRepository.getContactById(
     currentUser.builder_id,
-    contactId
+    contact_id,
   );
 
   if (!contact) {
@@ -53,7 +54,6 @@ async function getContactById(currentUser, contactId) {
 async function createContact(currentUser, body) {
   const builderId = currentUser.builder_id;
 
-  // Extract fields
   const {
     name,
     email,
@@ -64,24 +64,45 @@ async function createContact(currentUser, body) {
     address: addressJson,
   } = body;
 
-  // Check duplicate email in same builder
-  const existing = await userRepository.findByEmail(email);
-  if (existing && existing.builder_id === builderId) {
-    const error = new Error("Email already exists.");
+  const roleResult = await getPool().query(
+    "SELECT role_id, name FROM role WHERE role_id = $1",
+    [role_id],
+  );
+
+  if (roleResult.rows.length === 0) {
+    const error = new Error(
+      "Invalid role ID or role does not belong to your account.",
+    );
     error.status = 400;
     throw error;
+  }
+
+  const roleName = roleResult.rows[0].name.toLowerCase();
+  if (roleName !== "contact") {
+    const error = new Error(
+      "Only Contact role is allowed for creating contacts.",
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const existing = await userRepository.findByEmail(email);
+  if (existing) {
+    if (existing.builder_id === builderId) {
+      const error = new Error("Email already exists in your contacts.");
+      error.status = 400;
+      throw error;
+    } else {
+      const error = new Error("Email already exists in the system.");
+      error.status = 400;
+      throw error;
+    }
   }
 
   // Parse address
   let addressObj = null;
   if (addressJson) {
-    try {
-      addressObj = JSON.parse(addressJson);
-    } catch (err) {
-      const error = new Error("Invalid address format.");
-      error.status = 400;
-      throw error;
-    }
+    addressObj = addressJson; // Already an object from validation
   }
 
   // Create address (optional)
@@ -111,10 +132,13 @@ async function createContact(currentUser, body) {
 /* ------------------------------------------------------------
       UPDATE CONTACT
   ------------------------------------------------------------ */
-async function updateContact(currentUser, contactId, body) {
+async function updateContact(currentUser, contact_id, body) {
   const builderId = currentUser.builder_id;
 
-  const existing = await contactRepository.getContactById(builderId, contactId);
+  const existing = await contactRepository.getContactById(
+    builderId,
+    contact_id,
+  );
 
   if (!existing) {
     const error = new Error("Contact not found.");
@@ -132,6 +156,28 @@ async function updateContact(currentUser, contactId, body) {
     address: addressJson,
   } = body;
 
+  if (role_id) {
+    const roleResult = await getPool().query(
+      "SELECT role_id, name FROM role WHERE role_id = $1",
+      [role_id],
+    );
+
+    if (roleResult.rows.length === 0) {
+      const error = new Error(
+        "Invalid role ID or role does not belong to your account.",
+      );
+      error.status = 400;
+      throw error;
+    }
+
+    const roleName = roleResult.rows[0].name.toLowerCase();
+    if (roleName !== "contact") {
+      const error = new Error("Only Contact role is allowed for contacts.");
+      error.status = 400;
+      throw error;
+    }
+  }
+
   let updateData = {
     name,
     email,
@@ -141,46 +187,48 @@ async function updateContact(currentUser, contactId, body) {
     role_id,
   };
 
-  // Handle email update → check duplicates
   if (email && email.toLowerCase() !== existing.email.toLowerCase()) {
     const duplicate = await userRepository.findByEmail(email);
-    if (duplicate && duplicate.user_id !== contactId) {
+    if (duplicate && duplicate.user_id !== contact_id) {
       const error = new Error("Email already exists.");
       error.status = 400;
       throw error;
     }
   }
 
-  // Address update
-  if (addressJson) {
-    let addressObj;
-    try {
-      addressObj = JSON.parse(addressJson);
-    } catch (err) {
-      const error = new Error("Invalid address format.");
-      error.status = 400;
-      throw error;
-    }
+  if (addressJson && (existing.address_id || existing.addressId)) {
+    const addressObj = addressJson;
+    const existingAddressId = existing.address_id || existing.addressId;
 
-    const addressId = await addressRepository.createOrUpdateAddress(
-      existing.address_id,
-      addressObj
+    await addressRepository.createOrUpdateAddress(
+      existingAddressId,
+      addressObj,
     );
-
+  } else if (addressJson && !(existing.address_id || existing.addressId)) {
+    const addressObj = addressJson;
+    const addressId = await addressRepository.createOrUpdateAddress(
+      null,
+      addressObj,
+    );
     updateData.address_id = addressId;
   }
 
-  await contactRepository.updateContact(contactId, updateData);
-  return { contactId };
+  await contactRepository.updateContact(contact_id, updateData);
+
+  const updatedContact = await contactRepository.getContactById(
+    builderId,
+    contact_id,
+  );
+  return updatedContact;
 }
 
 /* ------------------------------------------------------------
       DELETE CONTACT (soft delete)
   ------------------------------------------------------------ */
-async function deleteContact(currentUser, contactId) {
+async function deleteContact(currentUser, contact_id) {
   const builderId = currentUser.builder_id;
 
-  const contact = await contactRepository.getContactById(builderId, contactId);
+  const contact = await contactRepository.getContactById(builderId, contact_id);
 
   if (!contact) {
     const error = new Error("Contact not found.");
@@ -188,8 +236,8 @@ async function deleteContact(currentUser, contactId) {
     throw error;
   }
 
-  await contactRepository.softDeleteContact(contactId);
-  return { contactId };
+  await contactRepository.softDeleteContact(contact_id);
+  return { contact_id };
 }
 
 /* ------------------------------------------------------------
@@ -217,7 +265,6 @@ async function convertContactToUser(currentUser, contactId, body) {
   // Generate login ID (use email)
   const loginId = contact.email.toLowerCase();
 
-  // Check login ID uniqueness
   const loginCheck = await userRepository.findByLoginId(loginId);
   if (loginCheck && loginCheck.user_id !== contactId) {
     const error = new Error("This email is already used as a login ID.");
@@ -225,7 +272,6 @@ async function convertContactToUser(currentUser, contactId, body) {
     throw error;
   }
 
-  // Generate password
   const password = generateStrongPassword(12);
   if (!validatePasswordPolicy(password)) {
     const error = new Error("Generated password failed security policy.");
@@ -248,7 +294,6 @@ async function convertContactToUser(currentUser, contactId, body) {
   // Invalidate any previous tokens (just in case)
   await tokenRepository.invalidateUserSessions(contactId);
 
-  // Send email
   await emailService.sendPasswordEmail(contact.email, loginId, password);
 
   return {

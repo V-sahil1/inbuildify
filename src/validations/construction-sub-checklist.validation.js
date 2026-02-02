@@ -5,10 +5,15 @@ const createConstructionSubChecklistValidation = Joi.object({
     "string.uuid": "Construction checklist ID must be a valid UUID",
     "any.required": "Construction checklist ID is required",
   }),
-  name: Joi.string().required().messages({
-    "string.empty": "Name cannot be empty",
-    "any.required": "Name is required",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.empty": "Name cannot be empty",
+      "any.required": "Name is required",
+    }),
   data_required: Joi.boolean().optional().messages({
     "boolean.base": "Data required must be a boolean",
   }),
@@ -21,9 +26,14 @@ const createConstructionSubChecklistValidation = Joi.object({
 });
 
 const updateConstructionSubChecklistValidation = Joi.object({
-  name: Joi.string().optional().messages({
-    "string.empty": "Name cannot be empty",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.empty": "Name cannot be empty",
+    }),
   data_required: Joi.boolean().optional().messages({
     "boolean.base": "Data required must be a boolean",
   }),

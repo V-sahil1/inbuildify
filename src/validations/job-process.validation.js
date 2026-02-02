@@ -11,14 +11,22 @@ exports.stageParamsSchema = Joi.object({
 });
 
 exports.createStageSchema = Joi.object({
-  name: Joi.string().max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   functionality_id: uuid.required(),
   sort_order: Joi.number().integer().min(1).required(),
   dependent_stage_id: uuid.allow(null),
 });
 
 exports.updateStageSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   sort_order: Joi.number().integer().min(1).optional(),
   functionality_id: uuid.optional(),
   dependent_stage_id: uuid.allow(null),
@@ -33,12 +41,20 @@ exports.subStageParamsSchema = Joi.object({
 });
 
 exports.createSubStageSchema = Joi.object({
-  name: Joi.string().max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   sort_order: Joi.number().integer().min(1).required(),
 });
 
 exports.updateSubStageSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   sort_order: Joi.number().integer().min(1).optional(),
 });
 
@@ -51,7 +67,11 @@ exports.taskParamsSchema = Joi.object({
 });
 
 exports.createTaskSchema = Joi.object({
-  name: Joi.string().max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   description: Joi.string().allow(null),
   sort_order: Joi.number().integer().min(1).required(),
   no_of_days: Joi.number().integer().allow(null),
@@ -64,7 +84,11 @@ exports.createTaskSchema = Joi.object({
 });
 
 exports.updateTaskSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   description: Joi.string().allow(null),
   sort_order: Joi.number().integer().min(1).optional(),
   no_of_days: Joi.number().integer().allow(null),
@@ -85,11 +109,19 @@ exports.subTaskParamsSchema = Joi.object({
 });
 
 exports.createSubTaskSchema = Joi.object({
-  name: Joi.string().max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   sort_order: Joi.number().integer().min(1).required(),
 });
 
 exports.updateSubTaskSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   sort_order: Joi.number().integer().min(1).optional(),
 });

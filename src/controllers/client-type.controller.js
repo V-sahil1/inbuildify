@@ -22,20 +22,19 @@ exports.createClientType = async (req, res) => {
       WHERE builder_id = $1
         AND LOWER(client_type) = LOWER($2)
       `,
-      [builderId, client_type]
+      [builderId, client_type],
     );
 
     if (duplicateCheck.rows.length > 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "client type already exists.");
     }
-    // 1️⃣ Determine final sort order
+
     let finalSortOrder = sort_order;
     if (finalSortOrder === undefined || finalSortOrder === null) {
       finalSortOrder = 1;
     }
 
-    // 2️⃣ Get maximum sort order for this builder/company
     const maxSortOrderQuery = `
   SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
   FROM client_type
@@ -52,17 +51,15 @@ exports.createClientType = async (req, res) => {
     ]);
     const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-    // 3️⃣ Validate sort order
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
-    // 4️⃣ Shift other records' sort_order if needed
     const shiftSortOrderQuery = `
   UPDATE client_type
   SET sort_order = sort_order + 1
@@ -108,7 +105,7 @@ exports.createClientType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "client type created successfully."
+      "client type created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -139,7 +136,7 @@ exports.getAllClientType = async (req, res) => {
         FROM client_type
         WHERE company_id = $1 AND builder_id = $2
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const total = parseInt(countResult.rows[0].total);
@@ -152,15 +149,17 @@ exports.getAllClientType = async (req, res) => {
         ORDER BY sort_order ASC
         LIMIT $3 OFFSET $4
       `,
-      [companyId, builderId, limit, offset]
+      [companyId, builderId, limit, offset],
     );
 
     return successResponse(res, {
       clientType: keysToCamelCase(result.rows),
-      totalRecord: total,
-      curruntPage: page,
-      totalPages: Math.ceil(total / limit),
-      limit,
+      pagination: {
+        totalRecord: total,
+        curruntPage: page,
+        totalPages: Math.ceil(total / limit),
+        limit,
+      },
     });
   } catch (err) {
     console.error("Error fetching client type:", err);
@@ -183,7 +182,7 @@ exports.deleteClientType = async (req, res) => {
     }
     const existingClient = await client.query(
       `SELECT client_type FROM client_type WHERE client_type_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existingClient.rowCount === 0) {
@@ -225,7 +224,7 @@ exports.updateClientType = async (req, res) => {
         AND company_id = $2
         AND builder_id = $3
       `,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (record.rows.length === 0) {
@@ -242,7 +241,7 @@ exports.updateClientType = async (req, res) => {
         AND builder_id = $3
         AND is_active = true
       `,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (activeRecord.rows.length === 0) {
@@ -259,7 +258,7 @@ exports.updateClientType = async (req, res) => {
           AND LOWER(client_type) = LOWER($3)
           AND client_type_id <> $4
         `,
-        [companyId, builderId, client_type, id]
+        [companyId, builderId, client_type, id],
       );
 
       if (dupCheck.rows.length > 0) {
@@ -269,14 +268,12 @@ exports.updateClientType = async (req, res) => {
     }
 
     if (sort_order !== undefined && sort_order !== null) {
-      // Get the existing sort order
       const existingResult = await client.query(
         `SELECT sort_order FROM client_type WHERE client_type_id = $1`,
-        [id]
+        [id],
       );
       const existingSortOrder = existingResult.rows[0].sort_order;
 
-      // Get max sort order
       const maxSortQuery = `
     SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
     FROM client_type
@@ -293,17 +290,15 @@ exports.updateClientType = async (req, res) => {
       ]);
       const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      // Validate new sort order
       if (sort_order < 1 || sort_order > maxSortOrder) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
-      // Shift other records
       if (sort_order !== existingSortOrder) {
         if (sort_order > existingSortOrder) {
           await client.query(
@@ -319,7 +314,7 @@ exports.updateClientType = async (req, res) => {
             (builder_id = $5 AND $5 IS NOT NULL)
           )
         `,
-            [existingSortOrder, sort_order, id, companyId, builderId]
+            [existingSortOrder, sort_order, id, companyId, builderId],
           );
         } else {
           await client.query(
@@ -335,7 +330,7 @@ exports.updateClientType = async (req, res) => {
             (builder_id = $5 AND $5 IS NOT NULL)
           )
         `,
-            [sort_order, existingSortOrder, id, companyId, builderId]
+            [sort_order, existingSortOrder, id, companyId, builderId],
           );
         }
       }
@@ -378,7 +373,7 @@ exports.updateClientType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "client type updated successfully."
+      "client type updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -407,7 +402,7 @@ exports.updateClientTypeIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -418,7 +413,7 @@ exports.updateClientTypeIsActive = async (req, res) => {
       WHERE client_type_id = $1
         AND builder_id = $2
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -440,7 +435,7 @@ exports.updateClientTypeIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "client type status updated successfully."
+      "client type status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating client type is_active:", error);

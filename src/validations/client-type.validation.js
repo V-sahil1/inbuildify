@@ -1,10 +1,16 @@
 const Joi = require("joi");
 
 const createClientTypeSchema = Joi.object({
-  client_type: Joi.string().trim().max(150).required().messages({
-    "string.empty": "client type is required",
-    "any.required": "client type is required",
-  }),
+  client_type: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.empty": "client type is required",
+      "any.required": "client type is required",
+    }),
 
   sort_order: Joi.number().integer().min(1).optional().default(1).messages({
     "number.base": "Sort order must be a number",
@@ -44,9 +50,15 @@ const updateClientTypeParamsSchema = Joi.object({
 });
 
 const updateClientTypeSchema = Joi.object({
-  client_type: Joi.string().trim().max(150).optional().messages({
-    "string.empty": "client type is can not be empty.",
-  }),
+  client_type: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .optional()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.empty": "client type is can not be empty.",
+    }),
 
   sort_order: Joi.number().integer().min(1).optional().messages({
     "number.base": "Sort order must be a number",

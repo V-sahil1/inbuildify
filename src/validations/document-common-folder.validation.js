@@ -1,7 +1,7 @@
 const Joi = require("joi");
 
 const createDocumentCommonFolderSchema = Joi.object({
-  name: Joi.string().max(150).required(),
+  name: Joi.string().min(1).max(150).required(),
   sort_order: Joi.number().integer().default(0).min(0).optional(),
   notify: Joi.boolean().optional(),
   share_to_customer: Joi.boolean().optional(),
@@ -44,7 +44,7 @@ const updateDocumentCommonFolderParamsSchema = Joi.object({
 });
 
 const updateDocumentCommonFolderSchema = Joi.object({
-  name: Joi.string().max(150).optional(),
+  name: Joi.string().min(1).max(150).optional(),
   sort_order: Joi.number().integer().default(0).min(0).optional(),
   notify: Joi.boolean().optional(),
   share_to_customer: Joi.boolean().optional(),

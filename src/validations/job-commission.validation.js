@@ -2,14 +2,19 @@ const Joi = require("joi");
 
 const createJobCommissionSchema = Joi.object({
   commission_type: Joi.string().valid("outgoing", "incoming").required(),
-  name: Joi.string().max(150).required(),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/),
   recipient: Joi.string()
+    .max(100)
     .valid(
       "sales_person",
       "reporting_to",
       "referral_partner",
       "customer",
-      "other_user"
+      "other_user",
     )
     .when("commission_type", {
       is: "outgoing",
@@ -33,7 +38,10 @@ const createJobCommissionSchema = Joi.object({
         "recipient_user_id is allowed only when recipient is 'other_user'.",
     }),
   }),
-  commission_unit: Joi.string().valid("percentage", "amount").required(),
+  commission_unit: Joi.string()
+    .max(100)
+    .valid("percentage", "amount")
+    .required(),
   commission_value: Joi.alternatives()
     .conditional("commission_unit", {
       is: "percentage",
@@ -94,17 +102,23 @@ const updateJobCommissionParamsSchema = Joi.object({
 });
 
 const updateJobCommissionSchema = Joi.object({
-  name: Joi.string().max(150).optional().messages({
-    "string.max": "Name cannot exceed 150 characters.",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.max": "Name cannot exceed 150 characters.",
+    }),
 
   recipient: Joi.string()
+    .max(100)
     .valid(
       "sales_person",
       "reporting_to",
       "referral_partner",
       "customer",
-      "other_user"
+      "other_user",
     )
     .optional()
     .messages({
@@ -124,6 +138,7 @@ const updateJobCommissionSchema = Joi.object({
     }),
 
   commission_unit: Joi.string()
+    .max(100)
     .valid("percentage", "amount")
     .optional()
     .messages({

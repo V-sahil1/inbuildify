@@ -4,7 +4,7 @@ const { keysToCamelCase } = require("../utils/common");
 
 const getUsersDetails = async (client, userIds) => {
   if (!userIds || userIds.length === 0) return {};
-  
+
   const validUserIds = userIds.filter(Boolean);
   if (validUserIds.length === 0) return {};
 
@@ -14,7 +14,7 @@ const getUsersDetails = async (client, userIds) => {
     WHERE users_id = ANY($1::uuid[])
   `;
   const usersResult = await client.query(usersQuery, [validUserIds]);
-  
+
   return usersResult.rows.reduce((acc, row) => {
     acc[row.users_id] = row.name;
     return acc;
@@ -25,7 +25,7 @@ const formatUserObject = (userId, usersMap) => {
   if (!userId) return null;
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
@@ -51,7 +51,7 @@ exports.getAllColorSubCategories = async (req, res) => {
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE cc.builder_id = $1 AND sc.is_deleted = false ${filterClause}
        ORDER BY sc.created_at DESC LIMIT $2 OFFSET $3`,
-      params
+      params,
     );
 
     const countParams = [req.user.builder_id];
@@ -65,12 +65,12 @@ exports.getAllColorSubCategories = async (req, res) => {
        FROM color_sub_category sc
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE cc.builder_id = $1 AND sc.is_deleted = false ${countFilter}`,
-      countParams
+      countParams,
     );
 
     // Get all unique user IDs
     const userIds = new Set();
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       if (row.created_by_id) userIds.add(row.created_by_id);
       if (row.updated_by_id) userIds.add(row.updated_by_id);
     });
@@ -78,12 +78,12 @@ exports.getAllColorSubCategories = async (req, res) => {
     const usersMap = await getUsersDetails(client, Array.from(userIds));
 
     // Format response with user details
-    const colorSubCategories = result.rows.map(row => {
+    const colorSubCategories = result.rows.map((row) => {
       const formatted = keysToCamelCase(row);
       return {
         ...formatted,
         createdBy: formatUserObject(row.created_by_id, usersMap),
-        updatedBy: formatUserObject(row.updated_by_id, usersMap)
+        updatedBy: formatUserObject(row.updated_by_id, usersMap),
       };
     });
 
@@ -97,13 +97,13 @@ exports.getAllColorSubCategories = async (req, res) => {
         colorSubCategories,
         pagination: { totalItems, totalPages, currentPage, limit: parsedLimit },
       },
-      "Color sub-categories fetched successfully."
+      "Color sub-categories fetched successfully.",
     );
   } catch (error) {
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Failed to fetch color sub-categories."
+      error?.message || "Failed to fetch color sub-categories.",
     );
   } finally {
     client.release();
@@ -122,7 +122,7 @@ exports.getColorSubCategoryById = async (req, res) => {
       `SELECT sc.* FROM color_sub_category sc
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE sc.color_sub_category_id = $1 AND cc.builder_id = $2 AND sc.is_deleted = false`,
-      [color_sub_category_id, builderId]
+      [color_sub_category_id, builderId],
     );
 
     if (result.rowCount === 0) {
@@ -137,13 +137,13 @@ exports.getColorSubCategoryById = async (req, res) => {
     const response = {
       ...formatted,
       createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
     };
 
     return successResponse(
       res,
       response,
-      "Color sub-category fetched successfully."
+      "Color sub-category fetched successfully.",
     );
   } catch (error) {
     console.error("Get color sub-category by ID error:", error);
@@ -162,28 +162,30 @@ exports.createColorSubCategory = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Ensure parent color category belongs to builder
     const parent = await client.query(
       `SELECT 1 FROM color_category WHERE color_category_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [colorCategoryId, builderId]
+      [colorCategoryId, builderId],
     );
     if (parent.rowCount === 0) {
       return errorResponse(res, 400, "Invalid colorCategoryId.");
     }
 
-    // unique name within same color category
     const dup = await client.query(
       `SELECT 1 FROM color_sub_category WHERE color_category_id = $1 AND name = $2 AND is_deleted = false`,
-      [colorCategoryId, name]
+      [colorCategoryId, name],
     );
     if (dup.rowCount > 0) {
-      return errorResponse(res, 400, "Color sub-category name already exists in this category.");
+      return errorResponse(
+        res,
+        400,
+        "Color sub-category name already exists in this category.",
+      );
     }
 
     const result = await client.query(
       `INSERT INTO color_sub_category (color_category_id, name, description, created_by_id, updated_by_id)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [colorCategoryId, name, description || null, userId, userId]
+      [colorCategoryId, name, description || null, userId, userId],
     );
 
     const row = result.rows[0];
@@ -193,13 +195,13 @@ exports.createColorSubCategory = async (req, res) => {
     const response = {
       ...formatted,
       createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
     };
 
     return successResponse(
       res,
       response,
-      "Color sub-category created successfully."
+      "Color sub-category created successfully.",
     );
   } catch (error) {
     console.error("Create color sub-category error:", error);
@@ -224,10 +226,14 @@ exports.updateColorSubCategory = async (req, res) => {
       `SELECT sc.color_sub_category_id FROM color_sub_category sc
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE sc.color_sub_category_id = $1 AND cc.builder_id = $2 AND sc.is_deleted = false`,
-      [color_sub_category_id, builderId]
+      [color_sub_category_id, builderId],
     );
     if (exists.rowCount === 0) {
-      return errorResponse(res, 404, "Color sub-category not found or already deleted.");
+      return errorResponse(
+        res,
+        404,
+        "Color sub-category not found or already deleted.",
+      );
     }
 
     const result = await client.query(
@@ -238,7 +244,7 @@ exports.updateColorSubCategory = async (req, res) => {
            updated_at = NOW()
        WHERE color_sub_category_id = $4 AND is_deleted = false
        RETURNING *`,
-      [name || null, description || null, userId, color_sub_category_id]
+      [name || null, description || null, userId, color_sub_category_id],
     );
 
     const row = result.rows[0];
@@ -249,13 +255,13 @@ exports.updateColorSubCategory = async (req, res) => {
     const response = {
       ...formatted,
       createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
     };
 
     return successResponse(
       res,
       response,
-      "Color sub-category updated successfully."
+      "Color sub-category updated successfully.",
     );
   } catch (error) {
     console.error("Update color sub-category error:", error);
@@ -278,17 +284,21 @@ exports.deleteColorSubCategory = async (req, res) => {
       `SELECT sc.color_sub_category_id FROM color_sub_category sc
        JOIN color_category cc ON sc.color_category_id = cc.color_category_id
        WHERE sc.color_sub_category_id = $1 AND cc.builder_id = $2 AND sc.is_deleted = false`,
-      [color_sub_category_id, builderId]
+      [color_sub_category_id, builderId],
     );
     if (exists.rowCount === 0) {
-      return errorResponse(res, 404, "Color sub-category not found or already deleted.");
+      return errorResponse(
+        res,
+        404,
+        "Color sub-category not found or already deleted.",
+      );
     }
 
     const result = await client.query(
       `UPDATE color_sub_category 
        SET is_deleted = true, updated_by_id = $2, updated_at = NOW()
        WHERE color_sub_category_id = $1 AND is_deleted = false RETURNING *`,
-      [color_sub_category_id, userId]
+      [color_sub_category_id, userId],
     );
 
     const row = result.rows[0];
@@ -299,13 +309,13 @@ exports.deleteColorSubCategory = async (req, res) => {
     const response = {
       ...formatted,
       createdBy: formatUserObject(row.created_by_id, usersMap),
-      updatedBy: formatUserObject(row.updated_by_id, usersMap)
+      updatedBy: formatUserObject(row.updated_by_id, usersMap),
     };
 
     return successResponse(
       res,
       response,
-      "Color sub-category deleted successfully."
+      "Color sub-category deleted successfully.",
     );
   } catch (error) {
     console.error("Delete color sub-category error:", error);

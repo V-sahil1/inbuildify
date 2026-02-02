@@ -1,11 +1,16 @@
 const Joi = require("joi");
 
 const createRangeSchema = Joi.object({
-  name: Joi.string().max(150).required().messages({
-    "string.base": "Name must be text",
-    "string.empty": "Name is required",
-    "any.required": "Name is required",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.base": "Name must be text",
+      "string.empty": "Name is required",
+      "any.required": "Name is required",
+    }),
 
   logo_url: Joi.string().uri().allow(null, "").messages({
     "string.uri": "Logo URL must be a valid URL",
@@ -51,10 +56,15 @@ const updateRangeParamsSchema = Joi.object({
 });
 
 const updateRangeSchema = Joi.object({
-  name: Joi.string().max(150).optional().messages({
-    "string.base": "Name must be text",
-    "string.empty": "Name can not be empty",
-  }),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .optional()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.base": "Name must be text",
+      "string.empty": "Name can not be empty",
+    }),
 
   logo_url: Joi.string().uri().allow(null, "").optional().messages({
     "string.uri": "Logo URL must be a valid URL",

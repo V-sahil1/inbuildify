@@ -823,7 +823,7 @@ CREATE TABLE users (
   consultant_bio TEXT,
   photo VARCHAR(500),
   signature VARCHAR(500),
-  password VARCHAR(255) NOT NULL,
+  password VARCHAR(255),
   is_verified BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
   is_locked BOOLEAN DEFAULT FALSE,
@@ -2719,6 +2719,7 @@ CREATE TABLE color_item(
   color_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  color_category_id UUID REFERENCES color_category(color_category_id) ON DELETE CASCADE,
   item_name VARCHAR(255) NOT NULL,
   item_code VARCHAR(100) NOT NULL,
   supplier_id UUID REFERENCES supplier(supplier_id) ON DELETE SET NULL,
@@ -2753,7 +2754,7 @@ CREATE TABLE color_group_item_map(
   color_item_id UUID REFERENCES color_item(color_item_id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
 
 CREATE TABLE cost_center(
     cost_center_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

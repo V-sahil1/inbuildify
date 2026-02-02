@@ -1,7 +1,12 @@
 const Joi = require("joi");
 
 const createMaintenanceAreaSchem = Joi.object({
-  name: Joi.string().trim().max(150).required(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 });
 
 const getAllMaintenanceAreaSchema = Joi.object({
@@ -34,7 +39,12 @@ const updateMaintenanceAreaParamsSchema = Joi.object({
 });
 
 const updateMaintenanceAreaSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 });
 
 module.exports = {

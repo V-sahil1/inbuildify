@@ -1,7 +1,12 @@
 const Joi = require("joi");
 
 const createSalesProccessSchema = Joi.object({
-  name: Joi.string().trim().min(2).max(150).required(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   is_default: Joi.boolean().default(false),
 });
 
@@ -35,7 +40,12 @@ const updateSalesProcessIdParamsSchema = Joi.object({
 });
 
 const updateSalesProcessSchema = Joi.object({
-  name: Joi.string().trim().min(2).max(150).optional(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   is_default: Joi.boolean().default(false),
 });
 

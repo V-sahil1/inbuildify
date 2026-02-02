@@ -1,4 +1,5 @@
 const getPool = require("../config/database");
+const { keysToCamelCase } = require("../utils/common");
 
 /* ============================================================
         GET CONTACT LIST (pagination + search)
@@ -12,7 +13,7 @@ async function getContacts({ builderId, page, limit, search }) {
   const rowsResult = await pool.query(
     `
       SELECT 
-        u.user_id,
+        u.users_id,
         u.name,
         u.email,
         u.phone,
@@ -32,6 +33,7 @@ async function getContacts({ builderId, page, limit, search }) {
       LEFT JOIN role r ON r.role_id = u.role_id
       WHERE u.builder_id = $1
         AND u.is_deleted = FALSE
+        AND LOWER(r.name) = 'contact'
         AND (
           LOWER(u.name) LIKE $2
           OR LOWER(u.email) LIKE $2
@@ -40,40 +42,50 @@ async function getContacts({ builderId, page, limit, search }) {
       ORDER BY u.created_at DESC
       LIMIT $3 OFFSET $4
       `,
-    [builderId, searchFilter, limit, offset]
+    [builderId, searchFilter, limit, offset],
   );
 
   const countResult = await pool.query(
     `
       SELECT COUNT(*)::int
-      FROM users
-      WHERE builder_id = $1
-        AND is_deleted = FALSE
+      FROM users u
+      LEFT JOIN role r ON r.role_id = u.role_id
+      WHERE u.builder_id = $1
+        AND u.is_deleted = FALSE
+        AND LOWER(r.name) = 'contact'
         AND (
-          LOWER(name) LIKE $2
-          OR LOWER(email) LIKE $2
-          OR LOWER(phone) LIKE $2
+          LOWER(u.name) LIKE $2
+          OR LOWER(u.email) LIKE $2
+          OR LOWER(u.phone) LIKE $2
         )
       `,
-    [builderId, searchFilter]
+    [builderId, searchFilter],
   );
 
+  const total = countResult.rows[0].count;
+  const totalPages = Math.ceil(total / limit);
+
   return {
-    contacts: rowsResult.rows,
-    total: countResult.rows[0].count,
+    contacts: keysToCamelCase(rowsResult.rows),
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limit,
+    },
   };
 }
 
 /* ============================================================
         GET CONTACT BY ID
   ============================================================ */
-async function getContactById(builderId, contactId) {
+async function getContactById(builderId, contact_id) {
   const pool = getPool();
 
   const result = await pool.query(
     `
       SELECT 
-        u.user_id,
+        u.users_id,
         u.name,
         u.email,
         u.phone,
@@ -91,14 +103,16 @@ async function getContactById(builderId, contactId) {
         a.state_id
       FROM users u
       LEFT JOIN address a ON a.address_id = u.address_id
-      WHERE u.user_id = $1
+      LEFT JOIN role r ON r.role_id = u.role_id
+      WHERE u.users_id = $1
         AND u.builder_id = $2
         AND u.is_deleted = FALSE
+        AND LOWER(r.name) = 'contact'
       `,
-    [contactId, builderId]
+    [contact_id, builderId],
   );
 
-  return result.rows[0];
+  return keysToCamelCase(result.rows[0]);
 }
 
 /* ============================================================
@@ -151,11 +165,11 @@ async function createContact(data) {
         login_id,
         builder_id,
         address_id,
-      ]
+      ],
     );
 
     await client.query("COMMIT");
-    return result.rows[0];
+    return keysToCamelCase(result.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -184,9 +198,9 @@ async function updateContact(contactId, data) {
       `
         UPDATE users
         SET ${setClauses.join(", ")}, updated_at = NOW()
-        WHERE user_id = $${index}
+        WHERE users_id = $${index}
         `,
-      [...values, contactId]
+      [...values, contactId],
     );
   } finally {
     client.release();
@@ -202,9 +216,9 @@ async function softDeleteContact(contactId) {
     `
       UPDATE users
       SET is_deleted = TRUE, updated_at = NOW()
-      WHERE user_id = $1
+      WHERE users_id = $1
       `,
-    [contactId]
+    [contactId],
   );
 }
 

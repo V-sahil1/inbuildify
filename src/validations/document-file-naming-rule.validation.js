@@ -1,24 +1,28 @@
 const Joi = require("joi");
 
 const createDocumentFileNamingRuleSchema = Joi.object({
-  file_type: Joi.string().trim().max(150).required().messages({
-    "string.base": "File type must be a string.",
-    "string.empty": "File type is required.",
-    "any.required": "File type is required.",
-  }),
+  file_type: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.base": "File type must be a string.",
+      "string.empty": "File type is required.",
+      "any.required": "File type is required.",
+    }),
 
   folder_ids: Joi.array()
     .items(
       Joi.string()
         .guid({ version: ["uuidv4"] })
-        .messages({ "string.guid": "Each folder_id must be a valid UUID." })
+        .messages({ "string.guid": "Each folder_id must be a valid UUID." }),
     )
     .default([])
     .messages({
       "array.base": "Folder IDs must be an array of UUIDs.",
     }),
-
-
 });
 
 const getAllDocumentFileNamingRulesSchema = Joi.object({
@@ -51,16 +55,22 @@ const updateDocumentFileNamingRuleParamsSchema = Joi.object({
 });
 
 const updateDocumentFileNamingRuleSchema = Joi.object({
-  file_type: Joi.string().trim().max(150).optional().messages({
-    "string.base": "File type must be a string.",
-  }),
+  file_type: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.base": "File type must be a string.",
+    }),
 
   folder_ids: Joi.array()
     .items(
       Joi.string()
         .optional()
         .guid({ version: ["uuidv4"] })
-        .messages({ "string.guid": "Each folder_id must be a valid UUID." })
+        .messages({ "string.guid": "Each folder_id must be a valid UUID." }),
     )
     .default([])
     .messages({

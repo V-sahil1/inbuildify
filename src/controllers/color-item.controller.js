@@ -18,6 +18,7 @@ exports.createColorItem = async (req, res) => {
       item_name,
       item_code,
       supplier_id,
+      color_category_id,
       upgrade_option,
       cost_type = "standard",
       cost,
@@ -38,39 +39,54 @@ exports.createColorItem = async (req, res) => {
       return errorResponse(res, 400, "Item code is required.");
     }
 
-    if (
-      upgrade_option &&
-      !["fixed", "start_from", "tba"].includes(upgrade_option)
-    ) {
-      return errorResponse(
-        res,
-        400,
-        "Upgrade option must be one of: fixed, start_from, tba",
-      );
-    }
-
-    if (cost_type && !["standard", "upgrade"].includes(cost_type)) {
-      return errorResponse(
-        res,
-        400,
-        "Cost type must be one of: standard, upgrade",
-      );
-    }
-
-    if (
-      units &&
-      !["mandatory", "non_mandatory", "not_required"].includes(units)
-    ) {
-      return errorResponse(
-        res,
-        400,
-        "Units must be one of: mandatory, non_mandatory, not_required",
-      );
+    if (cost_type === "standard") {
+      if (upgrade_option) {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option cannot be set when cost type is standard.",
+        );
+      }
+      if (cost) {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when cost type is standard.",
+        );
+      }
+    } else if (cost_type === "upgrade") {
+      if (!upgrade_option) {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option is required when cost type is upgrade.",
+        );
+      }
+      if (!["fixed", "start_from", "tba"].includes(upgrade_option)) {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option must be one of: fixed, start_from, tba.",
+        );
+      }
+      if (upgrade_option === "tba" && cost) {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when upgrade option is tba.",
+        );
+      }
+      if (upgrade_option !== "tba" && !cost) {
+        return errorResponse(
+          res,
+          400,
+          "Cost is required when upgrade option is not tba.",
+        );
+      }
     }
 
     await client.query("BEGIN");
 
-    // Check for duplicate item code within the same builder/company
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -103,10 +119,33 @@ exports.createColorItem = async (req, res) => {
       }
     }
 
+    if (color_category_id) {
+      const colorCategoryCheck = await client.query(
+        `
+        SELECT 1
+        FROM color_category cc
+        JOIN color c ON cc.color_id = c.color_id
+        WHERE cc.color_category_id = $1 
+          AND (c.company_id = $2 OR c.builder_id = $3)
+        `,
+        [color_category_id, companyId, builderId],
+      );
+
+      if (colorCategoryCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid color category ID or access denied.",
+        );
+      }
+    }
+
     const insertQuery = `
       INSERT INTO color_item (
         company_id,
         builder_id,
+        color_category_id,
         item_name,
         item_code,
         supplier_id,
@@ -122,13 +161,14 @@ exports.createColorItem = async (req, res) => {
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
       RETURNING *;
     `;
 
     const values = [
       companyId,
       builderId,
+      color_category_id || null,
       item_name.trim(),
       item_code.trim(),
       supplier_id || null,
@@ -311,23 +351,90 @@ exports.updateColorItem = async (req, res) => {
       item_name,
       item_code,
       supplier_id,
-      upgrade_option,
-      cost_type,
-      cost,
+      upgrade_option: reqUpgradeOption,
+      cost_type: reqCostType,
+      cost: reqCost,
       features,
       description,
       units,
       status,
     } = req.body;
 
-    const specificationImage = req.files?.specification?.[0]?.location;
-    const colorItemImage = req.files?.color_image?.[0]?.location;
+    let upgrade_option = reqUpgradeOption;
+    let cost_type = reqCostType;
+    let cost = reqCost;
 
-    await client.query("BEGIN");
+    const specificationImage = req.files?.specification?.[0]?.location;
+    const colorItemImage = req.files?.color_image?.[0].location;
+
+    if (cost_type !== undefined) {
+      if (cost_type === "standard") {
+        if (upgrade_option !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Upgrade option cannot be set when cost type is standard.",
+          );
+        }
+        if (cost !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Cost cannot be set when cost type is standard.",
+          );
+        }
+      } else if (cost_type === "upgrade") {
+        if (
+          upgrade_option !== undefined &&
+          !["fixed", "start_from", "tba"].includes(upgrade_option)
+        ) {
+          return errorResponse(
+            res,
+            400,
+            "Upgrade option must be one of: fixed, start_from, tba.",
+          );
+        }
+        if (upgrade_option === "tba" && cost !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Cost cannot be set when upgrade option is tba.",
+          );
+        }
+        if (
+          upgrade_option !== undefined &&
+          upgrade_option !== "tba" &&
+          cost === undefined
+        ) {
+          return errorResponse(
+            res,
+            400,
+            "Cost is required when upgrade option is not tba.",
+          );
+        }
+      }
+    }
+
+    if (cost_type === undefined && upgrade_option !== undefined) {
+      if (!["fixed", "start_from", "tba"].includes(upgrade_option)) {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option must be one of: fixed, start_from, tba.",
+        );
+      }
+      if (upgrade_option === "tba" && cost !== undefined) {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when upgrade option is tba.",
+        );
+      }
+    }
 
     const existingCheck = await client.query(
       `
-      SELECT color_item_id, item_code, color_image
+      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
@@ -342,37 +449,128 @@ exports.updateColorItem = async (req, res) => {
 
     const existing = existingCheck.rows[0];
 
-    if (
-      upgrade_option &&
-      !["fixed", "start_from", "tba"].includes(upgrade_option)
-    ) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "Upgrade option must be one of: fixed, start_from, tba",
-      );
+    if (cost_type !== undefined) {
+      if (cost_type === "standard") {
+        if (upgrade_option !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Upgrade option cannot be set when cost type is standard.",
+          );
+        }
+        if (cost !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Cost cannot be set when cost type is standard.",
+          );
+        }
+
+        upgrade_option = null;
+        cost = null;
+      } else if (cost_type === "upgrade") {
+        if (
+          upgrade_option !== undefined &&
+          !["fixed", "start_from", "tba"].includes(upgrade_option)
+        ) {
+          return errorResponse(
+            res,
+            400,
+            "Upgrade option must be one of: fixed, start_from, tba.",
+          );
+        }
+        if (upgrade_option === "tba" && cost !== undefined) {
+          return errorResponse(
+            res,
+            400,
+            "Cost cannot be set when upgrade option is tba.",
+          );
+        }
+        if (
+          upgrade_option !== undefined &&
+          upgrade_option !== "tba" &&
+          cost === undefined
+        ) {
+          return errorResponse(
+            res,
+            400,
+            "Cost is required when upgrade option is not tba.",
+          );
+        }
+      }
     }
 
-    if (cost_type && !["standard", "upgrade"].includes(cost_type)) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "Cost type must be one of: standard, upgrade",
-      );
+    if (cost_type === undefined && upgrade_option !== undefined) {
+      if (!["fixed", "start_from", "tba"].includes(upgrade_option)) {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option must be one of: fixed, start_from, tba.",
+        );
+      }
+      if (upgrade_option === "tba" && cost !== undefined) {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when upgrade option is tba.",
+        );
+      }
+      if (upgrade_option === "tba") {
+        cost = null;
+      }
     }
 
     if (
-      units &&
-      !["mandatory", "non_mandatory", "not_required"].includes(units)
+      cost !== undefined &&
+      cost_type === undefined &&
+      upgrade_option === undefined
     ) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "Units must be one of: mandatory, non_mandatory, not_required",
-      );
+      if (existing.cost_type === "standard") {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when cost type is standard.",
+        );
+      }
+      if (
+        existing.cost_type === "upgrade" &&
+        existing.upgrade_option === "tba"
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Cost cannot be set when upgrade option is tba.",
+        );
+      }
+    }
+
+    if (
+      upgrade_option !== undefined &&
+      cost_type === undefined &&
+      cost === undefined
+    ) {
+      if (existing.cost_type === "standard") {
+        return errorResponse(
+          res,
+          400,
+          "Upgrade option cannot be set when cost type is standard.",
+        );
+      }
+
+      if (upgrade_option === "tba" && existing.cost !== null) {
+        return errorResponse(
+          res,
+          400,
+          "Cannot set upgrade option to tba when cost is already set.",
+        );
+      }
+      if (upgrade_option !== "tba" && existing.cost === null) {
+        return errorResponse(
+          res,
+          400,
+          "Cost is required when upgrade option is not tba.",
+        );
+      }
     }
 
     if (item_code && item_code.trim() !== existing.item_code) {
@@ -673,6 +871,181 @@ exports.getColorItemById = async (req, res) => {
   } catch (error) {
     console.error("Error fetching color item:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.colorItemMove = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const { color_item_id } = req.params;
+    const { color_id, color_category_id } = req.body;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    if (!color_item_id) {
+      return errorResponse(res, 400, "Color item ID is required.");
+    }
+
+    if (!color_id) {
+      return errorResponse(res, 400, "Color ID is required.");
+    }
+
+    if (!color_category_id) {
+      return errorResponse(res, 400, "Color category ID is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const colorItemCheck = await client.query(
+      `
+      SELECT color_item_id
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [color_item_id, companyId, builderId],
+    );
+
+    if (colorItemCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found.");
+    }
+
+    const colorCheck = await client.query(
+      `
+      SELECT color_id
+      FROM color
+      WHERE color_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [color_id, companyId, builderId],
+    );
+
+    if (colorCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color not found.");
+    }
+
+    const colorCategoryCheck = await client.query(
+      `
+      SELECT color_category_id
+      FROM color_category cc
+      JOIN color c ON cc.color_id = c.color_id
+      WHERE cc.color_category_id = $1
+        AND cc.color_id = $2
+        AND (c.company_id = $3 OR c.builder_id = $4)
+      `,
+      [color_category_id, color_id, companyId, builderId],
+    );
+
+    if (colorCategoryCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Color category does not belong to the specified color ID or access denied.",
+      );
+    }
+
+    const categoryBelongsToColorCheck = await client.query(
+      `
+      SELECT 1
+      FROM color_category
+      WHERE color_category_id = $1
+        AND color_id = $2
+      `,
+      [color_category_id, color_id],
+    );
+
+    if (categoryBelongsToColorCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Color category ID does not belong to the specified color ID.",
+      );
+    }
+
+    const existingItemCheck = await client.query(
+      `
+      SELECT color_item_id
+      FROM color_item
+      WHERE color_category_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+      `,
+      [color_category_id, companyId, builderId],
+    );
+
+    if (existingItemCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Color category already contains a color item.",
+      );
+    }
+
+    const ownershipCheck = await client.query(
+      `
+      SELECT 
+        ci.color_item_id as item_exists,
+        c.color_id as color_exists,
+        cc.color_category_id as category_exists
+      FROM color_item ci
+      JOIN color c ON c.color_id = $2
+      JOIN color_category cc ON cc.color_category_id = $3 AND cc.color_id = c.color_id
+      WHERE ci.color_item_id = $1
+        AND (ci.company_id = $4 OR ci.builder_id = $5)
+        AND (c.company_id = $4 OR c.builder_id = $5)
+      `,
+      [color_item_id, color_id, color_category_id, companyId, builderId],
+    );
+
+    if (ownershipCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "One or more entities do not belong to your account or access denied.",
+      );
+    }
+
+    const updateResult = await client.query(
+      `
+      UPDATE color_item
+      SET color_category_id = $1, updated_at = NOW()
+      WHERE color_item_id = $2
+        AND (company_id = $3 OR builder_id = $4)
+      RETURNING *
+      `,
+      [color_category_id, color_item_id, companyId, builderId],
+    );
+
+    if (updateResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found or access denied.");
+    }
+
+    await client.query("COMMIT");
+
+    const updatedColorItem = keysToCamelCase(updateResult.rows[0]);
+    return successResponse(
+      res,
+      updatedColorItem,
+      "Color item moved successfully.",
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Color Item Move Error:", error);
+    return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
   }

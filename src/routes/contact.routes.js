@@ -13,7 +13,7 @@ const {
   createContactSchema,
   updateContactSchema,
   convertContactSchema,
-  getContactsSchema
+  getContactsSchema,
 } = require("../validations/contact.validation");
 
 /* ============================================================
@@ -30,7 +30,7 @@ router.get(
   authMiddleware,
   roleMiddleware,
   validateRequest(getContactsSchema, REQUEST_SOURCE.QUERY),
-  contactController.getContacts
+  contactController.getContacts,
 );
 
 /**
@@ -38,11 +38,11 @@ router.get(
  * View a single contact
  */
 router.get(
-  "/:contactId",
+  "/:contact_id",
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
-  contactController.getContactById
+  contactController.getContactById,
 );
 
 /**
@@ -55,7 +55,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(createContactSchema, REQUEST_SOURCE.BODY),
-  contactController.createContact
+  contactController.createContact,
 );
 
 /**
@@ -63,12 +63,12 @@ router.post(
  * Update contact
  */
 router.put(
-  "/:contactId",
+  "/:contact_id",
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(updateContactSchema, REQUEST_SOURCE.BODY),
-  contactController.updateContact
+  contactController.updateContact,
 );
 
 /**
@@ -76,11 +76,11 @@ router.put(
  * Soft delete contact
  */
 router.delete(
-  "/:contactId",
+  "/:contact_id",
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
-  contactController.deleteContact
+  contactController.deleteContact,
 );
 
 /**
@@ -93,7 +93,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(convertContactSchema, REQUEST_SOURCE.BODY),
-  contactController.convertContactToUser
+  contactController.convertContactToUser,
 );
 
 module.exports = router;

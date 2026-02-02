@@ -1,7 +1,12 @@
 const Joi = require("joi");
 
 const createConstructionOptionSchema = Joi.object({
-  option_name: Joi.string().trim().max(255).required(),
+  option_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 });
 
 const getAllConstructionOptionSchema = Joi.object({
@@ -34,8 +39,14 @@ const updateConstructionOptionParamsSchema = Joi.object({
 });
 
 const updateConstructionOptionSchema = Joi.object({
-  option_name: Joi.string().trim().max(255).optional(),
+  option_name: Joi.string()
+    .min(2)
+    .trim()
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 });
+
 module.exports = {
   createConstructionOptionSchema,
   getAllConstructionOptionSchema,

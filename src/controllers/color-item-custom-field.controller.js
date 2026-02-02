@@ -28,7 +28,6 @@ exports.createColorItemCustomField = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Validate color_item exists and belongs to user's scope
     const colorItemCheck = await client.query(
       `SELECT color_item_id FROM color_item 
        WHERE color_item_id = $1 AND (
@@ -47,7 +46,6 @@ exports.createColorItemCustomField = async (req, res) => {
       );
     }
 
-    // Shift existing custom fields to make room for the new sort order
     const shiftFieldsQuery = `
       UPDATE color_item_custom_field 
       SET sort_order = sort_order + 1 
@@ -56,7 +54,6 @@ exports.createColorItemCustomField = async (req, res) => {
     `;
     await client.query(shiftFieldsQuery, [color_item, finalSortOrder]);
 
-    // Check for duplicate field name within the same color item
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -242,7 +239,6 @@ exports.updateColorItemCustomField = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Get existing custom field record with color item info
     const existingFieldQuery = `
       SELECT cf.color_item_custom_field_id, cf.field_name, cf.sort_order, cf.color_item,
              ci.company_id, ci.builder_id
@@ -267,10 +263,8 @@ exports.updateColorItemCustomField = async (req, res) => {
     const updatedSortOrder =
       sort_order !== undefined ? sort_order : existingField.sort_order;
 
-    // Handle sort order shifting if sort_order is being updated
     if (sort_order !== undefined && sort_order !== existingField.sort_order) {
       if (sort_order > existingField.sort_order) {
-        // Moving down: decrement sort orders of items in between
         const shiftFieldsQuery = `
           UPDATE color_item_custom_field 
           SET sort_order = sort_order - 1 
@@ -286,7 +280,6 @@ exports.updateColorItemCustomField = async (req, res) => {
           id,
         ]);
       } else {
-        // Moving up: increment sort orders of items in between
         const shiftFieldsQuery = `
           UPDATE color_item_custom_field 
           SET sort_order = sort_order + 1 

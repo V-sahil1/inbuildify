@@ -1,13 +1,18 @@
 const Joi = require("joi");
 
 const createJobColorCoulmnSchema = Joi.object({
-  column_name: Joi.string().trim().max(150).required(),
+  column_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   display_option: Joi.string()
     .max(50)
     .valid(
       "dont_show",
       "show_as_separate_column",
-      "show_in_existing_items_column"
+      "show_in_existing_items_column",
     )
     .required(),
   sort_order: Joi.number().integer().optional().allow(null),
@@ -37,13 +42,18 @@ const updateJobColorColumnParamsSchema = Joi.object({
 });
 
 const updateJobColorColumnSchema = Joi.object({
-  column_name: Joi.string().trim().max(150).optional(),
+  column_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   display_option: Joi.string()
     .max(50)
     .valid(
       "dont_show",
       "show_as_separate_column",
-      "show_in_existing_items_column"
+      "show_in_existing_items_column",
     )
     .optional(),
   sort_order: Joi.number().integer().optional(),

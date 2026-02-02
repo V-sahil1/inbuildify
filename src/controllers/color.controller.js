@@ -24,7 +24,6 @@ exports.createColor = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Shift existing colors to make room for the new sort order
     const shiftColorsQuery = `
       UPDATE color 
       SET sort_order = sort_order + 1 
@@ -38,7 +37,6 @@ exports.createColor = async (req, res) => {
       finalSortOrder,
     ]);
 
-    // Check for duplicate color name within the same company/builder scope
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -214,10 +212,8 @@ exports.updateColor = async (req, res) => {
     const updatedSortOrder =
       sort_order !== undefined ? sort_order : existingColor.sort_order;
 
-    // Handle sort order shifting if sort_order is being updated
     if (sort_order !== undefined && sort_order !== existingColor.sort_order) {
       if (sort_order > existingColor.sort_order) {
-        // Moving down: decrement sort orders of items in between
         const shiftColorsQuery = `
           UPDATE color 
           SET sort_order = sort_order - 1 
@@ -235,7 +231,6 @@ exports.updateColor = async (req, res) => {
           id,
         ]);
       } else {
-        // Moving up: increment sort orders of items in between
         const shiftColorsQuery = `
           UPDATE color 
           SET sort_order = sort_order + 1 
@@ -332,7 +327,6 @@ exports.deleteColor = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Get existing color record before deletion
     const existingColorQuery = `
       SELECT color_id, sort_order, company_id, builder_id 
       FROM color 
@@ -352,7 +346,6 @@ exports.deleteColor = async (req, res) => {
 
     const existingColor = existingColorResult.rows[0];
 
-    // Shift remaining colors to fill the gap
     const shiftColorsQuery = `
       UPDATE color 
       SET sort_order = sort_order - 1 
@@ -366,7 +359,6 @@ exports.deleteColor = async (req, res) => {
       existingColor.sort_order,
     ]);
 
-    // Delete the color
     const deleteQuery = `
       DELETE FROM color WHERE color_id = $1 RETURNING *;
     `;
