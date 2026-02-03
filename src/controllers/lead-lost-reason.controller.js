@@ -153,7 +153,7 @@ exports.getAllLeadLostReasons = async (req, res) => {
     return successResponse(res, {
       leadLostReason: keysToCamelCase(result.rows),
       pagination: {
-        totalRecord: total,
+        totalRecords: total,
         currentPage: page,
         totalPages: Math.ceil(total / limit),
         limit,
@@ -179,7 +179,7 @@ exports.deleteLeadLostReason = async (req, res) => {
       return errorResponse(res, 400, " ID is required.");
     }
     const existingSurveyor = await client.query(
-      `SELECT lead_lost_reason FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2`,
+      `SELECT lead_lost_reason, sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2`,
       [id, builderId],
     );
 
@@ -191,9 +191,16 @@ exports.deleteLeadLostReason = async (req, res) => {
       );
     }
 
+    const deletedSortOrder = existingSurveyor.rows[0].sort_order;
+
     await client.query(
       `DELETE FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
       [id],
+    );
+
+    await client.query(
+      `UPDATE lead_lost_reason SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      [deletedSortOrder, builderId],
     );
 
     return successResponse(res, null, "lead lost reason deleted successfully.");

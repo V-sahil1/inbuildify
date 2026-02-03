@@ -17,17 +17,29 @@ exports.createSupplierDocument = async (req, res) => {
     const { supplier_id, induction_pack_received } = req.body || {};
 
     const work_cover_url =
-      req.files?.location || req.body.work_cover_image || null;
+      req.files?.workCoverImage?.[0]?.location ||
+      req.body.work_cover_image ||
+      null;
     const pl_insurance_url =
-      req.files?.location || req.body.pl_insurance_image || null;
+      req.files?.plInsuranceImage?.[0]?.location ||
+      req.body.pl_insurance_image ||
+      null;
     const white_card_url =
-      req.files?.location || req.body.white_card_image || null;
+      req.files?.whiteCardImage?.[0]?.location ||
+      req.body.white_card_image ||
+      null;
     const fork_lift_license_url =
-      req.files?.location || req.body.fork_lift_license_image || null;
+      req.files?.forkLiftLicenseImage?.[0]?.location ||
+      req.body.fork_lift_license_image ||
+      null;
     const trade_license_url =
-      req.files?.location || req.body.trade_license_image || null;
+      req.files?.tradeLicenseImage?.[0]?.location ||
+      req.body.trade_license_image ||
+      null;
     const induction_pack_url =
-      req.files?.location || req.body.induction_pack_image || null;
+      req.files?.inductionPackImage?.[0]?.location ||
+      req.body.induction_pack_image ||
+      null;
 
     if (!supplier_id) {
       return errorResponse(res, 400, "supplier_id is required.");
@@ -50,7 +62,7 @@ exports.createSupplierDocument = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Supplier does not belong to this builder."
+        "Supplier does not belong to this builder.",
       );
     }
 
@@ -61,7 +73,7 @@ exports.createSupplierDocument = async (req, res) => {
      WHERE builder_id = $1 
        AND supplier_id = $2 
        AND status = true`,
-        [builderId, supplier_id]
+        [builderId, supplier_id],
       );
 
       if (supplierCheck.rowCount === 0) {
@@ -97,7 +109,7 @@ exports.createSupplierDocument = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "induction_pack_url is required when induction_pack_received is true."
+          "induction_pack_url is required when induction_pack_received is true.",
         );
       }
     }
@@ -107,7 +119,7 @@ exports.createSupplierDocument = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "You cannot provide induction_pack_url when induction_pack_received is false."
+          "You cannot provide induction_pack_url when induction_pack_received is false.",
         );
       }
     }
@@ -143,7 +155,7 @@ exports.createSupplierDocument = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Supplier documents created successfully."
+      "Supplier documents created successfully.",
     );
   } catch (error) {
     console.error("Create Supplier Document Error:", error);
@@ -206,7 +218,7 @@ exports.getAllSupplierDocuments = async (req, res) => {
         totalRecords,
         limit: limitValue,
       },
-      "Supplier documents fetched successfully."
+      "Supplier documents fetched successfully.",
     );
   } catch (error) {
     console.error("Get All Supplier Documents Error:", error);
@@ -230,17 +242,20 @@ exports.updateSupplierDocument = async (req, res) => {
     const { induction_pack_received } = req.body || {};
 
     const work_cover_url =
-      req.files?.location || req.body.work_cover_image || null;
+      req.files?.workCoverImage?.[0]?.location || req.body.work_cover_image;
     const pl_insurance_url =
-      req.files?.location || req.body.pl_insurance_image || null;
+      req.files?.plInsuranceImage?.[0]?.location || req.body.pl_insurance_image;
     const white_card_url =
-      req.files?.location || req.body.white_card_image || null;
+      req.files?.whiteCardImage?.[0]?.location || req.body.white_card_image;
     const fork_lift_license_url =
-      req.files?.location || req.body.fork_lift_license_image || null;
+      req.files?.forkLiftLicenseImage?.[0]?.location ||
+      req.body.fork_lift_license_image;
     const trade_license_url =
-      req.files?.location || req.body.trade_license_image || null;
+      req.files?.tradeLicenseImage?.[0]?.location ||
+      req.body.trade_license_image;
     const induction_pack_url =
-      req.files?.location || req.body.induction_pack_image || null;
+      req.files?.inductionPackImage?.[0]?.location ||
+      req.body.induction_pack_image;
 
     const supplierDocCheck = await client.query(
       `
@@ -249,7 +264,7 @@ exports.updateSupplierDocument = async (req, res) => {
       INNER JOIN supplier s ON sd.supplier_id = s.supplier_id
       WHERE sd.supplier_document_id = $1
       `,
-      [id]
+      [id],
     );
 
     if (
@@ -259,7 +274,7 @@ exports.updateSupplierDocument = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Supplier document does not belong to this builder."
+        "Supplier document does not belong to this builder.",
       );
     }
 
@@ -273,7 +288,7 @@ exports.updateSupplierDocument = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "You cannot provide induction_pack_url when induction_pack_received is false."
+        "You cannot provide induction_pack_url when induction_pack_received is false.",
       );
     }
 
@@ -281,7 +296,7 @@ exports.updateSupplierDocument = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "induction_pack_url is required when induction_pack_received is true."
+        "induction_pack_url is required when induction_pack_received is true.",
       );
     }
 
@@ -303,32 +318,32 @@ exports.updateSupplierDocument = async (req, res) => {
     await updateImageField(
       "work_cover_url",
       work_cover_url,
-      oldData.work_cover_url
+      oldData.work_cover_url,
     );
     await updateImageField(
       "pl_insurance_url",
       pl_insurance_url,
-      oldData.pl_insurance_url
+      oldData.pl_insurance_url,
     );
     await updateImageField(
       "white_card_url",
       white_card_url,
-      oldData.white_card_url
+      oldData.white_card_url,
     );
     await updateImageField(
       "fork_lift_license_url",
       fork_lift_license_url,
-      oldData.fork_lift_license_url
+      oldData.fork_lift_license_url,
     );
     await updateImageField(
       "trade_license_url",
       trade_license_url,
-      oldData.trade_license_url
+      oldData.trade_license_url,
     );
     await updateImageField(
       "induction_pack_url",
       induction_pack_url,
-      oldData.induction_pack_url
+      oldData.induction_pack_url,
     );
 
     updateQuery += `induction_pack_received = $${i} `;
@@ -343,7 +358,7 @@ exports.updateSupplierDocument = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Supplier documents updated successfully."
+      "Supplier documents updated successfully.",
     );
   } catch (error) {
     console.error("Update Supplier Document Error:", error);

@@ -243,7 +243,6 @@ exports.createPriceListItem = async (req, res) => {
 
     await client.query("COMMIT");
 
-    // Get the complete data with nested relationships
     const getCreatedItemQuery = `
       SELECT 
         pli.*,
@@ -278,7 +277,6 @@ exports.createPriceListItem = async (req, res) => {
     ]);
     const createdItem = keysToCamelCase(createdItemResult.rows[0]);
 
-    // Format the response to match the specified structure
     const formattedItem = {
       priceListItemId: createdItem.priceListItemId,
       priceList: {
@@ -938,7 +936,6 @@ exports.updatePriceListItem = async (req, res) => {
 
     await client.query("COMMIT");
 
-    // Get the complete updated data with nested relationships
     const getUpdatedItemQuery = `
       SELECT 
         pli.*,
@@ -973,7 +970,6 @@ exports.updatePriceListItem = async (req, res) => {
     ]);
     const updatedItem = keysToCamelCase(updatedItemResult.rows[0]);
 
-    // Format the response to match the specified structure
     const formattedItem = {
       priceListItemId: updatedItem.priceListItemId,
       priceList: {

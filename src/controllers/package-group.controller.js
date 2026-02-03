@@ -131,7 +131,6 @@ exports.getAllPackageGroups = async (req, res) => {
       offset,
     ]);
 
-    // Format the response
     const formattedPackageGroups = dataResult.rows.map((row) => {
       const pg = keysToCamelCase(row);
 

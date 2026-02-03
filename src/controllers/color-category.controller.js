@@ -460,6 +460,54 @@ exports.updateColorCategory = async (req, res) => {
   }
 };
 
+exports.getColorCategoriesByColorId = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const { id } = req.params; // This will be color_id
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    // First verify the color exists and belongs to the user
+    const colorCheck = await client.query(
+      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      [id, builderId, companyId],
+    );
+
+    if (colorCheck.rowCount === 0) {
+      return errorResponse(res, 404, "Color not found or inactive.");
+    }
+
+    const query = `
+      SELECT c.*, 
+             col.color_name as color_name
+      FROM color_category c
+      LEFT JOIN color col ON c.color_id = col.color_id
+      WHERE c.color_id = $1 
+        AND col.builder_id = $2 
+        AND col.company_id = $3
+      ORDER BY c.sort_order ASC, c.created_at DESC;
+    `;
+
+    const result = await client.query(query, [id, builderId, companyId]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows),
+      "Color categories fetched successfully.",
+    );
+  } catch (err) {
+    console.error("Error fetching color categories by color ID:", err);
+    return errorResponse(res, 500, "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
 exports.deleteColorCategory = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();

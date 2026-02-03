@@ -1551,8 +1551,7 @@ CREATE TABLE job_invoice_stage_payments (
     sort_order INT NOT NULL DEFAULT 1,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_stage_payment_order UNIQUE (job_invoice_settings_id, sort_order)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE job_variation_settings (

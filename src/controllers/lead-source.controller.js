@@ -53,7 +53,7 @@ exports.createLeadSource = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -86,7 +86,7 @@ exports.createLeadSource = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Lead source created successfully."
+      "Lead source created successfully.",
     );
   } catch (error) {
     console.error("Create lead source error:", error);
@@ -138,13 +138,13 @@ exports.getLeadSources = async (req, res) => {
       {
         leadSource: keysToCamelCase(result.rows),
         pagination: {
-          totalRecord: total,
+          totalRecords: total,
           curruntPage: page,
-          totalPage: totalPages,
+          totalPages: totalPages,
           limit,
         },
       },
-      "Lead sources retrieved successfully."
+      "Lead sources retrieved successfully.",
     );
   } catch (error) {
     console.error("Get lead sources error:", error);
@@ -175,7 +175,7 @@ exports.getLeadSourceById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Lead source fetched successfully."
+      "Lead source fetched successfully.",
     );
   } catch (error) {
     console.error("Get lead source by ID error:", error);
@@ -240,7 +240,7 @@ exports.updateLeadSource = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -270,7 +270,7 @@ exports.updateLeadSource = async (req, res) => {
     FROM lead_source
     WHERE lead_source_id = $1
   `,
-      [lead_source_id]
+      [lead_source_id],
     );
 
     const existingSortOrder = existingResult.rows[0].sort_order;
@@ -298,7 +298,7 @@ exports.updateLeadSource = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -323,7 +323,7 @@ exports.updateLeadSource = async (req, res) => {
               lead_source_id,
               companyId,
               builderId,
-            ]
+            ],
           );
         } else {
           // move up
@@ -346,7 +346,7 @@ exports.updateLeadSource = async (req, res) => {
               lead_source_id,
               companyId,
               builderId,
-            ]
+            ],
           );
         }
       }
@@ -375,7 +375,7 @@ exports.updateLeadSource = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Lead source updated successfully."
+      "Lead source updated successfully.",
     );
   } catch (error) {
     console.error("Error updating lead source:", error);
@@ -397,17 +397,24 @@ exports.deleteLeadSource = async (req, res) => {
       return errorResponse(res, 400, "lead source id is required.");
     }
     const existingSource = await client.query(
-      `SELECT lead_source_id FROM lead_source WHERE lead_source_id = $1 AND builder_id = $2`,
-      [lead_source_id, builderId]
+      `SELECT lead_source_id, sort_order FROM lead_source WHERE lead_source_id = $1 AND builder_id = $2`,
+      [lead_source_id, builderId],
     );
 
     if (existingSource.rowCount === 0) {
       return errorResponse(res, 404, "lead_source not found for this builder.");
     }
 
+    const deletedSortOrder = existingSource.rows[0].sort_order;
+
     await client.query(`DELETE FROM lead_source WHERE lead_source_id = $1`, [
       lead_source_id,
     ]);
+
+    await client.query(
+      `UPDATE lead_source SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      [deletedSortOrder, builderId],
+    );
 
     return successResponse(res, null, "lead_source deleted successfully.");
   } catch (error) {
@@ -436,7 +443,7 @@ exports.updateLeadSourceIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -447,7 +454,7 @@ exports.updateLeadSourceIsActive = async (req, res) => {
       WHERE lead_source_id = $1
         AND builder_id = $2
       `,
-      [lead_source_id, builderId]
+      [lead_source_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -473,7 +480,7 @@ exports.updateLeadSourceIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "lead source status updated successfully."
+      "lead source status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating lead source is_active:", error);

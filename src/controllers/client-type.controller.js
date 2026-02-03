@@ -155,7 +155,7 @@ exports.getAllClientType = async (req, res) => {
     return successResponse(res, {
       clientType: keysToCamelCase(result.rows),
       pagination: {
-        totalRecord: total,
+        totalRecords: total,
         curruntPage: page,
         totalPages: Math.ceil(total / limit),
         limit,
@@ -181,7 +181,7 @@ exports.deleteClientType = async (req, res) => {
       return errorResponse(res, 400, " ID is required.");
     }
     const existingClient = await client.query(
-      `SELECT client_type FROM client_type WHERE client_type_id = $1 AND builder_id = $2`,
+      `SELECT client_type, sort_order FROM client_type WHERE client_type_id = $1 AND builder_id = $2`,
       [id, builderId],
     );
 
@@ -189,9 +189,16 @@ exports.deleteClientType = async (req, res) => {
       return errorResponse(res, 404, "client type not found for this builder.");
     }
 
+    const deletedSortOrder = existingClient.rows[0].sort_order;
+
     await client.query(`DELETE FROM client_type WHERE client_type_id = $1`, [
       id,
     ]);
+
+    await client.query(
+      `UPDATE client_type SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      [deletedSortOrder, builderId],
+    );
 
     return successResponse(res, null, "client type deleted successfully.");
   } catch (error) {

@@ -19,26 +19,23 @@ router.post(
   "/stages",
   camelToSnakeMiddleware,
   validateRequest(validation.createStageSchema, REQUEST_SOURCE.BODY),
-  controller.createStage
+  controller.createStage,
 );
 
-router.get(
-  "/stages",
-  controller.getStages
-);
+router.get("/stages", controller.getStages);
 
 router.put(
   "/stages/:stage_id",
   camelToSnakeMiddleware,
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateStageSchema, REQUEST_SOURCE.BODY),
-  controller.updateStage
+  controller.updateStage,
 );
 
 router.delete(
   "/stages/:stage_id",
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deleteStage
+  controller.deleteStage,
 );
 
 /* ================= SUB-STAGE ================= */
@@ -46,15 +43,15 @@ router.delete(
 router.post(
   "/stages/:stage_id/sub-stages",
   camelToSnakeMiddleware,
-   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.createSubStageSchema, REQUEST_SOURCE.BODY),
-  controller.createSubStage
+  controller.createSubStage,
 );
 
 router.get(
   "/stages/:stage_id/sub-stages",
   validateRequest(validation.stageParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getSubStages
+  controller.getSubStages,
 );
 
 router.put(
@@ -62,13 +59,15 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateSubStageSchema, REQUEST_SOURCE.BODY),
-  controller.updateSubStage
+  controller.updateSubStage,
 );
 
 router.delete(
   "/sub-stages/:sub_stage_id",
+  camelToSnakeMiddleware,
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deleteSubStage
+  validateRequest(validation.deleteSubStageSchema, REQUEST_SOURCE.BODY),
+  controller.deleteSubStage,
 );
 
 /* ================= TASK ================= */
@@ -77,13 +76,13 @@ router.post(
   "/sub-stages/:sub_stage_id/tasks",
   camelToSnakeMiddleware,
   validateRequest(validation.createTaskSchema, REQUEST_SOURCE.BODY),
-  controller.createTask
+  controller.createTask,
 );
 
 router.get(
   "/sub-stages/:sub_stage_id/tasks",
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getTasks
+  controller.getTasks,
 );
 
 router.put(
@@ -91,13 +90,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateTaskSchema, REQUEST_SOURCE.BODY),
-  controller.updateTask
+  controller.updateTask,
 );
 
 router.delete(
   "/tasks/:task_id",
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deleteTask
+  controller.deleteTask,
 );
 
 /* ================= SUB-TASK ================= */
@@ -107,14 +106,14 @@ router.post(
   camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.createSubTaskSchema, REQUEST_SOURCE.BODY),
-  controller.createSubTask
+  controller.createSubTask,
 );
 
 router.get(
   "/tasks/:task_id/sub-tasks",
   camelToSnakeMiddleware,
   validateRequest(validation.taskParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getSubTasks
+  controller.getSubTasks,
 );
 
 router.put(
@@ -122,26 +121,18 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(validation.subTaskParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(validation.updateSubTaskSchema, REQUEST_SOURCE.BODY),
-  controller.updateSubTask
+  controller.updateSubTask,
 );
 
 router.delete(
   "/sub-tasks/:sub_task_id",
   camelToSnakeMiddleware,
   validateRequest(validation.subTaskParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deleteSubTask
+  controller.deleteSubTask,
 );
 
+router.get("/", controller.getJobProcess);
 
-router.get(
-  "/",
-  controller.getJobProcess
-);
-
-router.get(
-  "/tasks",
-  camelToSnakeMiddleware,
-  controller.getAllJobTasks
-);
+router.get("/tasks", camelToSnakeMiddleware, controller.getAllJobTasks);
 
 module.exports = router;

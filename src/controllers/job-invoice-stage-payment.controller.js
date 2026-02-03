@@ -33,26 +33,47 @@ exports.createJobInvoiceStagePayment = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job invoice settings not found for this builder."
+        "Job invoice settings not found for this builder.",
       );
     }
 
     const jobInvoiceSettingsId = settingsResult.rows[0].job_invoice_settings_id;
 
-    const sortCheck = await client.query(
-      `SELECT 1 FROM job_invoice_stage_payments 
-       WHERE job_invoice_settings_id = $1 AND sort_order = $2`,
-      [jobInvoiceSettingsId, sort_order || 1]
-    );
+    let finalSortOrder = sort_order;
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
 
-    if (sortCheck.rowCount > 0) {
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM job_invoice_stage_payments
+      WHERE job_invoice_settings_id = $1
+    `;
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+      jobInvoiceSettingsId,
+    ]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Sort order ${sort_order || 1} already exists.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE job_invoice_stage_payments
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND job_invoice_settings_id = $2
+    `;
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      jobInvoiceSettingsId,
+    ]);
+
     const insertQuery = `
       INSERT INTO job_invoice_stage_payments (
         job_invoice_settings_id,
@@ -68,7 +89,7 @@ exports.createJobInvoiceStagePayment = async (req, res) => {
       jobInvoiceSettingsId,
       description.trim(),
       percentage || 0,
-      sort_order || 1,
+      finalSortOrder,
     ];
 
     const result = await client.query(insertQuery, values);
@@ -77,7 +98,7 @@ exports.createJobInvoiceStagePayment = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job invoice stage payment created successfully."
+      "Job invoice stage payment created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -150,7 +171,7 @@ exports.getAllJobInvoiceStagePayments = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Job invoice stage payments fetched successfully."
+      "Job invoice stage payments fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching job invoice stage payments:", err);
@@ -173,7 +194,7 @@ exports.deleteJobInvoiceStagePayment = async (req, res) => {
     }
 
     const checkQuery = `
-      SELECT jsp.job_invoice_stage_payment_id
+      SELECT jsp.job_invoice_stage_payment_id, jsp.sort_order, jsp.job_invoice_settings_id
       FROM job_invoice_stage_payments jsp
       INNER JOIN job_invoice_settings jis 
         ON jsp.job_invoice_settings_id = jis.job_invoice_settings_id
@@ -187,9 +208,12 @@ exports.deleteJobInvoiceStagePayment = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job invoice stage payment not found or not authorized to delete."
+        "Job invoice stage payment not found or not authorized to delete.",
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const jobInvoiceSettingsId = checkResult.rows[0].job_invoice_settings_id;
 
     const deleteQuery = `
       DELETE FROM job_invoice_stage_payments
@@ -198,10 +222,15 @@ exports.deleteJobInvoiceStagePayment = async (req, res) => {
 
     await client.query(deleteQuery, [id]);
 
+    await client.query(
+      `UPDATE job_invoice_stage_payments SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_invoice_settings_id = $2`,
+      [deletedSortOrder, jobInvoiceSettingsId],
+    );
+
     return successResponse(
       res,
       null,
-      "Job invoice stage payment deleted successfully."
+      "Job invoice stage payment deleted successfully.",
     );
   } catch (err) {
     console.error("Error deleting job invoice stage payment:", err);
@@ -228,7 +257,8 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
     const checkQuery = `
       SELECT 
         jsp.job_invoice_stage_payment_id, 
-        jsp.job_invoice_settings_id
+        jsp.job_invoice_settings_id,
+        jsp.sort_order
       FROM job_invoice_stage_payments jsp
       INNER JOIN job_invoice_settings jis 
         ON jsp.job_invoice_settings_id = jis.job_invoice_settings_id
@@ -244,32 +274,68 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job invoice stage payment not found or unauthorized."
+        "Job invoice stage payment not found or unauthorized.",
       );
     }
 
     const jobInvoiceSettingsId = checkResult.rows[0].job_invoice_settings_id;
+    const existingSortOrder = checkResult.rows[0].sort_order;
 
-    if (sort_order !== undefined) {
-      const duplicateCheckQuery = `
-        SELECT 1 
-        FROM job_invoice_stage_payments 
-        WHERE job_invoice_settings_id = $1 
-          AND sort_order = $2
-          AND job_invoice_stage_payment_id <> $3;
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+        FROM job_invoice_stage_payments
+        WHERE job_invoice_settings_id = $1
       `;
-      const duplicateCheck = await client.query(duplicateCheckQuery, [
+      const maxSortResult = await client.query(maxSortQuery, [
         jobInvoiceSettingsId,
-        sort_order,
-        job_invoice_stage_payment_id,
       ]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      if (duplicateCheck.rowCount > 0) {
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         return errorResponse(
           res,
           400,
-          "Sort order already exists for this setting."
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
+      }
+
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+            UPDATE job_invoice_stage_payments
+            SET sort_order = sort_order - 1
+            WHERE sort_order > $1
+              AND sort_order <= $2
+              AND job_invoice_stage_payment_id != $3
+              AND job_invoice_settings_id = $4
+            `,
+            [
+              existingSortOrder,
+              sort_order,
+              job_invoice_stage_payment_id,
+              jobInvoiceSettingsId,
+            ],
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE job_invoice_stage_payments
+            SET sort_order = sort_order + 1
+            WHERE sort_order >= $1
+              AND sort_order < $2
+              AND job_invoice_stage_payment_id != $3
+              AND job_invoice_settings_id = $4
+            `,
+            [
+              sort_order,
+              existingSortOrder,
+              job_invoice_stage_payment_id,
+              jobInvoiceSettingsId,
+            ],
+          );
+        }
       }
     }
 
@@ -310,7 +376,7 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Job invoice stage payment updated successfully."
+      "Job invoice stage payment updated successfully.",
     );
   } catch (err) {
     console.error("Error updating job invoice stage payment:", err);

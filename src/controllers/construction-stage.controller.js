@@ -52,14 +52,14 @@ exports.createConstructionStage = async (req, res) => {
     `;
     const constructionTypeResult = await client.query(
       constructionTypeCheckQuery,
-      [construction_type_id, companyId, builderId]
+      [construction_type_id, companyId, builderId],
     );
 
     if (constructionTypeResult.rowCount === 0) {
       return errorResponse(
         res,
         400,
-        "Invalid or unauthorized construction_type_id."
+        "Invalid or unauthorized construction_type_id.",
       );
     }
 
@@ -83,12 +83,11 @@ exports.createConstructionStage = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Construction stage with this name already exists."
+        "Construction stage with this name already exists.",
       );
     }
 
     if (sort_order === undefined || sort_order === null) {
-      // Get the maximum sort order for this construction type and assign next
       const maxSortQuery = `
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort
         FROM construction_stage
@@ -106,7 +105,6 @@ exports.createConstructionStage = async (req, res) => {
       const maxSort = maxSortResult.rows[0].max_sort;
       sort_order = maxSort + 1;
     } else {
-      // Validate that the requested sort_order is within valid range
       const maxSortQuery = `
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort
         FROM construction_stage
@@ -127,11 +125,10 @@ exports.createConstructionStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`,
         );
       }
 
-      // Shift existing records down if inserting at a specific position
       if (sort_order <= maxSort) {
         const shiftQuery = `
           UPDATE construction_stage
@@ -232,12 +229,14 @@ exports.createConstructionStage = async (req, res) => {
       GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id;
     `;
 
-    const responseResult = await client.query(responseQuery, [constructionStageId]);
+    const responseResult = await client.query(responseQuery, [
+      constructionStageId,
+    ]);
 
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction stage created successfully."
+      "Construction stage created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -343,7 +342,7 @@ exports.getAllConstructionStages = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Construction stages fetched successfully."
+      "Construction stages fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching construction stages:", error);
@@ -372,7 +371,6 @@ exports.deleteConstructionStage = async (req, res) => {
       return errorResponse(res, 400, "Construction stage ID is required.");
     }
 
-    // Get the construction stage details including sort order and construction type
     const checkQuery = `
       SELECT construction_stage, sort_order, construction_type_id
       FROM construction_stage
@@ -390,14 +388,13 @@ exports.deleteConstructionStage = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Construction stage not found or access denied."
+        "Construction stage not found or access denied.",
       );
     }
 
     const deletedSortOrder = checkResult.rows[0].sort_order;
     const constructionTypeId = checkResult.rows[0].construction_type_id;
 
-    // Delete the construction stage
     const deleteQuery = `
       DELETE FROM construction_stage
       WHERE construction_stage = $1
@@ -407,7 +404,6 @@ exports.deleteConstructionStage = async (req, res) => {
 
     await client.query(deleteQuery, [construction_stage, builderId]);
 
-    // Shift up sort orders of records that come after the deleted one
     const shiftQuery = `
       UPDATE construction_stage
       SET sort_order = sort_order - 1
@@ -431,7 +427,7 @@ exports.deleteConstructionStage = async (req, res) => {
     return errorResponse(
       res,
       500,
-      error.message || "Failed to delete construction stage."
+      error.message || "Failed to delete construction stage.",
     );
   } finally {
     client.release();
@@ -486,7 +482,7 @@ exports.updateConstructionStage = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Construction stage not found or access denied."
+        "Construction stage not found or access denied.",
       );
     }
 
@@ -518,7 +514,7 @@ exports.updateConstructionStage = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "Construction stage with this name already exists."
+          "Construction stage with this name already exists.",
         );
       }
     }
@@ -561,13 +557,12 @@ exports.updateConstructionStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort + 1}.`,
         );
       }
 
       if (sort_order !== oldSortOrder) {
         if (sort_order > oldSortOrder) {
-          // Moving down: shift records between old+1 and new position down
           const shiftDownQuery = `
             UPDATE construction_stage
             SET sort_order = sort_order + 1
@@ -589,7 +584,6 @@ exports.updateConstructionStage = async (req, res) => {
             construction_stage,
           ]);
         } else {
-          // Moving up: shift records between new and old-1 position up
           const shiftUpQuery = `
             UPDATE construction_stage
             SET sort_order = sort_order - 1
@@ -700,12 +694,14 @@ exports.updateConstructionStage = async (req, res) => {
       GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id;
     `;
 
-    const responseResult = await client.query(responseQuery, [construction_stage]);
+    const responseResult = await client.query(responseQuery, [
+      construction_stage,
+    ]);
 
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction stage updated successfully."
+      "Construction stage updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

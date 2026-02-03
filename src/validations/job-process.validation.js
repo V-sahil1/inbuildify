@@ -32,6 +32,10 @@ exports.updateStageSchema = Joi.object({
   dependent_stage_id: uuid.allow(null),
 });
 
+exports.deleteSubStageSchema = Joi.object({
+  task_id: uuid.optional(),
+});
+
 /* =========================================================
    SUB-STAGE
 ========================================================= */

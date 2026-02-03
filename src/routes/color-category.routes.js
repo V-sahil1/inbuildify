@@ -5,6 +5,7 @@ const {
   createColorCategory,
   getColorCategories,
   getColorCategoryById,
+  getColorCategoriesByColorId,
   updateColorCategory,
   deleteColorCategory,
 } = require("../controllers/color-category.controller");
@@ -32,7 +33,7 @@ router.post(
 
 router.get("/", getColorCategories);
 
-router.get("/:id", getColorCategoryById);
+router.get("/:id", getColorCategoriesByColorId);
 
 router.put(
   "/:id",

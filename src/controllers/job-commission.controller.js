@@ -40,7 +40,7 @@ exports.createJobCommission = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "No job commission settings found for this builder."
+        "No job commission settings found for this builder.",
       );
     }
 
@@ -55,7 +55,7 @@ exports.createJobCommission = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Cannot create ${commission_type} commission. Corresponding setting is not enabled.`
+        `Cannot create ${commission_type} commission. Corresponding setting is not enabled.`,
       );
     }
 
@@ -64,7 +64,7 @@ exports.createJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Recipient and recipient user cannot be defined for incoming commission."
+          "Recipient and recipient user cannot be defined for incoming commission.",
         );
       }
     }
@@ -76,7 +76,7 @@ exports.createJobCommission = async (req, res) => {
         FROM users
         WHERE users_id = $1 AND is_deleted = false
         `,
-        [recipient_user_id]
+        [recipient_user_id],
       );
 
       if (userCheck.rowCount === 0) {
@@ -87,42 +87,44 @@ exports.createJobCommission = async (req, res) => {
     const jobCommissionSettingsId =
       settingsResult.rows[0].job_commission_settings_id;
 
-    if (sort_order === undefined || sort_order === null) {
-      const maxSortQuery = `
-    SELECT COALESCE(MAX(sort_order), 0) AS max_sort
-    FROM job_commission
-    WHERE job_commission_settings_id = $1
-      AND commission_type = $2
-  `;
-      const maxSortResult = await client.query(maxSortQuery, [
-        jobCommissionSettingsId,
-        commission_type,
-      ]);
-      sort_order = maxSortResult.rows[0].max_sort + 1;
+    let finalSortOrder = sort_order;
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
     }
 
-    // Duplicate sort check per commission_type
-    const duplicateQuery = `
-  SELECT job_commission_id 
-  FROM job_commission 
-  WHERE job_commission_settings_id = $1 
-    AND sort_order = $2
-    AND commission_type = $3
-`;
-    const duplicateResult = await client.query(duplicateQuery, [
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM job_commission
+      WHERE job_commission_settings_id = $1
+        AND commission_type = $2
+    `;
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
       jobCommissionSettingsId,
-      sort_order,
       commission_type,
     ]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-    if (duplicateResult.rowCount > 0) {
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Sort order ${sort_order} already exists for ${commission_type} commission.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
+
+    const shiftSortOrderQuery = `
+      UPDATE job_commission
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND job_commission_settings_id = $2
+        AND commission_type = $3
+    `;
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      jobCommissionSettingsId,
+      commission_type,
+    ]);
 
     const insertQuery = `
       INSERT INTO job_commission (
@@ -153,7 +155,7 @@ exports.createJobCommission = async (req, res) => {
       recipient_user_id || null,
       commission_unit,
       commission_value,
-      sort_order ?? 1,
+      finalSortOrder,
       createdBy,
     ];
 
@@ -163,7 +165,7 @@ exports.createJobCommission = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job commission created successfully."
+      "Job commission created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -233,7 +235,7 @@ exports.getAllJobCommissions = async (req, res) => {
           pageSize: limit,
         },
       },
-      "Job commissions fetched successfully."
+      "Job commissions fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching job commissions:", err);
@@ -258,7 +260,7 @@ exports.deleteJobCommission = async (req, res) => {
     await client.query("BEGIN");
 
     const checkQuery = `
-      SELECT job_commission_id 
+      SELECT job_commission_id, sort_order, commission_type, job_commission_settings_id
       FROM job_commission 
       WHERE job_commission_id = $1 AND builder_id = $2;
     `;
@@ -272,15 +274,25 @@ exports.deleteJobCommission = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job commission not found or unauthorized to delete."
+        "Job commission not found or unauthorized to delete.",
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const deletedCommissionType = checkResult.rows[0].commission_type;
+    const jobCommissionSettingsId =
+      checkResult.rows[0].job_commission_settings_id;
 
     const deleteQuery = `
       DELETE FROM job_commission
       WHERE job_commission_id = $1 AND builder_id = $2;
     `;
     await client.query(deleteQuery, [job_commission_id, builderId]);
+
+    await client.query(
+      `UPDATE job_commission SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_settings_id = $2 AND commission_type = $3`,
+      [deletedSortOrder, jobCommissionSettingsId, deletedCommissionType],
+    );
 
     await client.query("COMMIT");
 
@@ -299,7 +311,6 @@ exports.updateJobCommission = async (req, res) => {
   const builderId = req.user?.builder_id;
   const userId = req.user?.users_id;
 
-  // Remove commission_type from request body
   const {
     name,
     recipient,
@@ -342,9 +353,9 @@ exports.updateJobCommission = async (req, res) => {
     const settings = settingsResult.rows[0];
 
     const existingQ = await client.query(
-      `SELECT commission_type, commission_unit, commission_value, recipient, recipient_user_id 
+      `SELECT commission_type, commission_unit, commission_value, recipient, recipient_user_id, sort_order 
        FROM job_commission WHERE job_commission_id = $1`,
-      [job_commission_id]
+      [job_commission_id],
     );
 
     if (existingQ.rowCount === 0) {
@@ -353,15 +364,15 @@ exports.updateJobCommission = async (req, res) => {
     }
 
     const old = existingQ.rows[0];
-    const commission_type = old.commission_type; // keep existing type
+    const commission_type = old.commission_type;
+    const existingSortOrder = old.sort_order;
 
-    // --- START: Incoming/outgoing validation (same as create API) ---
     if (commission_type === "incoming") {
       if (recipient || recipient_user_id) {
         return errorResponse(
           res,
           400,
-          "Recipient and recipient user cannot be defined for incoming commission."
+          "Recipient and recipient user cannot be defined for incoming commission.",
         );
       }
     }
@@ -371,7 +382,7 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Recipient is required for outgoing commission."
+          "Recipient is required for outgoing commission.",
         );
       }
 
@@ -379,7 +390,7 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "recipient_user_id is required when recipient is 'other_user'."
+          "recipient_user_id is required when recipient is 'other_user'.",
         );
       }
 
@@ -387,22 +398,21 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "recipient_user_id is allowed only when recipient is 'other_user'."
+          "recipient_user_id is allowed only when recipient is 'other_user'.",
         );
       }
     }
-    // --- END: Incoming/outgoing validation ---
 
     const finalRecipient = recipient ?? old.recipient;
     const finalRecipientUser =
       finalRecipient === "other_user"
-        ? recipient_user_id ?? old.recipient_user_id
+        ? (recipient_user_id ?? old.recipient_user_id)
         : null;
 
     if (finalRecipient === "other_user" && finalRecipientUser) {
       const userCheck = await client.query(
         `SELECT users_id FROM users WHERE users_id = $1`,
-        [finalRecipientUser]
+        [finalRecipientUser],
       );
 
       if (userCheck.rowCount === 0) {
@@ -426,7 +436,7 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Percentage cannot have more than 2 decimals."
+          "Percentage cannot have more than 2 decimals.",
         );
       }
     }
@@ -438,7 +448,7 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Amount cannot have more than 2 decimals."
+          "Amount cannot have more than 2 decimals.",
         );
       }
 
@@ -448,18 +458,17 @@ exports.updateJobCommission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Amount exceeds precision limit (10,2)."
+          "Amount exceeds precision limit (10,2).",
         );
       }
     }
 
     const jobCommissionSettingsId = settings.job_commission_settings_id;
 
-    // --- START: Sort order assignment (like create API) ---
     let finalSortOrder = sort_order;
-    if (finalSortOrder === undefined || finalSortOrder === null) {
+    if (finalSortOrder !== undefined && finalSortOrder !== null) {
       const maxSortQuery = `
-        SELECT COALESCE(MAX(sort_order), 0) AS max_sort
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM job_commission
         WHERE job_commission_settings_id = $1
           AND commission_type = $2
@@ -468,33 +477,61 @@ exports.updateJobCommission = async (req, res) => {
         jobCommissionSettingsId,
         commission_type,
       ]);
-      finalSortOrder = maxSortResult.rows[0].max_sort + 1;
-    }
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-    // Duplicate check per type
-    const duplicateSort = await client.query(
-      `SELECT job_commission_id FROM job_commission
-       WHERE job_commission_settings_id = $1 
-         AND sort_order = $2 
-         AND commission_type = $3
-         AND job_commission_id <> $4`,
-      [
-        jobCommissionSettingsId,
-        finalSortOrder,
-        commission_type,
-        job_commission_id,
-      ]
-    );
+      if (finalSortOrder < 1 || finalSortOrder > maxSortOrder) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
+        );
+      }
 
-    if (duplicateSort.rowCount > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        `Sort order ${finalSortOrder} already exists for ${commission_type} commission.`
-      );
+      if (finalSortOrder !== existingSortOrder) {
+        if (finalSortOrder > existingSortOrder) {
+          await client.query(
+            `
+            UPDATE job_commission
+            SET sort_order = sort_order - 1
+            WHERE sort_order > $1
+              AND sort_order <= $2
+              AND job_commission_id != $3
+              AND job_commission_settings_id = $4
+              AND commission_type = $5
+            `,
+            [
+              existingSortOrder,
+              finalSortOrder,
+              job_commission_id,
+              jobCommissionSettingsId,
+              commission_type,
+            ],
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE job_commission
+            SET sort_order = sort_order + 1
+            WHERE sort_order >= $1
+              AND sort_order < $2
+              AND job_commission_id != $3
+              AND job_commission_settings_id = $4
+              AND commission_type = $5
+            `,
+            [
+              finalSortOrder,
+              existingSortOrder,
+              job_commission_id,
+              jobCommissionSettingsId,
+              commission_type,
+            ],
+          );
+        }
+      }
+    } else {
+      finalSortOrder = existingSortOrder;
     }
-    // --- END: Sort order assignment ---
 
     let i = 1;
     const fields = [];
@@ -507,7 +544,6 @@ exports.updateJobCommission = async (req, res) => {
       }
     };
 
-    // commission_type removed: cannot be updated
     assign("name", name);
     assign("recipient", recipient);
     assign("commission_unit", commission_unit);
@@ -542,7 +578,7 @@ exports.updateJobCommission = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job commission updated successfully."
+      "Job commission updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");

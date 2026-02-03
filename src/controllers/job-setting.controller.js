@@ -15,7 +15,7 @@ exports.createJobSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -23,7 +23,7 @@ exports.createJobSettings = async (req, res) => {
 
     const duplicateCheck = await client.query(
       `SELECT 1 FROM job_settings WHERE builder_id = $1 OR company_id = $2`,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -31,7 +31,7 @@ exports.createJobSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Job settings already exist for this builder/company."
+        "Job settings already exist for this builder/company.",
       );
     }
 
@@ -53,7 +53,7 @@ exports.createJobSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "You cannot set auto_archive_after_days when auto_archive_after_completion is FALSE."
+        "You cannot set auto_archive_after_days when auto_archive_after_completion is FALSE.",
       );
     }
 
@@ -102,7 +102,7 @@ exports.createJobSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job settings created successfully."
+      "Job settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -126,7 +126,7 @@ exports.updateJobSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -149,7 +149,7 @@ exports.updateJobSettings = async (req, res) => {
       FROM job_settings
       WHERE builder_id = $1 OR company_id = $2
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (checkRecord.rowCount === 0) {
@@ -162,7 +162,7 @@ exports.updateJobSettings = async (req, res) => {
     if (auto_archive_after_completion === true) {
       const otherFields = ["auto_archive_after_days"];
       const isOtherFieldProvided = otherFields.some(
-        (field) => req.body[field] !== undefined
+        (field) => req.body[field] !== undefined,
       );
     }
 
@@ -174,7 +174,7 @@ exports.updateJobSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "auto_archive_after_days cannot be updated when auto_archive_after_completion is false."
+        "auto_archive_after_days cannot be updated when auto_archive_after_completion is false.",
       );
     }
 
@@ -195,7 +195,7 @@ exports.updateJobSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "auto_archive_after_days cannot be updated when auto_archive_after_completion is false."
+        "auto_archive_after_days cannot be updated when auto_archive_after_completion is false.",
       );
     }
 
@@ -272,7 +272,7 @@ exports.updateJobSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job settings updated successfully."
+      "Job settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -292,13 +292,15 @@ exports.getUserJobSettings = async (req, res) => {
 
     let result = await client.query(
       `
-      SELECT *
+      SELECT auto_move_to_maintenance, auto_mark_completed, auto_archive_after_completion,
+       auto_archive_after_days, milestone_status_check_days, report_custom_days, 
+       report_status_filter, report_include_date
       FROM job_settings
       WHERE company_id = $1
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -313,14 +315,14 @@ exports.getUserJobSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING auto_move_to_maintenance, auto_mark_completed, auto_archive_after_completion, auto_archive_after_days, milestone_status_check_days, report_custom_days, report_status_filter, report_include_date;;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job settings fetched successfully"
+      "Job settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching job settings:", error);

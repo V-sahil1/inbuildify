@@ -23,8 +23,9 @@ exports.createFloorPlan = async (req, res) => {
     status,
   } = req.body || {};
 
-  const detailed_image = req.body.detailed_image || null;
-  const simple_image = req.body.simple_image || null;
+  // Get uploaded file URLs from multer
+  const detailed_image = req.files?.detailedImage?.[0]?.location || null;
+  const simple_image = req.files?.simpleImage?.[0]?.location || null;
 
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
@@ -338,8 +339,10 @@ exports.updateFloorPlan = async (req, res) => {
     status,
   } = body;
 
-  const detailed_image = body.detailed_image || null;
-  const simple_image = body.simple_image || null;
+  const detailed_image =
+    req.files?.detailedImage?.[0]?.location || body.detailed_image;
+  const simple_image =
+    req.files?.simpleImage?.[0]?.location || body.simple_image;
 
   const builderId = req.user?.builder_id;
   const userId = req.user?.user_id;

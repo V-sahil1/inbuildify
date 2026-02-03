@@ -3,7 +3,6 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
 exports.createGeneralSetting = async (req, res) => {
-  console.log("🚀 ~ req:", req.body);
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -37,7 +36,7 @@ exports.createGeneralSetting = async (req, res) => {
       FROM general_settings 
       WHERE company_id = $1 AND builder_id = $2;
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     if (existingSettings.rowCount > 0) {
@@ -45,7 +44,7 @@ exports.createGeneralSetting = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "General settings already exist for this company and builder."
+        "General settings already exist for this company and builder.",
       );
     }
 
@@ -56,7 +55,7 @@ exports.createGeneralSetting = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "PDF password is required when password protection is enabled."
+          "PDF password is required when password protection is enabled.",
         );
       }
       finalPassword = pdf_password;
@@ -97,7 +96,7 @@ exports.createGeneralSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "General settings created successfully."
+      "General settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -144,7 +143,7 @@ exports.updateGeneralSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided for update."
+        "At least one field must be provided for update.",
       );
     }
 
@@ -157,7 +156,7 @@ exports.updateGeneralSettings = async (req, res) => {
       FROM general_settings
       WHERE builder_id = $1
       `,
-      [builderId]
+      [builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -177,7 +176,7 @@ exports.updateGeneralSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot update or define PDF password when password protection is disabled."
+        "Cannot update or define PDF password when password protection is disabled.",
       );
     }
 
@@ -248,7 +247,7 @@ exports.updateGeneralSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "General setting updated successfully."
+      "General setting updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -270,7 +269,7 @@ exports.getUserGeneralSettings = async (req, res) => {
       `SELECT * FROM general_settings
        WHERE company_id = $1 AND builder_id = $2
        LIMIT 1`,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -278,14 +277,14 @@ exports.getUserGeneralSettings = async (req, res) => {
         `INSERT INTO general_settings (company_id, builder_id)
          VALUES ($1, $2)
          RETURNING *`,
-        [company_id, builder_id]
+        [company_id, builder_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "General settings fetched"
+      "General settings fetched",
     );
   } catch (error) {
     return errorResponse(res, 500, error.message);

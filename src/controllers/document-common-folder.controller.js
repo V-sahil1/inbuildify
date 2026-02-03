@@ -131,7 +131,6 @@ exports.createDocumentCommonFolder = async (req, res) => {
 
     const folder = insertResult.rows[0];
 
-    /* 🔹 Fetch role details */
     let roles = [];
     if (folder.role_ids?.length) {
       const roleResult = await client.query(
@@ -148,7 +147,6 @@ exports.createDocumentCommonFolder = async (req, res) => {
       }));
     }
 
-    /* 🔹 Fetch user details */
     let users = [];
     if (folder.user_ids?.length) {
       const userResult = await client.query(

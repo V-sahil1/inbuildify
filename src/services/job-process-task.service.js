@@ -176,6 +176,19 @@ exports.createTaskService = async (
 
     const taskId = rows[0].job_process_task_id;
 
+    const taskWithAssignee = await client.query(
+      `
+      SELECT 
+        t.*,
+        u.users_id as assignee_id,
+        u.name as assignee_name
+      FROM job_process_task t
+      LEFT JOIN users u ON t.assignee_id = u.users_id
+      WHERE t.job_process_task_id = $1
+      `,
+      [taskId],
+    );
+
     for (const depId of payload.predecessor_task_ids || []) {
       if (depId === taskId) {
         throw new Error("Task cannot depend on itself");
@@ -191,7 +204,30 @@ exports.createTaskService = async (
     }
 
     await client.query("COMMIT");
-    return rows[0];
+
+    const task = taskWithAssignee.rows[0];
+    const formattedTask = {
+      job_process_task_id: task.job_process_task_id,
+      sub_stage_id: task.sub_stage_id,
+      name: task.name,
+      description: task.description,
+      sort_order: task.sort_order,
+      folder_id: task.folder_id,
+      no_of_days: task.no_of_days,
+      assignee: task.assignee_id
+        ? {
+            id: task.assignee_id,
+            name: task.assignee_name,
+          }
+        : null,
+      notify: task.notify,
+      milestone: task.milestone,
+      attachment_mandatory: task.attachment_mandatory,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+    };
+
+    return formattedTask;
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -399,11 +435,12 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       }
     }
 
-    // Fetch the updated task with dependencies
     const { rows: updatedRows } = await client.query(
       `
       SELECT 
         t.*,
+        u.users_id as assignee_id,
+        u.name as assignee_name,
         COALESCE(
           json_agg(
             json_build_object(
@@ -416,14 +453,39 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       FROM job_process_task t
       LEFT JOIN job_process_task_dependency td ON t.job_process_task_id = td.task_id
       LEFT JOIN job_process_task pt ON td.predecessor_task_id = pt.job_process_task_id
+      LEFT JOIN users u ON t.assignee_id = u.users_id
       WHERE t.job_process_task_id = $1
-      GROUP BY t.job_process_task_id
+      GROUP BY t.job_process_task_id, u.users_id, u.name
       `,
       [taskId],
     );
 
     await client.query("COMMIT");
-    return updatedRows[0];
+
+    const task = updatedRows[0];
+    const formattedTask = {
+      job_process_task_id: task.job_process_task_id,
+      sub_stage_id: task.sub_stage_id,
+      name: task.name,
+      description: task.description,
+      sort_order: task.sort_order,
+      folder_id: task.folder_id,
+      no_of_days: task.no_of_days,
+      assignee: task.assignee_id
+        ? {
+            id: task.assignee_id,
+            name: task.assignee_name,
+          }
+        : null,
+      notify: task.notify,
+      milestone: task.milestone,
+      attachment_mandatory: task.attachment_mandatory,
+      predecessor_task_ids: task.predecessor_task_ids,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+    };
+
+    return formattedTask;
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -439,7 +501,6 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
   try {
     await client.query("BEGIN");
 
-    // Authorization check - user can only delete tasks for their own sub-stages
     const ownerCheck = await client.query(
       `
       SELECT s.builder_id, s.company_id
@@ -460,7 +521,6 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       throw new Error("You can only delete tasks for your own sub-stages");
     }
 
-    // Get task info before deletion
     const checkQuery = await client.query(
       `
       SELECT job_process_task_id, sub_stage_id, sort_order
@@ -477,7 +537,6 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
     const existingSortOrder = checkQuery.rows[0].sort_order;
     const subStageId = checkQuery.rows[0].sub_stage_id;
 
-    // Shift sort order: decrement sort_order for all tasks > deleted task
     await client.query(
       `
       UPDATE job_process_task
@@ -488,7 +547,6 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       [subStageId, existingSortOrder],
     );
 
-    // Delete the task
     await client.query(
       `DELETE FROM job_process_task WHERE job_process_task_id = $1`,
       [taskId],
@@ -556,7 +614,7 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
   for (const r of rows) {
     if (!taskMap.has(r.job_process_task_id)) {
       taskMap.set(r.job_process_task_id, {
-        taskId: r.job_process_task_id,
+        jobProcessTaskId: r.job_process_task_id,
         name: r.name,
         description: r.description,
         sortOrder: r.sort_order,
@@ -581,7 +639,6 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
 
     const task = taskMap.get(r.job_process_task_id);
 
-    // Dependency with ID + name
     if (r.predecessor_task_id) {
       const exists = task.predecessorTask.find(
         (d) => d.taskId === r.predecessor_task_id,
@@ -595,7 +652,6 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
       }
     }
 
-    // Sub-tasks
     if (r.job_process_subtask_id) {
       const exists = task.subTasks.find(
         (st) => st.subTaskId === r.job_process_subtask_id,
@@ -645,7 +701,6 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       throw new Error("You can only create sub-tasks for your own tasks");
     }
 
-    // Check for duplicate sub-task name within the same task
     const duplicateCheck = await client.query(
       `
       SELECT job_process_subtask_id 
@@ -662,7 +717,6 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       );
     }
 
-    // Get max sort_order for existing sub-tasks to shift
     const maxSortOrderQuery = `
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
       FROM job_process_subtask
@@ -671,7 +725,6 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
     const maxSortOrderResult = await client.query(maxSortOrderQuery, [taskId]);
     const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-    // Determine final sort order
     let finalSortOrder;
     if (payload.sort_order !== undefined) {
       finalSortOrder = payload.sort_order;
@@ -679,14 +732,12 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       finalSortOrder = maxSortOrder + 1;
     }
 
-    // Validate sort order range
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       throw new Error(
         `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
-    // If sort_order is provided, shift all sub-tasks >= provided sort_order
     if (payload.sort_order !== undefined) {
       const shiftSortOrderQuery = `
         UPDATE job_process_subtask
@@ -707,7 +758,6 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
       [taskId, payload.name, finalSortOrder],
     );
 
-    // Fetch the created sub-task with task info
     const { rows: createdRows } = await client.query(
       `
       SELECT 
@@ -753,7 +803,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
   try {
     await client.query("BEGIN");
 
-    // Authorization check - user can only update sub-tasks for their own tasks
     const ownerCheck = await client.query(
       `
       SELECT s.builder_id, s.company_id
@@ -775,7 +824,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       throw new Error("You can only update sub-tasks for your own tasks");
     }
 
-    // Get current sub-task info
     const checkQuery = await client.query(
       `
       SELECT job_process_subtask_id, job_process_task_id, name, sort_order
@@ -791,7 +839,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
 
     const existingSubTask = checkQuery.rows[0];
 
-    // Check for duplicate name (excluding current sub-task)
     if (payload.name && payload.name !== existingSubTask.name) {
       const duplicateCheck = await client.query(
         `
@@ -811,7 +858,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       }
     }
 
-    // Handle sort order shifting if sort_order is being updated
     if (
       payload.sort_order !== undefined &&
       payload.sort_order !== existingSubTask.sort_order
@@ -826,16 +872,13 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       ]);
       const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-      // Validate sort order range
       if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
         throw new Error(
           `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
-      // Shift sort orders based on movement direction
       if (payload.sort_order > existingSubTask.sort_order) {
-        // Moving down: decrement sort_order for sub-tasks between old and new position
         await client.query(
           `
           UPDATE job_process_subtask
@@ -853,7 +896,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
           ],
         );
       } else {
-        // Moving up: increment sort_order for sub-tasks between new and old position
         await client.query(
           `
           UPDATE job_process_subtask
@@ -888,7 +930,6 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
 
     if (!rowCount) throw new Error("Sub-task not found");
 
-    // Fetch the updated sub-task with task info
     const { rows: updatedRows } = await client.query(
       `
       SELECT 
@@ -934,7 +975,6 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
   try {
     await client.query("BEGIN");
 
-    // Authorization check - user can only delete sub-tasks for their own tasks
     const ownerCheck = await client.query(
       `
       SELECT s.builder_id, s.company_id
@@ -956,7 +996,6 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
       throw new Error("You can only delete sub-tasks for your own tasks");
     }
 
-    // Get sub-task info before deletion
     const checkQuery = await client.query(
       `
       SELECT job_process_subtask_id, job_process_task_id, sort_order
@@ -973,7 +1012,6 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
     const existingSortOrder = checkQuery.rows[0].sort_order;
     const taskId = checkQuery.rows[0].job_process_task_id;
 
-    // Shift sort order: decrement sort_order for all sub-tasks > deleted sub-task
     await client.query(
       `
       UPDATE job_process_subtask
@@ -1124,7 +1162,6 @@ exports.getSubTasks = async (taskId, builderId, companyId) => {
     [taskId, builderId, companyId],
   );
 
-  // Format response to include jobProcessTask as object
   return rows.map((row) => ({
     jobProcessSubtaskId: row.job_process_subtask_id,
     name: row.name,

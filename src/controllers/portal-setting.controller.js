@@ -4,15 +4,15 @@ const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
 const filterPortalSettingsResponse = (data) => {
-  const { 
-    portal_settings_id, 
-    company_id, 
-    builder_id, 
-    created_by, 
-    updated_by, 
-    created_at, 
-    updated_at, 
-    ...filteredData 
+  const {
+    portal_settings_id,
+    company_id,
+    builder_id,
+    created_by,
+    updated_by,
+    created_at,
+    updated_at,
+    ...filteredData
   } = data;
   return filteredData;
 };
@@ -41,7 +41,7 @@ exports.createPortalSettings = async (req, res) => {
       publish_packages_to_agent_portal,
     } = req.body;
     const default_facade_image =
-      req.files?.location || req.body.default_facade_image || null;
+      req.file?.location || req.body.default_facade_image || null;
 
     const isFieldTrue = (fieldValue) => {
       if (typeof fieldValue === "string") {
@@ -51,7 +51,7 @@ exports.createPortalSettings = async (req, res) => {
     };
 
     const strictLoginCredsValue = isFieldTrue(
-      req.body.send_login_credentials_to_customer
+      req.body.send_login_credentials_to_customer,
     );
 
     const isAllowColorSelectionTrue = isFieldTrue(allow_color_selection);
@@ -72,7 +72,7 @@ exports.createPortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Portal settings already exist for this builder/company."
+        "Portal settings already exist for this builder/company.",
       );
     }
 
@@ -98,7 +98,7 @@ exports.createPortalSettings = async (req, res) => {
           return errorResponse(
             res,
             400,
-            `Field ${fieldName} cannot be defined when 'send_login_credentials_to_customer' is false. Only 'publish_packages_to_agent_portal' is allowed.`
+            `Field ${fieldName} cannot be defined when 'send_login_credentials_to_customer' is false. Only 'publish_packages_to_agent_portal' is allowed.`,
           );
         }
       }
@@ -108,7 +108,7 @@ exports.createPortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot define 'show_color_cost' unless 'allow_color_selection' is explicitly set to true."
+        "Cannot define 'show_color_cost' unless 'allow_color_selection' is explicitly set to true.",
       );
     }
 
@@ -116,7 +116,7 @@ exports.createPortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot define 'auto_share_site_images' unless 'show_construction_stages' is explicitly set to true."
+        "Cannot define 'auto_share_site_images' unless 'show_construction_stages' is explicitly set to true.",
       );
     }
 
@@ -127,7 +127,7 @@ exports.createPortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "'portal_active_days_after_handover' must be greater than or equal to 0."
+        "'portal_active_days_after_handover' must be greater than or equal to 0.",
       );
     }
 
@@ -170,7 +170,7 @@ exports.createPortalSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(filterPortalSettingsResponse(result.rows[0])),
-      "Portal settings created successfully."
+      "Portal settings created successfully.",
     );
   } catch (error) {
     console.error("Error creating portal settings:", error);
@@ -200,12 +200,21 @@ exports.updatePortalSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Builder or Company ID missing."
+        "Unauthorized: Builder or Company ID missing.",
       );
     }
 
     const requestBody =
       req.body && typeof req.body === "object" ? req.body : {};
+
+    // Get uploaded file URL from multer (if new file was uploaded)
+    const default_facade_image =
+      req.file?.location || requestBody.default_facade_image;
+
+    // Update the requestBody with the new image URL if a file was uploaded
+    if (req.file?.location) {
+      requestBody.default_facade_image = default_facade_image;
+    }
 
     await client.query("BEGIN");
 
@@ -221,7 +230,7 @@ exports.updatePortalSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Portal settings not found. Please create portal settings first."
+        "Portal settings not found. Please create portal settings first.",
       );
     }
 
@@ -269,7 +278,7 @@ exports.updatePortalSettings = async (req, res) => {
           return errorResponse(
             res,
             400,
-            `Field ${fieldName} cannot be defined when 'send_login_credentials_to_customer' is false. Only 'publish_packages_to_agent_portal' is allowed.`
+            `Field ${fieldName} cannot be defined when 'send_login_credentials_to_customer' is false. Only 'publish_packages_to_agent_portal' is allowed.`,
           );
         }
       }
@@ -283,7 +292,7 @@ exports.updatePortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot define 'show_color_cost' unless 'allow_color_selection' is explicitly set to true."
+        "Cannot define 'show_color_cost' unless 'allow_color_selection' is explicitly set to true.",
       );
     }
 
@@ -291,14 +300,14 @@ exports.updatePortalSettings = async (req, res) => {
       !isShowConstructionStagesTrue &&
       Object.prototype.hasOwnProperty.call(
         requestBody,
-        "auto_share_site_images"
+        "auto_share_site_images",
       )
     ) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "Cannot define 'auto_share_site_images' unless 'show_construction_stages' is explicitly set to true."
+        "Cannot define 'auto_share_site_images' unless 'show_construction_stages' is explicitly set to true.",
       );
     }
 
@@ -310,14 +319,14 @@ exports.updatePortalSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "'portal_active_days_after_handover' must be greater than or equal to 0."
+        "'portal_active_days_after_handover' must be greater than or equal to 0.",
       );
     }
 
     const shouldResetAll =
       Object.prototype.hasOwnProperty.call(
         requestBody,
-        "send_login_credentials_to_customer"
+        "send_login_credentials_to_customer",
       ) && !isLoginCredsTrue;
 
     let oldFacadeImageUrl = existingData.default_facade_image;
@@ -354,7 +363,7 @@ exports.updatePortalSettings = async (req, res) => {
       if (
         Object.prototype.hasOwnProperty.call(
           requestBody,
-          "publish_packages_to_agent_portal"
+          "publish_packages_to_agent_portal",
         )
       ) {
         const pubPackageQuery = `
@@ -377,7 +386,7 @@ exports.updatePortalSettings = async (req, res) => {
       return successResponse(
         res,
         keysToCamelCase(filterPortalSettingsResponse(finalResult.rows[0])),
-        "Portal settings reset and updated successfully due to login credentials being disabled."
+        "Portal settings reset and updated successfully due to login credentials being disabled.",
       );
     }
 
@@ -450,7 +459,7 @@ exports.updatePortalSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(filterPortalSettingsResponse(updateResult.rows[0])),
-      "Portal settings updated successfully."
+      "Portal settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -479,7 +488,7 @@ exports.getPortalSettings = async (req, res) => {
       WHERE company_id = $1 AND builder_id = $2
       LIMIT 1
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -489,14 +498,14 @@ exports.getPortalSettings = async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *
         `,
-        [company_id, builder_id, req.user.user_id, req.user.user_id]
+        [company_id, builder_id, req.user.user_id, req.user.user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(filterPortalSettingsResponse(result.rows[0])),
-      "Portal settings fetched successfully."
+      "Portal settings fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching portal settings:", error);

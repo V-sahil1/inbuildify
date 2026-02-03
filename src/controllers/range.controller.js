@@ -45,8 +45,9 @@ exports.createRange = async (req, res) => {
     let { name, user_id, sort_order, bg_color, font_color, is_active } =
       req.body;
 
-    const logo_image = req.body.logo_url || null;
-    const header_image = req.body.header_url || null;
+    // Get uploaded file URLs from multer
+    const logo_image = req.files?.logoUrl?.[0]?.location || null;
+    const header_image = req.files?.headerUrl?.[0]?.location || null;
 
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
@@ -203,8 +204,10 @@ exports.updateRange = async (req, res) => {
 
     let { name, user_id, sort_order, bg_color, font_color } = req.body;
 
-    const logo_image = req.body.logo_url || null;
-    const header_image = req.body.header_url || null;
+    // Get uploaded file URLs from multer (if new files were uploaded)
+    const logo_image = req.files?.logoUrl?.[0]?.location || req.body.logo_url;
+    const header_image =
+      req.files?.headerUrl?.[0]?.location || req.body.header_url;
 
     await client.query("BEGIN");
 
@@ -459,6 +462,8 @@ exports.deleteRange = async (req, res) => {
       return errorResponse(res, 404, "Range not found for this builder");
     }
 
+    const deletedSortOrder = checkRangeExists.rows[0].sort_order;
+
     await client.query("BEGIN");
 
     // Remove range_id from all price_list_item records that reference it
@@ -482,6 +487,11 @@ exports.deleteRange = async (req, res) => {
     // Delete the range
     const query = `DELETE FROM range WHERE range_id = $1 AND builder_id = $2`;
     const result = await client.query(query, [range_id, builderId]);
+
+    await client.query(
+      `UPDATE range SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      [deletedSortOrder, builderId],
+    );
 
     await client.query("COMMIT");
 

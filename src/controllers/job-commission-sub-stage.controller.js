@@ -37,13 +37,9 @@ exports.createJobCommissionSubStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid job_commission_id for this builder."
+        "Invalid job_commission_id for this builder.",
       );
     }
-
-    // ----------------------------
-    // COMMISSION UNIT VALIDATION
-    // ----------------------------
 
     if (!commission_unit) {
       await client.query("ROLLBACK");
@@ -55,7 +51,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "commission_unit must be 'percentage' or 'amount'."
+        "commission_unit must be 'percentage' or 'amount'.",
       );
     }
 
@@ -78,7 +74,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Percentage cannot have more than 2 decimals."
+          "Percentage cannot have more than 2 decimals.",
         );
       }
       if (digits > 5) {
@@ -86,7 +82,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Percentage exceeds precision limit (5,2)."
+          "Percentage exceeds precision limit (5,2).",
         );
       }
     }
@@ -97,7 +93,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Amount cannot exceed 99999999.99 (precision 10,2)."
+          "Amount cannot exceed 99999999.99 (precision 10,2).",
         );
       }
       if (decimals > 2) {
@@ -105,7 +101,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Amount cannot have more than 2 decimals."
+          "Amount cannot have more than 2 decimals.",
         );
       }
       if (digits > 10) {
@@ -113,43 +109,46 @@ exports.createJobCommissionSubStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Amount exceeds precision limit (10,2)."
+          "Amount exceeds precision limit (10,2).",
         );
       }
     }
 
-    // ----------------------------
-    // SORT ORDER VALIDATION
-    // ----------------------------
-
-    if (sort_order === undefined || sort_order === null) {
-      sort_order = 0;
+    let finalSortOrder = sort_order;
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
     }
 
-    const duplicateQuery = `
-      SELECT job_commission_sub_stage_id 
-      FROM job_commission_sub_stage 
-      WHERE job_commission_id = $1 
-        AND sort_order = $2;
+    const maxSortOrderQuery = `
+      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+      FROM job_commission_sub_stage
+      WHERE job_commission_id = $1
     `;
-
-    const duplicateResult = await client.query(duplicateQuery, [
+    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
       job_commission_id,
-      sort_order,
     ]);
+    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
-    if (duplicateResult.rowCount > 0) {
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        `Sort order ${sort_order} already exists for this job commission sub stage.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
-    // ----------------------------
-    // INSERT RECORD
-    // ----------------------------
+    const shiftSortOrderQuery = `
+      UPDATE job_commission_sub_stage
+      SET sort_order = sort_order + 1
+      WHERE sort_order >= $1
+        AND job_commission_id = $2
+    `;
+    await client.query(shiftSortOrderQuery, [
+      finalSortOrder,
+      job_commission_id,
+    ]);
+
     const insertQuery = `
       INSERT INTO job_commission_sub_stage (
         job_commission_id,
@@ -169,7 +168,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
       name,
       commission_unit,
       commission_value,
-      sort_order,
+      finalSortOrder,
       createdBy,
     ];
 
@@ -180,7 +179,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job commission sub stage created successfully."
+      "Job commission sub stage created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -245,7 +244,7 @@ exports.getAllJobCommissionSubStages = async (req, res) => {
         currentPage: Number(page),
         limit: Number(limit),
       },
-      "Job commission sub stages fetched successfully."
+      "Job commission sub stages fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching job commission sub stages:", error);
@@ -280,7 +279,7 @@ exports.getJobCommissionSubStagesByCommissionId = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid job_commission_id for this builder."
+        "Invalid job_commission_id for this builder.",
       );
     }
 
@@ -324,12 +323,12 @@ exports.getJobCommissionSubStagesByCommissionId = async (req, res) => {
         currentPage: Number(page),
         limit: Number(limit),
       },
-      "Job commission sub stages fetched successfully."
+      "Job commission sub stages fetched successfully.",
     );
   } catch (error) {
     console.error(
       "Error fetching job commission sub stages by job_commission_id:",
-      error
+      error,
     );
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {
@@ -346,7 +345,7 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
     const { id } = req.params;
 
     const checkQuery = `
-      SELECT jcss.job_commission_sub_stage_id
+      SELECT jcss.job_commission_sub_stage_id, jcss.sort_order, jcss.job_commission_id
       FROM job_commission_sub_stage jcss
       INNER JOIN job_commission jc
         ON jc.job_commission_id = jcss.job_commission_id
@@ -359,9 +358,12 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid job_commission_sub_stage_id for this builder."
+        "Invalid job_commission_sub_stage_id for this builder.",
       );
     }
+
+    const deletedSortOrder = checkResult.rows[0].sort_order;
+    const jobCommissionId = checkResult.rows[0].job_commission_id;
 
     const deleteQuery = `
       DELETE FROM job_commission_sub_stage
@@ -374,10 +376,15 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
       return errorResponse(res, 404, "Job commission sub stage not found.");
     }
 
+    await client.query(
+      `UPDATE job_commission_sub_stage SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_id = $2`,
+      [deletedSortOrder, jobCommissionId],
+    );
+
     return successResponse(
       res,
       null,
-      "Job commission sub stage deleted successfully."
+      "Job commission sub stage deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting job commission sub stage:", error);
@@ -416,7 +423,7 @@ exports.updateJobCommissionSubStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid job_commission_sub_stage_id for this builder."
+        "Invalid job_commission_sub_stage_id for this builder.",
       );
     }
 
@@ -424,50 +431,61 @@ exports.updateJobCommissionSubStage = async (req, res) => {
     const jobCommissionId = row.job_commission_id;
     const oldUnit = row.old_unit;
     const oldValue = Number(row.old_value);
+    const existingSortOrder = row.sort_order;
 
-    if (sort_order !== undefined && sort_order !== row.sort_order) {
-      const sortCheckQuery = `
-        SELECT 1 FROM job_commission_sub_stage
+    if (sort_order !== undefined && sort_order !== null) {
+      const maxSortQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+        FROM job_commission_sub_stage
         WHERE job_commission_id = $1
-          AND sort_order = $2
-          AND job_commission_sub_stage_id <> $3
       `;
-      const sortCheck = await client.query(sortCheckQuery, [
-        jobCommissionId,
-        sort_order,
-        job_commission_sub_stage_id,
-      ]);
+      const maxSortResult = await client.query(maxSortQuery, [jobCommissionId]);
+      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
-      if (sortCheck.rows.length > 0) {
+      if (sort_order < 1 || sort_order > maxSortOrder) {
         return errorResponse(
           res,
           400,
-          "This sort order is already in use for this job commission."
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
-    }
 
-    if (commission_unit === "percentage" && oldUnit === "amount") {
-      const val = commission_value ?? oldValue;
-      if (Number(val) > 100) {
-        return errorResponse(
-          res,
-          400,
-          "Cannot convert amount to percentage because commission_value is greater than 100."
-        );
-      }
-    }
-
-    if (commission_unit === "amount" && oldUnit === "percentage") {
-      const val = commission_value ?? oldValue;
-      const digits = val.toString().replace(".", "").length;
-      const decimals = val.toString().split(".")[1]?.length || 0;
-      if (decimals > 2 || digits > 10) {
-        return errorResponse(
-          res,
-          400,
-          "Cannot convert percentage to amount because commission_value exceeds (10,2) precision."
-        );
+      if (sort_order !== existingSortOrder) {
+        if (sort_order > existingSortOrder) {
+          await client.query(
+            `
+            UPDATE job_commission_sub_stage
+            SET sort_order = sort_order - 1
+            WHERE sort_order > $1
+              AND sort_order <= $2
+              AND job_commission_sub_stage_id != $3
+              AND job_commission_id = $4
+            `,
+            [
+              existingSortOrder,
+              sort_order,
+              job_commission_sub_stage_id,
+              jobCommissionId,
+            ],
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE job_commission_sub_stage
+            SET sort_order = sort_order + 1
+            WHERE sort_order >= $1
+              AND sort_order < $2
+              AND job_commission_sub_stage_id != $3
+              AND job_commission_id = $4
+            `,
+            [
+              sort_order,
+              existingSortOrder,
+              job_commission_sub_stage_id,
+              jobCommissionId,
+            ],
+          );
+        }
       }
     }
 
@@ -483,13 +501,13 @@ exports.updateJobCommissionSubStage = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Percentage cannot have more than 2 decimals."
+            "Percentage cannot have more than 2 decimals.",
           );
         if (digits > 5)
           return errorResponse(
             res,
             400,
-            "Percentage exceeds precision limit (5,2)."
+            "Percentage exceeds precision limit (5,2).",
           );
       }
 
@@ -498,13 +516,13 @@ exports.updateJobCommissionSubStage = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Amount cannot have more than 2 decimals."
+            "Amount cannot have more than 2 decimals.",
           );
         if (digits > 10)
           return errorResponse(
             res,
             400,
-            "Amount exceeds precision limit (10,2)."
+            "Amount exceeds precision limit (10,2).",
           );
       }
     }
@@ -521,13 +539,13 @@ exports.updateJobCommissionSubStage = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Percentage cannot have more than 2 decimals."
+            "Percentage cannot have more than 2 decimals.",
           );
         if (digits > 5)
           return errorResponse(
             res,
             400,
-            "Percentage exceeds precision limit (5,2)."
+            "Percentage exceeds precision limit (5,2).",
           );
       }
 
@@ -536,13 +554,13 @@ exports.updateJobCommissionSubStage = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Amount cannot have more than 2 decimals."
+            "Amount cannot have more than 2 decimals.",
           );
         if (digits > 10)
           return errorResponse(
             res,
             400,
-            "Amount exceeds precision limit (10,2)."
+            "Amount exceeds precision limit (10,2).",
           );
       }
     }
@@ -594,7 +612,7 @@ exports.updateJobCommissionSubStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Job commission sub stage updated successfully."
+      "Job commission sub stage updated successfully.",
     );
   } catch (error) {
     console.error("Error updating job commission sub stage:", error);

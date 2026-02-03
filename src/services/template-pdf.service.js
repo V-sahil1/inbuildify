@@ -1,7 +1,9 @@
 const getPool = require("../config/database");
 const { seedInitialPdfTemplates } = require("../seeder/template-pdf.seed");
 const { deleteFromS3 } = require("../utils/s3Upload");
-const { getFormatValidationSchema } = require("../validations/template-pdf.validation");
+const {
+  getFormatValidationSchema,
+} = require("../validations/template-pdf.validation");
 
 function resolveScope(user) {
   return {
@@ -34,7 +36,7 @@ async function createTemplatePdf(user, payload) {
       payload.name,
       templateJson,
       user.users_id,
-    ]
+    ],
   );
 
   return result.rows[0];
@@ -45,7 +47,7 @@ const formatTypeMap = {
   receipt_format: "Receipt Format",
   variation_format: "Variation Format",
   color_format: "Color Format",
-  maintenance_format: "Maintenance Format"
+  maintenance_format: "Maintenance Format",
 };
 
 function normalizeFormatType(type) {
@@ -60,7 +62,7 @@ function normalizeFormatType(type) {
 
   // Option 2: user sends "Invoice Format"
   const found = Object.entries(formatTypeMap).find(
-    ([key, value]) => value.toLowerCase() === cleaned.toLowerCase()
+    ([key, value]) => value.toLowerCase() === cleaned.toLowerCase(),
   );
 
   if (found) {
@@ -76,10 +78,8 @@ async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
   if (!existing) throw new Error("Template not found");
 
   const expectedName = formatTypeMap[formatType];
-  console.log("🚀 ~ updateTemplatePdf ~ expectedName:", existing.name, expectedName)
   if (!expectedName) throw new Error("Invalid format_type");
 
-  
   if (existing.name !== expectedName) {
     throw new Error(`Template is not of type ${formatType}`);
   }
@@ -106,7 +106,7 @@ async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
     WHERE template_pdf_id = $4
     RETURNING *
     `,
-    [payload.name ?? null, updatedJson, user.users_id, templatePdfId]
+    [payload.name ?? null, updatedJson, user.users_id, templatePdfId],
   );
 
   return result.rows[0];
@@ -126,7 +126,7 @@ async function getTemplatePdfById(user, templatePdfId) {
         OR (builder_id = $3 AND $3 IS NOT NULL)
       )
     `,
-    [templatePdfId, company_id, builder_id]
+    [templatePdfId, company_id, builder_id],
   );
 
   return result.rows[0] || null;
@@ -145,7 +145,7 @@ async function getTemplatePdfList(user) {
       OR (builder_id = $2 AND $2 IS NOT NULL)
     ORDER BY created_at DESC
     `,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
   if (result.rowCount === 0) {
@@ -164,7 +164,7 @@ async function getTemplatePdfList(user) {
         OR (builder_id = $2 AND $2 IS NOT NULL)
       ORDER BY created_at DESC
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
   }
 
@@ -184,7 +184,7 @@ async function deleteTemplatePdf(user, templatePdfId) {
         OR (builder_id = $3 AND $3 IS NOT NULL)
       )
     `,
-    [templatePdfId, company_id, builder_id]
+    [templatePdfId, company_id, builder_id],
   );
 
   if (result.rowCount === 0) {
@@ -205,14 +205,10 @@ function deepPatchMerge(target, source) {
 
   for (const [key, value] of Object.entries(source)) {
     // If source value is object → deep merge
-    if (
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value)
-    ) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
       output[key] = deepPatchMerge(
         output[key] || {}, // existing sub-object
-        value
+        value,
       );
     } else {
       // primitive or null → overwrite
@@ -232,11 +228,7 @@ function deepMergeFormatSection(existing, payload, formatType) {
   for (const [key, value] of Object.entries(payload)) {
     if (!allowedKeys.includes(key)) continue; // whitelist check
 
-    if (
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value)
-    ) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
       updated[key] = deepPatchMerge(updated[key] || {}, value);
     } else {
       updated[key] = value;
@@ -246,7 +238,8 @@ function deepMergeFormatSection(existing, payload, formatType) {
   updated.logo_settings = updated.logo_settings || {};
 
   if (payload.logo_image) updated.logo_settings.logo_image = payload.logo_image;
-  if (payload.watermark_image) updated.logo_settings.watermark_image = payload.watermark_image;
+  if (payload.watermark_image)
+    updated.logo_settings.watermark_image = payload.watermark_image;
 
   return updated;
 }
@@ -256,5 +249,5 @@ module.exports = {
   getTemplatePdfById,
   getTemplatePdfList,
   deleteTemplatePdf,
-  normalizeFormatType
+  normalizeFormatType,
 };

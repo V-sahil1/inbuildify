@@ -113,7 +113,6 @@ exports.createHoliday = async (req, res) => {
 
     const result = await client.query(insertQuery, values);
 
-    // Get state information for response
     const stateInfoQuery = `
       SELECT state_id, name
       FROM state
@@ -377,7 +376,7 @@ exports.toggleHolidayStatus = async (req, res) => {
     }
 
     const currentStatus = existingHoliday.rows[0].status;
-    const newStatus = !currentStatus; // Toggle the status
+    const newStatus = !currentStatus;
 
     const updateQuery = `
       UPDATE holiday
@@ -394,7 +393,6 @@ exports.toggleHolidayStatus = async (req, res) => {
       builderId,
     ]);
 
-    // Get state information for response
     const stateInfoQuery = `
   SELECT state_id, name
   FROM state

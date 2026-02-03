@@ -19,7 +19,7 @@ exports.createSalesProcess = async (req, res) => {
        FROM sales_process 
        WHERE builder_id = $1 AND name = $2 
        LIMIT 1;`,
-      [builderId, name]
+      [builderId, name],
     );
 
     if (existingProcess.rowCount > 0) {
@@ -27,7 +27,7 @@ exports.createSalesProcess = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Sales process with this name already exists for this builder."
+        "Sales process with this name already exists for this builder.",
       );
     }
 
@@ -41,7 +41,7 @@ exports.createSalesProcess = async (req, res) => {
     WHERE builder_id = $2
       AND company_id = $3;
     `,
-        [userId, builderId, companyId]
+        [userId, builderId, companyId],
       );
     }
 
@@ -73,7 +73,7 @@ exports.createSalesProcess = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Sales process created successfully."
+      "Sales process created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -119,9 +119,9 @@ exports.getAllSalesProcess = async (req, res) => {
     const responseData = {
       sales_process: keysToCamelCase(result.rows),
       pagination: {
-        total_records: total,
-        current_page: page,
-        total_pages: totalPages,
+        totalRecords: total,
+        currentPage: page,
+        totalPages: totalPages,
         limit,
       },
     };
@@ -129,7 +129,7 @@ exports.getAllSalesProcess = async (req, res) => {
     return successResponse(
       res,
       responseData,
-      "Sales process list fetched successfully."
+      "Sales process list fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching sales process list:", error);
@@ -152,20 +152,20 @@ exports.deleteSalesProcess = async (req, res) => {
     }
     const existingSales = await client.query(
       `SELECT sales_process_id FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existingSales.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Sales process not found for this builder."
+        "Sales process not found for this builder.",
       );
     }
 
     await client.query(
       `DELETE FROM sales_process WHERE sales_process_id = $1`,
-      [id]
+      [id],
     );
 
     return successResponse(res, null, "Sales process deleted successfully.");
@@ -191,13 +191,13 @@ exports.updateSalesProcess = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
     const existingSales = await client.query(
       `SELECT * FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existingSales.rowCount === 0) {
@@ -205,7 +205,7 @@ exports.updateSalesProcess = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Sales process not found for this builder."
+        "Sales process not found for this builder.",
       );
     }
 
@@ -215,7 +215,7 @@ exports.updateSalesProcess = async (req, res) => {
          WHERE LOWER(name) = LOWER($1) 
          AND builder_id = $2 
          AND sales_process_id != $3`,
-        [name, builderId, id]
+        [name, builderId, id],
       );
 
       if (duplicateName.rowCount > 0) {
@@ -223,7 +223,7 @@ exports.updateSalesProcess = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Name already exists for another sales process."
+          "Name already exists for another sales process.",
         );
       }
     }
@@ -239,7 +239,7 @@ exports.updateSalesProcess = async (req, res) => {
       AND company_id = $3
       AND sales_process_id != $4;
     `,
-        [req.user?.user_id, builderId, companyId, id]
+        [req.user?.user_id, builderId, companyId, id],
       );
     }
 
@@ -278,7 +278,7 @@ exports.updateSalesProcess = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Sales processr updated successfully."
+      "Sales processr updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
