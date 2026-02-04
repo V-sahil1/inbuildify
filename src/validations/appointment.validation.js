@@ -1,7 +1,11 @@
 const Joi = require("joi");
 
 const createAppointmentSchema = Joi.object({
-  title: Joi.string().max(255).required(),
+  title: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^[^<>]*$/)
+    .required(),
 
   date: Joi.date().required(),
 
@@ -31,7 +35,10 @@ const createAppointmentSchema = Joi.object({
     "string.guid": "users ID must be a valid UUID",
   }),
 
-  notes: Joi.string().max(255).allow(null, ""),
+  notes: Joi.string()
+    .max(255)
+    .pattern(/^[^<>]*$/)
+    .allow(null, ""),
 });
 
 const getAllAppointmentSchema = Joi.object({
@@ -74,7 +81,11 @@ const updateAppointmentParamsSchema = Joi.object({
 });
 
 const updateAppointmentSchema = Joi.object({
-  title: Joi.string().max(255).optional(),
+  title: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^[^<>]*$/)
+    .optional(),
 
   date: Joi.date().optional(),
 
@@ -104,7 +115,11 @@ const updateAppointmentSchema = Joi.object({
     "string.guid": "users ID must be a valid UUID",
   }),
 
-  notes: Joi.string().max(255).allow(null, "").optional(),
+  notes: Joi.string()
+    .max(255)
+    .allow(null, "")
+    .pattern(/^[^<>]*$/)
+    .optional(),
 });
 module.exports = {
   createAppointmentSchema,

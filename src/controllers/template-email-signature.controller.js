@@ -29,7 +29,7 @@ exports.createTemplateEmailSignature = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "An email signature record already exists for this builder/company."
+        "An email signature record already exists for this builder/company.",
       );
     }
 
@@ -70,7 +70,7 @@ exports.createTemplateEmailSignature = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Template email signature created successfully."
+      "Template email signature created successfully.",
     );
   } catch (error) {
     console.error("Error creating template email signature:", error);
@@ -94,7 +94,7 @@ exports.getTemplateEmailSignature = async (req, res) => {
        WHERE (builder_id IS NOT NULL AND builder_id = $1)
           OR (company_id IS NOT NULL AND company_id = $2)
        LIMIT 1`,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (result.rowCount === 0) {
@@ -103,16 +103,20 @@ exports.getTemplateEmailSignature = async (req, res) => {
            (builder_id, company_id, include_email_signature, signature_content, created_by, updated_by)
            VALUES ($1, $2, false, '', $3, $3)
            RETURNING *`,
-        [builderId, companyId, userId]
+        [builderId, companyId, userId],
       );
     }
 
-    const { includeEmailSignature, signatureContent } = keysToCamelCase(result.rows[0]);
+    const { includeEmailSignature, signatureContent } = keysToCamelCase(
+      result.rows[0],
+    );
 
     return successResponse(
       res,
       { includeEmailSignature, signatureContent },
-      result.rowCount === 0 ? "Default template email signature created." : "Template email signature retrieved successfully."
+      result.rowCount === 0
+        ? "Default template email signature created."
+        : "Template email signature retrieved successfully.",
     );
   } catch (error) {
     console.error("Error fetching template email signature:", error);
@@ -144,21 +148,20 @@ exports.updateTemplateEmailSignature = async (req, res) => {
       WHERE ((builder_id IS NOT NULL AND builder_id = $1)
           OR (company_id IS NOT NULL AND company_id = $2))
     `;
-    const checkResult = await client.query(checkQuery, [
-      builderId,
-      companyId,
-    ]);
+    const checkResult = await client.query(checkQuery, [builderId, companyId]);
 
     if (checkResult.rows.length === 0) {
       return errorResponse(
         res,
         404,
-        "No template email signatures found or you are not authorized to update them."
+        "No template email signatures found or you are not authorized to update them.",
       );
     }
 
     if (
-      checkResult.rows.some(record => record.include_email_signature === false) &&
+      checkResult.rows.some(
+        (record) => record.include_email_signature === false,
+      ) &&
       signature_content !== undefined &&
       (include_email_signature === undefined ||
         include_email_signature === false)
@@ -166,7 +169,7 @@ exports.updateTemplateEmailSignature = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "You cannot update signature content when include_email_signature is disabled."
+        "You cannot update signature content when include_email_signature is disabled.",
       );
     }
 
@@ -204,7 +207,7 @@ RETURNING include_email_signature, signature_content;
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Template email signature updated successfully."
+      "Template email signature updated successfully.",
     );
   } catch (error) {
     console.error("Error updating template email signature:", error);

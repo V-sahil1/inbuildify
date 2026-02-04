@@ -14,7 +14,7 @@ const getAllColorItemsSchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
 
-  status: Joi.string().valid("true", "false").optional().messages({
+  status: Joi.boolean().optional().messages({
     "any.only": "Status must be either 'true' or 'false'",
   }),
 
@@ -22,11 +22,16 @@ const getAllColorItemsSchema = Joi.object({
     "string.max": "Search term must not exceed 255 characters",
   }),
 
-  costType: Joi.string().valid("standard", "upgrade").optional().messages({
-    "any.only": "Cost type must be either 'standard' or 'upgrade'",
-  }),
+  costType: Joi.string()
+    .max(50)
+    .valid("standard", "upgrade")
+    .optional()
+    .messages({
+      "any.only": "Cost type must be either 'standard' or 'upgrade'",
+    }),
 
   upgradeOption: Joi.string()
+    .max(50)
     .valid("fixed", "start_from", "tba")
     .optional()
     .messages({
@@ -34,6 +39,7 @@ const getAllColorItemsSchema = Joi.object({
     }),
 
   units: Joi.string()
+    .max(50)
     .valid("mandatory", "non_mandatory", "not_required")
     .optional()
     .messages({
@@ -51,18 +57,24 @@ const getColorItemByIdSchema = Joi.object({
 });
 
 const createColorItemSchema = Joi.object({
-  item_name: Joi.string().trim().min(1).max(255).required().messages({
-    "any.required": "Item name is required",
-    "string.empty": "Item name cannot be empty",
-    "string.max": "Item name must not exceed 255 characters",
-  }),
+  item_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "any.required": "Item name is required",
+      "string.empty": "Item name cannot be empty",
+      "string.max": "Item name must not exceed 255 characters",
+    }),
 
   color_category_id: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "color category ID must be a valid UUID",
     "string.guid": "color category ID must be a valid UUID",
   }),
 
-  item_code: Joi.string().trim().min(1).max(100).required().messages({
+  item_code: Joi.string().trim().min(5).max(10).required().messages({
     "any.required": "Item code is required",
     "string.empty": "Item code cannot be empty",
     "string.max": "Item code must not exceed 100 characters",
@@ -74,6 +86,7 @@ const createColorItemSchema = Joi.object({
   }),
 
   upgrade_option: Joi.string()
+    .max(50)
     .valid("fixed", "start_from", "tba")
     .optional()
     .allow(null)
@@ -82,6 +95,7 @@ const createColorItemSchema = Joi.object({
     }),
 
   cost_type: Joi.string()
+    .max(50)
     .valid("standard", "upgrade")
     .default("standard")
     .messages({
@@ -94,15 +108,28 @@ const createColorItemSchema = Joi.object({
     "number.precision": "Cost can have maximum 2 decimal places",
   }),
 
-  features: Joi.string().trim().max(500).allow("").optional().messages({
-    "string.max": "Features must not exceed 500 characters",
-  }),
+  features: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "Features must not exceed 500 characters",
+    }),
 
-  description: Joi.string().trim().max(500).allow("").optional().messages({
-    "string.max": "Description must not exceed 500 characters",
-  }),
+  description: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "Description must not exceed 500 characters",
+    }),
 
   units: Joi.string()
+    .max(50)
     .valid("mandatory", "non_mandatory", "not_required")
     .default("non_mandatory")
     .messages({
@@ -124,12 +151,18 @@ const createColorItemSchema = Joi.object({
 });
 
 const updateColorItemSchema = Joi.object({
-  item_name: Joi.string().trim().min(1).max(255).optional().messages({
-    "string.empty": "Item name cannot be empty",
-    "string.max": "Item name must not exceed 255 characters",
-  }),
+  item_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.empty": "Item name cannot be empty",
+      "string.max": "Item name must not exceed 255 characters",
+    }),
 
-  item_code: Joi.string().trim().min(1).max(100).optional().messages({
+  item_code: Joi.string().trim().min(5).max(10).optional().messages({
     "string.empty": "Item code cannot be empty",
     "string.max": "Item code must not exceed 100 characters",
   }),
@@ -140,6 +173,7 @@ const updateColorItemSchema = Joi.object({
   }),
 
   upgrade_option: Joi.string()
+    .max(50)
     .valid("fixed", "start_from", "tba")
     .optional()
     .allow(null)
@@ -147,9 +181,13 @@ const updateColorItemSchema = Joi.object({
       "any.only": "Upgrade option must be one of: fixed, start_from, tba",
     }),
 
-  cost_type: Joi.string().valid("standard", "upgrade").optional().messages({
-    "any.only": "Cost type must be either 'standard' or 'upgrade'",
-  }),
+  cost_type: Joi.string()
+    .max(50)
+    .valid("standard", "upgrade")
+    .optional()
+    .messages({
+      "any.only": "Cost type must be either 'standard' or 'upgrade'",
+    }),
 
   cost: Joi.number().positive().precision(2).optional().allow(null).messages({
     "number.base": "Cost must be a number",
@@ -157,15 +195,28 @@ const updateColorItemSchema = Joi.object({
     "number.precision": "Cost can have maximum 2 decimal places",
   }),
 
-  features: Joi.string().trim().max(500).allow("").optional().messages({
-    "string.max": "Features must not exceed 500 characters",
-  }),
+  features: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "Features must not exceed 500 characters",
+    }),
 
-  description: Joi.string().trim().max(500).allow("").optional().messages({
-    "string.max": "Description must not exceed 500 characters",
-  }),
+  description: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "Description must not exceed 500 characters",
+    }),
 
   units: Joi.string()
+    .max(50)
     .valid("mandatory", "non_mandatory", "not_required")
     .optional()
     .messages({
@@ -198,6 +249,7 @@ const deleteColorItemSchema = Joi.object({
 
 const deleteImageFieldSchema = Joi.object({
   field_name: Joi.string()
+    .max(255)
     .valid("color_image", "specification")
     .required()
     .messages({

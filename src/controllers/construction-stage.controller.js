@@ -253,11 +253,7 @@ exports.getAllConstructionStages = async (req, res) => {
 
   try {
     const loggedInBuilderId = req.user.builder_id;
-    const { page = 1, limit = 25, builder, construction_type_id } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
+    const { builder, construction_type_id } = req.query;
 
     let whereClauses = [];
     let values = [];
@@ -277,9 +273,6 @@ exports.getAllConstructionStages = async (req, res) => {
 
     const whereClause =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
-
-    const limitPlaceholder = `$${values.length + 1}`;
-    const offsetPlaceholder = `$${values.length + 2}`;
 
     const dataQuery = `
       SELECT
@@ -311,37 +304,14 @@ exports.getAllConstructionStages = async (req, res) => {
         ON ct.construction_type_id = cs.construction_type_id
       ${whereClause}
       GROUP BY cs.construction_stage, b.builder_id, ct.construction_type_id
-      ORDER BY cs.sort_order ASC, cs.created_at DESC
-      LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};
+      ORDER BY cs.sort_order ASC, cs.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_stage cs
-      ${whereClause};
-    `;
-    const countResult = await client.query(countQuery, values);
-
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        constructionStages: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+      keysToCamelCase(dataResult.rows),
       "Construction stages fetched successfully.",
     );
   } catch (error) {

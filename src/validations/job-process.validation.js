@@ -129,3 +129,12 @@ exports.updateSubTaskSchema = Joi.object({
     .optional(),
   sort_order: Joi.number().integer().min(1).optional(),
 });
+
+/* =========================================================
+   TASK DEPENDENCY
+========================================================= */
+
+exports.deleteTaskDependencySchema = Joi.object({
+  task_id: uuid.required(),
+  predecessor_task_id: uuid.required(),
+});

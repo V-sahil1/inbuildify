@@ -1,13 +1,17 @@
 const Joi = require("joi");
 
-// Reusable rules
-const nameRule = Joi.string().min(2).max(100).trim().messages({
-  "string.base": "Name must be a string",
-  "string.empty": "Name is required",
-  "string.min": "Name must be at least 2 characters long",
-  "string.max": "Name must not exceed 100 characters",
-  "any.required": "Name is required",
-});
+const nameRule = Joi.string()
+  .min(2)
+  .max(150)
+  .trim()
+  .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+  .messages({
+    "string.base": "Name must be a string",
+    "string.empty": "Name is required",
+    "string.min": "Name must be at least 2 characters long",
+    "string.max": "Name must not exceed 100 characters",
+    "any.required": "Name is required",
+  });
 
 const imageRule = Joi.string().max(500).trim().allow("", null).messages({
   "string.base": "Image must be a string",
@@ -52,7 +56,6 @@ const booleanFilterRule = Joi.string().valid("true", "false").messages({
   "any.only": "Boolean filter must be one of: true, false",
 });
 
-// Create facade validation
 const createMasterFacadeSchema = Joi.object({
   location_id: Joi.string().uuid().optional().messages({
     "string.guid": "Invalid location_id.",
@@ -62,6 +65,7 @@ const createMasterFacadeSchema = Joi.object({
   range_id: rangeTypeRule.optional(),
   dwelling_type_id: dwellingTypeRule.optional(),
   cost_type: Joi.string()
+    .max(20)
     .valid("standard", "upgrade")
     .default("standard")
     .messages({
@@ -102,26 +106,27 @@ const createMasterFacadeSchema = Joi.object({
   }),
 });
 
-// Get facade by ID validation (params)
 const getMasterFacadeByIdSchema = Joi.object({
   id: facadeIdRule.required(),
 });
 
-// Get facades with filters validation (query)
 const getMasterFacadesSchema = Joi.object({
   name: Joi.string().max(150).optional(),
   range_id: Joi.string().optional(),
   dwelling_type_id: Joi.string().optional(),
   location_id: Joi.string().uuid().optional(),
-  cost_type: Joi.string().valid("standard", "upgrade").optional().messages({
-    "any.only": "cost_type must be either 'standard' or 'upgrade'.",
-  }),
+  cost_type: Joi.string()
+    .max(20)
+    .valid("standard", "upgrade")
+    .optional()
+    .messages({
+      "any.only": "cost_type must be either 'standard' or 'upgrade'.",
+    }),
   status: Joi.boolean().optional(),
   page: pageRule,
   limit: limitRule,
 });
 
-// Update facade validation
 const updateMasterFacadeSchema = Joi.object({
   location_id: Joi.string().uuid().optional().messages({
     "string.guid": "Invalid location_id.",
@@ -130,9 +135,13 @@ const updateMasterFacadeSchema = Joi.object({
   image: imageRule.optional(),
   range_id: rangeTypeRule.optional(),
   dwelling_type_id: dwellingTypeRule.optional(),
-  cost_type: Joi.string().valid("standard", "upgrade").optional().messages({
-    "any.only": "cost_type must be either 'standard' or 'upgrade'.",
-  }),
+  cost_type: Joi.string()
+    .max(20)
+    .valid("standard", "upgrade")
+    .optional()
+    .messages({
+      "any.only": "cost_type must be either 'standard' or 'upgrade'.",
+    }),
   cost: Joi.string()
     .optional()
     .pattern(/^\d+$/)
@@ -171,12 +180,10 @@ const updateMasterFacadeSchema = Joi.object({
     "object.min": "At least one field is required to update",
   });
 
-// Update facade params validation
 const updateMasterFacadeParamsSchema = Joi.object({
   facade_id: facadeIdRule.required(),
 });
 
-// Delete facade validation (params)
 const deleteMasterFacadeSchema = Joi.object({
   facade_id: facadeIdRule.required(),
 });

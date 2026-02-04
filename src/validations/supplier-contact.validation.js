@@ -5,19 +5,30 @@ const createSupplierContactSchema = Joi.object({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
   }),
-  contact_name: Joi.string().trim().max(150).required(),
-  email: Joi.string().trim().max(150).email(),
+  contact_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
+  email: Joi.string().trim().lowercase().max(150).email(),
 
   phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
     .messages({
       "string.pattern.base":
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
-  contact_type: Joi.string().trim().max(100),
+  contact_type: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .pattern(/^[^<>]*$/)
+    .optional(),
 });
 
 const getAllSupplierContactsSchema = Joi.object({
@@ -50,20 +61,31 @@ const updateSupplierContactParamsSchema = Joi.object({
 });
 
 const updateSupplierContactSchema = Joi.object({
-  contact_name: Joi.string().trim().max(150).optional(),
-  email: Joi.string().trim().max(150).email().optional(),
+  contact_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
+  email: Joi.string().trim().lowercase().max(150).email().optional(),
 
   phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
+    .optional()
     .optional()
     .messages({
       "string.pattern.base":
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
-  contact_type: Joi.string().trim().max(100).optional(),
+  contact_type: Joi.string()
+    .trim()
+    .pattern(/^[^<>]*$/)
+    .max(100)
+    .optional(),
 });
 module.exports = {
   createSupplierContactSchema,

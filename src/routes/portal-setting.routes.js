@@ -31,7 +31,7 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createPortalSettingsSchema, REQUEST_SOURCE.FORM_DATA),
-  createPortalSettings
+  createPortalSettings,
 );
 
 router.get("/", getPortalSettings);
@@ -42,6 +42,6 @@ router.put(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.BODY),
-  updatePortalSettings
+  updatePortalSettings,
 );
 module.exports = router;

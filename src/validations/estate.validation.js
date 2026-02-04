@@ -1,11 +1,24 @@
 const Joi = require("joi");
 
 const createEstateSchema = Joi.object({
-  name: Joi.string().max(150).required(),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 
-  street_name: Joi.string().max(150).allow(null, "").optional(),
+  street_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
-  city: Joi.string().max(100).allow(null, "").optional(),
+  city: Joi.string()
+    .min(2)
+    .max(100)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, "")
+    .optional(),
 
   state_id: Joi.string().uuid().allow(null, "").optional().messages({
     "string.guid": "state ID must be a valid UUID.",
@@ -15,13 +28,17 @@ const createEstateSchema = Joi.object({
     "string.guid": "country ID must be a valid UUID.",
   }),
 
-  zip: Joi.string().max(20).allow(null, "").optional(),
+  zip: Joi.string().min(4).max(4).allow(null, "").optional(),
 
   estate_logo: Joi.string().max(500).allow(null, "").optional(),
 
   website: Joi.string().uri().max(255).allow(null, "").optional(),
 
-  description: Joi.string().max(4000).allow(null, "").optional(),
+  description: Joi.string()
+    .max(4000)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, "")
+    .optional(),
 
   status: Joi.boolean().default(true),
 
@@ -61,11 +78,23 @@ const updateEstateParamsSchema = Joi.object({
 });
 
 const updateEstateSchema = Joi.object({
-  name: Joi.string().max(150).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
-  street_name: Joi.string().max(150).allow(null, "").optional(),
+  street_name: Joi.string()
+    .max(150)
+    .allow(null, "")
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
-  city: Joi.string().max(100).allow(null, "").optional(),
+  city: Joi.string()
+    .max(100)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, "")
+    .optional(),
 
   state_id: Joi.string().uuid().allow(null, "").optional().messages({
     "string.guid": "state ID must be a valid UUID.",
@@ -75,13 +104,17 @@ const updateEstateSchema = Joi.object({
     "string.guid": "country ID must be a valid UUID.",
   }),
 
-  zip: Joi.string().max(20).allow(null, "").optional(),
+  zip: Joi.string().min(4).max(4).allow(null, "").optional(),
 
   estate_logo: Joi.string().max(500).allow(null, "").optional(),
 
   website: Joi.string().uri().max(255).allow(null, "").optional(),
 
-  description: Joi.string().max(4000).allow(null, "").optional(),
+  description: Joi.string()
+    .max(4000)
+    .pattern(/^[^<>]*$/)
+    .allow(null, "")
+    .optional(),
 
   status: Joi.boolean().optional(),
 

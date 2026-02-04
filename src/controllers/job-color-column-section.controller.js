@@ -13,7 +13,7 @@ exports.createJobColorColumnSection = async (req, res) => {
 
     const { section_name, sort_order } = req.body;
 
-    const attachments = (req.body.image ?? req.body.attachments_pdf) || null;
+    const attachments = (req.body.image ?? req.body.attachments) || null;
 
     if (!section_name) {
       return errorResponse(res, 400, "Section name is required.");
@@ -62,7 +62,7 @@ exports.createJobColorColumnSection = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -101,7 +101,7 @@ exports.createJobColorColumnSection = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color column section created successfully."
+      "Job color column section created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -269,7 +269,7 @@ exports.deleteJobColorColumnSection = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Job color column section deleted successfully."
+      "Job color column section deleted successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -290,7 +290,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
     const { job_color_column_section_id } = req.params;
 
     let { section_name, sort_order } = req.body;
-    const attachments = (req.body.image ?? req.body.attachments_pdf) || null;
+    const attachments = req.body.image ?? req.body.attachments;
 
     if (!job_color_column_section_id) {
       return errorResponse(res, 400, "Section ID is required.");
@@ -353,7 +353,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`,
         );
       }
 
@@ -373,7 +373,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
               oldSortOrder,
               newSortOrder,
               job_color_column_section_id,
-            ]
+            ],
           );
         } else {
           await client.query(
@@ -390,7 +390,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
               newSortOrder,
               oldSortOrder,
               job_color_column_section_id,
-            ]
+            ],
           );
         }
       }
@@ -405,7 +405,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field (section_name, attachments, or sort_order) is required to update."
+        "At least one field (section_name, attachments, or sort_order) is required to update.",
       );
     }
 
@@ -459,7 +459,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Job color column section updated successfully."
+      "Job color column section updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");

@@ -6,6 +6,7 @@ const createColorItemCustomFieldSchema = Joi.object({
     "any.required": "Color Item ID is required",
   }),
   field_type: Joi.string()
+    .max(255)
     .valid("text", "checkbox", "dropdown_list", "radio_button")
     .required()
     .messages({
@@ -13,10 +14,16 @@ const createColorItemCustomFieldSchema = Joi.object({
       "any.only":
         "Field type must be one of: text, checkbox, dropdown_list, radio_button",
     }),
-  field_name: Joi.string().trim().max(255).required().messages({
-    "any.required": "Field name is required",
-    "string.max": "Field name must not exceed 255 characters",
-  }),
+  field_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "any.required": "Field name is required",
+      "string.max": "Field name must not exceed 255 characters",
+    }),
   required_field: Joi.boolean().default(false).messages({
     "boolean.base": "Required field must be a boolean",
   }),
@@ -31,15 +38,22 @@ const updateColorItemCustomFieldSchema = Joi.object({
     "string.guid": "Color Item ID must be a valid UUID",
   }),
   field_type: Joi.string()
+    .max(255)
     .valid("text", "checkbox", "dropdown_list", "radio_button")
     .optional()
     .messages({
       "any.only":
         "Field type must be one of: text, checkbox, dropdown_list, radio_button",
     }),
-  field_name: Joi.string().trim().max(255).optional().messages({
-    "string.max": "Field name must not exceed 255 characters",
-  }),
+  field_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.max": "Field name must not exceed 255 characters",
+    }),
   required_field: Joi.boolean().optional().messages({
     "boolean.base": "Required field must be a boolean",
   }),

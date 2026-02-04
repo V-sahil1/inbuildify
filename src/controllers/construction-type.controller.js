@@ -19,11 +19,10 @@ exports.createConstructionType = async (req, res) => {
       dwelling_type = [],
     } = req.body;
 
-
     if (builder) {
       const builderCheck = await client.query(
         `SELECT builder_id FROM builder WHERE builder_id = $1`,
-        [builder]
+        [builder],
       );
       if (builderCheck.rowCount === 0) {
         return errorResponse(res, 400, "Invalid builder ID.");
@@ -41,20 +40,22 @@ exports.createConstructionType = async (req, res) => {
         )
       LIMIT 1
       `,
-      [types_name, companyId, builderId]
+      [types_name, companyId, builderId],
     );
 
     if (duplicateNameCheck.rowCount > 0) {
       return errorResponse(
         res,
         409,
-        "Construction type with this name already exists."
+        "Construction type with this name already exists.",
       );
     }
 
     if (sort_order == null) sort_order = 1;
 
-    const { rows: [{ max_sort_order }] } = await client.query(
+    const {
+      rows: [{ max_sort_order }],
+    } = await client.query(
       `
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
       FROM construction_type
@@ -63,14 +64,14 @@ exports.createConstructionType = async (req, res) => {
         OR
         (builder_id = $2 AND $2 IS NOT NULL)
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     if (sort_order < 1 || sort_order > max_sort_order + 1) {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${max_sort_order + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${max_sort_order + 1}.`,
       );
     }
 
@@ -85,7 +86,7 @@ exports.createConstructionType = async (req, res) => {
           (builder_id = $3 AND $3 IS NOT NULL)
         )
       `,
-      [sort_order, companyId, builderId]
+      [sort_order, companyId, builderId],
     );
 
     if (dwelling_type.length > 0) {
@@ -97,18 +98,17 @@ exports.createConstructionType = async (req, res) => {
           AND builder_id = $2
           AND is_active = true
         `,
-        [dwelling_type, builderId]
+        [dwelling_type, builderId],
       );
 
       if (activeCheck.rowCount !== dwelling_type.length) {
         return errorResponse(
           res,
           400,
-          "One or more dwelling_type IDs are invalid or inactive."
+          "One or more dwelling_type IDs are invalid or inactive.",
         );
       }
     }
-
 
     const insertResult = await client.query(
       `
@@ -135,12 +135,10 @@ exports.createConstructionType = async (req, res) => {
         sort_order,
         dwelling_type,
         userId,
-      ]
+      ],
     );
 
-    const constructionTypeId =
-      insertResult.rows[0].construction_type_id;
-
+    const constructionTypeId = insertResult.rows[0].construction_type_id;
 
     const responseQuery = `
       SELECT
@@ -182,7 +180,7 @@ GROUP BY ct.construction_type_id, b.builder_id;
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction type created successfully."
+      "Construction type created successfully.",
     );
   } catch (error) {
     console.error("Create Construction Type Error:", error);
@@ -192,18 +190,13 @@ GROUP BY ct.construction_type_id, b.builder_id;
   }
 };
 
-
 exports.getAllConstructionTypes = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const loggedInBuilderId = req.user.builder_id;
-    const { page = 1, limit = 25, builder } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
+    const { builder } = req.query;
 
     let whereClause = "";
     let values = [];
@@ -215,9 +208,6 @@ exports.getAllConstructionTypes = async (req, res) => {
       whereClause = `WHERE ct.builder_id = $1`;
       values = [loggedInBuilderId];
     }
-
-    const limitPlaceholder = `$${values.length + 1}`;
-    const offsetPlaceholder = `$${values.length + 2}`;
 
     const dataQuery = `
       SELECT
@@ -254,38 +244,15 @@ exports.getAllConstructionTypes = async (req, res) => {
         ct.construction_type_id,
         b.builder_id
 
-      ORDER BY ct.sort_order ASC, ct.created_at DESC
-      LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};
+      ORDER BY ct.sort_order ASC, ct.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_type ct
-      ${whereClause};
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        constructionTypes: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
-      "Construction types fetched successfully."
+      keysToCamelCase(dataResult.rows),
+      "Construction types fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching construction types:", error);
@@ -294,7 +261,6 @@ exports.getAllConstructionTypes = async (req, res) => {
     client.release();
   }
 };
-
 
 exports.deleteConstructionType = async (req, res) => {
   const pool = getPool();
@@ -324,7 +290,7 @@ exports.deleteConstructionType = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Construction type not found or access denied."
+        "Construction type not found or access denied.",
       );
     }
 
@@ -357,7 +323,7 @@ exports.deleteConstructionType = async (req, res) => {
     return errorResponse(
       res,
       500,
-      err.message || "Failed to delete construction type."
+      err.message || "Failed to delete construction type.",
     );
   } finally {
     client.release();
@@ -381,7 +347,6 @@ exports.updateConstructionType = async (req, res) => {
     let { types_name, start_construction_days, sort_order, dwelling_type } =
       req.body;
 
-
     const existingResult = await client.query(
       `
       SELECT *
@@ -390,19 +355,18 @@ exports.updateConstructionType = async (req, res) => {
         AND builder_id = $2
       LIMIT 1
       `,
-      [construction_type_id, builderId]
+      [construction_type_id, builderId],
     );
 
     if (existingResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Construction type not found or access denied."
+        "Construction type not found or access denied.",
       );
     }
 
     const existingSortOrder = existingResult.rows[0].sort_order;
-
 
     if (types_name) {
       const duplicateNameResult = await client.query(
@@ -418,21 +382,22 @@ exports.updateConstructionType = async (req, res) => {
           )
         LIMIT 1
         `,
-        [types_name, construction_type_id, companyId, builderId]
+        [types_name, construction_type_id, companyId, builderId],
       );
 
       if (duplicateNameResult.rowCount > 0) {
         return errorResponse(
           res,
           409,
-          "Construction type with this name already exists."
+          "Construction type with this name already exists.",
         );
       }
     }
 
-
     if (sort_order !== undefined && sort_order !== null) {
-      const { rows: [{ max_sort_order }] } = await client.query(
+      const {
+        rows: [{ max_sort_order }],
+      } = await client.query(
         `
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
         FROM construction_type
@@ -441,14 +406,14 @@ exports.updateConstructionType = async (req, res) => {
           OR
           (builder_id = $2 AND $2 IS NOT NULL)
         `,
-        [companyId, builderId]
+        [companyId, builderId],
       );
 
       if (sort_order < 1 || sort_order > max_sort_order) {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${max_sort_order}.`
+          `Invalid sort_order. Allowed range is 1 to ${max_sort_order}.`,
         );
       }
 
@@ -473,7 +438,7 @@ exports.updateConstructionType = async (req, res) => {
               construction_type_id,
               companyId,
               builderId,
-            ]
+            ],
           );
         } else {
           await client.query(
@@ -495,12 +460,11 @@ exports.updateConstructionType = async (req, res) => {
               construction_type_id,
               companyId,
               builderId,
-            ]
+            ],
           );
         }
       }
     }
-
 
     if (dwelling_type && dwelling_type.length > 0) {
       const activeCheck = await client.query(
@@ -511,18 +475,17 @@ exports.updateConstructionType = async (req, res) => {
           AND builder_id = $2
           AND is_active = true
         `,
-        [dwelling_type, builderId]
+        [dwelling_type, builderId],
       );
 
       if (activeCheck.rowCount !== dwelling_type.length) {
         return errorResponse(
           res,
           400,
-          "One or more dwelling_type IDs are invalid or inactive."
+          "One or more dwelling_type IDs are invalid or inactive.",
         );
       }
     }
-
 
     const updateFields = [];
     const updateValues = [];
@@ -560,9 +523,8 @@ exports.updateConstructionType = async (req, res) => {
       WHERE construction_type_id = $${idx}
         AND builder_id = $${idx + 1}
       `,
-      [...updateValues, construction_type_id, builderId]
+      [...updateValues, construction_type_id, builderId],
     );
-
 
     const responseResult = await client.query(
       `
@@ -597,13 +559,13 @@ exports.updateConstructionType = async (req, res) => {
 
       GROUP BY ct.construction_type_id, b.builder_id
       `,
-      [construction_type_id]
+      [construction_type_id],
     );
 
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction type updated successfully."
+      "Construction type updated successfully.",
     );
   } catch (error) {
     console.error("Update Construction Type Error:", error);
@@ -612,4 +574,3 @@ exports.updateConstructionType = async (req, res) => {
     client.release();
   }
 };
-

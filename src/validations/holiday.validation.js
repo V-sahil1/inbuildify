@@ -9,7 +9,12 @@ const createHolidaySchema = Joi.object({
     }),
   holiday_start_date: Joi.date().required(),
   holiday_end_date: Joi.date().required(),
-  holiday_description: Joi.string().trim().max(500).required(),
+  holiday_description: Joi.string()
+    .trim()
+    .min(2)
+    .max(500)
+    .pattern(/^[^<>]*$/)
+    .required(),
 });
 
 const getAllHolidaySchema = Joi.object({
@@ -71,7 +76,12 @@ const updateHolidaySchema = Joi.object({
     }),
   holiday_start_date: Joi.date().optional(),
   holiday_end_date: Joi.date().optional(),
-  holiday_description: Joi.string().trim().max(500).optional(),
+  holiday_description: Joi.string()
+    .trim()
+    .min(2)
+    .max(500)
+    .pattern(/^[^<>]*$/)
+    .optional(),
   status: Joi.boolean().optional(),
 });
 module.exports = {

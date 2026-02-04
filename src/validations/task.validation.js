@@ -1,7 +1,11 @@
 const Joi = require("joi");
 
 const createTaskSchema = Joi.object({
-  name: Joi.string().max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 
   description: Joi.string().allow(null, "").optional(),
 
@@ -28,7 +32,7 @@ const createTaskSchema = Joi.object({
     "string.uuid": "Link to must be a valid UUID",
   }),
 
-  link_type: Joi.string().max(255).allow(null, "").optional(),
+  link_type: Joi.string().min(2).max(255).optional(),
 
   priority: Joi.string()
     .max(20)
@@ -44,7 +48,7 @@ const createTaskSchema = Joi.object({
 });
 
 const getAllTaskSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string().min(2).max(200).optional(),
 
   due_date: Joi.date()
     .allow(null)
@@ -63,9 +67,10 @@ const getAllTaskSchema = Joi.object({
 
   link_type: Joi.string().max(255).allow(null, "").optional(),
 
-  priority: Joi.string().valid("Low", "Medium", "High").optional(),
+  priority: Joi.string().max(20).valid("Low", "Medium", "High").optional(),
 
   status: Joi.string()
+    .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
     .optional(),
 
@@ -98,7 +103,11 @@ const updateTaskParamsSchema = Joi.object({
 });
 
 const updateTaskSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
   description: Joi.string().allow(null, "").optional(),
 

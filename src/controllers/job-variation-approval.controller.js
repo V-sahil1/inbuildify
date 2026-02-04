@@ -94,7 +94,7 @@ exports.createJobVariationApproval = async (req, res) => {
     return successResponse(
       res,
       response,
-      "Job variation approval created successfully."
+      "Job variation approval created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -113,24 +113,9 @@ exports.getJobVariationApprovals = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    const { page = 1, limit = 25 } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
-
     if (!companyId && !builderId) {
       return errorResponse(res, 401, "Unauthorized.");
     }
-
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM job_variation_approval
-      WHERE company_id = $1 OR builder_id = $2
-    `;
-    const countResult = await client.query(countQuery, [companyId, builderId]);
-    const total = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(total / limitValue);
 
     const selectQuery = `
       SELECT 
@@ -139,46 +124,31 @@ exports.getJobVariationApprovals = async (req, res) => {
       FROM job_variation_approval jva
       LEFT JOIN role r ON jva.role_id = r.role_id
       WHERE jva.company_id = $1 OR jva.builder_id = $2
-      ORDER BY jva.created_at DESC
-      LIMIT $3 OFFSET $4;
+      ORDER BY jva.created_at DESC;
     `;
 
-    const result = await client.query(selectQuery, [
-      companyId,
-      builderId,
-      limitValue,
-      offset,
-    ]);
+    const result = await client.query(selectQuery, [companyId, builderId]);
 
-    // Format response with role details
     const formattedResults = result.rows.map((row) => ({
       ...keysToCamelCase({
         job_variation_approval_id: row.job_variation_approval_id,
         company_id: row.company_id,
         builder_id: row.builder_id,
         amount: row.amount,
+        role: row.role_id
+          ? {
+              id: row.role_id,
+              name: row.role_name,
+            }
+          : null,
         created_by: row.created_by,
         updated_by: row.updated_by,
         created_at: row.created_at,
         updated_at: row.updated_at,
       }),
-      role: row.role_id
-        ? {
-            id: row.role_id,
-            name: row.role_name,
-          }
-        : null,
     }));
 
-    return successResponse(res, {
-      jobVariationApproval: formattedResults,
-      pagination: {
-        currentPage: pageValue,
-        totalPages,
-        total,
-        limit: limitValue,
-      },
-    });
+    return successResponse(res, formattedResults);
   } catch (error) {
     console.error("Error fetching job variation approvals:", error);
     return errorResponse(res, 500, "Internal Server Error");
@@ -219,7 +189,7 @@ exports.deleteJobVariationApproval = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job variation approval not found or unauthorized to delete."
+        "Job variation approval not found or unauthorized to delete.",
       );
     }
 
@@ -235,7 +205,7 @@ exports.deleteJobVariationApproval = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Job variation approval deleted successfully."
+      "Job variation approval deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -265,7 +235,7 @@ exports.updateJobVariationApproval = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided for update."
+        "At least one field must be provided for update.",
       );
     }
 
@@ -288,7 +258,7 @@ exports.updateJobVariationApproval = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job variation approval not found or unauthorized to update."
+        "Job variation approval not found or unauthorized to update.",
       );
     }
 
@@ -324,7 +294,7 @@ exports.updateJobVariationApproval = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "Approval for this role already exists."
+          "Approval for this role already exists.",
         );
       }
     }
@@ -386,7 +356,7 @@ exports.updateJobVariationApproval = async (req, res) => {
     return successResponse(
       res,
       response,
-      "Job variation approval updated successfully."
+      "Job variation approval updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");

@@ -25,7 +25,7 @@ exports.createTemplateEmail = async (req, res) => {
 
     const builderCheck = await client.query(
       `SELECT builder_id FROM builder WHERE builder_id = $1`,
-      [builderId]
+      [builderId],
     );
     if (builderCheck.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -34,7 +34,7 @@ exports.createTemplateEmail = async (req, res) => {
 
     const userCheck = await client.query(
       `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
-      [userId]
+      [userId],
     );
     if (userCheck.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -44,14 +44,14 @@ exports.createTemplateEmail = async (req, res) => {
     if (additional_recipient_users.length > 0) {
       const usersCheck = await client.query(
         `SELECT users_id FROM users WHERE  users_id = ANY($1) AND is_deleted = false`,
-        [additional_recipient_users]
+        [additional_recipient_users],
       );
       if (usersCheck.rowCount !== additional_recipient_users.length) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "One or more recipient users are invalid or do not belong to this builder."
+          "One or more recipient users are invalid or do not belong to this builder.",
         );
       }
     }
@@ -59,14 +59,14 @@ exports.createTemplateEmail = async (req, res) => {
     if (additional_recipient_groups.length > 0) {
       const groupsCheck = await client.query(
         `SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2)`,
-        [builderId, additional_recipient_groups]
+        [builderId, additional_recipient_groups],
       );
       if (groupsCheck.rowCount !== additional_recipient_groups.length) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "One or more recipient groups are invalid or do not belong to this builder."
+          "One or more recipient groups are invalid or do not belong to this builder.",
         );
       }
     }
@@ -74,14 +74,14 @@ exports.createTemplateEmail = async (req, res) => {
     if (additional_recipient_groups.length > 0) {
       const groupsCheck = await client.query(
         `SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2) AND is_active = true`,
-        [builderId, additional_recipient_groups]
+        [builderId, additional_recipient_groups],
       );
       if (groupsCheck.rowCount !== additional_recipient_groups.length) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "One or more recipient groups are inactive."
+          "One or more recipient groups are inactive.",
         );
       }
     }
@@ -94,7 +94,7 @@ exports.createTemplateEmail = async (req, res) => {
         AND company_id = $2
         AND builder_id = $3
       `,
-      [name, companyId, builderId]
+      [name, companyId, builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -102,7 +102,7 @@ exports.createTemplateEmail = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Template email with this name already exists."
+        "Template email with this name already exists.",
       );
     }
 
@@ -144,7 +144,7 @@ exports.createTemplateEmail = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Template email created successfully."
+      "Template email created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -164,7 +164,7 @@ exports.getTemplateEmails = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
 
-    const { name, type } = req.query; 
+    const { name, type } = req.query;
 
     if (!builderId && !companyId) {
       return errorResponse(res, 401, "Unauthorized access.");
@@ -288,7 +288,7 @@ exports.getTemplateEmails = async (req, res) => {
             (_, i) =>
               `($${i * 11 + 1}, $${i * 11 + 2}, $${i * 11 + 3}, $${i * 11 + 4},
                 $${i * 11 + 5}, $${i * 11 + 6}, $${i * 11 + 7}, $${i * 11 + 8},
-                $${i * 11 + 9}, $${i * 11 + 10}, $${i * 11 + 11})`
+                $${i * 11 + 9}, $${i * 11 + 10}, $${i * 11 + 11})`,
           )
           .join(", ")}
         RETURNING *;
@@ -307,40 +307,65 @@ exports.getTemplateEmails = async (req, res) => {
           t.additional_groups,
           true,
           userId,
-          userId
+          userId,
         );
       });
 
       const insertResult = await client.query(insertQuery, insertValues);
 
       const filtered = insertResult.rows.map(
-        ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
+        ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest,
       );
 
       const totalCount = filtered.length;
-      const standardCount = filtered.filter(template => template.type === 'standard').length;
-      const customizedCount = filtered.filter(template => template.type === 'customized').length;
+      const standardCount = filtered.filter(
+        (template) => template.type === "standard",
+      ).length;
+      const customizedCount = filtered.filter(
+        (template) => template.type === "customized",
+      ).length;
 
       const responseData = {
         templates: keysToCamelCase(filtered),
         counts: {
           total: totalCount,
           standard: standardCount,
-          customized: customizedCount
-        }
+          customized: customizedCount,
+        },
       };
 
       return successResponse(
         res,
         responseData,
-        "Default email templates created and fetched successfully."
+        "Default email templates created and fetched successfully.",
       );
     }
 
     let fetchQuery = `
-      SELECT *
-      FROM template_email
-      WHERE (company_id = $1 OR builder_id = $2)
+      SELECT 
+        te.*,
+        (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'id', u.users_id,
+              'name', u.name
+            )
+          ), '[]'::json)
+          FROM users u
+          WHERE u.users_id = ANY(te.additional_recipient_users)
+        ) AS additional_users_with_names,
+        (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'id', r.role_id,
+              'name', r.name
+            )
+          ), '[]'::json)
+          FROM role r
+          WHERE r.role_id = ANY(te.additional_recipient_groups)
+        ) AS additional_groups_with_names
+      FROM template_email te
+      WHERE (te.company_id = $1 OR te.builder_id = $2)
     `;
 
     const queryParams = [companyId, builderId];
@@ -373,7 +398,10 @@ exports.getTemplateEmails = async (req, res) => {
       FROM template_email
       WHERE (company_id = $1 OR builder_id = $2) AND type = 'standard'
     `;
-    const standardResult = await client.query(standardQuery, [companyId, builderId]);
+    const standardResult = await client.query(standardQuery, [
+      companyId,
+      builderId,
+    ]);
     const standardCount = parseInt(standardResult.rows[0].standard_count);
 
     const customizedQuery = `
@@ -381,26 +409,45 @@ exports.getTemplateEmails = async (req, res) => {
       FROM template_email
       WHERE (company_id = $1 OR builder_id = $2) AND type = 'customized'
     `;
-    const customizedResult = await client.query(customizedQuery, [companyId, builderId]);
+    const customizedResult = await client.query(customizedQuery, [
+      companyId,
+      builderId,
+    ]);
     const customizedCount = parseInt(customizedResult.rows[0].customized_count);
 
-    const filtered = result.rows.map(
-      ({ company_id, builder_id, created_by, updated_by, ...rest }) => rest
-    );
+    const filtered = result.rows.map((row) => {
+      const {
+        company_id,
+        builder_id,
+        created_by,
+        updated_by,
+        additional_recipient_users,
+        additional_recipient_groups,
+        additional_users_with_names,
+        additional_groups_with_names,
+        ...rest
+      } = row;
+
+      return {
+        ...rest,
+        additional_users: additional_users_with_names || [],
+        additional_groups: additional_groups_with_names || [],
+      };
+    });
 
     const responseData = {
       templates: keysToCamelCase(filtered),
       counts: {
         total: totalCount,
         standard: standardCount,
-        customized: customizedCount
-      }
+        customized: customizedCount,
+      },
     };
 
     return successResponse(
       res,
       responseData,
-      "Template emails fetched successfully."
+      "Template emails fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching template emails:", error);
@@ -409,7 +456,6 @@ exports.getTemplateEmails = async (req, res) => {
     client.release();
   }
 };
-
 
 exports.updateTemplateEmail = async (req, res) => {
   const pool = getPool();
@@ -441,7 +487,7 @@ exports.updateTemplateEmail = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Template email not found or unauthorized access."
+        "Template email not found or unauthorized access.",
       );
     }
 
@@ -465,13 +511,13 @@ exports.updateTemplateEmail = async (req, res) => {
     ) {
       const usersCheck = await client.query(
         `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false AND is_verified = true`,
-        [additional_recipient_users]
+        [additional_recipient_users],
       );
       if (usersCheck.rowCount !== additional_recipient_users.length) {
         return errorResponse(
           res,
           400,
-          "One or more recipient users are invalid or do not belong to this builder."
+          "One or more recipient users are invalid or do not belong to this builder.",
         );
       }
     }
@@ -518,7 +564,6 @@ exports.updateTemplateEmail = async (req, res) => {
     const values = [];
     let paramIndex = 1;
 
-   
     if (subject) {
       fields.push(`subject = $${paramIndex++}`);
       values.push(subject);
@@ -553,43 +598,42 @@ exports.updateTemplateEmail = async (req, res) => {
 
     const updatedTemplate = result.rows[0];
 
-let usersRecipient = [];
-if (updatedTemplate.additional_recipient_users?.length) {
-  const usersResult = await client.query(
-    `
+    let usersRecipient = [];
+    if (updatedTemplate.additional_recipient_users?.length) {
+      const usersResult = await client.query(
+        `
     SELECT users_id AS id,
            CONCAT(name) AS name
     FROM users
     WHERE users_id = ANY($1::uuid[])
     `,
-    [updatedTemplate.additional_recipient_users]
-  );
-  usersRecipient = usersResult.rows;
-}
+        [updatedTemplate.additional_recipient_users],
+      );
+      usersRecipient = usersResult.rows;
+    }
 
-let userGroups = [];
-if (updatedTemplate.additional_recipient_groups?.length) {
-  const groupsResult = await client.query(
-    `
+    let userGroups = [];
+    if (updatedTemplate.additional_recipient_groups?.length) {
+      const groupsResult = await client.query(
+        `
     SELECT user_group_id AS id, name
     FROM user_group
     WHERE user_group_id = ANY($1::uuid[])
     `,
-    [updatedTemplate.additional_recipient_groups]
-  );
-  userGroups = groupsResult.rows;
-}
+        [updatedTemplate.additional_recipient_groups],
+      );
+      userGroups = groupsResult.rows;
+    }
 
- return successResponse(
-  res,
-  keysToCamelCase({
-    ...updatedTemplate,
-    additional_recipient_users: usersRecipient,
-    additional_recipient_groups: userGroups,
-  }),
-  "Template email updated successfully."
-);
-
+    return successResponse(
+      res,
+      keysToCamelCase({
+        ...updatedTemplate,
+        additional_recipient_users: usersRecipient,
+        additional_recipient_groups: userGroups,
+      }),
+      "Template email updated successfully.",
+    );
   } catch (error) {
     console.error("Update Template Email Error:", error);
     return errorResponse(res, 500, "Failed to update template email.");
@@ -612,7 +656,7 @@ exports.deleteTemplateEmail = async (req, res) => {
 
     const builderCheck = await client.query(
       `SELECT builder_id FROM builder WHERE builder_id = $1`,
-      [builderId]
+      [builderId],
     );
     if (builderCheck.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -621,7 +665,7 @@ exports.deleteTemplateEmail = async (req, res) => {
 
     const userCheck = await client.query(
       `SELECT users_id FROM users WHERE users_id = $1`,
-      [userId]
+      [userId],
     );
     if (userCheck.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -636,7 +680,7 @@ exports.deleteTemplateEmail = async (req, res) => {
         AND company_id = $2
         AND builder_id = $3
       `,
-      [template_email_id, companyId, builderId]
+      [template_email_id, companyId, builderId],
     );
 
     if (templateCheck.rowCount === 0) {
@@ -644,7 +688,7 @@ exports.deleteTemplateEmail = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Template email not found or does not belong to this builder."
+        "Template email not found or does not belong to this builder.",
       );
     }
 
@@ -653,7 +697,7 @@ exports.deleteTemplateEmail = async (req, res) => {
       DELETE FROM template_email 
       WHERE template_email_id = $1
       `,
-      [template_email_id]
+      [template_email_id],
     );
 
     await client.query("COMMIT");
@@ -667,7 +711,7 @@ exports.deleteTemplateEmail = async (req, res) => {
     client.release();
   }
 };
-  
+
 exports.updateTemplateEmailIsActive = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -693,7 +737,7 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
           OR company_id = $3
         )
       `,
-      [id, builderId, companyId]
+      [id, builderId, companyId],
     );
 
     if (existing.rowCount === 0) {
@@ -715,7 +759,7 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Template email status toggled successfully"
+      "Template email status toggled successfully",
     );
   } catch (error) {
     console.error("Error toggling template email is_active:", error);
@@ -724,4 +768,3 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
     client.release();
   }
 };
-

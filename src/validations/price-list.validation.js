@@ -1,7 +1,11 @@
 const Joi = require("joi");
 
 const createPriceListSchema = Joi.object({
-  name: Joi.string().min(1).max(200).required(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   sort_order: Joi.number().integer().min(0).default(0).optional(),
   show_in_view_list: Joi.boolean().default(true),
   location: Joi.string().uuid().optional().messages({
@@ -42,7 +46,11 @@ const updatePriceListParamsSchema = Joi.object({
 });
 
 const updatePriceListSchema = Joi.object({
-  name: Joi.string().min(1).max(200).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   sort_order: Joi.number().integer().min(0).default(0).optional(),
   show_in_view_list: Joi.boolean(),
   is_active: Joi.boolean(),

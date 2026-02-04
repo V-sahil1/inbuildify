@@ -1,5 +1,4 @@
 const Joi = require("joi");
-const { update } = require("lodash");
 
 const imageRule = Joi.alternatives()
   .try(
@@ -16,7 +15,7 @@ const imageRule = Joi.alternatives()
         .max(10 * 1024 * 1024)
         .required(), // enforce max 10MB
       location: Joi.string().uri().required(), // s3 URL added by multer-s3
-    }).unknown(true) // allow extra multer fields
+    }).unknown(true), // allow extra multer fields
   )
   .optional();
 

@@ -25,6 +25,22 @@ exports.createConstructionSubChecklist = async (req, res) => {
       return errorResponse(res, 400, "name is required");
     }
 
+    const duplicateCheck = await client.query(
+      `SELECT construction_sub_checklist_id 
+       FROM construction_sub_checklist 
+       WHERE name = $1 
+         AND construction_checklist_id = $2`,
+      [name.trim(), construction_checklist_id],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      return errorResponse(
+        res,
+        400,
+        "Sub-checklist name already exists for this checklist",
+      );
+    }
+
     const checklistCheck = await client.query(
       `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
       [construction_checklist_id, builderId, companyId],
@@ -318,6 +334,24 @@ exports.updateConstructionSubChecklist = async (req, res) => {
       if (!name) {
         return errorResponse(res, 400, "Name cannot be empty");
       }
+
+      const duplicateCheck = await client.query(
+        `SELECT construction_sub_checklist_id 
+         FROM construction_sub_checklist 
+         WHERE name = $1 
+           AND construction_checklist_id = $2
+           AND construction_sub_checklist_id != $3`,
+        [name.trim(), checklistId, construction_sub_checklist_id],
+      );
+
+      if (duplicateCheck.rowCount > 0) {
+        return errorResponse(
+          res,
+          400,
+          "Sub-checklist name already exists for this checklist",
+        );
+      }
+
       updateFields.push(`name = $${idx++}`);
       updateValues.push(name);
     }

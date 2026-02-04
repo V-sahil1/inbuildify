@@ -4,7 +4,12 @@ const createEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
-  name: Joi.string().trim().max(150).required(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   release_date: Joi.date().optional().allow(null),
 });
 
@@ -38,7 +43,12 @@ const updateEstateStageParamsSchema = Joi.object({
 });
 
 const updsteEstateStageSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   release_date: Joi.date().optional().allow(null),
 });
 module.exports = {

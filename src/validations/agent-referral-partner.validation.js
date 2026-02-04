@@ -1,30 +1,46 @@
 const Joi = require("joi");
-const { join } = require("lodash");
 
 const createAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
-    address_line1: Joi.string().max(255).allow(""),
-    address_line2: Joi.string().max(255).allow(null),
-    city: Joi.string().max(100).allow(""),
+    address_line1: Joi.string()
+      .min(2)
+      .max(255)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(""),
+    address_line2: Joi.string()
+      .min(2)
+      .max(255)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(null),
+    city: Joi.string()
+      .min(2)
+      .max(100)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(""),
     state_id: Joi.string().uuid().allow(null),
     country_id: Joi.string().uuid().allow(null),
-    zip_code: Joi.string().max(20).allow(""),
+    zip_code: Joi.string().min(4).max(4).allow(""),
   }).optional(),
   user: Joi.object({
-    name: Joi.string().min(2).max(255).required().messages({
-      "string.empty": "Name is required.",
-      "string.min": "Name must be at least 2 characters.",
-      "string.max": "Name must not exceed 255 characters.",
-      "any.required": "Name is required.",
-    }),
+    name: Joi.string()
+      .min(2)
+      .max(100)
+      .required()
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .messages({
+        "string.empty": "Name is required.",
+        "string.min": "Name must be at least 2 characters.",
+        "string.max": "Name must not exceed 255 characters.",
+        "any.required": "Name is required.",
+      }),
     email: Joi.string().email().required().messages({
       "string.email": "Please provide a valid email address.",
       "any.required": "Email is required.",
     }),
-    phone: Joi.string().min(5).max(20).required().messages({
+    phone: Joi.string().min(10).max(14).required().messages({
       "string.empty": "Phone is required.",
-      "string.min": "Phone must be at least 5 characters.",
-      "string.max": "Phone must not exceed 20 characters.",
+      "string.min": "Phone must be at least 10 characters.",
+      "string.max": "Phone must not exceed 14 characters.",
       "any.required": "Phone is required.",
     }),
     create_login: Joi.boolean().default(false),
@@ -87,11 +103,19 @@ const createAgentReferralPartnerSchema = Joi.object({
       }),
     }),
   }).required(),
-  account_name: Joi.string().max(255).allow(null, ""),
-  account_bsb: Joi.string().max(20).allow(null, ""),
-  account_number: Joi.string().max(50).allow(null, ""),
-  abn: Joi.string().max(50).allow(null, ""),
-  company_name: Joi.string().max(255).allow(null, ""),
+  account_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
+  account_bsb: Joi.string().min(6).max(6).allow(null, ""),
+  account_number: Joi.string().min(6).max(10).allow(null, ""),
+  abn: Joi.string().min(11).max(11).allow(null, ""),
+  company_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
   referred_user_id: Joi.string().uuid().required().messages({
     "string.empty": "Referred user ID is required.",
     "string.uuid": "Referred user ID must be a valid UUID.",
@@ -101,28 +125,45 @@ const createAgentReferralPartnerSchema = Joi.object({
 
 const updateAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
-    address_line1: Joi.string().max(255).allow(""),
-    address_line2: Joi.string().max(255).allow(null),
-    city: Joi.string().max(100).allow(""),
+    address_line1: Joi.string()
+      .min(2)
+      .max(255)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(""),
+    address_line2: Joi.string()
+      .min(2)
+      .max(255)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(null),
+    city: Joi.string()
+      .min(2)
+      .max(100)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .allow(""),
     state_id: Joi.string().uuid().allow(null),
     country_id: Joi.string().uuid().allow(null),
-    zip_code: Joi.string().max(20).allow(""),
+    zip_code: Joi.string().min(4).max(4).allow(""),
   }).optional(),
   user: Joi.object({
-    name: Joi.string().min(2).max(255).optional().messages({
-      "string.empty": "Name is required.",
-      "string.min": "Name must be at least 2 characters.",
-      "string.max": "Name must not exceed 255 characters.",
-      "any.required": "Name is required.",
-    }),
+    name: Joi.string()
+      .min(2)
+      .max(100)
+      .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+      .optional()
+      .messages({
+        "string.empty": "Name is required.",
+        "string.min": "Name must be at least 2 characters.",
+        "string.max": "Name must not exceed 100 characters.",
+        "any.required": "Name is required.",
+      }),
     email: Joi.string().email().optional().messages({
       "string.email": "Please provide a valid email address.",
       "any.required": "Email is required.",
     }),
-    phone: Joi.string().min(5).max(20).optional().messages({
+    phone: Joi.string().min(10).max(14).optional().messages({
       "string.empty": "Phone is required.",
-      "string.min": "Phone must be at least 5 characters.",
-      "string.max": "Phone must not exceed 20 characters.",
+      "string.min": "Phone must be at least 10 characters.",
+      "string.max": "Phone must not exceed 14 characters.",
       "any.required": "Phone is required.",
     }),
     create_login: Joi.boolean().optional(),
@@ -179,12 +220,24 @@ const updateAgentReferralPartnerSchema = Joi.object({
       }),
     }),
   }).required(),
-  account_name: Joi.string().max(255).allow(null, ""),
-  account_bsb: Joi.string().max(20).allow(null, ""),
-  account_number: Joi.string().max(50).allow(null, ""),
-  abn: Joi.string().max(50).allow(null, ""),
-  company_name: Joi.string().max(255).allow(null, ""),
-  referred_user_id: Joi.string().uuid().allow(null),
+  account_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
+  account_bsb: Joi.string().min(6).max(6).allow(null, ""),
+  account_number: Joi.string().min(6).max(10).allow(null, ""),
+  abn: Joi.string().min(11).max(11).allow(null, ""),
+  company_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
+  referred_user_id: Joi.string().uuid().required().messages({
+    "string.empty": "Referred user ID is required.",
+    "string.uuid": "Referred user ID must be a valid UUID.",
+    "any.required": "Referred user ID is required.",
+  }),
 });
 
 const getAgentReferralPartnerSchema = Joi.object({

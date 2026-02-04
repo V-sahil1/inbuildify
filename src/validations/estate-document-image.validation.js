@@ -23,7 +23,7 @@ const updateEstateImageParamsSchema = Joi.object({
 const updateEstateImageSchema = Joi.object({
   image_url: Joi.string().uri().max(500).allow(null, "").optional(),
   imageUrl: Joi.string().uri().max(500).allow(null, "").optional(),
-}).or("image_url", "imageUrl"); // At least one must be present
+}).or("image_url", "imageUrl");
 
 /* -----------------------------
    ESTATE DOCUMENTS VALIDATION
@@ -35,16 +35,25 @@ const createEstateDocumentSchema = Joi.object({
     "string.base": "Estate ID must be a string",
     "string.uuid": "Estate ID must be a valid UUID",
   }),
-  document_name: Joi.string().max(255).required().messages({
-    "any.required": "Document name is required",
-    "string.base": "Document name must be a string",
-    "string.max": "Document name must not exceed 255 characters",
-  }),
+  document_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "any.required": "Document name is required",
+      "string.base": "Document name must be a string",
+      "string.max": "Document name must not exceed 255 characters",
+    }),
   file_url: Joi.string().uri().max(500).allow(null, "").optional(),
 });
 
 const updateEstateDocumentSchema = Joi.object({
-  document_name: Joi.string().max(255).optional(),
+  document_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   file_url: Joi.string().uri().max(500).allow(null, "").optional(),
   fileUrl: Joi.string().uri().max(500).allow(null, "").optional(),
 });

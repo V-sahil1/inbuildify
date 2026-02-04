@@ -24,7 +24,6 @@ const parseFormDataJson = require("../middleware/parseFormDataJson");
 
 const upload = createUpload("pdf-template-assets");
 
-
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
@@ -45,7 +44,7 @@ router.post(
   parseFormDataJson,
   camelToSnakeMiddleware,
   validateRequest(createTemplatePdfSchema, REQUEST_SOURCE.FORM_DATA),
-  createTemplatePdf
+  createTemplatePdf,
 );
 
 /** UPDATE */
@@ -58,7 +57,7 @@ router.put(
   handleMulterError,
   parseFormDataJson,
   camelToSnakeMiddleware,
-  updateTemplatePdf
+  updateTemplatePdf,
 );
 
 /** DELETE */

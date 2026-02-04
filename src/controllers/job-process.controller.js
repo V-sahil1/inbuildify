@@ -331,3 +331,24 @@ exports.getAllJobTasks = async (req, res) => {
     return errorResponse(res, 500, err.message);
   }
 };
+
+/* =========================================================
+   TASK DEPENDENCY
+========================================================= */
+
+exports.deleteTaskDependency = async (req, res) => {
+  try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
+
+    await taskService.deleteTaskDependency(
+      req.body.task_id,
+      req.body.predecessor_task_id,
+      builderId,
+      companyId,
+    );
+
+    return successResponse(res, null, "Task dependency deleted successfully.");
+  } catch (err) {
+    return errorResponse(res, 400, err.message);
+  }
+};

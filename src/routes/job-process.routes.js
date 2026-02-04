@@ -99,6 +99,15 @@ router.delete(
   controller.deleteTask,
 );
 
+/* ================= TASK DEPENDENCY ================= */
+
+router.delete(
+  "/task-dependencies",
+  camelToSnakeMiddleware,
+  validateRequest(validation.deleteTaskDependencySchema, REQUEST_SOURCE.BODY),
+  controller.deleteTaskDependency,
+);
+
 /* ================= SUB-TASK ================= */
 
 router.post(

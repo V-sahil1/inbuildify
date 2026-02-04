@@ -6,6 +6,7 @@ const createPriceListItemConditionValidation = Joi.object({
     "any.required": "price_list_item_id is required",
   }),
   condition_name: Joi.string()
+    .max(255)
     .valid("site_fall", "land_size", "corner_block", "land_fill")
     .required()
     .messages({
@@ -47,6 +48,7 @@ const createPriceListItemConditionValidation = Joi.object({
 
 const updatePriceListItemConditionValidation = Joi.object({
   condition_name: Joi.string()
+    .max(255)
     .valid("site_fall", "land_size", "corner_block", "land_fill")
     .messages({
       "any.only":

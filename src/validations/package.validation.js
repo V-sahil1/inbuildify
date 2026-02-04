@@ -1,7 +1,12 @@
 const Joi = require("joi");
 
 const createPackageSchema = Joi.object({
-  name: Joi.string().trim().max(200).required(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(200)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/),
 
   cost: Joi.number()
     .precision(2)
@@ -85,7 +90,12 @@ const updatePackageParamsSchema = Joi.object({
   }),
 });
 const updatePackageSchema = Joi.object({
-  name: Joi.string().trim().max(200).optional(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
   cost: Joi.number()
     .precision(2)

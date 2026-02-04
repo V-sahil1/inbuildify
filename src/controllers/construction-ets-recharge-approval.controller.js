@@ -14,7 +14,7 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Missing required fields: role_id, amount"
+        "Missing required fields: role_id, amount",
       );
     }
 
@@ -27,14 +27,14 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
        WHERE (company_id = $1 AND company_id IS NOT NULL) 
           OR (builder_id = $2 AND builder_id IS NOT NULL)
        LIMIT 1`,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (etsRechargeResult.rowCount === 0) {
       return errorResponse(
         res,
         400,
-        "No construction ETS recharge record found for this user. Please create a construction ETS recharge record first."
+        "No construction ETS recharge record found for this user. Please create a construction ETS recharge record first.",
       );
     }
 
@@ -43,7 +43,7 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
 
     const roleCheck = await client.query(
       `SELECT role_id FROM role WHERE role_id = $1`,
-      [role_id]
+      [role_id],
     );
 
     if (roleCheck.rowCount === 0) {
@@ -57,14 +57,14 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
   WHERE construction_ets_recharge_id = $1
     AND role_id = $2
   `,
-      [construction_ets_recharge_id, role_id]
+      [construction_ets_recharge_id, role_id],
     );
 
     if (duplicateRoleCheck.rowCount > 0) {
       return errorResponse(
         res,
         400,
-        "This role has already been added for approval. Duplicate role is not allowed."
+        "This role has already been added for approval. Duplicate role is not allowed.",
       );
     }
 
@@ -89,13 +89,13 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
         created_at,
         updated_at
       `,
-      [construction_ets_recharge_id, role_id, amount, user_id]
+      [construction_ets_recharge_id, role_id, amount, user_id],
     );
 
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Construction ETS recharge approval created successfully."
+      "Construction ETS recharge approval created successfully.",
     );
   } catch (error) {
     console.error("Create Construction ETS Recharge Approval Error:", error);
@@ -110,16 +110,7 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      page = 1,
-      limit = 25,
-      construction_ets_recharge_id,
-      role_id,
-    } = req.query;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
+    const { construction_ets_recharge_id, role_id } = req.query;
 
     let whereClause = "";
     let values = [];
@@ -156,38 +147,15 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
       LEFT JOIN role r ON r.role_id = cera.role_id
       LEFT JOIN users u ON u.users_id = cera.created_by
       ${whereClause}
-      ORDER BY cera.created_at DESC
-      LIMIT $${values.length + 1} OFFSET $${values.length + 2};
+      ORDER BY cera.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_ets_recharge_approval cera
-      ${whereClause.replace(/ORDER BY.*$/, "")};
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        approvals: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
-      "Construction ETS recharge approvals fetched successfully."
+      keysToCamelCase(dataResult.rows),
+      "Construction ETS recharge approvals fetched successfully.",
     );
   } catch (error) {
     console.error("Get All Construction ETS Recharge Approvals Error:", error);
@@ -208,7 +176,7 @@ exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "construction_ets_recharge_approval_id is required."
+        "construction_ets_recharge_approval_id is required.",
       );
     }
 
@@ -236,14 +204,14 @@ exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Construction ETS recharge approval not found."
+        "Construction ETS recharge approval not found.",
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction ETS recharge approval fetched successfully."
+      "Construction ETS recharge approval fetched successfully.",
     );
   } catch (error) {
     console.error("Get Construction ETS Recharge Approval By ID Error:", error);
@@ -266,7 +234,7 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "construction_ets_recharge_approval_id is required."
+        "construction_ets_recharge_approval_id is required.",
       );
     }
 
@@ -274,20 +242,20 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field (role_id or amount) is required for update."
+        "At least one field (role_id or amount) is required for update.",
       );
     }
 
     const existingResult = await client.query(
       `SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
-      [construction_ets_recharge_approval_id]
+      [construction_ets_recharge_approval_id],
     );
 
     if (existingResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Construction ETS recharge approval not found."
+        "Construction ETS recharge approval not found.",
       );
     }
 
@@ -297,7 +265,7 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
   FROM construction_ets_recharge_approval
   WHERE construction_ets_recharge_approval_id = $1
   `,
-      [construction_ets_recharge_approval_id]
+      [construction_ets_recharge_approval_id],
     );
 
     const { construction_ets_recharge_id } = currentApprovalResult.rows[0];
@@ -315,14 +283,14 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
           construction_ets_recharge_id,
           role_id,
           construction_ets_recharge_approval_id,
-        ]
+        ],
       );
 
       if (duplicateRoleCheck.rowCount > 0) {
         return errorResponse(
           res,
           400,
-          "This role has already been added for approval. Duplicate role is not allowed."
+          "This role has already been added for approval. Duplicate role is not allowed.",
         );
       }
     }
@@ -350,9 +318,9 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
 
     await client.query(
       `UPDATE construction_ets_recharge_approval SET ${updateFields.join(
-        ", "
+        ", ",
       )} WHERE construction_ets_recharge_approval_id = $${idx}`,
-      [...updateValues, construction_ets_recharge_approval_id]
+      [...updateValues, construction_ets_recharge_approval_id],
     );
 
     const responseQuery = `
@@ -378,7 +346,7 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(responseResult.rows[0]),
-      "Construction ETS recharge approval updated successfully."
+      "Construction ETS recharge approval updated successfully.",
     );
   } catch (error) {
     console.error("Update Construction ETS Recharge Approval Error:", error);
@@ -399,32 +367,32 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "construction_ets_recharge_approval_id is required."
+        "construction_ets_recharge_approval_id is required.",
       );
     }
 
     const checkResult = await client.query(
       `SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
-      [construction_ets_recharge_approval_id]
+      [construction_ets_recharge_approval_id],
     );
 
     if (checkResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Construction ETS recharge approval not found."
+        "Construction ETS recharge approval not found.",
       );
     }
 
     await client.query(
       `DELETE FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
-      [construction_ets_recharge_approval_id]
+      [construction_ets_recharge_approval_id],
     );
 
     return successResponse(
       res,
       {},
-      "Construction ETS recharge approval deleted successfully."
+      "Construction ETS recharge approval deleted successfully.",
     );
   } catch (error) {
     console.error("Delete Construction ETS Recharge Approval Error:", error);

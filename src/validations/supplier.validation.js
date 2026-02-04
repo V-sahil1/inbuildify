@@ -1,17 +1,23 @@
 const Joi = require("joi");
+const { min } = require("lodash");
 
 const createSupplierSchema = Joi.object({
   supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.sparse": "supplier_type_id cannot contain empty values",
     "array.unique": "supplier_type_id must be unique",
   }),
-  company_name: Joi.string().max(255).required(),
-  abn: Joi.string().max(50).allow(null, ""),
+  company_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
+  abn: Joi.string().min(11).max(11).allow(null, "").optional(),
   description: Joi.string().allow(null, ""),
-  contact_name: Joi.string().max(150).allow(null, ""),
+  contact_name: Joi.string().min(2).max(150).allow(null, ""),
   primary_phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
     .messages({
       "string.pattern.base":
@@ -20,7 +26,8 @@ const createSupplierSchema = Joi.object({
     }),
   secondary_phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
     .messages({
       "string.pattern.base":
@@ -28,13 +35,21 @@ const createSupplierSchema = Joi.object({
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
   website: Joi.string().uri().max(50).allow(null, ""),
-  address_line1: Joi.string().max(255).allow(null, ""),
-  city: Joi.string().max(150).allow(null, ""),
+  address_line1: Joi.string()
+    .min(10)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
+  city: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow(null, ""),
   state_id: Joi.string().uuid().allow(null, "").messages({
     "string.guid": "State ID must be a valid UUID",
   }),
-  zip_code: Joi.string().max(20).allow(null, ""),
-  lead_time: Joi.string().max(100).allow(null, ""),
+  zip_code: Joi.string().min(4).max(4).allow(null, "").optional(),
+  lead_time: Joi.string().min(2).max(100).allow(null, "").optional(),
   status: Joi.boolean().default(true),
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
@@ -46,7 +61,7 @@ const getAllSupplierSchema = Joi.object({
   company_name: Joi.string().trim().max(255).optional(),
   phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .max(14)
     .optional()
     .allow(null, "")
     .messages({
@@ -93,13 +108,18 @@ const updateSupplierSchema = Joi.object({
     "array.sparse": "supplier_type_id cannot contain empty values",
     "array.unique": "supplier_type_id must be unique",
   }),
-  company_name: Joi.string().max(255).optional(),
-  abn: Joi.string().max(50).allow(null, ""),
+  company_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
+  abn: Joi.string().min(11).max(11).allow(null, ""),
   description: Joi.string().allow(null, ""),
   contact_name: Joi.string().max(150).allow(null, ""),
   primary_phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
     .optional()
     .messages({
@@ -109,7 +129,8 @@ const updateSupplierSchema = Joi.object({
     }),
   secondary_phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
-    .max(50)
+    .min(10)
+    .max(14)
     .allow(null, "")
     .optional()
     .messages({
@@ -123,7 +144,7 @@ const updateSupplierSchema = Joi.object({
   state_id: Joi.string().uuid().allow(null, "").optional().messages({
     "string.guid": "State ID must be a valid UUID",
   }),
-  zip_code: Joi.string().max(20).allow(null, "").optional(),
+  zip_code: Joi.string().min(4).max(4).allow(null, "").optional(),
   lead_time: Joi.string().max(100).allow(null, "").optional(),
   status: Joi.boolean(),
   emails: Joi.array()

@@ -1,11 +1,16 @@
 const Joi = require("joi");
 
 const createContractFormatSchema = Joi.object({
-  format_name: Joi.string().min(1).max(255).required().messages({
-    "string.empty": "format_name cannot be empty.",
-    "string.max": "format_name cannot exceed 255 characters.",
-    "any.required": "format_name is required.",
-  }),
+  format_name: Joi.string()
+    .min(2)
+    .max(255)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.empty": "format_name cannot be empty.",
+      "string.max": "format_name cannot exceed 255 characters.",
+      "any.required": "format_name is required.",
+    }),
   dafualt_format: Joi.boolean().optional().messages({
     "boolean.base": "dafualt_format must be a boolean.",
   }),
@@ -35,7 +40,7 @@ const getAllContractFormatsSchema = Joi.object({
       "number.min": "limit must be at least 1.",
       "number.max": "limit cannot exceed 100.",
     }),
-  format_name: Joi.string().optional().messages({
+  format_name: Joi.string().max(255).optional().messages({
     "string.base": "format_name must be a string.",
   }),
   status: Joi.string().valid("true", "false").optional().messages({
@@ -78,10 +83,15 @@ const updateContractFormatParamsSchema = Joi.object({
 });
 
 const updateContractFormatSchema = Joi.object({
-  format_name: Joi.string().min(1).max(255).optional().messages({
-    "string.empty": "format_name cannot be empty.",
-    "string.max": "format_name cannot exceed 255 characters.",
-  }),
+  format_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.empty": "format_name cannot be empty.",
+      "string.max": "format_name cannot exceed 255 characters.",
+    }),
   dafualt_format: Joi.boolean().optional().messages({
     "boolean.base": "dafualt_format must be a boolean.",
   }),

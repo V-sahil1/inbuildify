@@ -8,7 +8,6 @@ const {
 } = require("../controllers/template-email-signature.controller");
 const {
   createTemplateEmailSignatureSchema,
-  updateTemplateEmailSignatureParamsSchema,
   updateTemplateEmailSignatureSchema,
 } = require("../validations/template-email-signature.validation");
 
@@ -26,7 +25,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createTemplateEmailSignatureSchema, REQUEST_SOURCE.BODY),
-  createTemplateEmailSignature
+  createTemplateEmailSignature,
 );
 
 router.get("/", getTemplateEmailSignature);
@@ -34,6 +33,6 @@ router.get("/", getTemplateEmailSignature);
 router.put(
   "/",
   validateRequest(updateTemplateEmailSignatureSchema, REQUEST_SOURCE.BODY),
-  updateTemplateEmailSignature
+  updateTemplateEmailSignature,
 );
 module.exports = router;

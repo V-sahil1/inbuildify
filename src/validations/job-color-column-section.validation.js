@@ -12,7 +12,7 @@ const createJobColorColumnSectionSchema = Joi.object({
         "Section name must be either 'attach_pdf_beginning' or 'attach_pdf_end'",
       "any.required": "Section name is required",
     }),
-  attachments_pdf: Joi.string().max(500).allow(null, "").optional(),
+  attachments: Joi.string().max(500).allow(null, "").optional(),
   image: Joi.string().max(500).allow(null, "").optional(),
   sort_order: Joi.number().integer().min(1).default(1).optional().messages({
     "number.base": "Sort order must be a number",
@@ -60,7 +60,7 @@ const updateJobColorColumnSectionSchema = Joi.object({
       "any.only":
         "Section name must be either 'attach_pdf_beginning' or 'attach_pdf_end'",
     }),
-  attachments_pdf: Joi.string().max(500).allow(null, "").optional(),
+  attachments: Joi.string().max(500).allow(null, "").optional(),
   image: Joi.string().max(500).allow(null, "").optional(),
   sort_order: Joi.number().integer().min(1).optional().messages({
     "number.base": "Sort order must be a number",

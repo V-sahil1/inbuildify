@@ -45,7 +45,6 @@ exports.createRange = async (req, res) => {
     let { name, user_id, sort_order, bg_color, font_color, is_active } =
       req.body;
 
-    // Get uploaded file URLs from multer
     const logo_image = req.files?.logoUrl?.[0]?.location || null;
     const header_image = req.files?.headerUrl?.[0]?.location || null;
 
@@ -204,7 +203,6 @@ exports.updateRange = async (req, res) => {
 
     let { name, user_id, sort_order, bg_color, font_color } = req.body;
 
-    // Get uploaded file URLs from multer (if new files were uploaded)
     const logo_image = req.files?.logoUrl?.[0]?.location || req.body.logo_url;
     const header_image =
       req.files?.headerUrl?.[0]?.location || req.body.header_url;

@@ -1,11 +1,17 @@
 const Joi = require("joi");
 
 const createColorGroupSchema = Joi.object({
-  name: Joi.string().required().trim().max(255).messages({
-    "any.required": "Color group name is required",
-    "string.max": "Color group name must not exceed 255 characters",
-    "string.empty": "Color group name cannot be empty",
-  }),
+  name: Joi.string()
+    .required()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "any.required": "Color group name is required",
+      "string.max": "Color group name must not exceed 255 characters",
+      "string.empty": "Color group name cannot be empty",
+    }),
 });
 
 const getAllColorGroupsSchema = Joi.object({
@@ -22,7 +28,7 @@ const getAllColorGroupsSchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
 
-  status: Joi.string().valid("true", "false").optional().messages({
+  status: Joi.boolean().optional().messages({
     "any.only": "Status must be either 'true' or 'false'",
   }),
 
@@ -48,10 +54,16 @@ const updateColorGroupParamsSchema = Joi.object({
 });
 
 const updateColorGroupSchema = Joi.object({
-  name: Joi.string().trim().max(255).optional().messages({
-    "string.max": "Color group name must not exceed 255 characters",
-    "string.empty": "Color group name cannot be empty if provided",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .optional()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "string.max": "Color group name must not exceed 255 characters",
+      "string.empty": "Color group name cannot be empty if provided",
+    }),
 
   status: Joi.boolean().optional().messages({
     "boolean.base": "Status must be a boolean value",

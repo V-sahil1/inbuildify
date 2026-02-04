@@ -32,7 +32,7 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You cannot create a subfolder in another builder's folder."
+        "You cannot create a subfolder in another builder's folder.",
       );
     }
 
@@ -53,7 +53,7 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A subfolder with this name already exists in this folder."
+        "A subfolder with this name already exists in this folder.",
       );
     }
 
@@ -80,7 +80,7 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -119,7 +119,7 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Document subfolder created successfully."
+      "Document subfolder created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -137,9 +137,6 @@ exports.getDocumentCommonSubfolderByFolderId = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const { document_common_folder_id } = req.params;
-    const { page = 1, limit = 25 } = req.query;
-
-    const offset = (page - 1) * limit;
 
     const checkFolderQuery = `
       SELECT document_common_folder_id 
@@ -156,21 +153,9 @@ exports.getDocumentCommonSubfolderByFolderId = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid document_common_folder_id for this builder."
+        "Invalid document_common_folder_id for this builder.",
       );
     }
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM document_common_subfolder
-      WHERE document_common_folder_id = $1
-    `;
-    const countResult = await client.query(countQuery, [
-      document_common_folder_id,
-    ]);
-
-    const total = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(total / limit);
 
     const getSubfoldersQuery = `
       SELECT 
@@ -185,31 +170,22 @@ exports.getDocumentCommonSubfolderByFolderId = async (req, res) => {
       FROM document_common_subfolder dcsf
       WHERE dcsf.document_common_folder_id = $1
       ORDER BY dcsf.sort_order ASC, LOWER(dcsf.name) ASC
-      LIMIT $2 OFFSET $3
     `;
     const result = await client.query(getSubfoldersQuery, [
       document_common_folder_id,
-      limit,
-      offset,
     ]);
 
     const subfolders = keysToCamelCase(result.rows);
 
     return successResponse(
       res,
-      {
-        records: subfolders,
-        total,
-        totalPages,
-        currentPage: Number(page),
-        limit: Number(limit),
-      },
-      "Document common subfolders fetched successfully."
+      subfolders,
+      "Document common subfolders fetched successfully.",
     );
   } catch (error) {
     console.error(
       "Error fetching document common subfolders by folder_id:",
-      error
+      error,
     );
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {
@@ -242,7 +218,7 @@ exports.deleteDocumentCommonSubfolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid subfolder ID or you do not have permission to delete this record."
+        "Invalid subfolder ID or you do not have permission to delete this record.",
       );
     }
 
@@ -266,7 +242,7 @@ exports.deleteDocumentCommonSubfolder = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Document common subfolder deleted successfully."
+      "Document common subfolder deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting document common subfolder:", error);
@@ -303,7 +279,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid subfolder ID or you do not have permission to update this record."
+        "Invalid subfolder ID or you do not have permission to update this record.",
       );
     }
 
@@ -332,7 +308,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "A subfolder with this name already exists in this folder."
+          "A subfolder with this name already exists in this folder.",
         );
       }
     }
@@ -355,7 +331,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSort}.`,
         );
       }
 
@@ -375,7 +351,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
               oldSortOrder,
               newSortOrder,
               document_common_subfolder_id,
-            ]
+            ],
           );
         } else {
           await client.query(
@@ -392,7 +368,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
               newSortOrder,
               oldSortOrder,
               document_common_subfolder_id,
-            ]
+            ],
           );
         }
       }
@@ -435,7 +411,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
     return successResponse(
       res,
       updatedRecord,
-      "Document common subfolder updated successfully."
+      "Document common subfolder updated successfully.",
     );
   } catch (error) {
     console.error("Error updating document common subfolder:", error);

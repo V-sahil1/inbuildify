@@ -5,11 +5,18 @@ const createColorCategorySchema = Joi.object({
     "string.guid": "Color ID must be a valid UUID",
     "any.required": "Color ID is required",
   }),
-  category_name: Joi.string().trim().max(255).required().messages({
-    "any.required": "Category name is required",
-    "string.max": "Category name must not exceed 255 characters",
-  }),
+  category_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "any.required": "Category name is required",
+      "string.max": "Category name must not exceed 255 characters",
+    }),
   selection_type: Joi.string()
+    .max(100)
     .valid("single", "multiple")
     .default("multiple")
     .messages({
@@ -33,12 +40,22 @@ const createColorCategorySchema = Joi.object({
 });
 
 const updateColorCategorySchema = Joi.object({
-  category_name: Joi.string().trim().max(255).optional().messages({
-    "string.max": "Category name must not exceed 255 characters",
-  }),
-  selection_type: Joi.string().valid("single", "multiple").optional().messages({
-    "any.only": "Selection type must be either 'single' or 'multiple'",
-  }),
+  category_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.max": "Category name must not exceed 255 characters",
+    }),
+  selection_type: Joi.string()
+    .max(100)
+    .valid("single", "multiple")
+    .optional()
+    .messages({
+      "any.only": "Selection type must be either 'single' or 'multiple'",
+    }),
   sort_order: Joi.number().integer().optional().messages({
     "number.base": "Sort order must be a number",
     "number.integer": "Sort order must be an integer",

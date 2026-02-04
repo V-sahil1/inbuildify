@@ -40,7 +40,11 @@ const limitRule = Joi.number().integer().min(1).max(100).default(10).messages({
 });
 
 const createFloorPlanSchema = Joi.object({
-  name: Joi.string().max(150).required(),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 
   min_land_width: Joi.number()
     .min(0)
@@ -106,7 +110,11 @@ const getFloorPlansSchema = Joi.object({
 });
 
 const updateFloorPlanSchema = Joi.object({
-  name: Joi.string().max(150).optional(),
+  name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
 
   min_land_width: Joi.number()
     .min(0)

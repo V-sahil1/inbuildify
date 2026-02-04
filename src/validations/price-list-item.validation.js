@@ -6,11 +6,15 @@ const createPriceListItemSchema = Joi.object({
     "string.uuid": "price_list_id must be a valid UUID",
   }),
 
-  item_description: Joi.string().required().messages({
-    "any.required": "item_description is required",
-  }),
+  item_description: Joi.string()
+    .pattern(/^[^<>]*$/)
+    .max(2000)
+    .required()
+    .messages({
+      "any.required": "item_description is required",
+    }),
 
-  short_description: Joi.string().allow(null, "").max(255),
+  short_description: Joi.string().allow(null, "").max(255).optional(),
 
   cost_type: Joi.string()
     .valid("Included", "Fixed", "Variable")
@@ -21,7 +25,12 @@ const createPriceListItemSchema = Joi.object({
       "any.only": "cost_type must be one of: Included, Fixed, Variable",
     }),
 
-  cost_type_text: Joi.string().allow(null, "").trim().max(255),
+  cost_type_text: Joi.string()
+    .allow(null, "")
+    .trim()
+    .pattern(/^[^<>]*$/)
+    .min(2)
+    .max(255),
 
   cost_option: Joi.string().valid("none", "tba", "tbc").default("none").max(50),
 
@@ -57,9 +66,9 @@ const createPriceListItemSchema = Joi.object({
 });
 
 const getAllPriceListItemSchema = Joi.object({
-  status: Joi.string().valid("active", "inactive").optional(),
+  status: Joi.string().valid("active", "inactive").max(20).optional(),
 
-  cost_option: Joi.string().valid("none", "tba", "tbc").optional(),
+  cost_option: Joi.string().valid("none", "tba", "tbc").max(50).optional(),
 
   price: Joi.number().precision(2).optional(),
 
@@ -67,7 +76,10 @@ const getAllPriceListItemSchema = Joi.object({
 
   sort_order: Joi.number().integer().min(0).optional(),
 
-  cost_type: Joi.string().valid("Included", "Fixed", "Variable").optional(),
+  cost_type: Joi.string()
+    .valid("Included", "Fixed", "Variable")
+    .max(50)
+    .optional(),
 
   uom: Joi.string().allow(null, "").trim().max(50).optional(),
 
@@ -116,7 +128,11 @@ const updatePriceListItemSParamschema = Joi.object({
 });
 
 const updatePriceListItemSchema = Joi.object({
-  item_description: Joi.string().optional().trim().max(2000),
+  item_description: Joi.string()
+    .optional()
+    .trim()
+    .max(2000)
+    .pattern(/^[^<>]*$/),
 
   short_description: Joi.string().allow(null, "").max(255).optional(),
 

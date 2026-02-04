@@ -9,7 +9,6 @@ const {
 } = require("../controllers/construction-option.controller");
 const {
   createConstructionOptionSchema,
-  getAllConstructionOptionSchema,
   deleteConstructionOptionSchema,
   updateConstructionOptionParamsSchema,
   updateConstructionOptionSchema,
@@ -29,26 +28,22 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createConstructionOptionSchema, REQUEST_SOURCE.BODY),
-  createConstructionOption
+  createConstructionOption,
 );
 
-router.get(
-  "/",
-  validateRequest(getAllConstructionOptionSchema, REQUEST_SOURCE.QUERY),
-  getAllConstructionOptions
-);
+router.get("/", getAllConstructionOptions);
 
 router.delete(
   "/:id",
   validateRequest(deleteConstructionOptionSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionOption
+  deleteConstructionOption,
 );
 
 router.put(
   "/:id",
   validateRequest(updateConstructionOptionParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionOptionSchema, REQUEST_SOURCE.BODY),
-  updateConstructionOption
+  updateConstructionOption,
 );
 
 module.exports = router;

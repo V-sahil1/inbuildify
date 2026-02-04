@@ -207,19 +207,6 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
       );
     }
 
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const offset = (page - 1) * limit;
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM document_common_folder
-      WHERE builder_id = $1 OR company_id = $2
-    `;
-    const countResult = await client.query(countQuery, [builderId, companyId]);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limit);
-
     const dataQuery = `
       SELECT 
         dcf.document_common_folder_id,
@@ -257,26 +244,12 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
       FROM document_common_folder dcf
       WHERE dcf.builder_id = $1 OR dcf.company_id = $2
       ORDER BY dcf.sort_order, dcf.created_at
-      LIMIT $3 OFFSET $4
     `;
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      companyId,
-      limit,
-      offset,
-    ]);
+    const dataResult = await client.query(dataQuery, [builderId, companyId]);
 
     return successResponse(
       res,
-      {
-        commonFolders: keysToCamelCase(dataResult.rows),
-        pagination: {
-          totalRecords,
-          currentPage: page,
-          totalPages,
-          limit,
-        },
-      },
+      keysToCamelCase(dataResult.rows),
       "Document common folders fetched successfully.",
     );
   } catch (error) {

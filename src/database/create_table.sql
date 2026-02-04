@@ -2726,7 +2726,7 @@ CREATE TABLE color_item(
   cost_type VARCHAR(50) CHECK(cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
   cost NUMERIC (10,2),                   --if cost_type is upgrade
   features VARCHAR(500),
-  description VARCHAR(500),
+  description VARCHAR(500),    -- need to add specification_name field
   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
   color_image VARCHAR(500),
   specification VARCHAR(500),

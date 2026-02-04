@@ -34,6 +34,22 @@ exports.createConstructionChecklist = async (req, res) => {
       return errorResponse(res, 400, "Name is required");
     }
 
+    const duplicateCheck = await client.query(
+      `SELECT construction_checklist_id 
+       FROM construction_checklist 
+       WHERE name = $1 
+         AND (company_id = $2 OR builder_id = $3)`,
+      [name.trim(), company_id, builder_id],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      return errorResponse(
+        res,
+        400,
+        "Checklist name already exists for this builder",
+      );
+    }
+
     if (construction_type_id) {
       const check = await client.query(
         `SELECT 1 FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2`,
@@ -754,6 +770,24 @@ exports.updateConstructionChecklist = async (req, res) => {
 
     if (name !== undefined) {
       if (!name) return errorResponse(res, 400, "Name cannot be empty");
+
+      const duplicateCheck = await client.query(
+        `SELECT construction_checklist_id 
+         FROM construction_checklist 
+         WHERE name = $1 
+           AND (company_id = $2 OR builder_id = $3)
+           AND construction_checklist_id != $4`,
+        [name.trim(), company_id, builder_id, construction_checklist_id],
+      );
+
+      if (duplicateCheck.rowCount > 0) {
+        return errorResponse(
+          res,
+          400,
+          "Checklist name already exists for this builder",
+        );
+      }
+
       updateFields.push(`name = $${idx++}`);
       updateValues.push(name);
     }

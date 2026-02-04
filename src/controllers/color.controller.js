@@ -102,9 +102,74 @@ exports.getColors = async (req, res) => {
     }
 
     const query = `
-      SELECT * FROM color 
-      WHERE company_id = $1 AND builder_id = $2
-      ORDER BY sort_order ASC, created_at DESC
+      SELECT 
+        c.color_id,
+        c.company_id,
+        c.builder_id,
+        c.color_name,
+        c.sort_order,
+        c.status,
+        c.created_at,
+        c.updated_at,
+        (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'colorCategoryId', cc.color_category_id,
+              'categoryName', cc.category_name,
+              'colorId', cc.color_id,
+              'selectionType', cc.selection_type,
+              'sortOrder', cc.sort_order,
+              'status', cc.status,
+              'suppliers', cc.suppliers,
+              'colorGroup', cc.color_group,
+              'createdAt', cc.created_at,
+              'updatedAt', cc.updated_at,
+              'colorItems', (
+                SELECT COALESCE(json_agg(
+                  json_build_object(
+                    'colorItemId', ci.color_item_id,
+                    'itemName', ci.item_name,
+                    'itemCode', ci.item_code,
+                    'supplierId', ci.supplier_id,
+                    'upgradeOption', ci.upgrade_option,
+                    'costType', ci.cost_type,
+                    'cost', ci.cost,
+                    'features', ci.features,
+                    'description', ci.description,
+                    'units', ci.units,
+                    'colorImage', ci.color_image,
+                    'specification', ci.specification,
+                    'status', ci.status,
+                    'createdAt', ci.created_at,
+                    'updatedAt', ci.updated_at,
+                    'customFields', (
+                      SELECT COALESCE(json_agg(
+                        json_build_object(
+                          'colorItemCustomFieldId', cicf.color_item_custom_field_id,
+                          'fieldType', cicf.field_type,
+                          'fieldName', cicf.field_name,
+                          'requiredField', cicf.required_field,
+                          'sortOrder', cicf.sort_order,
+                          'createdAt', cicf.created_at,
+                          'updatedAt', cicf.updated_at
+                        )
+                      ), '[]'::json)
+                      FROM color_item_custom_field cicf
+                      WHERE cicf.color_item = ci.color_item_id
+                    )
+                  )
+                ), '[]'::json)
+                FROM color_item ci
+                WHERE ci.color_category_id = cc.color_category_id
+              )
+            )
+          ), '[]'::json)
+          FROM color_category cc
+          WHERE cc.color_id = c.color_id
+        ) AS color_categories
+      FROM color c
+      WHERE c.company_id = $1 AND c.builder_id = $2
+      ORDER BY c.sort_order ASC, c.created_at 
       LIMIT $3 OFFSET $4;
     `;
 

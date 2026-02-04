@@ -260,7 +260,7 @@ exports.updateEstate = async (req, res) => {
     status,
   } = body;
 
-  const estate_logo = body.estate_logo ?? undefined;
+  const estate_logo = body.estate_logo;
 
   const builderId = req.user?.builder_id;
   const userId = req.user?.user_id;

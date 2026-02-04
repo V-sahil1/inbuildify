@@ -14,18 +14,11 @@ const createTemplateEmailSchema = Joi.object({
     .max(50)
     .valid("standard", "customized")
     .default("standard"),
-  subject: Joi.string()
-    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .min(2)
-    .max(255)
-    .optional(),
-  email_content: Joi.string()
-    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .required()
-    .messages({
-      "string.pattern.base": "Email content must contain at least one letter",
-      "any.required": "Email content is required.",
-    }),
+  subject: Joi.string().min(2).max(255).optional(),
+  email_content: Joi.string().required().messages({
+    "string.pattern.base": "Email content must contain at least one letter",
+    "any.required": "Email content is required.",
+  }),
   additional_recipient_users: Joi.array()
     .items(Joi.string().uuid())
     .default([])
@@ -42,10 +35,7 @@ const createTemplateEmailSchema = Joi.object({
 });
 
 const getAllTemplateEmailSchema = Joi.object({
-  name: Joi.string()
-    .max(200)
-    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .optional(),
+  name: Joi.string().max(200).optional(),
   type: Joi.string().max(100).valid("standard", "customized").optional(),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
@@ -69,14 +59,8 @@ const updateTemplateEmailParamsSchema = Joi.object({
 });
 
 const updateTemplateEmailSchem = Joi.object({
-  subject: Joi.string()
-    .allow(null, "")
-    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .max(255)
-    .optional(),
-  email_content: Joi.string()
-    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .optional(),
+  subject: Joi.string().allow(null, "").max(255).optional(),
+  email_content: Joi.string().optional(),
   additional_recipient_users: Joi.array()
     .items(Joi.string().uuid())
     .default([])

@@ -33,7 +33,7 @@ exports.createDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A naming rule for this file type already exists for this builder."
+        "A naming rule for this file type already exists for this builder.",
       );
     }
 
@@ -57,7 +57,7 @@ exports.createDocumentFileNamingRule = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more folder IDs are invalid or do not belong to this builder/company."
+          "One or more folder IDs are invalid or do not belong to this builder/company.",
         );
       }
     }
@@ -105,13 +105,13 @@ exports.createDocumentFileNamingRule = async (req, res) => {
     const responseData = {
       ...keysToCamelCase(insertResult.rows[0]),
       folderIds: folder_ids || [],
-      folderNames: folderNames
+      folderNames: folderNames,
     };
 
     return successResponse(
       res,
       responseData,
-      "Document file naming rule created successfully."
+      "Document file naming rule created successfully.",
     );
   } catch (error) {
     console.error("Error creating document file naming rule:", error);
@@ -189,7 +189,7 @@ exports.getAllDocumentFileNamingRules = async (req, res) => {
         currentPage: Number(page),
         limit: Number(limit),
       },
-      "Document file naming rules fetched successfully."
+      "Document file naming rules fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching document file naming rules:", error);
@@ -212,7 +212,7 @@ exports.deleteDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "document_file_naming_rule_id is required."
+        "document_file_naming_rule_id is required.",
       );
     }
 
@@ -235,7 +235,7 @@ exports.deleteDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "You are not authorized to delete this document file naming rule or it does not exist."
+        "You are not authorized to delete this document file naming rule or it does not exist.",
       );
     }
 
@@ -251,7 +251,7 @@ exports.deleteDocumentFileNamingRule = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Document file naming rule deleted successfully."
+      "Document file naming rule deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting document file naming rule:", error);
@@ -275,7 +275,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -296,7 +296,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No document file naming rule found for this user."
+        "No document file naming rule found for this user.",
       );
     }
 
@@ -318,7 +318,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more folder IDs are invalid or do not belong to this builder/company."
+          "One or more folder IDs are invalid or do not belong to this builder/company.",
         );
       }
     }
@@ -342,7 +342,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "A document file naming rule with this file type already exists."
+          "A document file naming rule with this file type already exists.",
         );
       }
     }
@@ -384,7 +384,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Failed to update document file naming rule."
+        "Failed to update document file naming rule.",
       );
     }
 
@@ -403,20 +403,22 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
         FROM document_common_folder dcf
         WHERE dcf.document_common_folder_id = ANY($1)
       `;
-      const folderResult = await client.query(folderQuery, [updatedRule.folder_ids]);
+      const folderResult = await client.query(folderQuery, [
+        updatedRule.folder_ids,
+      ]);
       folderNames = folderResult.rows[0]?.jsonb_agg || [];
     }
 
     const responseData = {
       ...keysToCamelCase(updatedRule),
       folderIds: updatedRule.folder_ids || [],
-      folderNames: folderNames
+      folderNames: folderNames,
     };
 
     return successResponse(
       res,
       responseData,
-      "Document file naming rule updated successfully."
+      "Document file naming rule updated successfully.",
     );
   } catch (err) {
     console.error("Error updating document file naming rule:", err);
@@ -427,71 +429,69 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
 };
 
 exports.createNamingFormat = async (req, res) => {
-const pool = getPool();
-const client = await pool.connect();
+  const pool = getPool();
+  const client = await pool.connect();
 
-try {
-await client.query('BEGIN');
+  try {
+    await client.query("BEGIN");
 
-const builderId = req.user?.builder_id;
-const companyId = req.user?.company_id;
-const userId = req.user?.users_id;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
 
-if (!builderId && !companyId) {
-await client.query('ROLLBACK');
-return errorResponse(
-res,
-401,
-"Unauthorized: Missing builder or company ID."
-);
-}
+    if (!builderId && !companyId) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID.",
+      );
+    }
 
-const { naming_format } = req.body;
+    const { naming_format } = req.body;
 
-if (!naming_format || naming_format.trim() === '') {
-await client.query('ROLLBACK');
-return errorResponse(res, 400, "naming_format is required.");
-}
+    if (!naming_format || naming_format.trim() === "") {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "naming_format is required.");
+    }
 
-// Delete existing naming format for this user
-await client.query(
-`
+    await client.query(
+      `
 DELETE FROM document_file_naming_format
 WHERE (builder_id = $1 OR company_id = $2)
 `,
-[builderId, companyId]
-);
+      [builderId, companyId],
+    );
 
-// Insert new naming format
-const insertQuery = `
+    const insertQuery = `
 INSERT INTO document_file_naming_format
 (builder_id, company_id, naming_format, created_by, updated_by)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 `;
 
-const result = await client.query(insertQuery, [
-builderId,
-companyId,
-naming_format.trim(),
-userId,
-userId,
-]);
+    const result = await client.query(insertQuery, [
+      builderId,
+      companyId,
+      naming_format.trim(),
+      userId,
+      userId,
+    ]);
 
-await client.query('COMMIT');
+    await client.query("COMMIT");
 
-return successResponse(
-res,
-keysToCamelCase(result.rows[0]),
-"Naming format created successfully."
-);
-} catch (err) {
-await client.query('ROLLBACK');
-console.error("Error creating naming format:", err);
-return errorResponse(res, 500, err.message || "Internal Server Error.");
-} finally {
-client.release();
-}
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Naming format created successfully.",
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating naming format:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
 };
 
 exports.getNamingFormat = async (req, res) => {
@@ -499,17 +499,22 @@ exports.getNamingFormat = async (req, res) => {
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
+
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
 
     if (!builderId && !companyId) {
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
+    // Check if naming format exists
     const query = `
       SELECT 
         document_file_naming_format_id,
@@ -524,25 +529,42 @@ exports.getNamingFormat = async (req, res) => {
       LIMIT 1;
     `;
 
-    const result = await client.query(query, [
-      builderId,
-      companyId,
-    ]);
+    const result = await client.query(query, [builderId, companyId]);
 
     if (result.rowCount === 0) {
-      return errorResponse(
+      const insertQuery = `
+        INSERT INTO document_file_naming_format
+        (builder_id, company_id, naming_format, created_by, updated_by)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *;
+      `;
+
+      const insertResult = await client.query(insertQuery, [
+        builderId,
+        companyId,
+        null,
+        userId,
+        userId,
+      ]);
+
+      await client.query("COMMIT");
+
+      return successResponse(
         res,
-        404,
-        "No document file naming rule found for this user."
+        keysToCamelCase(insertResult.rows[0]),
+        "Default naming format created successfully.",
+      );
+    } else {
+      await client.query("COMMIT");
+
+      return successResponse(
+        res,
+        keysToCamelCase(result.rows[0]),
+        "Naming format retrieved successfully.",
       );
     }
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Naming format retrieved successfully."
-    );
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Error getting naming format:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error.");
   } finally {

@@ -552,6 +552,12 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
       [taskId],
     );
 
+    // Remove this task from all dependencies where it's a predecessor
+    await client.query(
+      `DELETE FROM job_process_task_dependency WHERE predecessor_task_id = $1`,
+      [taskId],
+    );
+
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -1041,8 +1047,69 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
 };
 
 /**
- * GET ALL TASKS FOR BUILDER
+ * DELETE TASK DEPENDENCY
  */
+exports.deleteTaskDependency = async (
+  taskId,
+  predecessorTaskId,
+  builderId,
+  companyId,
+) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const ownerCheck = await client.query(
+      `
+      SELECT s.builder_id, s.company_id
+      FROM job_process_task t
+      JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+      JOIN job_process_stage s ON s.stage_id = ss.stage_id
+      WHERE t.job_process_task_id = $1
+      `,
+      [taskId],
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      throw new Error("Task not found");
+    }
+
+    const owner = ownerCheck.rows[0];
+    if (owner.builder_id !== builderId && owner.company_id !== companyId) {
+      throw new Error("You can only delete dependencies for your own tasks");
+    }
+
+    const dependencyCheck = await client.query(
+      `
+      SELECT task_id, predecessor_task_id
+      FROM job_process_task_dependency
+      WHERE task_id = $1 AND predecessor_task_id = $2
+      `,
+      [taskId, predecessorTaskId],
+    );
+
+    if (dependencyCheck.rows.length === 0) {
+      throw new Error("Task dependency not found");
+    }
+
+    await client.query(
+      `
+      DELETE FROM job_process_task_dependency
+      WHERE task_id = $1 AND predecessor_task_id = $2
+      `,
+      [taskId, predecessorTaskId],
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
 exports.getAllJobTasks = async (builderId, companyId) => {
   const pool = getPool();
 
@@ -1110,8 +1177,7 @@ exports.getAllJobTasks = async (builderId, companyId) => {
         attachmentMandatory: r.attachment_mandatory,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
-        predecessorTaskId: r.predecessor_task_id,
-        predecessorTaskName: r.predecessor_task_name,
+        predecessorTask: [],
         subStage: {
           subStageId: r.sub_stage_id,
           name: r.sub_stage_name,
@@ -1126,8 +1192,23 @@ exports.getAllJobTasks = async (builderId, companyId) => {
       });
     }
 
+    const task = taskMap.get(r.job_process_task_id);
+
+    // Add predecessor task if it exists
+    if (r.predecessor_task_id) {
+      const exists = task.predecessorTask.find(
+        (p) => p.id === r.predecessor_task_id,
+      );
+
+      if (!exists) {
+        task.predecessorTask.push({
+          id: r.predecessor_task_id,
+          name: r.predecessor_task_name || "Unknown Task",
+        });
+      }
+    }
+
     if (r.job_process_subtask_id) {
-      const task = taskMap.get(r.job_process_task_id);
       task.subTasks.push({
         jobProcessSubtaskId: r.job_process_subtask_id,
         name: r.subtask_name,

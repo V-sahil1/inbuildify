@@ -1,11 +1,17 @@
 const Joi = require("joi");
 
 const createSurveyTemplateSchema = Joi.object({
-  name: Joi.string().trim().max(200).required().messages({
-    "string.base": "name must be a string.",
-    "string.empty": "name is required.",
-    "any.required": "name is required.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.base": "name must be a string.",
+      "string.empty": "name is required.",
+      "any.required": "name is required.",
+    }),
 
   sort_order: Joi.number().integer().min(0).optional().default(0).messages({
     "number.base": "sort_order must be a number.",
@@ -46,7 +52,7 @@ const getAllSurveyTemplateSchema = Joi.object({
     "number.min": "Sort order must be 0 or greater",
   }),
 
-  status: Joi.string().valid("true", "false").optional().messages({
+  status: Joi.boolean().optional().messages({
     "any.only": "Status must be either 'true' or 'false'",
   }),
 });
@@ -66,9 +72,15 @@ const updateSurveyTemplateParamsSchema = Joi.object({
 });
 
 const updateSurveyTemplateSchema = Joi.object({
-  name: Joi.string().trim().max(200).optional().messages({
-    "string.base": "name must be a string.",
-  }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(200)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .messages({
+      "string.base": "name must be a string.",
+    }),
 
   sort_order: Joi.number().integer().min(0).optional().default(0).messages({
     "number.base": "sort_order must be a number.",

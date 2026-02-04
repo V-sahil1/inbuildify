@@ -306,7 +306,7 @@ exports.updateTask = async (req, res) => {
   } = req.body;
 
   const attach_files =
-    req.files?.attachFiles?.[0]?.location || req.body.attach_files || null;
+    req.files?.attachFiles?.[0]?.location || req.body.attach_files;
 
   const pool = getPool();
   const client = await pool.connect();

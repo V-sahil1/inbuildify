@@ -92,44 +92,20 @@ exports.getAllConstructionOptions = async (req, res) => {
       );
     }
 
-    let { page = 1, limit = 10 } = req.query;
-    const pageValue = parseInt(page);
-    const limitValue = parseInt(limit);
-    const offset = (pageValue - 1) * limitValue;
-
     const params = [companyId, builderId];
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_option
-      WHERE company_id = $1 AND builder_id = $2;
-    `;
-
-    const countResult = await client.query(countQuery, params);
-    const totalRecords = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(totalRecords / limitValue);
 
     const dataQuery = `
       SELECT *
       FROM construction_option
       WHERE company_id = $1 AND builder_id = $2
-      ORDER BY created_at DESC
-      LIMIT ${limitValue} OFFSET ${offset};
+      ORDER BY created_at DESC;
     `;
 
     const dataResult = await client.query(dataQuery, params);
 
     return successResponse(
       res,
-      {
-        constructionOptions: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+      keysToCamelCase(dataResult.rows),
       "Construction options fetched successfully.",
     );
   } catch (err) {

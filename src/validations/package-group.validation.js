@@ -1,7 +1,12 @@
 const Joi = require("joi");
 
 const createPackageGroupSchema = Joi.object({
-  name: Joi.string().trim().max(150).required(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
   no_of_packages: Joi.number().integer().min(0).default(0),
 });
 
@@ -35,7 +40,12 @@ const updatePackageGroupParamsSchema = Joi.object({
 });
 
 const updatePackageGroupSchema = Joi.object({
-  name: Joi.string().trim().max(150).optional(),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
   no_of_packages: Joi.number().integer().min(0).optional(),
 });
 

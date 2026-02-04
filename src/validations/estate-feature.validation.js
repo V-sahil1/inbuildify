@@ -4,7 +4,12 @@ const createEstateFeatureSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
-  feature_name: Joi.string().trim().max(255).required(),
+  feature_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
 });
 
 const getAllEstateFeatureSchema = Joi.object({

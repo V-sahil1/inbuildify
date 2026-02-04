@@ -30,12 +30,27 @@ const phoneRule = Joi.string()
 const remarkRule = Joi.string().allow(null, "").max(500);
 
 const addressJsonRule = Joi.object({
-  address_line1: Joi.string().max(255).required(),
-  address_line2: Joi.string().max(255).allow("", null),
-  city: Joi.string().max(100).allow("", null),
+  address_line1: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required(),
+  address_line2: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow("", null),
+  city: Joi.string()
+    .min(2)
+    .max(100)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .allow("", null),
   zip_code: Joi.alternatives().try(
-    Joi.string().min(4).max(4).allow("", null),
-    Joi.number().integer().min(1000).max(9999).allow(null),
+    Joi.string()
+      .optional()
+      .pattern(/^\d{4}$/)
+      .min(4)
+      .max(4),
   ),
   country_id: uuidRule.allow(null),
   state_id: uuidRule.allow(null),
