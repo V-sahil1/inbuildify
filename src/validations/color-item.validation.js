@@ -57,6 +57,7 @@ const getColorItemByIdSchema = Joi.object({
 });
 
 const createColorItemSchema = Joi.object({
+  default_image_index: Joi.number().integer().optional(),
   item_name: Joi.string()
     .trim()
     .min(2)
@@ -128,6 +129,16 @@ const createColorItemSchema = Joi.object({
       "string.max": "Description must not exceed 500 characters",
     }),
 
+  specification_name: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "specification name must not exceed 500 characters",
+    }),
+
   units: Joi.string()
     .max(50)
     .valid("mandatory", "non_mandatory", "not_required")
@@ -151,6 +162,8 @@ const createColorItemSchema = Joi.object({
 });
 
 const updateColorItemSchema = Joi.object({
+  default_image_index: Joi.number().integer().optional(),
+
   item_name: Joi.string()
     .trim()
     .min(2)
@@ -215,6 +228,16 @@ const updateColorItemSchema = Joi.object({
       "string.max": "Description must not exceed 500 characters",
     }),
 
+  specification_name: Joi.string()
+    .trim()
+    .max(500)
+    .allow("")
+    .pattern(/^[^<>]*$/)
+    .optional()
+    .messages({
+      "string.max": "specification name must not exceed 500 characters",
+    }),
+
   units: Joi.string()
     .max(50)
     .valid("mandatory", "non_mandatory", "not_required")
@@ -256,6 +279,8 @@ const deleteImageFieldSchema = Joi.object({
       "any.required": "Field name is required",
       "any.only": "Field name must be either 'color_image' or 'specification'",
     }),
+
+  index: Joi.number().integer().optional(),
 });
 
 const colorItemMoveSchema = Joi.object({

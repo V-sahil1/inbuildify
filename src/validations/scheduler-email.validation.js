@@ -59,6 +59,10 @@ const deleteSchedulerEmailSchema = Joi.object({
   }),
 });
 
+const getSchedulerEmailSchema = Joi.object({
+  is_active: Joi.boolean().optional(),
+});
+
 const updateSchedulerEmailParamsSchema = Joi.object({
   scheduler_email_id: Joi.string().uuid().required().messages({
     "string.guid": "scheduler email ID must be a valid UUID",
@@ -116,4 +120,5 @@ module.exports = {
   deleteSchedulerEmailSchema,
   updateSchedulerEmailParamsSchema,
   updateSchedulerEmailSchema,
+  getSchedulerEmailSchema,
 };

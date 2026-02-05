@@ -24,7 +24,11 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
-const { createUpload, handleMulterError } = require("../utils/s3Upload");
+const {
+  createUpload,
+  createImageOrPdfUpload,
+  handleMulterError,
+} = require("../utils/s3Upload");
 
 const { REQUEST_SOURCE } = require("../config/constants");
 
@@ -33,12 +37,13 @@ router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
 const upload = createUpload("color-item");
+const uploadImgOrPdf = createImageOrPdfUpload("color-item");
 
 router.post(
   "/",
-  upload.fields([
-    { name: "specification", maxCount: 1 },
-    { name: "colorImage", maxCount: 1 },
+  uploadImgOrPdf.fields([
+    { name: "specification", maxCount: 10 },
+    { name: "colorImage", maxCount: 10 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
@@ -62,8 +67,8 @@ router.get(
 router.put(
   "/:color_item_id",
   upload.fields([
-    { name: "specification", maxCount: 1 },
-    { name: "colorImage", maxCount: 1 },
+    { name: "specification", maxCount: 10 },
+    { name: "colorImage", maxCount: 10 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,

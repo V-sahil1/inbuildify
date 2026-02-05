@@ -38,6 +38,13 @@ const getAllHolidaySchema = Joi.object({
   holiday_start_date: Joi.date().optional(),
   holiday_end_date: Joi.date().optional(),
   holiday_description: Joi.string().trim().max(500).optional(),
+  year: Joi.number().integer().min(1900).max(2100).optional().messages({
+    "number.base": "Year must be a number",
+    "number.integer": "Year must be an integer",
+    "number.min": "Year must be greater than or equal to 1900",
+    "number.max": "Year must be less than or equal to 2100",
+  }),
+
   status: Joi.boolean().default(true),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",

@@ -128,7 +128,7 @@ exports.createHoliday = async (req, res) => {
       holiday_end_date: result.rows[0].holiday_end_date,
       holiday_description: result.rows[0].holiday_description,
       status: result.rows[0].status,
-      states: stateInfoResult.rows.map((state) => ({
+      state: stateInfoResult.rows.map((state) => ({
         id: state.state_id,
         name: state.name,
       })),
@@ -181,6 +181,7 @@ exports.getAllHolidays = async (req, res) => {
       holiday_end_date,
       holiday_description,
       status,
+      year,
     } = req.query;
 
     let whereClauses = [];
@@ -215,6 +216,18 @@ exports.getAllHolidays = async (req, res) => {
       whereClauses.push(`LOWER(h.holiday_description) LIKE LOWER($${index})`);
       values.push(`%${holiday_description}%`);
       index++;
+    }
+    if (year) {
+      const startOfYear = `${year}-01-01`;
+      const endOfYear = `${year}-12-31`;
+
+      whereClauses.push(`
+    h.holiday_start_date <= $${index}
+    AND h.holiday_end_date >= $${index + 1}
+  `);
+
+      values.push(endOfYear, startOfYear);
+      index += 2;
     }
 
     if (status !== undefined) {
@@ -257,7 +270,7 @@ exports.getAllHolidays = async (req, res) => {
             )
           ) FILTER (WHERE s.state_id IS NOT NULL),
           '[]'
-        ) AS states,
+        ) AS state,
         h.created_by,
         h.updated_by,
         h.created_at,
@@ -609,7 +622,7 @@ exports.updateHoliday = async (req, res) => {
       holiday_end_date: updated.rows[0].holiday_end_date,
       holiday_description: updated.rows[0].holiday_description,
       status: updated.rows[0].status,
-      states: stateInfoResult.rows.map((state) => ({
+      state: stateInfoResult.rows.map((state) => ({
         id: state.state_id,
         name: state.name,
       })),

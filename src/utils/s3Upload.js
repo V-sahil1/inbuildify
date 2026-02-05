@@ -127,13 +127,85 @@ const createPdfUpload = (folderName = "pdfs") =>
     },
   });
 
+const createImageOrPdfUpload = (folderName = "uploads") =>
+  multer({
+    storage: multerS3({
+      s3: s3Client,
+      bucket: process.env.S3_BUCKET_NAME,
+      key: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        const filename = `${folderName}/${uniqueSuffix}${path.extname(
+          file.originalname,
+        )}`;
+        cb(null, filename);
+      },
+      metadata: function (req, file, cb) {
+        cb(null, {
+          fieldName: file.fieldname,
+          originalName: file.originalname,
+          uploadedBy: req.user?.users_id || "unknown",
+        });
+      },
+      contentType: multerS3.AUTO_CONTENT_TYPE,
+    }),
+    fileFilter: (req, file, cb) => {
+      // Allowed image types
+      const allowedImageMimeTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const allowedImageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+
+      // Allowed PDF types
+      const allowedPdfMimeTypes = ["application/pdf"];
+      const allowedPdfExtensions = [".pdf"];
+
+      // Combine all allowed types
+      const allowedMimeTypes = [
+        ...allowedImageMimeTypes,
+        ...allowedPdfMimeTypes,
+      ];
+      const allowedExtensions = [
+        ...allowedImageExtensions,
+        ...allowedPdfExtensions,
+      ];
+
+      const extname = allowedExtensions.includes(
+        path.extname(file.originalname).toLowerCase(),
+      );
+      const mimetype = allowedMimeTypes.includes(file.mimetype);
+
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        const imageList = allowedImageExtensions
+          .map((t) => t.replace(".", "").toUpperCase())
+          .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
+          .filter((v, i, arr) => arr.indexOf(v) === i)
+          .join(", ");
+        const message = `Invalid file type. Only following are allowed: ${imageList}, PDF.`;
+        cb(new Error(message));
+      }
+    },
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB limit for both images and PDFs
+    },
+  });
+
 const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
+      // Check if this is from the new imageOrPdfUpload function
+      const isImageOrPdf = error.limit === 50 * 1024 * 1024;
+      const maxSize = isImageOrPdf ? "50MB" : `${fileData.size}MB`;
+
       return res.status(400).json({
         success: false,
         statusCode: 400,
-        message: `File size too large. Maximum size is ${fileData.size}MB.`,
+        message: `File size too large. Maximum size is ${maxSize}.`,
         data: null,
       });
     }
@@ -161,6 +233,7 @@ const handleMulterError = (error, req, res, next) => {
 module.exports = {
   createUpload,
   createPdfUpload,
+  createImageOrPdfUpload,
   deleteFromS3,
   handleMulterError,
   s3Client,

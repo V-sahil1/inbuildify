@@ -12,6 +12,7 @@ const {
 const {
   createSchedulerEmailSchema,
   getAllSchedulerEmailSchema,
+  getSchedulerEmailSchema,
   deleteSchedulerEmailSchema,
   updateSchedulerEmailParamsSchema,
   updateSchedulerEmailSchema,
@@ -36,7 +37,7 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createSchedulerEmailSchema, REQUEST_SOURCE.FORM_DATA),
-  createSchedulerEmail
+  createSchedulerEmail,
 );
 
 // router.get(
@@ -47,14 +48,14 @@ router.post(
 
 router.get(
   "/",
-  getSchedulerEmails
+  validateRequest(getSchedulerEmailSchema, REQUEST_SOURCE.QUERY),
+  getSchedulerEmails,
 );
-
 
 router.delete(
   "/:scheduler_email_id",
   validateRequest(deleteSchedulerEmailSchema, REQUEST_SOURCE.PARAMS),
-  deleteSchedulerEmail
+  deleteSchedulerEmail,
 );
 
 router.put(
@@ -64,13 +65,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateSchedulerEmailParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSchedulerEmailSchema, REQUEST_SOURCE.BODY),
-  updateSchedulerEmail
+  updateSchedulerEmail,
 );
 
 router.put(
   "/is-active/:scheduler_email_id",
   validateRequest(deleteSchedulerEmailSchema, REQUEST_SOURCE.PARAMS),
-  toggleSchedulerEmailStatus
+  toggleSchedulerEmailStatus,
 );
 
 module.exports = router;

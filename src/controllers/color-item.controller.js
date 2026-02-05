@@ -24,34 +24,31 @@ exports.createColorItem = async (req, res) => {
       cost,
       features,
       description,
+      specification_name,
       units = "non_mandatory",
       status = true,
+      default_image_index,
     } = req.body;
 
-    const specificationImage = req.files?.specification?.[0]?.location || null;
-    const colorItemImage = req.files?.colorImage?.[0]?.location || null;
+    const colorImages = req.files?.colorImage || [];
+    const specificationFiles = req.files?.specification || [];
 
-    if (!item_name || item_name.trim() === "") {
+    /* ---------- BASIC VALIDATION ---------- */
+    if (!item_name?.trim()) {
       return errorResponse(res, 400, "Item name is required.");
     }
 
-    if (!item_code || item_code.trim() === "") {
+    if (!item_code?.trim()) {
       return errorResponse(res, 400, "Item code is required.");
     }
 
+    /* ---------- COST VALIDATION (UNCHANGED) ---------- */
     if (cost_type === "standard") {
-      if (upgrade_option) {
+      if (upgrade_option || cost) {
         return errorResponse(
           res,
           400,
-          "Upgrade option cannot be set when cost type is standard.",
-        );
-      }
-      if (cost) {
-        return errorResponse(
-          res,
-          400,
-          "Cost cannot be set when cost type is standard.",
+          "Upgrade option or cost cannot be set when cost type is standard.",
         );
       }
     } else if (cost_type === "upgrade") {
@@ -62,6 +59,7 @@ exports.createColorItem = async (req, res) => {
           "Upgrade option is required when cost type is upgrade.",
         );
       }
+
       if (!["fixed", "start_from", "tba"].includes(upgrade_option)) {
         return errorResponse(
           res,
@@ -69,6 +67,7 @@ exports.createColorItem = async (req, res) => {
           "Upgrade option must be one of: fixed, start_from, tba.",
         );
       }
+
       if (upgrade_option === "tba" && cost) {
         return errorResponse(
           res,
@@ -76,6 +75,7 @@ exports.createColorItem = async (req, res) => {
           "Cost cannot be set when upgrade option is tba.",
         );
       }
+
       if (upgrade_option !== "tba" && !cost) {
         return errorResponse(
           res,
@@ -85,8 +85,34 @@ exports.createColorItem = async (req, res) => {
       }
     }
 
+    /* ---------- DEFAULT IMAGE LOGIC (FIXED) ---------- */
+    const hasDefaultIndex =
+      default_image_index !== undefined && default_image_index !== "";
+    const defaultIndex = hasDefaultIndex ? Number(default_image_index) : null;
+    if (
+      hasDefaultIndex &&
+      (isNaN(defaultIndex) ||
+        defaultIndex < 0 ||
+        defaultIndex >= colorImages.length)
+    ) {
+      return errorResponse(res, 400, "Invalid default image index.");
+    }
+
+    const colorImageJson = colorImages.map((file, index) => ({
+      url: file.location,
+      is_default: hasDefaultIndex && index === defaultIndex,
+    }));
+
+    /* ---------- SPECIFICATION FILES (IMAGES + PDFS) ---------- */
+    const specificationJson = specificationFiles.map((file) => ({
+      url: file.location,
+      type: file.mimetype.startsWith("image/") ? "image" : "pdf",
+      originalName: file.originalname,
+    }));
+
     await client.query("BEGIN");
 
+    /* ---------- DUPLICATE ITEM CODE ---------- */
     const duplicateCheck = await client.query(
       `
       SELECT 1
@@ -102,45 +128,7 @@ exports.createColorItem = async (req, res) => {
       return errorResponse(res, 409, "Item code already exists.");
     }
 
-    if (supplier_id) {
-      const supplierCheck = await client.query(
-        `
-        SELECT 1
-        FROM supplier
-        WHERE supplier_id = $1
-          AND (company_id = $2 OR builder_id = $3)
-        `,
-        [supplier_id, companyId, builderId],
-      );
-
-      if (supplierCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid supplier ID.");
-      }
-    }
-
-    if (color_category_id) {
-      const colorCategoryCheck = await client.query(
-        `
-        SELECT 1
-        FROM color_category cc
-        JOIN color c ON cc.color_id = c.color_id
-        WHERE cc.color_category_id = $1 
-          AND (c.company_id = $2 OR c.builder_id = $3)
-        `,
-        [color_category_id, companyId, builderId],
-      );
-
-      if (colorCategoryCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid color category ID or access denied.",
-        );
-      }
-    }
-
+    /* ---------- INSERT ---------- */
     const insertQuery = `
       INSERT INTO color_item (
         company_id,
@@ -154,6 +142,7 @@ exports.createColorItem = async (req, res) => {
         cost,
         features,
         description,
+        specification_name,
         units,
         color_image,
         specification,
@@ -161,7 +150,10 @@ exports.createColorItem = async (req, res) => {
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,NOW(),NOW()
+      )
       RETURNING *;
     `;
 
@@ -177,30 +169,24 @@ exports.createColorItem = async (req, res) => {
       cost || null,
       features?.trim() || null,
       description?.trim() || null,
+      specification_name?.trim() || null,
       units,
-      colorItemImage,
-      specificationImage,
+      JSON.stringify(colorImageJson),
+      JSON.stringify(specificationJson),
       status,
     ];
 
     const result = await client.query(insertQuery, values);
-    const createdColorItem = keysToCamelCase(result.rows[0]);
-
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      createdColorItem,
+      keysToCamelCase(result.rows[0]),
       "Color item created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create Color Item Error:", error);
-
-    if (error.code === "23505") {
-      return errorResponse(res, 409, "Item code already exists.");
-    }
-
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -214,7 +200,6 @@ exports.getAllColorItems = async (req, res) => {
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
-
     let {
       page = 1,
       limit = 25,
@@ -227,7 +212,6 @@ exports.getAllColorItems = async (req, res) => {
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
-
     const offset = (page - 1) * limit;
 
     let conditions = [`(ci.company_id = $1 OR ci.builder_id = $2)`];
@@ -310,7 +294,6 @@ exports.getAllColorItems = async (req, res) => {
 
     const rows = keysToCamelCase(listResult.rows);
     const total = parseInt(countResult.rows[0].total, 10);
-
     const pagination = {
       totalRecords: total,
       currentPage: page,
@@ -356,6 +339,7 @@ exports.updateColorItem = async (req, res) => {
       cost: reqCost,
       features,
       description,
+      specification_name,
       units,
       status,
     } = req.body;
@@ -364,9 +348,22 @@ exports.updateColorItem = async (req, res) => {
     let cost_type = reqCostType;
     let cost = reqCost;
 
-    const specificationImage = req.files?.specification?.[0]?.location;
-    const colorItemImage = req.files?.color_image?.[0].location;
+    const colorImages = req.files?.colorImage || [];
+    const specificationImages = req.files?.specification || [];
+    const default_image_index = req.body?.default_image_index;
 
+    /* ---------- UNITS VALIDATION ---------- */
+    if (units !== undefined) {
+      if (!["mandatory", "non_mandatory", "not_required"].includes(units)) {
+        return errorResponse(
+          res,
+          400,
+          "Units must be one of: mandatory, non_mandatory, not_required",
+        );
+      }
+    }
+
+    /* ---------- COST VALIDATION ---------- */
     if (cost_type !== undefined) {
       if (cost_type === "standard") {
         if (upgrade_option !== undefined) {
@@ -376,6 +373,7 @@ exports.updateColorItem = async (req, res) => {
             "Upgrade option cannot be set when cost type is standard.",
           );
         }
+
         if (cost !== undefined) {
           return errorResponse(
             res,
@@ -394,6 +392,7 @@ exports.updateColorItem = async (req, res) => {
             "Upgrade option must be one of: fixed, start_from, tba.",
           );
         }
+
         if (upgrade_option === "tba" && cost !== undefined) {
           return errorResponse(
             res,
@@ -401,6 +400,7 @@ exports.updateColorItem = async (req, res) => {
             "Cost cannot be set when upgrade option is tba.",
           );
         }
+
         if (
           upgrade_option !== undefined &&
           upgrade_option !== "tba" &&
@@ -423,6 +423,7 @@ exports.updateColorItem = async (req, res) => {
           "Upgrade option must be one of: fixed, start_from, tba.",
         );
       }
+
       if (upgrade_option === "tba" && cost !== undefined) {
         return errorResponse(
           res,
@@ -432,6 +433,9 @@ exports.updateColorItem = async (req, res) => {
       }
     }
 
+    await client.query("BEGIN");
+
+    /* ---------- EXISTING RECORD CHECK ---------- */
     const existingCheck = await client.query(
       `
       SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost
@@ -449,19 +453,25 @@ exports.updateColorItem = async (req, res) => {
 
     const existing = existingCheck.rows[0];
 
+    /* ---------- COST TYPE SPECIFIC VALIDATION ---------- */
     if (cost_type !== undefined) {
       if (cost_type === "standard") {
         if (upgrade_option !== undefined) {
           return errorResponse(
             res,
+
             400,
+
             "Upgrade option cannot be set when cost type is standard.",
           );
         }
+
         if (cost !== undefined) {
           return errorResponse(
             res,
+
             400,
+
             "Cost cannot be set when cost type is standard.",
           );
         }
@@ -479,6 +489,7 @@ exports.updateColorItem = async (req, res) => {
             "Upgrade option must be one of: fixed, start_from, tba.",
           );
         }
+
         if (upgrade_option === "tba" && cost !== undefined) {
           return errorResponse(
             res,
@@ -486,6 +497,7 @@ exports.updateColorItem = async (req, res) => {
             "Cost cannot be set when upgrade option is tba.",
           );
         }
+
         if (
           upgrade_option !== undefined &&
           upgrade_option !== "tba" &&
@@ -508,13 +520,17 @@ exports.updateColorItem = async (req, res) => {
           "Upgrade option must be one of: fixed, start_from, tba.",
         );
       }
+
       if (upgrade_option === "tba" && cost !== undefined) {
         return errorResponse(
           res,
+
           400,
+
           "Cost cannot be set when upgrade option is tba.",
         );
       }
+
       if (upgrade_option === "tba") {
         cost = null;
       }
@@ -532,6 +548,7 @@ exports.updateColorItem = async (req, res) => {
           "Cost cannot be set when cost type is standard.",
         );
       }
+
       if (
         existing.cost_type === "upgrade" &&
         existing.upgrade_option === "tba"
@@ -564,6 +581,7 @@ exports.updateColorItem = async (req, res) => {
           "Cannot set upgrade option to tba when cost is already set.",
         );
       }
+
       if (upgrade_option !== "tba" && existing.cost === null) {
         return errorResponse(
           res,
@@ -573,6 +591,7 @@ exports.updateColorItem = async (req, res) => {
       }
     }
 
+    /* ---------- DUPLICATE ITEM CODE CHECK ---------- */
     if (item_code && item_code.trim() !== existing.item_code) {
       const duplicateCheck = await client.query(
         `
@@ -591,6 +610,7 @@ exports.updateColorItem = async (req, res) => {
       }
     }
 
+    /* ---------- SUPPLIER VALIDATION ---------- */
     if (supplier_id) {
       const supplierCheck = await client.query(
         `
@@ -608,8 +628,11 @@ exports.updateColorItem = async (req, res) => {
       }
     }
 
+    /* ---------- BUILD UPDATE FIELDS ---------- */
     const updateFields = [];
+
     const updateValues = [];
+
     let paramIndex = 1;
 
     if (item_name !== undefined) {
@@ -652,19 +675,89 @@ exports.updateColorItem = async (req, res) => {
       updateValues.push(description?.trim() || null);
     }
 
+    if (specification_name !== undefined) {
+      updateFields.push(`specification_name = $${paramIndex++}`);
+      updateValues.push(specification_name?.trim() || null);
+    }
+
     if (units !== undefined) {
       updateFields.push(`units = $${paramIndex++}`);
       updateValues.push(units);
     }
 
-    if (colorItemImage !== undefined) {
+    /* ---------- HANDLE COLOR IMAGES ---------- */
+    if (colorImages.length > 0) {
+      const hasDefaultIndex =
+        default_image_index !== undefined && default_image_index !== "";
+
+      const defaultIndex = hasDefaultIndex ? Number(default_image_index) : null;
+
+      if (
+        hasDefaultIndex &&
+        (isNaN(defaultIndex) ||
+          defaultIndex < 0 ||
+          defaultIndex >= colorImages.length)
+      ) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid default image index.");
+      }
+
+      const colorImageJson = colorImages.map((file, index) => ({
+        url: file.location,
+        is_default: hasDefaultIndex && index === defaultIndex,
+      }));
+
       updateFields.push(`color_image = $${paramIndex++}`);
-      updateValues.push(colorItemImage);
+      updateValues.push(JSON.stringify(colorImageJson));
+    } else if (
+      default_image_index !== undefined &&
+      default_image_index !== ""
+    ) {
+      // Handle updating only the default image index without new images
+      const defaultIndex = Number(default_image_index);
+
+      if (isNaN(defaultIndex) || defaultIndex < 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid default image index.");
+      }
+
+      // Get existing color images
+      let existingColorImages = [];
+      if (existing.color_image) {
+        try {
+          existingColorImages =
+            typeof existing.color_image === "string"
+              ? JSON.parse(existing.color_image)
+              : existing.color_image;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          return errorResponse(res, 500, "Invalid existing color image data.");
+        }
+      }
+
+      if (defaultIndex >= existingColorImages.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Default image index out of range.");
+      }
+
+      // Update the default flag
+      const updatedColorImages = existingColorImages.map((img, index) => ({
+        ...img,
+        is_default: index === defaultIndex,
+      }));
+
+      updateFields.push(`color_image = $${paramIndex++}`);
+      updateValues.push(JSON.stringify(updatedColorImages));
     }
 
-    if (specificationImage !== undefined) {
+    /* ---------- HANDLE SPECIFICATION IMAGES ---------- */
+    if (specificationImages.length > 0) {
+      const specificationJson = specificationImages.map((file) => ({
+        url: file.location,
+      }));
+
       updateFields.push(`specification = $${paramIndex++}`);
-      updateValues.push(specificationImage);
+      updateValues.push(JSON.stringify(specificationJson));
     }
 
     if (status !== undefined) {
@@ -672,6 +765,7 @@ exports.updateColorItem = async (req, res) => {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Status must be a boolean value.");
       }
+
       updateFields.push(`status = $${paramIndex++}`);
       updateValues.push(status);
     }
@@ -686,16 +780,26 @@ exports.updateColorItem = async (req, res) => {
     }
 
     updateFields.push(`updated_at = NOW()`);
+
     updateValues.push(color_item_id);
 
     const updateQuery = `
       UPDATE color_item
       SET ${updateFields.join(", ")}
       WHERE color_item_id = $${paramIndex}
+        AND (company_id = $${paramIndex + 1} OR builder_id = $${paramIndex + 2})
       RETURNING *;
     `;
 
+    updateValues.push(companyId, builderId);
+
     const result = await client.query(updateQuery, updateValues);
+
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found or access denied.");
+    }
+
     const updatedColorItem = keysToCamelCase(result.rows[0]);
 
     await client.query("COMMIT");
@@ -708,11 +812,9 @@ exports.updateColorItem = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Update Color Item Error:", error);
-
     if (error.code === "23505") {
       return errorResponse(res, 409, "Item code already exists.");
     }
-
     return errorResponse(res, 500, "Internal Server Error");
   } finally {
     client.release();
@@ -741,11 +843,13 @@ exports.deleteColorItem = async (req, res) => {
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
+
       [color_item_id, companyId, builderId],
     );
 
     if (existingCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(res, 404, "Color item not found.");
     }
 
@@ -755,6 +859,7 @@ exports.deleteColorItem = async (req, res) => {
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
+
       [color_item_id, companyId, builderId],
     );
 
@@ -778,7 +883,7 @@ exports.deleteImageField = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
     const { color_item_id } = req.params;
-    const { field_name } = req.body;
+    const { field_name, index } = req.body;
 
     if (!color_item_id) {
       return errorResponse(res, 400, "Color item ID is required.");
@@ -788,15 +893,22 @@ exports.deleteImageField = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Field name must be 'color_image' or 'specification'",
+        "Field name must be 'color_image' or 'specification'.",
       );
     }
 
+    if (index === undefined || index === null || isNaN(Number(index))) {
+      return errorResponse(res, 400, "Valid index is required.");
+    }
+
+    const imageIndex = Number(index);
+
     await client.query("BEGIN");
 
-    const existingCheck = await client.query(
+    /* ---------- FETCH ITEM ---------- */
+    const existingResult = await client.query(
       `
-      SELECT color_item_id
+      SELECT ${field_name}
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
@@ -804,27 +916,46 @@ exports.deleteImageField = async (req, res) => {
       [color_item_id, companyId, builderId],
     );
 
-    if (existingCheck.rowCount === 0) {
+    if (existingResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Color item not found.");
     }
 
+    let images = existingResult.rows[0][field_name] || [];
+
+    if (!Array.isArray(images)) {
+      images = [];
+    }
+
+    if (imageIndex < 0 || imageIndex >= images.length) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Invalid image index.");
+    }
+
+    /* ---------- REMOVE IMAGE ---------- */
+    images.splice(imageIndex, 1);
+
+    /* ❗ NO DEFAULT RE-ASSIGNMENT HERE ❗ */
+
+    /* ---------- UPDATE DB ---------- */
     const updateQuery = `
       UPDATE color_item
-      SET ${field_name} = NULL, updated_at = NOW()
-      WHERE color_item_id = $1
+      SET ${field_name} = $1, updated_at = NOW()
+      WHERE color_item_id = $2
       RETURNING *;
     `;
 
-    const result = await client.query(updateQuery, [color_item_id]);
-    const updatedColorItem = keysToCamelCase(result.rows[0]);
+    const result = await client.query(updateQuery, [
+      JSON.stringify(images),
+      color_item_id,
+    ]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      updatedColorItem,
-      `${field_name} deleted successfully.`,
+      keysToCamelCase(result.rows[0]),
+      "Image deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -883,7 +1014,9 @@ exports.colorItemMove = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
+
     const { color_item_id } = req.params;
+
     const { color_id, color_category_id } = req.body;
 
     if (!builderId || !companyId) {
@@ -910,12 +1043,15 @@ exports.colorItemMove = async (req, res) => {
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
+
       `,
+
       [color_item_id, companyId, builderId],
     );
 
     if (colorItemCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(res, 404, "Color item not found.");
     }
 
@@ -926,11 +1062,13 @@ exports.colorItemMove = async (req, res) => {
       WHERE color_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
+
       [color_id, companyId, builderId],
     );
 
     if (colorCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(res, 404, "Color not found.");
     }
 
@@ -943,59 +1081,83 @@ exports.colorItemMove = async (req, res) => {
         AND cc.color_id = $2
         AND (c.company_id = $3 OR c.builder_id = $4)
       `,
+
       [color_category_id, color_id, companyId, builderId],
     );
 
     if (colorCategoryCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
+
         400,
+
         "Color category does not belong to the specified color ID or access denied.",
       );
     }
 
     const categoryBelongsToColorCheck = await client.query(
       `
+
       SELECT 1
+
       FROM color_category
+
       WHERE color_category_id = $1
+
         AND color_id = $2
+
       `,
+
       [color_category_id, color_id],
     );
 
     if (categoryBelongsToColorCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
+
         400,
+
         "Color category ID does not belong to the specified color ID.",
       );
     }
 
     const existingItemCheck = await client.query(
       `
+
       SELECT color_item_id
+
       FROM color_item
+
       WHERE color_category_id = $1
+
         AND (company_id = $2 OR builder_id = $3)
+
       `,
+
       [color_category_id, companyId, builderId],
     );
 
     if (existingItemCheck.rowCount > 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
+
         400,
+
         "Color category already contains a color item.",
       );
     }
 
     const ownershipCheck = await client.query(
       `
+
       SELECT 
+
         ci.color_item_id as item_exists,
         c.color_id as color_exists,
         cc.color_category_id as category_exists
@@ -1006,37 +1168,45 @@ exports.colorItemMove = async (req, res) => {
         AND (ci.company_id = $4 OR ci.builder_id = $5)
         AND (c.company_id = $4 OR c.builder_id = $5)
       `,
+
       [color_item_id, color_id, color_category_id, companyId, builderId],
     );
 
     if (ownershipCheck.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
+
         400,
+
         "One or more entities do not belong to your account or access denied.",
       );
     }
 
     const updateResult = await client.query(
       `
+
       UPDATE color_item
       SET color_category_id = $1, updated_at = NOW()
       WHERE color_item_id = $2
         AND (company_id = $3 OR builder_id = $4)
       RETURNING *
       `,
+
       [color_category_id, color_item_id, companyId, builderId],
     );
 
     if (updateResult.rowCount === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(res, 404, "Color item not found or access denied.");
     }
 
     await client.query("COMMIT");
 
     const updatedColorItem = keysToCamelCase(updateResult.rows[0]);
+
     return successResponse(
       res,
       updatedColorItem,

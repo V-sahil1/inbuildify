@@ -66,18 +66,26 @@ const createUserSchema = Joi.object({
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .allow(null, ""),
   use_company_address: Joi.boolean().optional(),
-  password_option: Joi.string().valid("auto", "manual"),
+  password_auto_generated: Joi.boolean().optional(),
   manual_password: Joi.string()
     .min(8)
     .max(255)
     .pattern(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*-])[A-Za-z\d!@#$%^&*-]{8,}$/,
     )
-    .optional()
+    .when("password_auto_generated", {
+      is: true,
+      then: Joi.optional(),
+      otherwise: Joi.required(),
+    })
     .messages({
       "string.min": "Password must be at least 8 characters long",
       "string.pattern.base":
         "Password must contain uppercase, lowercase, number, and special character (!@#$%^&*-)",
+      "any.required":
+        "Manual password is required when password_auto_generated is false",
+      "any.unknown":
+        "Password auto-generated cannot be provided when password_auto_generated is false",
     }),
   next_login_password_change: Joi.boolean().optional(),
   email_login_credentials: Joi.boolean().optional(),
@@ -107,7 +115,7 @@ const updateUserSchema = createUserSchema.fork(
    RESET PASSWORD
 ---------------------------- */
 const resetPasswordSchema = Joi.object({
-  password_option: Joi.string().valid("auto", "manual").required(),
+  password_auto_generated: Joi.boolean().required(),
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().optional(),
   email_password: Joi.boolean().optional(),
@@ -130,6 +138,7 @@ const getUsersSchema = Joi.object({
   search: Joi.string().allow("", null),
   role: Joi.string().allow("", null).max(255).optional(),
   role_id: uuidRule.allow(null, "").optional(),
+  is_active: Joi.boolean().optional(),
 });
 
 module.exports = {

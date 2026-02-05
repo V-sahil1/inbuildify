@@ -27,7 +27,7 @@ exports.createSalesStage = async (req, res) => {
 
     const checkProcess = await client.query(
       `SELECT 1 FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2 LIMIT 1`,
-      [sales_process_id, builderId]
+      [sales_process_id, builderId],
     );
 
     if (checkProcess.rowCount === 0) {
@@ -37,7 +37,7 @@ exports.createSalesStage = async (req, res) => {
 
     const existing = await client.query(
       `SELECT 1 FROM sales_stage WHERE sales_process_id = $1 AND stage_name = $2 LIMIT 1`,
-      [sales_process_id, stage_name.trim()]
+      [sales_process_id, stage_name.trim()],
     );
 
     if (existing.rowCount > 0) {
@@ -45,7 +45,7 @@ exports.createSalesStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Stage name already exists for this sales process."
+        "Stage name already exists for this sales process.",
       );
     }
 
@@ -56,7 +56,7 @@ exports.createSalesStage = async (req, res) => {
       FROM sales_process_stage_functionality
       WHERE functionality_id = ANY($1)
     `,
-        [functionality_id]
+        [functionality_id],
       );
 
       if (funcCheck.rowCount !== functionality_id.length) {
@@ -64,7 +64,7 @@ exports.createSalesStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more functionality_id values are invalid."
+          "One or more functionality_id values are invalid.",
         );
       }
     }
@@ -92,7 +92,7 @@ exports.createSalesStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
       );
     }
 
@@ -163,7 +163,7 @@ exports.createSalesStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Sales stage created successfully."
+      "Sales stage created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -185,21 +185,6 @@ exports.getAllSalesStages = async (req, res) => {
       return errorResponse(res, 403, "Unauthorized. Builder ID missing.");
     }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 25;
-    const offset = (page - 1) * limit;
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM sales_stage ss
-      INNER JOIN sales_process sp 
-        ON ss.sales_process_id = sp.sales_process_id
-      WHERE sp.builder_id = $1;
-    `;
-    const countResult = await pool.query(countQuery, [builderId]);
-    const totalRecords = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(totalRecords / limit);
-
     const dataQuery = `
       SELECT 
         ss.sales_stage_id,
@@ -217,23 +202,14 @@ exports.getAllSalesStages = async (req, res) => {
       INNER JOIN sales_process sp 
         ON ss.sales_process_id = sp.sales_process_id
       WHERE sp.builder_id = $1
-      ORDER BY ss.sort_order ASC
-      LIMIT $2 OFFSET $3;
+      ORDER BY ss.sort_order ASC;
     `;
-    const result = await pool.query(dataQuery, [builderId, limit, offset]);
+    const result = await pool.query(dataQuery, [builderId]);
 
     return successResponse(
       res,
-      {
-        salesStage: keysToCamelCase(result.rows),
-        pagination: {
-          totalRecords: totalRecords,
-          currentPage: page,
-          totalPages: totalPages,
-          limit,
-        },
-      },
-      "Sales stages fetched successfully"
+      keysToCamelCase(result.rows),
+      "Sales stages fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching sales stages:", error);
@@ -268,7 +244,7 @@ exports.deleteSalesStage = async (req, res) => {
        WHERE ss.sales_stage_id = $1
          AND sp.builder_id = $2
        LIMIT 1;`,
-      [sales_stage_id, builderId]
+      [sales_stage_id, builderId],
     );
 
     if (ownershipCheck.rowCount === 0) {
@@ -276,7 +252,7 @@ exports.deleteSalesStage = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Sales stage not found or you don't have permission to delete it."
+        "Sales stage not found or you don't have permission to delete it.",
       );
     }
 
@@ -293,7 +269,7 @@ exports.deleteSalesStage = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Sales stage permanently deleted successfully."
+      "Sales stage permanently deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -326,7 +302,7 @@ exports.updateSalesStage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -341,7 +317,7 @@ exports.updateSalesStage = async (req, res) => {
           ON ss.sales_process_id = sp.sales_process_id 
         WHERE ss.sales_stage_id = $1 
           AND sp.builder_id = $2`,
-      [sales_stage_id, builderId]
+      [sales_stage_id, builderId],
     );
 
     if (stageCheck.rowCount === 0) {
@@ -358,7 +334,7 @@ exports.updateSalesStage = async (req, res) => {
           ON ss.sales_process_id = sp.sales_process_id
         WHERE ss.sales_stage_id = $1
           AND sp.builder_id = $2 AND is_active = true`,
-      [sales_stage_id, builderId]
+      [sales_stage_id, builderId],
     );
 
     if (stageActiveCheck.rowCount === 0) {
@@ -374,7 +350,7 @@ exports.updateSalesStage = async (req, res) => {
           WHERE sales_process_id = $1
             AND LOWER(stage_name) = LOWER($2)
             AND sales_stage_id != $3`,
-        [salesProcessId, stage_name.trim(), sales_stage_id]
+        [salesProcessId, stage_name.trim(), sales_stage_id],
       );
 
       if (dup.rowCount > 0) {
@@ -389,7 +365,7 @@ exports.updateSalesStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "functionality_id must be an array of UUIDs."
+          "functionality_id must be an array of UUIDs.",
         );
       }
 
@@ -400,7 +376,7 @@ exports.updateSalesStage = async (req, res) => {
           FROM sales_process_stage_functionality
           WHERE functionality_id = ANY($1)
           `,
-          [functionality_id]
+          [functionality_id],
         );
 
         if (funcCheck.rowCount !== functionality_id.length) {
@@ -408,7 +384,7 @@ exports.updateSalesStage = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "One or more functionality_id values are invalid."
+            "One or more functionality_id values are invalid.",
           );
         }
       }
@@ -439,7 +415,7 @@ exports.updateSalesStage = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -454,7 +430,7 @@ exports.updateSalesStage = async (req, res) => {
           AND sales_stage_id != $3
           AND sales_process_id = $4
         `,
-            [existingSortOrder, sort_order, sales_stage_id, salesProcessId]
+            [existingSortOrder, sort_order, sales_stage_id, salesProcessId],
           );
         } else {
           await client.query(
@@ -466,7 +442,7 @@ exports.updateSalesStage = async (req, res) => {
           AND sales_stage_id != $3
           AND sales_process_id = $4
         `,
-            [sort_order, existingSortOrder, sales_stage_id, salesProcessId]
+            [sort_order, existingSortOrder, sales_stage_id, salesProcessId],
           );
         }
       }
@@ -539,7 +515,7 @@ exports.updateSalesStage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Sales stage updated successfully."
+      "Sales stage updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -572,7 +548,7 @@ exports.updateSalesStageIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)."
+        "is_active must be boolean (true or false).",
       );
     }
 
@@ -587,7 +563,7 @@ exports.updateSalesStageIsActive = async (req, res) => {
       WHERE ss.sales_stage_id = $1
         AND sp.builder_id = $2
       `,
-      [sales_stage_id, builderId]
+      [sales_stage_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -616,7 +592,7 @@ exports.updateSalesStageIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Sales stage status updated successfully."
+      "Sales stage status updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -635,7 +611,7 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    const { sales_process_id, page = 1, limit = 25 } = req.query;
+    const { sales_process_id } = req.query;
 
     if (!sales_process_id) {
       return errorResponse(res, 400, "Sales process ID is required.");
@@ -645,13 +621,9 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offsetValue = (pageValue - 1) * limitValue;
 
     await client.query("BEGIN");
 
@@ -662,7 +634,7 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
       WHERE sales_process_id = $1
         AND (builder_id = $2 OR company_id = $3)
       `,
-      [sales_process_id, builderId, companyId]
+      [sales_process_id, builderId, companyId],
     );
 
     if (processCheck.rowCount === 0) {
@@ -670,19 +642,8 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
       return errorResponse(res, 404, "Sales process not found for this user.");
     }
 
-    const countResult = await client.query(
-      `
-      SELECT COUNT(*)::int AS total
-      FROM sales_stage
-      WHERE sales_process_id = $1
-      `,
-      [sales_process_id]
-    );
-
-    const totalRecords = countResult.rows[0].total;
-
     const stagesResult = await client.query(
-  `
+      `
   SELECT
     ss.sales_stage_id,
     ss.sales_process_id,
@@ -707,26 +668,16 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
   WHERE ss.sales_process_id = $1
   GROUP BY ss.sales_stage_id
   ORDER BY ss.sort_order ASC
-  LIMIT $2 OFFSET $3
   `,
-  [sales_process_id, limitValue, offsetValue]
-);
-
+      [sales_process_id],
+    );
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      {
-        records: keysToCamelCase(stagesResult.rows),
-        pagination: {
-          totalRecords,
-          currentPage: pageValue,
-          totalPages: Math.ceil(totalRecords / limitValue),
-          limit: limitValue,
-        },
-      },
-      "Sales stages fetched successfully."
+      keysToCamelCase(stagesResult.rows),
+      "Sales stages fetched successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");

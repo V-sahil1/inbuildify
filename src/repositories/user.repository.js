@@ -177,7 +177,7 @@ async function getUsers({ builderId, page, limit, search, role, role_id }) {
         GET ALL USERS (NO PAGINATION)
   ============================================================ */
 
-async function getAllUsers({ builderId, search, role, role_id }) {
+async function getAllUsers({ builderId, search, role, role_id, is_active }) {
   const pool = getPool();
 
   const searchFilter = search ? `%${search}%` : "%";
@@ -204,6 +204,11 @@ async function getAllUsers({ builderId, search, role, role_id }) {
   if (role_id) {
     whereClause += ` AND u.role_id = $${paramIndex++}`;
     queryParams.push(role_id);
+  }
+
+  if (is_active !== undefined) {
+    whereClause += ` AND u.is_active = $${paramIndex++}`;
+    queryParams.push(is_active);
   }
 
   const res = await pool.query(
@@ -328,6 +333,8 @@ async function createUser(data) {
       has_login,
       next_login_password_change,
       builder_id,
+      is_verified,
+      password_auto_generated,
     } = data;
 
     const res = await client.query(
@@ -337,14 +344,15 @@ async function createUser(data) {
           phone, secondary_phone, initials, reporting_to,
           date_of_joining, date_of_birth, designation, remark,
           consultant_bio, address_id, use_company_address,
-          root_user, has_login, next_login_password_change, builder_id, is_verified
+          root_user, has_login, next_login_password_change, builder_id, is_verified, password_auto_generated
         )
         VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9,
           $10, $11, $12, $13,
           $14, $15, $16,
-          $17, $18, $19, $20, true
+          $17, $18, $19, $20,
+          $21, $22
         )
         RETURNING *
         `,
@@ -369,6 +377,8 @@ async function createUser(data) {
         has_login,
         next_login_password_change,
         builder_id,
+        is_verified,
+        password_auto_generated,
       ],
     );
 

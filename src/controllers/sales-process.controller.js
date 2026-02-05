@@ -94,41 +94,17 @@ exports.getAllSalesProcess = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 25;
-    const offset = (page - 1) * limit;
-
-    const totalQuery = `
-      SELECT COUNT(*) AS total
-      FROM sales_process
-      WHERE builder_id = $1;
-    `;
-    const totalResult = await client.query(totalQuery, [builderId]);
-    const total = parseInt(totalResult.rows[0].total);
-    const totalPages = Math.ceil(total / limit);
-
     const query = `
       SELECT *
       FROM sales_process
       WHERE builder_id = $1
-      ORDER BY created_at ASC
-      LIMIT $2 OFFSET $3;
+      ORDER BY created_at ASC;
     `;
-    const result = await client.query(query, [builderId, limit, offset]);
-
-    const responseData = {
-      sales_process: keysToCamelCase(result.rows),
-      pagination: {
-        totalRecords: total,
-        currentPage: page,
-        totalPages: totalPages,
-        limit,
-      },
-    };
+    const result = await client.query(query, [builderId]);
 
     return successResponse(
       res,
-      responseData,
+      keysToCamelCase(result.rows),
       "Sales process list fetched successfully.",
     );
   } catch (error) {

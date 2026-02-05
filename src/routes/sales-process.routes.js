@@ -9,7 +9,6 @@ const {
 } = require("../controllers/sales-process.controller");
 const {
   createSalesProccessSchema,
-  getAllSalesProccessSchema,
   deleteSalesProcessSchema,
   updateSalesProcessIdParamsSchema,
   updateSalesProcessSchema,
@@ -29,25 +28,21 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createSalesProccessSchema, REQUEST_SOURCE.BODY),
-  createSalesProcess
+  createSalesProcess,
 );
 
-router.get(
-  "/",
-  validateRequest(getAllSalesProccessSchema, REQUEST_SOURCE.QUERY),
-  getAllSalesProcess
-);
+router.get("/", getAllSalesProcess);
 
 router.delete(
   "/:id",
   validateRequest(deleteSalesProcessSchema, REQUEST_SOURCE.PARAMS),
-  deleteSalesProcess
+  deleteSalesProcess,
 );
 
 router.put(
   "/:id",
   validateRequest(updateSalesProcessIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSalesProcessSchema, REQUEST_SOURCE.BODY),
-  updateSalesProcess
+  updateSalesProcess,
 );
 module.exports = router;

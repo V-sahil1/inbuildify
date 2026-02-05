@@ -127,6 +127,7 @@
 -- );
 
 -- CREATE TYPE lead_status_enum AS ENUM ('NEW', 'IN_PROGRESS', 'JOB', 'CONSTRUCTION', 'COMPLETED', 'CANCELLED');
+
 -- CREATE TYPE lead_decision_enum AS ENUM ('WON', 'LOST');
 
 -- CREATE TABLE lead_source (
@@ -185,7 +186,9 @@
 -- );
 
 -- ALTER TABLE leads
+
 --   ADD CONSTRAINT fk_lead_contact FOREIGN KEY (lead_contact_id)
+
 --   REFERENCES leads_contact(leads_contact_id) ON DELETE SET NULL;
 
 -- CREATE TABLE range (
@@ -250,7 +253,9 @@
 -- );
 
 -- CREATE TYPE cost_type AS ENUM ('INCLUDED', 'FIXED', 'VARIABLE');
+
 -- CREATE TYPE cost_option AS ENUM ('NONE', 'TBA', 'TBC');
+
 -- CREATE TYPE item_status AS ENUM ('ACTIVE', 'INACTIVE');
 
 -- CREATE TABLE conditions (
@@ -339,7 +344,9 @@
 -- );
 
 -- CREATE TYPE property_title_status AS ENUM ('ESTIMATED', 'ACTUAL');
+
 -- CREATE TYPE property_compaction_report AS ENUM ('AVAILABLE', 'NOT_AVAILABLE');
+
 -- CREATE TYPE property_land_type AS ENUM ('REGULAR', 'IRREGULAR');
 
 -- CREATE TABLE property (
@@ -439,9 +446,11 @@
 -- );
 
 -- ALTER TABLE leads
+
 -- ADD CONSTRAINT fk_leads_quotation_version FOREIGN KEY (quotation_version_id) REFERENCES quotation_versions(quotation_version_id) ON DELETE SET NULL;
 
 -- CREATE TYPE action_type_enum AS ENUM ('NOTES', 'SMS', 'APPOINTMENT', 'TASK');
+
 -- CREATE TYPE task_priority_enum AS ENUM ('HIGH', 'LOW', 'MEDIUM');
 
 -- CREATE TABLE actions (
@@ -565,8 +574,11 @@
 -- );
 
 -- ALTER TABLE task ADD CONSTRAINT task_workflow_process_id_fkey 
+
 --   FOREIGN KEY (workflow_process_id) REFERENCES workflow_process(workflow_process_id) ON DELETE SET NULL;
+
 -- ALTER TABLE task ADD CONSTRAINT task_workflow_process_task_id_fkey 
+
 --   FOREIGN KEY (workflow_process_task_id) REFERENCES workflow_process_task(workflow_process_task_id) ON DELETE SET NULL;
 
 -- CREATE TABLE color_category (
@@ -648,7 +660,6 @@
 --   FOREIGN KEY (updated_by_id) REFERENCES users(users_id) ON DELETE SET NULL
 -- );
 
-
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE country (
@@ -694,6 +705,7 @@ CREATE TABLE timezones (
 -- );
 
 BUILDER TABLE
+
 CREATE TABLE builder (
   builder_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
@@ -718,6 +730,7 @@ CREATE TABLE builder (
 );
 
 BUILDER INSURER TABLE
+
 CREATE TABLE builder_insurer (
   builder_insurer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
@@ -732,6 +745,7 @@ CREATE TABLE builder_insurer (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT uq_builder_insurer UNIQUE (builder_id)
 );
+
 CREATE TABLE address (
   address_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
@@ -803,7 +817,6 @@ CREATE TABLE company (
 --   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 --   FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE CASCADE
 -- );
-
 
 CREATE TABLE users (
   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -884,8 +897,6 @@ CREATE TABLE users (
 --   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 --   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- );
-
-
 
 CREATE TABLE users_token (
   users_token_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1020,7 +1031,6 @@ CREATE TABLE construction_stage(
   CONSTRAINT uq_construction_stage_stage_name UNIQUE (company_id, builder_id, stage_name)
 );
 
-
 CREATE TABLE checklist (
   checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL,
@@ -1053,10 +1063,15 @@ CREATE TABLE checklist_item (
 );
 
 CREATE TYPE show_reference_id_in_pdf_type AS ENUM (
+
     'document_id',
+
     'job_id',
+
     'document_id_and_job_id',
+
     'hide_document_id_and_job_id'
+
 );
 
 CREATE TABLE general_settings (
@@ -1432,7 +1447,6 @@ CREATE TABLE job_process_stage (
     UNIQUE (company_id, builder_id, name)
 );
 
-
 CREATE TABLE job_process_sub_stage (
     sub_stage_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     stage_id UUID NOT NULL REFERENCES job_process_stage(stage_id) ON DELETE CASCADE,
@@ -1471,7 +1485,6 @@ CREATE TABLE job_process_subtask (
     sort_order INT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 
 CREATE TABLE job_color_settings (
     job_color_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1611,13 +1624,21 @@ CREATE TABLE job_commission_settings (
 );
 
 CREATE TYPE commission_type_enum AS ENUM ('outgoing', 'incoming');
+
 CREATE TYPE commission_unit_enum AS ENUM ('percentage', 'amount');
+
 CREATE TYPE commission_recipient_enum AS ENUM (
+
     'sales_person',
+
     'reporting_to',
+
     'referral_partner',
+
     'customer',
+
     'other_user'
+
 );
 
 CREATE TABLE job_commission (
@@ -1796,15 +1817,25 @@ CREATE TABLE document_file_naming_format(
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT chk_document_file_naming_format_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
+
 CREATE TYPE document_mapping_type_enum AS ENUM (
+
     'signed_quotation',
+
     'signed_color',
+
     'signed_variation',
+
     'signed_maintenance',
+
     'signed_contract_document',
+
     'compliance_certificate',
+
     'purchase_order',
+
     'job_documents'
+
 );
 
 CREATE TABLE document_folder_mapping (
@@ -1937,7 +1968,6 @@ CREATE TABLE template_pdf (
     CONSTRAINT uq_template_note_name UNIQUE (company_id, builder_id, name)
 );
 
-
 CREATE TABLE scheduler_email (
     scheduler_email_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2016,6 +2046,7 @@ CREATE TABLE master_price_list_categories (
 );
 
 CREATE TYPE cost_type_enum AS ENUM ('include', 'fixed', 'variable');
+
 CREATE TYPE cost_option_enum AS ENUM ('none', 'tba', 'tbc');
 
 CREATE TABLE master_price_list_categories_item (
@@ -2182,7 +2213,6 @@ CREATE TABLE survey_template (
     CONSTRAINT uq_survey_template UNIQUE (company_id, builder_id, name),
     CONSTRAINT chk_survey_template_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
-
 
 CREATE TABLE survey_template_questions (
     survey_question_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2419,7 +2449,9 @@ CREATE TABLE estate_stage_documents (
     file_url VARCHAR(500) NOT NULL,
     uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
+
 --------------------------------------------------------------------------------------------------------------
+
 CREATE TABLE drive(
   drive_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2557,7 +2589,6 @@ CREATE TABLE construction_inspection_checklist(
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
-
 
 CREATE TABLE construction_ohs_settings (
   construction_ohs_settings_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2726,10 +2757,11 @@ CREATE TABLE color_item(
   cost_type VARCHAR(50) CHECK(cost_type IN ('standard', 'upgrade')) DEFAULT 'standard',
   cost NUMERIC (10,2),                   --if cost_type is upgrade
   features VARCHAR(500),
-  description VARCHAR(500),    -- need to add specification_name field
+  description VARCHAR(500),
+  specification_name VARCHAR(500),
   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
-  color_image VARCHAR(500),
-  specification VARCHAR(500),
+  color_image JSONB DEFAULT '[]',
+  specification JSONB DEFAULT '[]',
   status BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2849,7 +2881,6 @@ CREATE TABLE agent_referral_partner(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_agent_referral_partner_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
-
 
 CREATE TABLE quotation_format(
   quotation_format_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

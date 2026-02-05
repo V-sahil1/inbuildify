@@ -333,19 +333,9 @@ exports.getAllConstructionChecklists = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      page = 1,
-      limit = 25,
-      construction_type_id,
-      construction_stage_id,
-      builder,
-    } = req.query;
+    const { construction_type_id, construction_stage_id, builder } = req.query;
 
     const { company_id, builder_id } = req.user;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offset = (pageValue - 1) * limitValue;
 
     let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
     let values = [company_id, builder_id];
@@ -433,19 +423,28 @@ exports.getAllConstructionChecklists = async (req, res) => {
             'duration', ccp.duration
           )), '[]'::json)
           FROM construction_checklist_predecessor ccp
-          LEFT JOIN construction_checklist pred_cc ON pred_cc.construction_checklist_id = ccp.predecessor_checklist_id
+          LEFT JOIN construction_checklist pred_cc 
+            ON pred_cc.construction_checklist_id = ccp.predecessor_checklist_id
           WHERE ccp.construction_checklist_id = cc.construction_checklist_id
             AND ccp.predecessor_checklist_id IS NOT NULL
         ) AS predecessor
       FROM construction_checklist cc
-      LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
-      LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
-      LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
-      LEFT JOIN builder b ON b.builder_id = cc.builder
-      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = ANY(cc.cost_center_id)
-      LEFT JOIN construction_option co ON co.construction_option_id = ANY(cc.construction_option_id)
-      LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
-      LEFT JOIN users u ON u.users_id = cc.created_by
+      LEFT JOIN construction_type ct 
+        ON ct.construction_type_id = cc.construction_type_id
+      LEFT JOIN construction_stage cs 
+        ON cs.construction_stage = cc.construction_stage_id
+      LEFT JOIN supplier_type st 
+        ON st.supplier_type_id = cc.supplier_type_id
+      LEFT JOIN builder b 
+        ON b.builder_id = cc.builder
+      LEFT JOIN cost_center cc_name 
+        ON cc_name.cost_center_id = ANY(cc.cost_center_id)
+      LEFT JOIN construction_option co 
+        ON co.construction_option_id = ANY(cc.construction_option_id)
+      LEFT JOIN compliance_type cpt 
+        ON cpt.compliance_type_id = cc.compliance_type_id
+      LEFT JOIN users u 
+        ON u.users_id = cc.created_by
       ${whereClause}
       GROUP BY 
         cc.construction_checklist_id, 
@@ -478,37 +477,16 @@ exports.getAllConstructionChecklists = async (req, res) => {
         cc.updated_by,
         cc.created_at,
         cc.updated_at
-      ORDER BY cc.sort_order ASC, cc.created_at DESC
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++};
+      ORDER BY cc.sort_order ASC, cc.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offset,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_checklist cc
-      ${whereClause};
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        checklists: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+
+      keysToCamelCase(dataResult.rows),
+
       "Construction checklists fetched successfully.",
     );
   } catch (error) {

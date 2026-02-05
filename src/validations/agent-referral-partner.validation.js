@@ -57,21 +57,21 @@ const createAgentReferralPartnerSchema = Joi.object({
           "Login ID cannot be provided when create_login is false.",
       }),
     }),
-    password_option: Joi.when("create_login", {
+    password_auto_generated: Joi.when("create_login", {
       is: true,
-      then: Joi.string().valid("manual", "auto"),
+      then: Joi.boolean().default(false),
       otherwise: Joi.forbidden().messages({
         "any.unknown":
-          "Password option cannot be provided when create_login is false.",
+          "Password auto generated cannot be provided when create_login is false.",
       }),
     }),
     manual_password: Joi.when("create_login", {
       is: true,
-      then: Joi.when("password_option", {
-        is: "manual",
+      then: Joi.when("password_auto_generated", {
+        is: false,
         then: Joi.string().min(8).required().messages({
           "string.empty":
-            "Manual password is required when password option is manual.",
+            "Manual password is required when password auto generated is false.",
           "string.min": "Password must be at least 8 characters.",
           "any.required":
             "Manual password is required when password option is manual.",
@@ -180,22 +180,22 @@ const updateAgentReferralPartnerSchema = Joi.object({
           "Login ID cannot be provided when create_login is false.",
       }),
     }),
-    password_option: Joi.when("create_login", {
+    password_auto_generated: Joi.when("create_login", {
       is: true,
-      then: Joi.string().valid("manual", "auto").default("manual"),
+      then: Joi.boolean().default(false),
       otherwise: Joi.forbidden().messages({
         "any.unknown":
-          "Password option cannot be provided when create_login is false.",
+          "Password auto generated cannot be provided when create_login is false.",
       }),
     }),
     manual_password: Joi.when("create_login", {
       is: true,
-      then: Joi.when("password_option", {
-        is: "manual",
+      then: Joi.when("password_auto_generated", {
+        is: false,
         then: Joi.string().min(8).optional(),
         otherwise: Joi.forbidden().messages({
           "any.unknown":
-            "Manual password can only be provided when password option is manual.",
+            "Manual password can only be provided when password auto generated is false.",
         }),
       }),
       otherwise: Joi.forbidden().messages({

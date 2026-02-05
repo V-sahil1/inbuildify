@@ -11,7 +11,6 @@ const {
 } = require("../controllers/sales-stage.controller");
 const {
   createSalesStageSchema,
-  getAllSalesStageSchema,
   getSalesStageBySalesProcessIdSchema,
   deleteSalesStageSchema,
   updateSalesStageIdParamsSchema,
@@ -33,37 +32,33 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createSalesStageSchema, REQUEST_SOURCE.BODY),
-  createSalesStage
+  createSalesStage,
 );
 
-router.get(
-  "/",
-  validateRequest(getAllSalesStageSchema, REQUEST_SOURCE.QUERY),
-  getAllSalesStages
-);
+router.get("/", getAllSalesStages);
 
 router.get(
   "/process",
   validateRequest(getSalesStageBySalesProcessIdSchema, REQUEST_SOURCE.QUERY),
-  getSalesStagesBySalesProcessId
+  getSalesStagesBySalesProcessId,
 );
 router.delete(
   "/:sales_stage_id",
   validateRequest(deleteSalesStageSchema, REQUEST_SOURCE.PARAMS),
-  deleteSalesStage
+  deleteSalesStage,
 );
 
 router.put(
   "/:sales_stage_id",
   validateRequest(updateSalesStageIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSalesStageSchema, REQUEST_SOURCE.BODY),
-  updateSalesStage
+  updateSalesStage,
 );
 
 router.put(
   "/is-active/:sales_stage_id",
   validateRequest(updateSalesStageIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSalesStageIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateSalesStageIsActive
+  updateSalesStageIsActive,
 );
 module.exports = router;

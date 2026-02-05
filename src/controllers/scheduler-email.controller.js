@@ -44,7 +44,7 @@ exports.createSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A scheduler email with this name already exists for this builder/company."
+        "A scheduler email with this name already exists for this builder/company.",
       );
     }
 
@@ -59,7 +59,7 @@ exports.createSchedulerEmail = async (req, res) => {
   `;
       const validNotificationUsers = await client.query(
         checkNotificationUsersQuery,
-        [notification_recipient_users]
+        [notification_recipient_users],
       );
 
       if (
@@ -69,7 +69,7 @@ exports.createSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided notification recipient users are invalid."
+          "One or more provided notification recipient users are invalid.",
         );
       }
     }
@@ -88,7 +88,7 @@ exports.createSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided reply-to users are invalid."
+          "One or more provided reply-to users are invalid.",
         );
       }
     }
@@ -140,12 +140,20 @@ exports.createSchedulerEmail = async (req, res) => {
     const result = await client.query(insertQuery, values);
 
     // Filter out sensitive fields from response
-    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+    const {
+      company_id,
+      builder_id,
+      created_at,
+      updated_at,
+      created_by,
+      updated_by,
+      ...filtered
+    } = result.rows[0];
 
     return successResponse(
       res,
       keysToCamelCase(filtered),
-      "Scheduler email created successfully."
+      "Scheduler email created successfully.",
     );
   } catch (error) {
     console.error("Error creating scheduler email:", error);
@@ -188,8 +196,16 @@ exports.getAllSchedulerEmail = async (req, res) => {
     const dataResult = await client.query(dataQuery, params);
 
     // Filter out sensitive fields from response
-    const filteredDataResult = dataResult.rows.map(row => {
-      const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+    const filteredDataResult = dataResult.rows.map((row) => {
+      const {
+        company_id,
+        builder_id,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        ...filtered
+      } = row;
       return filtered;
     });
 
@@ -223,7 +239,7 @@ exports.getAllSchedulerEmail = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Scheduler emails fetched successfully."
+      "Scheduler emails fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching scheduler emails:", error);
@@ -258,7 +274,7 @@ exports.deleteSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Scheduler email not found or you are not authorized to delete this record."
+        "Scheduler email not found or you are not authorized to delete this record.",
       );
     }
 
@@ -305,11 +321,19 @@ exports.updateSchedulerEmail = async (req, res) => {
     // Validate exclude_recipients field
     if (exclude_recipients !== undefined) {
       if (send_to_all_active_users === false) {
-        return errorResponse(res, 400, "exclude_recipients field can only be used when send_to_all_active_users is true");
+        return errorResponse(
+          res,
+          400,
+          "exclude_recipients field can only be used when send_to_all_active_users is true",
+        );
       }
-      
+
       if (!Array.isArray(exclude_recipients)) {
-        return errorResponse(res, 400, "exclude_recipients must be an array of user IDs");
+        return errorResponse(
+          res,
+          400,
+          "exclude_recipients must be an array of user IDs",
+        );
       }
     }
 
@@ -333,7 +357,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Scheduler email not found or you are not authorized to update it."
+        "Scheduler email not found or you are not authorized to update it.",
       );
     }
 
@@ -356,7 +380,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -379,7 +403,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A scheduler email with this name already exists for this builder/company."
+        "A scheduler email with this name already exists for this builder/company.",
       );
     }
 
@@ -387,7 +411,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot provide 'no_record_message_body' when 'no_record_message' is false."
+        "Cannot provide 'no_record_message_body' when 'no_record_message' is false.",
       );
     }
 
@@ -402,7 +426,7 @@ exports.updateSchedulerEmail = async (req, res) => {
       `;
       const validNotificationUsers = await client.query(
         checkNotificationUsersQuery,
-        [notification_recipient_users]
+        [notification_recipient_users],
       );
 
       if (
@@ -412,7 +436,7 @@ exports.updateSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided notification recipient users are invalid."
+          "One or more provided notification recipient users are invalid.",
         );
       }
     }
@@ -431,12 +455,12 @@ exports.updateSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided reply-to users are invalid."
+          "One or more provided reply-to users are invalid.",
         );
       }
     }
 
-     if (exclude_recipients && exclude_recipients.length > 0) {
+    if (exclude_recipients && exclude_recipients.length > 0) {
       const checkReplyToUsersQuery = `
         SELECT users_id 
         FROM users
@@ -450,7 +474,7 @@ exports.updateSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided exclude recipients are invalid."
+          "One or more provided exclude recipients are invalid.",
         );
       }
     }
@@ -463,7 +487,7 @@ exports.updateSchedulerEmail = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "You cannot update 'no_record_message_body' when 'no_record_message' is false."
+          "You cannot update 'no_record_message_body' when 'no_record_message' is false.",
         );
       }
     }
@@ -526,12 +550,20 @@ exports.updateSchedulerEmail = async (req, res) => {
 
     const result = await client.query(updateQuery, updateValues);
 
-    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+    const {
+      company_id,
+      builder_id,
+      created_at,
+      updated_at,
+      created_by,
+      updated_by,
+      ...filtered
+    } = result.rows[0];
 
     return successResponse(
       res,
       keysToCamelCase(filtered),
-      "Scheduler email updated successfully."
+      "Scheduler email updated successfully.",
     );
   } catch (error) {
     console.error("Error updating scheduler email:", error);
@@ -549,122 +581,152 @@ exports.getSchedulerEmails = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.users_id;
+    const { is_active } = req.query;
 
     // Define static 15 records template
     const staticRecords = [
       {
-        name: 'Daily Report Summary',
-        frequency: 'daily',
-        subject: 'Daily Report Summary',
-        messageBody: 'This is a daily report summary containing all project updates, task completions, and important notifications for today.',
-        noOfActionDays: 1
+        name: "Daily Report Summary",
+        frequency: "daily",
+        subject: "Daily Report Summary",
+        messageBody:
+          "This is a daily report summary containing all project updates, task completions, and important notifications for today.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Weekly Progress Update',
-        frequency: 'weekly',
-        subject: 'Weekly Progress Update',
-        messageBody: 'Weekly progress update showing completed tasks, milestones achieved, and upcoming priorities for the week.',
-        noOfActionDays: 7
+        name: "Weekly Progress Update",
+        frequency: "weekly",
+        subject: "Weekly Progress Update",
+        messageBody:
+          "Weekly progress update showing completed tasks, milestones achieved, and upcoming priorities for the week.",
+        noOfActionDays: 7,
       },
       {
-        name: 'Monthly Performance Review',
-        frequency: 'monthly',
-        subject: 'Monthly Performance Review',
-        messageBody: 'Monthly performance review with detailed analytics, KPI tracking, and performance metrics for all projects.',
-        noOfActionDays: 30
+        name: "Monthly Performance Review",
+        frequency: "monthly",
+        subject: "Monthly Performance Review",
+        messageBody:
+          "Monthly performance review with detailed analytics, KPI tracking, and performance metrics for all projects.",
+        noOfActionDays: 30,
       },
       {
-        name: 'Project Status Update',
-        frequency: 'daily',
-        subject: 'Project Status Update',
-        messageBody: 'Current project status including timeline, budget, resource allocation, and potential risks.',
-        noOfActionDays: 1
+        name: "Project Status Update",
+        frequency: "daily",
+        subject: "Project Status Update",
+        messageBody:
+          "Current project status including timeline, budget, resource allocation, and potential risks.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Team Notification',
-        frequency: 'daily',
-        subject: 'Team Notification',
-        messageBody: 'Team notifications including member updates, task assignments, and collaboration alerts.',
-        noOfActionDays: 1
+        name: "Team Notification",
+        frequency: "daily",
+        subject: "Team Notification",
+        messageBody:
+          "Team notifications including member updates, task assignments, and collaboration alerts.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Task Completion Report',
-        frequency: 'weekly',
-        subject: 'Task Completion Report',
-        messageBody: 'Weekly task completion report showing finished tasks, pending items, and completion rates.',
-        noOfActionDays: 7
+        name: "Task Completion Report",
+        frequency: "weekly",
+        subject: "Task Completion Report",
+        messageBody:
+          "Weekly task completion report showing finished tasks, pending items, and completion rates.",
+        noOfActionDays: 7,
       },
       {
-        name: 'Deadline Reminder',
-        frequency: 'daily',
-        subject: 'Deadline Reminder',
-        messageBody: 'Daily reminder for upcoming deadlines, task due dates, and critical project milestones.',
-        noOfActionDays: 1
+        name: "Deadline Reminder",
+        frequency: "daily",
+        subject: "Deadline Reminder",
+        messageBody:
+          "Daily reminder for upcoming deadlines, task due dates, and critical project milestones.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Meeting Schedule',
-        frequency: 'weekly',
-        subject: 'Meeting Schedule',
-        messageBody: 'Weekly meeting schedule with agenda, participants, and action items from previous meetings.',
-        noOfActionDays: 7
+        name: "Meeting Schedule",
+        frequency: "weekly",
+        subject: "Meeting Schedule",
+        messageBody:
+          "Weekly meeting schedule with agenda, participants, and action items from previous meetings.",
+        noOfActionDays: 7,
       },
       {
-        name: 'Budget Overview',
-        frequency: 'monthly',
-        subject: 'Budget Overview',
-        messageBody: 'Monthly budget overview showing expenditures, remaining budget, and financial forecasts.',
-        noOfActionDays: 30
+        name: "Budget Overview",
+        frequency: "monthly",
+        subject: "Budget Overview",
+        messageBody:
+          "Monthly budget overview showing expenditures, remaining budget, and financial forecasts.",
+        noOfActionDays: 30,
       },
       {
-        name: 'Resource Allocation',
-        frequency: 'weekly',
-        subject: 'Resource Allocation',
-        messageBody: 'Weekly resource allocation report showing team assignments, equipment usage, and availability.',
-        noOfActionDays: 7
+        name: "Resource Allocation",
+        frequency: "weekly",
+        subject: "Resource Allocation",
+        messageBody:
+          "Weekly resource allocation report showing team assignments, equipment usage, and availability.",
+        noOfActionDays: 7,
       },
       {
-        name: 'Quality Check Report',
-        frequency: 'daily',
-        subject: 'Quality Check Report',
-        messageBody: 'Daily quality control report including inspections, compliance checks, and quality metrics.',
-        noOfActionDays: 1
+        name: "Quality Check Report",
+        frequency: "daily",
+        subject: "Quality Check Report",
+        messageBody:
+          "Daily quality control report including inspections, compliance checks, and quality metrics.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Safety Inspection',
-        frequency: 'weekly',
-        subject: 'Safety Inspection',
-        messageBody: 'Weekly safety inspection report with hazard assessments, safety compliance, and incident reports.',
-        noOfActionDays: 7
+        name: "Safety Inspection",
+        frequency: "weekly",
+        subject: "Safety Inspection",
+        messageBody:
+          "Weekly safety inspection report with hazard assessments, safety compliance, and incident reports.",
+        noOfActionDays: 7,
       },
       {
-        name: 'Client Communication',
-        frequency: 'daily',
-        subject: 'Client Communication',
-        messageBody: 'Daily client communication summary including emails, meetings, and project updates shared with clients.',
-        noOfActionDays: 1
+        name: "Client Communication",
+        frequency: "daily",
+        subject: "Client Communication",
+        messageBody:
+          "Daily client communication summary including emails, meetings, and project updates shared with clients.",
+        noOfActionDays: 1,
       },
       {
-        name: 'Vendor Update',
-        frequency: 'weekly',
-        subject: 'Vendor Update',
-        messageBody: 'Weekly vendor update showing supplier performance, deliveries, and procurement activities.',
-        noOfActionDays: 7
+        name: "Vendor Update",
+        frequency: "weekly",
+        subject: "Vendor Update",
+        messageBody:
+          "Weekly vendor update showing supplier performance, deliveries, and procurement activities.",
+        noOfActionDays: 7,
       },
       {
-        name: 'System Maintenance',
-        frequency: 'monthly',
-        subject: 'System Maintenance',
-        messageBody: 'Monthly system maintenance report including updates, backups, and technical performance metrics.',
-        noOfActionDays: 30
-      }
+        name: "System Maintenance",
+        frequency: "monthly",
+        subject: "System Maintenance",
+        messageBody:
+          "Monthly system maintenance report including updates, backups, and technical performance metrics.",
+        noOfActionDays: 30,
+      },
     ];
+
+    const countQuery = `
+      SELECT 
+        COUNT(*) as total_count,
+        COUNT(CASE WHEN is_active = true THEN 1 END) as active_count,
+        COUNT(CASE WHEN is_active = false THEN 1 END) as inactive_count
+      FROM scheduler_email
+      WHERE (company_id = $1 OR builder_id = $2)
+    `;
+    const countResult = await client.query(countQuery, [companyId, builderId]);
+    const counts = countResult.rows[0];
 
     const existingRecordsQuery = `
       SELECT scheduler_email_id
       FROM scheduler_email
       WHERE (company_id = $1 OR builder_id = $2)
     `;
-    const existingRecordsResult = await client.query(existingRecordsQuery, [companyId, builderId]);
+    const existingRecordsResult = await client.query(existingRecordsQuery, [
+      companyId,
+      builderId,
+    ]);
 
     if (existingRecordsResult.rowCount === 0) {
       const insertQuery = `
@@ -674,14 +736,17 @@ exports.getSchedulerEmails = async (req, res) => {
           no_of_action_days, no_record_message, no_record_message_body,
           attach_files, is_active, created_by, updated_by
         ) VALUES 
-        ${staticRecords.map((_, index) => 
-          `($${index * 17 + 1}, $${index * 17 + 2}, $${index * 17 + 3}, $${index * 17 + 4}, $${index * 17 + 5}, $${index * 17 + 6}, $${index * 17 + 7}, $${index * 17 + 8}, $${index * 17 + 9}, $${index * 17 + 10}, $${index * 17 + 11}, $${index * 17 + 12}, $${index * 17 + 13}, $${index * 17 + 14}, $${index * 17 + 15}, $${index * 17 + 16}, $${index * 17 + 17})`
-        ).join(', ')}
+        ${staticRecords
+          .map(
+            (_, index) =>
+              `($${index * 17 + 1}, $${index * 17 + 2}, $${index * 17 + 3}, $${index * 17 + 4}, $${index * 17 + 5}, $${index * 17 + 6}, $${index * 17 + 7}, $${index * 17 + 8}, $${index * 17 + 9}, $${index * 17 + 10}, $${index * 17 + 11}, $${index * 17 + 12}, $${index * 17 + 13}, $${index * 17 + 14}, $${index * 17 + 15}, $${index * 17 + 16}, $${index * 17 + 17})`,
+          )
+          .join(", ")}
         RETURNING *;
       `;
 
       const insertValues = [];
-      staticRecords.forEach(record => {
+      staticRecords.forEach((record) => {
         insertValues.push(
           companyId,
           builderId,
@@ -695,51 +760,85 @@ exports.getSchedulerEmails = async (req, res) => {
           record.messageBody,
           record.noOfActionDays,
           false,
-          null, 
+          null,
           null, // attach_files
-          true, 
-          userId, 
-          userId
+          true,
+          userId,
+          userId,
         );
       });
 
       const insertResult = await client.query(insertQuery, insertValues);
 
       // Filter out sensitive fields from response
-      const filteredResults = insertResult.rows.map(row => {
-        const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+      const filteredResults = insertResult.rows.map((row) => {
+        const {
+          company_id,
+          builder_id,
+          created_at,
+          updated_at,
+          created_by,
+          updated_by,
+          ...filtered
+        } = row;
         return filtered;
       });
 
       return successResponse(
         res,
-        keysToCamelCase(filteredResults),
-        "15 default scheduler emails created and fetched successfully."
+        {
+          scheduler_emails: keysToCamelCase(filteredResults),
+          counts: {
+            total: parseInt(counts.total_count),
+            active: parseInt(counts.active_count),
+            inactive: parseInt(counts.inactive_count),
+          },
+        },
+        "15 default scheduler emails created and fetched successfully.",
       );
     } else {
       const query = `
         SELECT *
         FROM scheduler_email
         WHERE (company_id = $1 OR builder_id = $2)
+        ${is_active !== undefined ? "AND is_active = $3" : ""}
         ORDER BY created_at ASC
         LIMIT 15
       `;
-      
-      const result = await client.query(query, [companyId, builderId]);
+
+      const queryParams = [companyId, builderId];
+      if (is_active !== undefined) {
+        queryParams.push(is_active === "true");
+      }
+      const result = await client.query(query, queryParams);
 
       // Filter out sensitive fields from response
-      const filteredResults = result.rows.map(row => {
-        const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = row;
+      const filteredResults = result.rows.map((row) => {
+        const {
+          company_id,
+          builder_id,
+          created_at,
+          updated_at,
+          created_by,
+          updated_by,
+          ...filtered
+        } = row;
         return filtered;
       });
 
       return successResponse(
         res,
-        keysToCamelCase(filteredResults),
-        "Scheduler emails fetched successfully."
+        {
+          scheduler_emails: keysToCamelCase(filteredResults),
+          counts: {
+            total: parseInt(counts.total_count),
+            active: parseInt(counts.active_count),
+            inactive: parseInt(counts.inactive_count),
+          },
+        },
+        "Scheduler emails fetched successfully.",
       );
     }
-
   } catch (error) {
     console.error("Error fetching scheduler emails:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
@@ -775,7 +874,7 @@ exports.toggleSchedulerEmailStatus = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Scheduler email not found or you are not authorized to update it."
+        "Scheduler email not found or you are not authorized to update it.",
       );
     }
 
@@ -792,16 +891,27 @@ exports.toggleSchedulerEmailStatus = async (req, res) => {
       RETURNING *;
     `;
 
-    const result = await client.query(updateQuery, [newStatus, userId, scheduler_email_id]);
+    const result = await client.query(updateQuery, [
+      newStatus,
+      userId,
+      scheduler_email_id,
+    ]);
 
-    const { company_id, builder_id, created_at, updated_at, created_by, updated_by, ...filtered } = result.rows[0];
+    const {
+      company_id,
+      builder_id,
+      created_at,
+      updated_at,
+      created_by,
+      updated_by,
+      ...filtered
+    } = result.rows[0];
 
     return successResponse(
       res,
       keysToCamelCase(filtered),
-      `Scheduler email ${newStatus ? 'activated' : 'deactivated'} successfully.`
+      `Scheduler email ${newStatus ? "activated" : "deactivated"} successfully.`,
     );
-
   } catch (error) {
     console.error("Error toggling scheduler email status:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
