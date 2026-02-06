@@ -133,19 +133,9 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      page = 1,
-      limit = 25,
-      construction_checklist_id,
-      data_required,
-      no_of_days,
-    } = req.query;
+    const { construction_checklist_id, data_required, no_of_days } = req.query;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offsetValue = (pageValue - 1) * limitValue;
 
     let whereClause = "WHERE 1=1";
     let values = [];
@@ -183,38 +173,16 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
       FROM construction_sub_checklist csc
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = csc.construction_checklist_id
       ${whereClause}
-      ORDER BY csc.sort_order ASC, csc.created_at DESC
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++};
+      ORDER BY csc.sort_order ASC, csc.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offsetValue,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_sub_checklist csc
-      LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = csc.construction_checklist_id
-      ${whereClause};
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        subChecklists: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+
+      keysToCamelCase(dataResult.rows),
+
       "Construction sub checklists fetched successfully.",
     );
   } catch (error) {

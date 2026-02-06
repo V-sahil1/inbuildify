@@ -6,6 +6,7 @@ const createLocationSchema = Joi.object({
 });
 
 const getAllLocationSchema = Joi.object({
+  name: Joi.string().trim().max(150).optional(),
   status: Joi.boolean().optional(),
 });
 

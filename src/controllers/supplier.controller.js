@@ -222,18 +222,7 @@ exports.getAllSuppliers = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    let {
-      page = 1,
-      limit = 25,
-      company_name,
-      phone,
-      email,
-      website,
-    } = req.query;
-
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-    const offset = (page - 1) * limit;
+    let { company_name, phone, email, website } = req.query;
 
     const conditions = [];
     const values = [];
@@ -270,10 +259,6 @@ exports.getAllSuppliers = async (req, res) => {
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`
       : "";
-
-    const countQuery = `SELECT COUNT(*) AS total FROM supplier s ${whereClause}`;
-    const countResult = await client.query(countQuery, values);
-    const total = parseInt(countResult.rows[0].total, 10);
 
     const mainQuery = `
       SELECT 
@@ -312,19 +297,12 @@ exports.getAllSuppliers = async (req, res) => {
       ${whereClause}
       GROUP BY s.supplier_id
       ORDER BY s.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
     `;
     const result = await client.query(mainQuery, values);
 
     return successResponse(
       res,
-      {
-        suppliers: keysToCamelCase(result.rows),
-        totalRecords: total,
-        currentPage: page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      keysToCamelCase(result.rows),
       "Suppliers fetched successfully.",
     );
   } catch (error) {

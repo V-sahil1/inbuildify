@@ -106,10 +106,27 @@ const createUserSchema = Joi.object({
 /* ---------------------------
    UPDATE USER
 ---------------------------- */
-const updateUserSchema = createUserSchema.fork(
-  ["name", "email", "role_id"],
-  (schema) => schema.optional(),
-);
+const updateUserSchema = createUserSchema
+  .fork(["name", "email", "role_id"], (schema) => schema.optional())
+  .fork(
+    [
+      "password_auto_generated",
+      "manual_password",
+      "next_login_password_change",
+      "email_login_credentials",
+    ],
+    (schema) => schema.optional(),
+  )
+  .fork(["manual_password"], (schema) =>
+    schema.when("password_auto_generated", {
+      is: false,
+      then: Joi.required().messages({
+        "any.required":
+          "Manual password is required when password_auto_generated is false",
+      }),
+      otherwise: Joi.optional(),
+    }),
+  );
 
 /* ---------------------------
    RESET PASSWORD
@@ -119,6 +136,7 @@ const resetPasswordSchema = Joi.object({
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().optional(),
   email_password: Joi.boolean().optional(),
+  email_login_credentials: Joi.boolean().optional(),
 });
 
 /* ---------------------------

@@ -71,7 +71,7 @@ exports.getAllLocation = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
-    const { status } = req.query;
+    const { status, name } = req.query;
 
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
@@ -97,6 +97,12 @@ exports.getAllLocation = async (req, res) => {
           "Status parameter must be 'true' or 'false'.",
         );
       }
+    }
+
+    if (name !== undefined && name.trim() !== "") {
+      dataQuery += ` AND name ILIKE $${paramIndex}`;
+      queryParams.push(`%${name.trim()}%`);
+      paramIndex++;
     }
 
     dataQuery += ` ORDER BY created_at DESC`;

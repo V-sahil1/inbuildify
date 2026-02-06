@@ -250,7 +250,9 @@ async function createUser(currentUser, body, files) {
 
     if (newUser) {
       if (password_auto_generated !== undefined) {
-        newUser.password_auto_generated = password_auto_generated;
+        newUser.password_auto_generated =
+          password_auto_generated === "true" ||
+          password_auto_generated === true;
       }
 
       if (
@@ -361,6 +363,101 @@ async function updateUser(currentUser, userId, body, files) {
   }
 
   /* --------------------------
+            PASSWORD HANDLING
+    --------------------------- */
+
+  if (body.password_auto_generated !== undefined) {
+    // If password is auto-generated, validate that manual fields are not provided
+    if (
+      body.password_auto_generated === true ||
+      body.password_auto_generated === "true"
+    ) {
+      if (body.manual_password) {
+        throw {
+          status: 400,
+          message:
+            "Manual password cannot be provided when password is auto-generated.",
+        };
+      }
+      if (body.email_login_credentials !== undefined) {
+        throw {
+          status: 400,
+          message:
+            "Email login credentials cannot be set when password is auto-generated.",
+        };
+      }
+      if (body.next_login_password_change !== undefined) {
+        throw {
+          status: 400,
+          message:
+            "Next login password change cannot be set when password is auto-generated.",
+        };
+      }
+    }
+
+    let newPassword;
+    let encryptedPassword;
+
+    if (
+      body.password_auto_generated === false ||
+      body.password_auto_generated === "false"
+    ) {
+      // Manual password required
+      if (!body.manual_password) {
+        throw {
+          status: 400,
+          message:
+            "Manual password is required when password_auto_generated is false.",
+        };
+      }
+      if (!validatePasswordPolicy(body.manual_password)) {
+        throw {
+          status: 400,
+          message:
+            "Password must be minimum 8 characters with uppercase, lowercase, and number.",
+        };
+      }
+      newPassword = body.manual_password;
+    } else {
+      // Auto-generate password
+      newPassword = generateStrongPassword();
+    }
+
+    encryptedPassword = encrypt(newPassword);
+
+    // Update password in database
+    await userRepo.updatePassword(
+      userId,
+      encryptedPassword,
+      body.next_login_password_change === "true",
+    );
+
+    // Send email if password is auto-generated or email credentials requested
+    if (
+      body.password_auto_generated === true ||
+      body.password_auto_generated === "true"
+    ) {
+      await sendPasswordEmail(
+        targetUser.email,
+        targetUser.loginId || targetUser.email,
+        newPassword,
+      );
+    } else if (body.email_login_credentials === "true") {
+      await sendPasswordEmail(
+        targetUser.email,
+        targetUser.loginId || targetUser.email,
+        newPassword,
+      );
+    }
+  } else if (body.next_login_password_change !== undefined) {
+    // Handle next_login_password_change without password change
+    await userRepo.updateNextLoginPasswordChange(
+      userId,
+      body.next_login_password_change === "true",
+    );
+  }
+
+  /* --------------------------
             UPDATE USER
     --------------------------- */
 
@@ -371,7 +468,12 @@ async function updateUser(currentUser, userId, body, files) {
     use_company_address: body.use_company_address === "true",
   };
 
+  // Remove password-related fields since they're handled separately
   delete updateData.address;
+  delete updateData.password_auto_generated;
+  delete updateData.manual_password;
+  delete updateData.next_login_password_change;
+  delete updateData.email_login_credentials;
 
   await userRepo.updateUser(userId, updateData);
 
@@ -444,6 +546,38 @@ async function resetPassword(currentUser, userId, body) {
     email_login_credentials,
   } = body;
 
+  // If password is auto-generated, validate that manual fields are not provided
+  if (password_auto_generated === true || password_auto_generated === "true") {
+    if (manual_password) {
+      throw {
+        status: 400,
+        message:
+          "Manual password cannot be provided when password is auto-generated.",
+      };
+    }
+    if (email_password !== undefined) {
+      throw {
+        status: 400,
+        message:
+          "Email password cannot be set when password is auto-generated.",
+      };
+    }
+    if (next_login_password_change !== undefined) {
+      throw {
+        status: 400,
+        message:
+          "Next login password change cannot be set when password is auto-generated.",
+      };
+    }
+    if (email_login_credentials !== undefined) {
+      throw {
+        status: 400,
+        message:
+          "Email login credentials cannot be set when password is auto-generated.",
+      };
+    }
+  }
+
   let newPassword;
 
   if (
@@ -466,14 +600,35 @@ async function resetPassword(currentUser, userId, body) {
 
   const encrypted = encrypt(newPassword);
 
-  await userRepo.updatePassword(
-    userId,
-    encrypted,
-    next_login_password_change === "true",
-  );
+  // Determine next_login_password_change value
+  let nextLoginPasswordChange = false;
+  if (
+    password_auto_generated === false ||
+    password_auto_generated === "false"
+  ) {
+    nextLoginPasswordChange = next_login_password_change === "true";
+  }
+  // For auto-generated passwords, it's always false
 
-  if (email_login_credentials === "true" || email_password === true) {
-    await sendPasswordEmail(user.email, user.login_id, newPassword);
+  await userRepo.updatePassword(userId, encrypted, nextLoginPasswordChange);
+
+  // Auto-send email when password is auto-generated
+  if (password_auto_generated === true || password_auto_generated === "true") {
+    await sendPasswordEmail(
+      user.email,
+      user.loginId || user.email,
+      newPassword,
+    );
+  } else if (
+    email_login_credentials === "true" ||
+    email_password === true ||
+    email_login_credentials === true
+  ) {
+    await sendPasswordEmail(
+      user.email,
+      user.loginId || user.email,
+      newPassword,
+    );
   }
 
   return { userId };

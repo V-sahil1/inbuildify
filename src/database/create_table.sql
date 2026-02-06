@@ -2950,3 +2950,72 @@ CREATE TABLE master_section_item(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE quotation(
+  quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  refrence_id VARCHAR(50),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+-- when the user not select dwellingype then user can not select foorplan, facade, pricelist, pricelist item in create time
+-- when the user update range  that time delete the facade, floorplan, package, pricelist item , template which ar selected
+CREATE TABLE quotation_version(
+  quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
+  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  package_id UUID[] DEFAULT '{}',
+  floor_plan_id UUID[] DEFAULT '{}',
+  facade_id UUID[] DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- when the location and dwelling type select then user can select priclist item
+CREATE TABLE quotation_version_pricelist_item_map(
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+  quantity INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT quotation_version_pricelist_item_map_pkey PRIMARY KEY (quotation_version_id, price_list_item_id)
+);
+
+CREATE TABLE quotation_version_custom_section(
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  custom_section_id UUID REFERENCES custom_section(custom_section_id) ON DELETE CASCADE,
+  file_url VARCHAR(500),
+  sort_order INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE property(
+  property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  lot_no INTEGER,
+  street_no INTEGER,
+  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+  estate_name VARCHAR(255),
+  title_status VARCHAR(255),         --  ('ESTIMATED', 'ACTUAL')
+  title_date DATE,
+  compaction_report VARCHAR(255),     -- ('AVAILABLE', 'NOT_AVAILABLE')
+  land_type,                          -- ('REGULAR', 'IRREGULAR')
+  width_m NUMERIC(10,2),
+  depth_m NUMERIC(10,2),           -- video new lead to won lead:  22:41
+  total_size_m2 NUMERIC(10,2),
+  site_fall_mm NUMERIC(10,2),
+  land_fill_mm NUMERIC(10,2),
+  bush_fire BOOLEAN,
+  corner_block BOOLEAN,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

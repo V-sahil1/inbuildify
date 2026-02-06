@@ -275,6 +275,19 @@ async function login({ email, login_id, password }) {
       [user.users_id],
     );
 
+    // CHECK IF USER NEEDS TO CHANGE PASSWORD
+    if (user.next_login_password_change) {
+      return {
+        requirePasswordChange: true,
+        message: "You must change your password before continuing.",
+        user: {
+          id: user.users_id,
+          email: user.email,
+          role_id: user.role_id,
+        },
+      };
+    }
+
     const accessToken = generateAccessToken(user.users_id);
     const refreshToken = generateRefreshToken(user.users_id);
 

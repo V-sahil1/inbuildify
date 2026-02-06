@@ -487,6 +487,23 @@ async function updatePassword(userId, encryptedPassword, askNextLogin) {
 }
 
 /* ============================================================
+        UPDATE NEXT LOGIN PASSWORD CHANGE
+  ============================================================ */
+
+async function updateNextLoginPasswordChange(userId, askNextLogin) {
+  const pool = getPool();
+  await pool.query(
+    `
+      UPDATE users
+      SET next_login_password_change = $1,
+          updated_at = NOW()
+      WHERE users_id = $2
+      `,
+    [askNextLogin, userId],
+  );
+}
+
+/* ============================================================
         CHANGE LOGIN ID
   ============================================================ */
 
@@ -569,6 +586,7 @@ module.exports = {
   getUsers,
   getAllUsers,
   updatePassword,
+  updateNextLoginPasswordChange,
   updateLoginId,
   updateActiveStatus,
   updateLockStatus,

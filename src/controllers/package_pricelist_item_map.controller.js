@@ -18,13 +18,13 @@ exports.createPackagePriceListItemMap = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "package_id and price_list_item_id are required"
+        "package_id and price_list_item_id are required",
       );
     }
 
     const pkgCheck = await client.query(
       `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
-      [package_id, builderId]
+      [package_id, builderId],
     );
 
     if (pkgCheck.rows.length === 0) {
@@ -32,13 +32,13 @@ exports.createPackagePriceListItemMap = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid package_id. You can use only your own packages"
+        "Invalid package_id. You can use only your own packages",
       );
     }
 
     const pkgActiveCheck = await client.query(
       `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true`,
-      [package_id, builderId]
+      [package_id, builderId],
     );
 
     if (pkgActiveCheck.rows.length === 0) {
@@ -48,7 +48,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
 
     const itemCheck = await client.query(
       `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2`,
-      [price_list_item_id, builderId]
+      [price_list_item_id, builderId],
     );
 
     if (itemCheck.rows.length === 0) {
@@ -56,13 +56,13 @@ exports.createPackagePriceListItemMap = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid price_list_item_id. You can use only your own price list items"
+        "Invalid price_list_item_id. You can use only your own price list items",
       );
     }
 
     const itemActiveCheck = await client.query(
       `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'`,
-      [price_list_item_id, builderId]
+      [price_list_item_id, builderId],
     );
 
     if (itemActiveCheck.rows.length === 0) {
@@ -75,7 +75,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
       SELECT 1 FROM package_pricelist_item_map
       WHERE package_id = $1 AND price_list_item_id = $2
       `,
-      [package_id, price_list_item_id]
+      [package_id, price_list_item_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -83,7 +83,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "This package is already mapped with this price list item."
+        "This package is already mapped with this price list item.",
       );
     }
 
@@ -102,10 +102,8 @@ exports.createPackagePriceListItemMap = async (req, res) => {
 
     return successResponse(
       res,
-      {
-        package: keysToCamelCase(insertResult.rows[0]),
-      },
-      "Package price list item mapped successfully"
+      keysToCamelCase(insertResult.rows[0]),
+      "Package price list item mapped successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -166,7 +164,7 @@ exports.getAllPackagePriceListItemMap = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Package price list item mappings fetched successfully"
+      "Package price list item mappings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching package price list item map:", error);
@@ -188,14 +186,14 @@ exports.getPackagePricelistItemByPackageId = async (req, res) => {
       `SELECT package_id 
        FROM package 
        WHERE package_id = $1 AND builder_id = $2`,
-      [package_id, builderId]
+      [package_id, builderId],
     );
 
     if (packageCheck.rows.length === 0) {
       return errorResponse(
         res,
         403,
-        "You cannot access labels for another builder's package"
+        "You cannot access labels for another builder's package",
       );
     }
 
@@ -215,12 +213,12 @@ exports.getPackagePricelistItemByPackageId = async (req, res) => {
       {
         packagePricelistItemMaps: keysToCamelCase(result.rows),
       },
-      "Package price list item mappings fetched successfully"
+      "Package price list item mappings fetched successfully",
     );
   } catch (error) {
     console.error(
       "Error fetching package price list item map by package_id:",
-      error
+      error,
     );
     return errorResponse(res, 500, "Internal server error");
   } finally {
@@ -251,7 +249,7 @@ exports.deletePackagePricelistItemMapMap = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not allowed to delete this mapping."
+        "You are not allowed to delete this mapping.",
       );
     }
 
@@ -263,7 +261,7 @@ exports.deletePackagePricelistItemMapMap = async (req, res) => {
     return successResponse(
       res,
       {},
-      "package pricelist item map deleted successfully."
+      "package pricelist item map deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -312,7 +310,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You cannot update records of another builder"
+        "You cannot update records of another builder",
       );
     }
 
@@ -323,7 +321,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
     if (package_id) {
       const pkgCheck = await client.query(
         `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
-        [package_id, builderId]
+        [package_id, builderId],
       );
 
       if (pkgCheck.rows.length === 0) {
@@ -331,13 +329,13 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid package_id. You can use only your own packages"
+          "Invalid package_id. You can use only your own packages",
         );
       }
 
       const pkgActiveCheck = await client.query(
         `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true`,
-        [package_id, builderId]
+        [package_id, builderId],
       );
 
       if (pkgActiveCheck.rows.length === 0) {
@@ -353,7 +351,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
     if (price_list_item_id) {
       const itemCheck = await client.query(
         `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2`,
-        [price_list_item_id, builderId]
+        [price_list_item_id, builderId],
       );
 
       if (itemCheck.rows.length === 0) {
@@ -361,13 +359,13 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid price_list_item_id. You can use only your own price list items"
+          "Invalid price_list_item_id. You can use only your own price list items",
         );
       }
 
       const itemActiveCheck = await client.query(
         `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'`,
-        [price_list_item_id, builderId]
+        [price_list_item_id, builderId],
       );
 
       if (itemActiveCheck.rows.length === 0) {
@@ -394,7 +392,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
         SELECT 1 FROM package_pricelist_item_map
         WHERE package_id = $1 AND price_list_item_id = $2 AND id <> $3
         `,
-        [finalPackageId, finalItemId, id]
+        [finalPackageId, finalItemId, id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -402,7 +400,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "This package is already mapped with this price list item."
+          "This package is already mapped with this price list item.",
         );
       }
     }
@@ -425,7 +423,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
       {
         package: keysToCamelCase(updateResult.rows[0]),
       },
-      "Package updated successfully"
+      "Package updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");

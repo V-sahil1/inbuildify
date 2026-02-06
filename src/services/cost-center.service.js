@@ -561,9 +561,6 @@ async function createCostCenterChecklistMap(
 async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
   const pool = getPool();
 
-  const { page = 1, limit = 25 } = filters;
-  const offset = (page - 1) * limit;
-
   let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
   let values = [companyId, builderId];
   let paramIndex = 3;
@@ -590,38 +587,11 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
     INNER JOIN construction_checklist ccl ON ccl.construction_checklist_id = cccm.construction_checklist_id
     ${whereClause}
     ORDER BY cc.sort_order, ccl.sort_order, cccm.created_at DESC
-    LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `,
-    [...values, limit, offset],
+    values,
   );
 
-  // Get total count
-  const countValues = [companyId, builderId];
-  let countParamIndex = 3;
-  let countWhereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
-
-  if (filters.cost_center_id) {
-    countWhereClause += ` AND cccm.cost_center_id = $${countParamIndex++}`;
-    countValues.push(filters.cost_center_id);
-  }
-
-  if (filters.construction_checklist_id) {
-    countWhereClause += ` AND cccm.construction_checklist_id = $${countParamIndex++}`;
-    countValues.push(filters.construction_checklist_id);
-  }
-
-  const countResult = await pool.query(
-    `
-    SELECT COUNT(*)::int as total
-    FROM cost_center_checklist_map cccm
-    INNER JOIN cost_center cc ON cc.cost_center_id = cccm.cost_center_id
-    INNER JOIN construction_checklist ccl ON ccl.construction_checklist_id = cccm.construction_checklist_id
-    ${countWhereClause}
-    `,
-    countValues,
-  );
-
-  // Transform the response to return just IDs
+  // Transform response to return just IDs
   const mappings = rows.map((row) => ({
     id: row.id,
     costCenterId: row.cost_center_id,
@@ -629,18 +599,7 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
     createdAt: row.created_at,
   }));
 
-  const totalRecords = countResult.rows[0].total;
-  const totalPages = Math.ceil(totalRecords / limit);
-
-  return {
-    mappings: keysToCamelCase(mappings),
-    pagination: {
-      currentPage: page,
-      totalPages,
-      totalRecords,
-      limit,
-    },
-  };
+  return keysToCamelCase(mappings);
 }
 
 /**

@@ -119,8 +119,6 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
 
   try {
     const {
-      page = 1,
-      limit = 25,
       construction_checklist_id,
       predecessor_checklist_id,
       offset,
@@ -128,10 +126,6 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
     } = req.query;
 
     const { builder_id: builderId, company_id: companyId } = req.user;
-
-    const limitValue = parseInt(limit, 10);
-    const pageValue = parseInt(page, 10);
-    const offsetValue = (pageValue - 1) * limitValue;
 
     let whereClause = "WHERE 1=1";
     let values = [];
@@ -174,39 +168,14 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
       LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id
       LEFT JOIN construction_checklist predecessor ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
       ${whereClause}
-      ORDER BY cc.sort_order ASC, predecessor.sort_order ASC, ccp.created_at DESC
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++};
+      ORDER BY cc.sort_order ASC, predecessor.sort_order ASC, ccp.created_at DESC;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      ...values,
-      limitValue,
-      offsetValue,
-    ]);
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM construction_checklist_predecessor ccp
-      LEFT JOIN construction_checklist cc ON cc.construction_checklist_id = ccp.construction_checklist_id
-      LEFT JOIN construction_checklist predecessor ON predecessor.construction_checklist_id = ccp.predecessor_checklist_id
-      ${whereClause};
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limitValue);
+    const dataResult = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        predecessors: keysToCamelCase(dataResult.rows),
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
-      },
+      keysToCamelCase(dataResult.rows),
       "Construction checklist predecessors fetched successfully.",
     );
   } catch (error) {

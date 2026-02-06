@@ -38,7 +38,7 @@ function validateReferences(row, res, errorResponse) {
       errorResponse(
         res,
         400,
-        "Lead does not exist, or its status is not IN_PROGRESS/COMPLETED."
+        "Lead does not exist, or its status is not IN_PROGRESS/COMPLETED.",
       );
       return true;
 
@@ -46,7 +46,7 @@ function validateReferences(row, res, errorResponse) {
       errorResponse(
         res,
         400,
-        "Property does not exist, or it does not belong to this builder/lead."
+        "Property does not exist, or it does not belong to this builder/lead.",
       );
       return true;
 
@@ -54,7 +54,7 @@ function validateReferences(row, res, errorResponse) {
       errorResponse(
         res,
         400,
-        "Floor plan does not exist, or it does not match the given range/dwelling type."
+        "Floor plan does not exist, or it does not match the given range/dwelling type.",
       );
       return true;
 
@@ -62,7 +62,7 @@ function validateReferences(row, res, errorResponse) {
       errorResponse(
         res,
         400,
-        "Facade does not exist, or it does not match the given dwelling type."
+        "Facade does not exist, or it does not match the given dwelling type.",
       );
       return true;
 
@@ -70,7 +70,7 @@ function validateReferences(row, res, errorResponse) {
       errorResponse(
         res,
         400,
-        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE."
+        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE.",
       );
       return true;
 
@@ -136,7 +136,7 @@ exports.createQuotation = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid range ID or range does not exist."
+        "Invalid range ID or range does not exist.",
       );
     }
 
@@ -151,7 +151,7 @@ exports.createQuotation = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid dwelling type ID or dwelling type does not exist."
+        "Invalid dwelling type ID or dwelling type does not exist.",
       );
     }
 
@@ -183,7 +183,7 @@ exports.createQuotation = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Items array is required and must not be empty."
+        "Items array is required and must not be empty.",
       );
     }
     for (const item of items) {
@@ -197,7 +197,7 @@ exports.createQuotation = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Each item must have itemId, quantity, price, total which are of type number."
+          "Each item must have itemId, quantity, price, total which are of type number.",
         );
       }
     }
@@ -262,11 +262,11 @@ exports.createQuotation = async (req, res) => {
       JOIN categories c ON c.category_id = ci.category_id
       WHERE ci.category_item_id = ANY($1)
       `,
-      [itemIds]
+      [itemIds],
     );
 
     const detailsMap = new Map(
-      itemDetailsResult.rows.map((r) => [r.category_item_id, r])
+      itemDetailsResult.rows.map((r) => [r.category_item_id, r]),
     );
 
     const values = [];
@@ -284,20 +284,20 @@ exports.createQuotation = async (req, res) => {
       const baseIndex = i * 20;
       placeholders.push(`(
         $${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${
-        baseIndex + 4
-      }, 
+          baseIndex + 4
+        }, 
         $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${
-        baseIndex + 8
-      }, 
+          baseIndex + 8
+        }, 
         $${baseIndex + 9}, $${baseIndex + 10}, $${baseIndex + 11}, $${
-        baseIndex + 12
-      }, 
+          baseIndex + 12
+        }, 
         $${baseIndex + 13}, $${baseIndex + 14}, $${baseIndex + 15}, $${
-        baseIndex + 16
-      }, 
+          baseIndex + 16
+        }, 
         $${baseIndex + 17}, $${baseIndex + 18}, $${baseIndex + 19}, $${
-        baseIndex + 20
-      }, NOW(), NOW()
+          baseIndex + 20
+        }, NOW(), NOW()
       )`);
 
       values.push(
@@ -320,7 +320,7 @@ exports.createQuotation = async (req, res) => {
         d.category_item_uom,
         d.category_item_sort_order,
         d.range_id,
-        d.dwelling_type_id
+        d.dwelling_type_id,
       );
     }
 
@@ -356,7 +356,7 @@ exports.createQuotation = async (req, res) => {
 
     await client.query(
       `UPDATE leads SET status = 'COMPLETED' WHERE lead_id = $1`,
-      [leadId]
+      [leadId],
     );
 
     // Get user details using helper function
@@ -371,7 +371,7 @@ exports.createQuotation = async (req, res) => {
         created_by: formatUserObject(quotation.created_by_id, usersMap),
         updated_by: formatUserObject(quotation.updated_by_id, usersMap),
       }),
-      "Quotation created successfully."
+      "Quotation created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -379,7 +379,7 @@ exports.createQuotation = async (req, res) => {
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Error creating quotation"
+      error?.message || "Error creating quotation",
     );
   } finally {
     client.release();
@@ -408,7 +408,7 @@ exports.createQuotationVersion = async (req, res) => {
 
     const quotationRes = await client.query(
       `SELECT quotation_id FROM quotation WHERE quotation_id = $1 AND builder_id = $2`,
-      [quotation_id, builderId]
+      [quotation_id, builderId],
     );
     if (quotationRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -461,7 +461,7 @@ exports.createQuotationVersion = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Floor plan does not exist, or it does not match the given range/dwelling type."
+        "Floor plan does not exist, or it does not match the given range/dwelling type.",
       );
     }
     if (parseInt(vRow.facade_exists, 10) === 0) {
@@ -469,7 +469,7 @@ exports.createQuotationVersion = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Facade does not exist, or it does not match the given dwelling type."
+        "Facade does not exist, or it does not match the given dwelling type.",
       );
     }
     if (parseInt(vRow.package_exists, 10) === 0) {
@@ -477,14 +477,14 @@ exports.createQuotationVersion = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE."
+        "Package does not exist, or it does not belong to this builder/range/dwelling type, or is not ACTIVE.",
       );
     }
 
     const versionRes = await client.query(
       `SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version
        FROM quotation_versions WHERE quotation_id = $1`,
-      [quotation_id]
+      [quotation_id],
     );
     const versionNumber = versionRes.rows[0].next_version;
 
@@ -511,10 +511,10 @@ exports.createQuotationVersion = async (req, res) => {
        FROM category_items ci
        JOIN categories c ON c.category_id = ci.category_id
        WHERE ci.category_item_id = ANY($1)`,
-      [itemIds]
+      [itemIds],
     );
     const detailsMap = new Map(
-      itemDetailsResult.rows.map((r) => [r.category_item_id, r])
+      itemDetailsResult.rows.map((r) => [r.category_item_id, r]),
     );
 
     const values = [];
@@ -533,11 +533,11 @@ exports.createQuotationVersion = async (req, res) => {
         $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5},
         $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10},
         $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${
-        base + 15
-      },
+          base + 15
+        },
         $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${
-        base + 20
-      }, NOW(), NOW()
+          base + 20
+        }, NOW(), NOW()
       )`);
 
       values.push(
@@ -560,7 +560,7 @@ exports.createQuotationVersion = async (req, res) => {
         d.uom,
         d.sort_order,
         d.range_id,
-        d.dwelling_type_id
+        d.dwelling_type_id,
       );
     }
 
@@ -580,7 +580,7 @@ exports.createQuotationVersion = async (req, res) => {
 
     await client.query(
       `UPDATE quotation SET updated_by_id = $1, updated_at = NOW() WHERE quotation_id = $2`,
-      [userId, quotation_id]
+      [userId, quotation_id],
     );
 
     await client.query("COMMIT");
@@ -588,7 +588,7 @@ exports.createQuotationVersion = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(newVersion),
-      "Quotation version created successfully."
+      "Quotation version created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -740,7 +740,7 @@ exports.getQuotationVersionById = async (req, res) => {
         categoryItemUpdatedAt: r.category_item_updated_at,
         createdAt: r.item_created_at,
         updatedAt: r.item_updated_at,
-      })
+      }),
     );
 
     const responseData = {
@@ -858,7 +858,7 @@ exports.getQuotationVersionById = async (req, res) => {
     return successResponse(
       res,
       responseData,
-      "Quotation version fetched successfully."
+      "Quotation version fetched successfully.",
     );
   } catch (error) {
     console.error("Get quotation version error:", error);
@@ -947,7 +947,7 @@ exports.getQuotationById = async (req, res) => {
 
     const { items, totalAmount } = parseItemsAndCalculateTotal(
       row.items,
-      row.packageAmount
+      row.packageAmount,
     );
 
     const versionsQuery = `
@@ -1122,14 +1122,14 @@ exports.getQuotationById = async (req, res) => {
     return successResponse(
       res,
       responseData,
-      "Quotation fetched successfully."
+      "Quotation fetched successfully.",
     );
   } catch (error) {
     console.error(error);
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Internal Server Error"
+      error?.message || "Internal Server Error",
     );
   } finally {
     client.release();
@@ -1314,7 +1314,7 @@ exports.getQuotations = async (req, res) => {
     return successResponse(
       res,
       { count, quotations },
-      "Quotations fetched successfully."
+      "Quotations fetched successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -1322,7 +1322,7 @@ exports.getQuotations = async (req, res) => {
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Internal Server Error"
+      error?.message || "Internal Server Error",
     );
   } finally {
     client.release();
@@ -1342,7 +1342,7 @@ exports.deleteQuotations = async (req, res) => {
 
     const checkQuotationExists = await client.query(
       `SELECT * FROM quotation WHERE quotation_id = $1 AND builder_id = $2 AND is_deleted = false;`,
-      [quotation_id, builderId]
+      [quotation_id, builderId],
     );
     if (checkQuotationExists.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -1368,7 +1368,7 @@ exports.deleteQuotations = async (req, res) => {
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Internal Server Error"
+      error?.message || "Internal Server Error",
     );
   } finally {
     client.release();
