@@ -9,8 +9,8 @@ const createSupplierSchema = Joi.object({
     .min(2)
     .max(150)
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .required(),
-  abn: Joi.string().min(11).max(11).allow(null, "").optional(),
+    .optional(),
+  abn: Joi.string().min(11).max(11).allow(null, ""),
   description: Joi.string().allow(null, ""),
   contact_name: Joi.string().min(2).max(150).allow(null, ""),
   primary_phone: Joi.string()
@@ -54,6 +54,34 @@ const createSupplierSchema = Joi.object({
     .items(Joi.string().email({ tlds: { allow: false } }))
     .unique()
     .optional(),
+  // Supplier contacts - array of contact objects
+  contacts: Joi.array()
+    .items(
+      Joi.object({
+        contact_name: Joi.string().min(2).max(150).allow(null, ""),
+        phone: Joi.string()
+          .pattern(/^[0-9+\-\s()]*$/)
+          .min(10)
+          .max(14)
+          .allow(null, "")
+          .messages({
+            "string.pattern.base":
+              "Contact phone can only contain numbers, spaces, +, -, and parentheses",
+            "string.max": "Contact phone cannot exceed 50 characters",
+          }),
+        email: Joi.string().email().allow(null, ""),
+        contact_type: Joi.string().max(100).allow(null, ""),
+      }),
+    )
+    .optional(),
+  // Supplier document details
+  work_cover_image: Joi.string().uri().allow(null, ""),
+  pl_insurance_image: Joi.string().uri().allow(null, ""),
+  white_card_image: Joi.string().uri().allow(null, ""),
+  fork_lift_license_image: Joi.string().uri().allow(null, ""),
+  trade_license_image: Joi.string().uri().allow(null, ""),
+  induction_pack_image: Joi.string().uri().allow(null, ""),
+  induction_pack_received: Joi.boolean().default(false),
 });
 
 const getAllSupplierSchema = Joi.object({
@@ -137,6 +165,14 @@ const updateSupplierSchema = Joi.object({
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
     .optional(),
+  // Supplier document details
+  work_cover_image: Joi.string().uri().allow(null, "").optional(),
+  pl_insurance_image: Joi.string().uri().allow(null, "").optional(),
+  white_card_image: Joi.string().uri().allow(null, "").optional(),
+  fork_lift_license_image: Joi.string().uri().allow(null, "").optional(),
+  trade_license_image: Joi.string().uri().allow(null, "").optional(),
+  induction_pack_image: Joi.string().uri().allow(null, "").optional(),
+  induction_pack_received: Joi.boolean().optional(),
 });
 module.exports = {
   createSupplierSchema,

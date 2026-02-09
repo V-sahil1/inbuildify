@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createSupplier = async (req, res) => {
   const pool = getPool();
@@ -27,10 +28,21 @@ exports.createSupplier = async (req, res) => {
       status,
       emails,
       supplier_type_id,
-    } = req.body;
+      // Supplier contact details - now supporting multiple contacts
+      contacts,
+      // Supplier document details
+      work_cover_image,
+      pl_insurance_image,
+      white_card_image,
+      fork_lift_license_image,
+      trade_license_image,
+      induction_pack_image,
+      induction_pack_received,
+    } = req.body || {};
 
     await client.query("BEGIN");
 
+    // Validate required fields
     if (!company_name) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "company_name is required");
@@ -45,24 +57,9 @@ exports.createSupplier = async (req, res) => {
           "supplier_type_id must be an array of UUIDs",
         );
       }
-
-      if (supplier_type_id.length > 0) {
-        const checkSupplierTypes = await client.query(
-          `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[])`,
-          [supplier_type_id],
-        );
-
-        if (checkSupplierTypes.rowCount !== supplier_type_id.length) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            400,
-            "One or more supplier_type_id values are invalid",
-          );
-        }
-      }
     }
 
+    // Check for duplicate company name
     const checkUnique = await client.query(
       `SELECT supplier_id FROM supplier WHERE company_id = $1 AND builder_id = $2 AND company_name = $3 LIMIT 1`,
       [companyId, builderId, company_name],
@@ -77,6 +74,7 @@ exports.createSupplier = async (req, res) => {
       );
     }
 
+    // Validate state if provided
     if (state_id) {
       const checkState = await client.query(
         `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
@@ -89,22 +87,27 @@ exports.createSupplier = async (req, res) => {
       }
     }
 
+    // Validate emails if provided
     let sanitizedEmails = null;
     if (emails) {
       if (!Array.isArray(emails)) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "emails must be an array of strings");
       }
+
       const invalidEmail = emails.find(
         (e) => typeof e !== "string" || !e.includes("@"),
       );
+
       if (invalidEmail) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, `Invalid email: ${invalidEmail}`);
       }
+
       sanitizedEmails = emails;
     }
 
+    // Insert supplier
     const insertQuery = `
       INSERT INTO supplier (
         company_id,
@@ -145,7 +148,7 @@ exports.createSupplier = async (req, res) => {
       website || null,
       address_line1 || null,
       city || null,
-      state_id || null,
+      state_id,
       zip_code || null,
       lead_time || null,
       status !== undefined ? status : true,
@@ -155,6 +158,8 @@ exports.createSupplier = async (req, res) => {
     ];
 
     const result = await client.query(insertQuery, values);
+
+    await client.query("COMMIT");
 
     // Fetch the created supplier with supplier_type details
     const supplierId = result.rows[0].supplier_id;
@@ -200,10 +205,165 @@ exports.createSupplier = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Handle supplier contacts if provided
+    let createdContacts = [];
+
+    // Parse contacts if it's a string
+    let parsedContacts = contacts;
+    if (typeof contacts === "string") {
+      try {
+        parsedContacts = JSON.parse(contacts);
+      } catch (e) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid contacts format. Must be valid JSON array.",
+        );
+      }
+    }
+
+    if (
+      parsedContacts &&
+      Array.isArray(parsedContacts) &&
+      parsedContacts.length > 0
+    ) {
+      // Validate each contact
+      for (const contact of parsedContacts) {
+        if (!contact.contact_name && !contact.phone && !contact.email) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            400,
+            "Each contact must have at least one of: contact_name, phone, or email",
+          );
+        }
+      }
+
+      // Insert all contacts
+      const contactInsertQuery = `
+        INSERT INTO supplier_contacts (
+          supplier_id,
+          contact_name,
+          phone,
+          email,
+          contact_type
+        ) VALUES ($1,$2,$3,$4,$5)
+        RETURNING *;
+      `;
+
+      for (const contact of parsedContacts) {
+        const contactValues = [
+          supplierId,
+          contact.contact_name || null,
+          contact.phone || null,
+          contact.email || null,
+          contact.contact_type || null,
+        ];
+
+        const contactResult = await client.query(
+          contactInsertQuery,
+          contactValues,
+        );
+        createdContacts.push(...contactResult.rows);
+      }
+    }
+
+    // Handle supplier documents if provided
+    let documents = [];
+    if (
+      work_cover_image ||
+      pl_insurance_image ||
+      white_card_image ||
+      fork_lift_license_image ||
+      trade_license_image ||
+      (induction_pack_image &&
+        (induction_pack_received || induction_pack_received === "true")) ||
+      induction_pack_received === "true"
+    ) {
+      const work_cover_url =
+        req.files?.workCoverImage?.[0]?.location ||
+        req.body.work_cover_image ||
+        null;
+      const pl_insurance_url =
+        req.files?.plInsuranceImage?.[0]?.location ||
+        req.body.pl_insurance_image ||
+        null;
+      const white_card_url =
+        req.files?.whiteCardImage?.[0]?.location ||
+        req.body.white_card_image ||
+        null;
+      const fork_lift_license_url =
+        req.files?.forkLiftLicenseImage?.[0]?.location ||
+        req.body.fork_lift_license_image ||
+        null;
+      const trade_license_url =
+        req.files?.tradeLicenseImage?.[0]?.location ||
+        req.body.trade_license_image ||
+        null;
+      const induction_pack_url =
+        req.files?.inductionPackImage?.[0]?.location ||
+        req.body.induction_pack_image ||
+        null;
+
+      const inductionBoolean =
+        induction_pack_received === true || induction_pack_received === "true";
+
+      if (inductionBoolean && !induction_pack_url) {
+        return errorResponse(
+          res,
+          400,
+          "induction_pack_url is required when induction_pack_received is true.",
+        );
+      }
+
+      if (!inductionBoolean && induction_pack_url) {
+        return errorResponse(
+          res,
+          400,
+          "You cannot provide induction_pack_url when induction_pack_received is false.",
+        );
+      }
+
+      const docInsertQuery = `
+        INSERT INTO supplier_documents (
+          supplier_id,
+         
+          work_cover_url,
+          pl_insurance_url,
+          white_card_url,
+          fork_lift_license_url,
+          trade_license_url,
+          induction_pack_received,
+          induction_pack_url
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        RETURNING *;
+      `;
+
+      const docValues = [
+        supplierId,
+
+        work_cover_url,
+        pl_insurance_url,
+        white_card_url,
+        fork_lift_license_url,
+        trade_license_url,
+        inductionBoolean,
+        induction_pack_url,
+      ];
+
+      const docResult = await client.query(docInsertQuery, docValues);
+      documents = docResult.rows;
+    }
+
     return successResponse(
       res,
-      keysToCamelCase(responseResult.rows[0]),
-      "Supplier created successfully.",
+      {
+        supplier: keysToCamelCase(responseResult.rows[0]),
+        contacts: keysToCamelCase(createdContacts),
+        documents: keysToCamelCase(documents),
+      },
+      "Supplier, contacts, and documents created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -458,14 +618,14 @@ exports.updateSupplier = async (req, res) => {
       (field) => req.body[field] !== undefined,
     );
 
-    if (statusInBody && typeof requestedStatus !== "boolean") {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "The 'status' field must be a boolean (true or false).",
-      );
-    }
+    // if (statusInBody && typeof requestedStatus !== "boolean") {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(
+    //     res,
+    //     400,
+    //     "The 'status' field must be a boolean (true or false).",
+    //   );
+    // }
 
     if (currentStatus === true && statusInBody && requestedStatus === false) {
       if (updatingOtherFields) {
@@ -646,6 +806,203 @@ exports.updateSupplier = async (req, res) => {
       return errorResponse(res, 404, "Failed to update supplier.");
     }
 
+    // Handle supplier documents if provided
+    let documents = [];
+    const {
+      work_cover_image,
+      pl_insurance_image,
+      white_card_image,
+      fork_lift_license_image,
+      trade_license_image,
+      induction_pack_image,
+      induction_pack_received,
+    } = req.body;
+
+    if (
+      work_cover_image ||
+      pl_insurance_image ||
+      white_card_image ||
+      fork_lift_license_image ||
+      trade_license_image ||
+      (induction_pack_image &&
+        (induction_pack_received || induction_pack_received === "true")) ||
+      induction_pack_received === "true" ||
+      req.files?.workCoverImage ||
+      req.files?.plInsuranceImage ||
+      req.files?.whiteCardImage ||
+      req.files?.forkLiftLicenseImage ||
+      req.files?.tradeLicenseImage ||
+      req.files?.inductionPackImage
+    ) {
+      // Check if documents already exist for this supplier
+      const existingDocsQuery = `
+        SELECT * FROM supplier_documents 
+        WHERE supplier_id = $1
+      `;
+      const existingDocsResult = await client.query(existingDocsQuery, [
+        supplier_id,
+      ]);
+
+      const work_cover_url =
+        req.files?.workCoverImage?.[0]?.location || req.body.work_cover_image;
+      const pl_insurance_url =
+        req.files?.plInsuranceImage?.[0]?.location ||
+        req.body.pl_insurance_image;
+      const white_card_url =
+        req.files?.whiteCardImage?.[0]?.location || req.body.white_card_image;
+      const fork_lift_license_url =
+        req.files?.forkLiftLicenseImage?.[0]?.location ||
+        req.body.fork_lift_license_image;
+      const trade_license_url =
+        req.files?.tradeLicenseImage?.[0]?.location ||
+        req.body.trade_license_image;
+      const induction_pack_url =
+        req.files?.inductionPackImage?.[0]?.location ||
+        req.body.induction_pack_image;
+
+      const inductionBoolean =
+        induction_pack_received === true || induction_pack_received === "true";
+
+      if (inductionBoolean && !induction_pack_url) {
+        return errorResponse(
+          res,
+          400,
+          "induction_pack_url is required when induction_pack_received is true.",
+        );
+      }
+
+      if (!inductionBoolean && induction_pack_url) {
+        return errorResponse(
+          res,
+          400,
+          "You cannot provide induction_pack_url when induction_pack_received is false.",
+        );
+      }
+
+      if (existingDocsResult.rowCount > 0) {
+        const existingDocs = existingDocsResult.rows[0];
+
+        // Update existing documents with S3 cleanup
+        const docUpdateFields = [];
+        const docValues = [];
+        let docIndex = 1;
+
+        const pushDoc = (field, value, existingValue) => {
+          if (value !== undefined && value !== null) {
+            // Delete old image from S3 if it exists and is different from new one
+            if (existingValue && existingValue !== value) {
+              deleteFromS3(existingValue).catch((err) => {
+                console.error("Error deleting old image from S3:", err);
+              });
+            }
+            docUpdateFields.push(`${field} = $${docIndex++}`);
+            docValues.push(value);
+          }
+        };
+
+        pushDoc("work_cover_url", work_cover_url, existingDocs.work_cover_url);
+        pushDoc(
+          "pl_insurance_url",
+          pl_insurance_url,
+          existingDocs.pl_insurance_url,
+        );
+        pushDoc("white_card_url", white_card_url, existingDocs.white_card_url);
+        pushDoc(
+          "fork_lift_license_url",
+          fork_lift_license_url,
+          existingDocs.fork_lift_license_url,
+        );
+        pushDoc(
+          "trade_license_url",
+          trade_license_url,
+          existingDocs.trade_license_url,
+        );
+
+        if (induction_pack_received !== undefined) {
+          docUpdateFields.push(`induction_pack_received = $${docIndex++}`);
+          docValues.push(inductionBoolean);
+
+          // Handle induction pack URL specifically
+          if (induction_pack_url !== undefined && induction_pack_url !== null) {
+            if (
+              existingDocs.induction_pack_url &&
+              existingDocs.induction_pack_url !== induction_pack_url
+            ) {
+              deleteFromS3(existingDocs.induction_pack_url).catch((err) => {
+                console.error(
+                  "Error deleting old induction pack from S3:",
+                  err,
+                );
+              });
+            }
+            docUpdateFields.push(`induction_pack_url = $${docIndex++}`);
+            docValues.push(induction_pack_url);
+          }
+        } else if (
+          induction_pack_url !== undefined &&
+          induction_pack_url !== null
+        ) {
+          // If only induction_pack_url is provided (without induction_pack_received)
+          if (
+            existingDocs.induction_pack_url &&
+            existingDocs.induction_pack_url !== induction_pack_url
+          ) {
+            deleteFromS3(existingDocs.induction_pack_url).catch((err) => {
+              console.error("Error deleting old induction pack from S3:", err);
+            });
+          }
+          docUpdateFields.push(`induction_pack_url = $${docIndex++}`);
+          docValues.push(induction_pack_url);
+        }
+
+        if (docUpdateFields.length > 0) {
+          docUpdateFields.push(`updated_at = NOW()`);
+          docValues.push(supplier_id);
+
+          const docUpdateQuery = `
+            UPDATE supplier_documents 
+            SET ${docUpdateFields.join(", ")}
+            WHERE supplier_id = $${docIndex}
+            RETURNING *;
+          `;
+
+          const docUpdateResult = await client.query(docUpdateQuery, docValues);
+          documents = docUpdateResult.rows;
+        } else {
+          documents = existingDocsResult.rows;
+        }
+      } else {
+        // Insert new documents
+        const docInsertQuery = `
+          INSERT INTO supplier_documents (
+            supplier_id,
+            work_cover_url,
+            pl_insurance_url,
+            white_card_url,
+            fork_lift_license_url,
+            trade_license_url,
+            induction_pack_received,
+            induction_pack_url
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+          RETURNING *;
+        `;
+
+        const docValues = [
+          supplier_id,
+          work_cover_url,
+          pl_insurance_url,
+          white_card_url,
+          fork_lift_license_url,
+          trade_license_url,
+          inductionBoolean,
+          induction_pack_url,
+        ];
+
+        const docResult = await client.query(docInsertQuery, docValues);
+        documents = docResult.rows;
+      }
+    }
+
     // Fetch the updated supplier with supplier_type details
     const responseQuery = `
       SELECT 
@@ -691,7 +1048,10 @@ exports.updateSupplier = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(responseResult.rows[0]),
+      {
+        supplier: keysToCamelCase(responseResult.rows[0]),
+        documents: keysToCamelCase(documents),
+      },
       "Supplier updated successfully.",
     );
   } catch (error) {

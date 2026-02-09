@@ -21,7 +21,6 @@ const createSupplierContactSchema = Joi.object({
     .messages({
       "string.pattern.base":
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
-      "string.max": "Secondery phone cannot exceed 50 characters",
     }),
   contact_type: Joi.string()
     .trim()
@@ -32,6 +31,10 @@ const createSupplierContactSchema = Joi.object({
 });
 
 const getAllSupplierContactsSchema = Joi.object({
+  supplier_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Supplier ID must be a valid UUID",
+    "any.required": "Supplier ID is required",
+  }),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -79,7 +82,6 @@ const updateSupplierContactSchema = Joi.object({
     .messages({
       "string.pattern.base":
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
-      "string.max": "Secondery phone cannot exceed 50 characters",
     }),
   contact_type: Joi.string()
     .trim()

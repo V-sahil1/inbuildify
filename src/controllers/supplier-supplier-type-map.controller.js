@@ -141,34 +141,46 @@ exports.getAllSupplierTypeMaps = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const offset = (page - 1) * limit;
+    const builderId = req.user?.builder_id;
+    const { supplier_type_id } = req.query;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
+    }
+
+    let conditions = [];
+    let values = [];
+    let index = 1;
+
+    // Add builder scope condition
+    conditions.push(`s.builder_id = $${index++}`);
+    values.push(builderId);
+
+    if (supplier_type_id) {
+      conditions.push(`sstm.supplier_type_id = $${index++}`);
+      values.push(supplier_type_id);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
     const dataQuery = `
-      SELECT *
-      FROM supplier_supplier_type_map
-      ORDER BY created_at DESC
-      LIMIT $1 OFFSET $2;
+      SELECT sstm.*, s.company_name as supplier_name, st.name as supplier_type_name
+      FROM supplier_supplier_type_map sstm
+      JOIN supplier s ON sstm.supplier_id = s.supplier_id
+      JOIN supplier_type st ON sstm.supplier_type_id = st.supplier_type_id
+      ${whereClause}
+      ORDER BY sstm.created_at DESC;
     `;
-    const { rows } = await client.query(dataQuery, [limit, offset]);
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM supplier_supplier_type_map
-      
-    `;
-    const countResult = await client.query(countQuery);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limit);
+    const { rows } = await client.query(dataQuery, values);
 
-    return successResponse(res, {
-      supplierTypeMap: rows,
-      total_records: totalRecords,
-      current_page: page,
-      total_pages: totalPages,
-      limit,
-    });
+    return successResponse(
+      res,
+      keysToCamelCase(rows),
+      "Supplier type maps fetched successfully.",
+    );
   } catch (error) {
     console.error("Error fetching supplier type maps:", error);
     return errorResponse(res, 500, "Internal Server Error");
@@ -483,15 +495,11 @@ exports.getAllSupplierTypeConstructionChecklistMaps = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
-    const { page = 1, limit = 25, supplier_type_id } = req.query;
+    const { supplier_type_id } = req.query;
 
     if (!builderId) {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const offset = (pageNum - 1) * limitNum;
 
     let conditions = [];
     let values = [];
@@ -515,35 +523,14 @@ exports.getAllSupplierTypeConstructionChecklistMaps = async (req, res) => {
       FROM supplier_type_construction_checklist_map stcm
       JOIN supplier_type st ON stcm.supplier_type_id = st.supplier_type_id
       ${whereClause}
-      ORDER BY stcm.created_at DESC
-      LIMIT $${index++} OFFSET $${index++};
+      ORDER BY stcm.created_at DESC;
     `;
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM supplier_type_construction_checklist_map stcm
-      JOIN supplier_type st ON stcm.supplier_type_id = st.supplier_type_id
-      ${whereClause};
-    `;
-
-    const [dataResult, countResult] = await Promise.all([
-      client.query(dataQuery, [...values, limitNum, offset]),
-      client.query(countQuery, values),
-    ]);
-
-    const rows = keysToCamelCase(dataResult.rows);
-    const total = parseInt(countResult.rows[0].total, 10);
-
-    const pagination = {
-      total,
-      currentPage: pageNum,
-      limit: limitNum,
-      totalPages: Math.ceil(total / limitNum),
-    };
+    const { rows } = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      { checklistMap: rows, pagination },
+      keysToCamelCase(rows),
       "Supplier type construction checklist maps fetched successfully.",
     );
   } catch (error) {

@@ -2951,6 +2951,39 @@ CREATE TABLE master_section_item(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE lead(
+  lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  refrence_id VARCHAR(50),
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE CASCADE,
+  notes VARCHAR(1000),
+  send_letter BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+CREATE TABLE lead_detail(
+  lead_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_id UUID REFERENCES lead(lead_id) ON DELETE CASCADE,
+  source VARCHAR(150) NOT NULL,        -- lead source id
+  rating VARCHAR(150),              -- none, hot, cold, warm
+  land VARCHAR(150),                  -- none, no, yes
+  finance VARCHAR(150),               -- none, no, yes
+  face_to_face VARCHAR(150),         -- none, yes, no
+  purpose VARCHAR(150),             -- none, own house, investment property
+  client_type VARCHAR(150),         -- none, renovator, new build, first house buyer, second home buyer, fourh home buyer, investor
+  forcast_close DATE,
+  budget Number(10,2),
+  region_id UUID REFERENCES state(stage_id) ON DELETE SET NULL,
+  prelim_agreement DATE,
+); 
+
 CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2967,8 +3000,8 @@ CREATE TABLE quotation(
 CREATE TABLE quotation_version(
   quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  refrence_id VARCHAR(50),
+  version_no VARCHAR(50) NOT NULL,
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
@@ -2984,6 +3017,7 @@ CREATE TABLE quotation_version_pricelist_item_map(
   quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
   price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
   quantity INTEGER,
+  note VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT quotation_version_pricelist_item_map_pkey PRIMARY KEY (quotation_version_id, price_list_item_id)
@@ -3000,7 +3034,7 @@ CREATE TABLE quotation_version_custom_section(
 
 CREATE TABLE property(
   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,  -- make id optional
   lot_no INTEGER,
   street_no INTEGER,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
@@ -3019,3 +3053,4 @@ CREATE TABLE property(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+

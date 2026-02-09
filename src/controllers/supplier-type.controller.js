@@ -96,12 +96,7 @@ exports.getAllSupplierType = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Scope missing.");
     }
 
-    let { page = 1, limit = 25, is_active, name } = req.query;
-
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    const offset = (page - 1) * limit;
+    let { is_active, name } = req.query;
 
     let conditions = [];
     let values = [];
@@ -136,33 +131,13 @@ exports.getAllSupplierType = async (req, res) => {
       FROM supplier_type
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset};
     `;
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM supplier_type
-      ${whereClause};
-    `;
-
-    const [listResult, countResult] = await Promise.all([
-      client.query(listQuery, values),
-      client.query(countQuery, values),
-    ]);
-
-    const rows = keysToCamelCase(listResult.rows);
-    const total = parseInt(countResult.rows[0].total, 10);
-
-    const pagination = {
-      total,
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    const result = await client.query(listQuery, values);
 
     return successResponse(
       res,
-      { supplierType: rows, pagination },
+      keysToCamelCase(result.rows),
       "Supplier types fetched successfully.",
     );
   } catch (error) {

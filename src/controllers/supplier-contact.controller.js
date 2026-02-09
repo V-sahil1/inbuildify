@@ -97,48 +97,37 @@ exports.getAllSupplierContacts = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    let { page = 1, limit = 25 } = req.query;
+    let { supplier_id } = req.query;
 
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
+    let conditions = [];
+    let values = [];
+    let index = 1;
 
-    const offset = (page - 1) * limit;
+    conditions.push(`s.builder_id = $${index++}`);
+    values.push(builderId);
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM supplier_contacts sc
-      JOIN supplier s ON sc.supplier_id = s.supplier_id
-      WHERE s.builder_id = $1;
-    `;
+    if (supplier_id) {
+      conditions.push(`sc.supplier_id = $${index++}`);
+      values.push(supplier_id);
+    }
 
-    const countResult = await client.query(countQuery, [builderId]);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(totalRecords / limit);
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
     const dataQuery = `
       SELECT sc.*
       FROM supplier_contacts sc
       JOIN supplier s ON sc.supplier_id = s.supplier_id
-      WHERE s.builder_id = $1
+      ${whereClause}
       ORDER BY sc.created_at DESC
-      LIMIT $2 OFFSET $3;
     `;
 
-    const dataResult = await client.query(dataQuery, [
-      builderId,
-      limit,
-      offset,
-    ]);
+    const result = await client.query(dataQuery, values);
 
     return successResponse(
       res,
-      {
-        supplierContact: keysToCamelCase(dataResult.rows),
-        totalRecords: totalRecords,
-        currentPage: page,
-        totalPages: totalPages,
-        limit,
-      },
+      keysToCamelCase(result.rows),
       "Supplier contacts fetched successfully.",
     );
   } catch (error) {
