@@ -333,7 +333,8 @@ exports.getAllConstructionChecklists = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { construction_type_id, construction_stage_id, builder } = req.query;
+    const { construction_type_id, construction_stage_id, builder, name } =
+      req.query;
 
     const { company_id, builder_id } = req.user;
 
@@ -354,6 +355,11 @@ exports.getAllConstructionChecklists = async (req, res) => {
     if (builder) {
       whereClause += ` AND cc.builder = $${paramIndex++}`;
       values.push(builder);
+    }
+
+    if (name) {
+      whereClause += ` AND cc.name ILIKE $${paramIndex++}`;
+      values.push(`%${name}%`);
     }
 
     const dataQuery = `

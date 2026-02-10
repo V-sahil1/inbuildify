@@ -1783,13 +1783,13 @@ CREATE TABLE document_common_folder (
 CREATE TABLE document_common_subfolder ( 
     document_common_subfolder_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     document_common_folder_id UUID NOT NULL REFERENCES document_common_folder(document_common_folder_id) ON DELETE CASCADE,
+    parent_subfolder_id UUID REFERENCES document_common_subfolder(document_common_subfolder_id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     sort_order INT DEFAULT 0,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_document_subfolder UNIQUE (document_common_folder_id, name)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE document_file_naming_rule (
@@ -2127,6 +2127,33 @@ CREATE TABLE supplier_type (
     CONSTRAINT uq_supplier_type_per_builder UNIQUE (company_id, builder_id, name)
 );
 
+-- CREATE TABLE supplier (
+--     supplier_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+--     builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+--     supplier_type_id UUID[] DEFAULT '{}',
+--     company_name VARCHAR(255) NOT NULL,
+--     abn VARCHAR(50),
+--     description TEXT,
+--     contact_name VARCHAR(150),
+--     primary_phone VARCHAR(50),
+--     secondary_phone VARCHAR(50),
+--     website VARCHAR(255),
+--     address_line1 VARCHAR(255),
+--     city VARCHAR(150),
+--     state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+--     zip_code VARCHAR(20),
+--     lead_time VARCHAR(100),
+--     status BOOLEAN DEFAULT TRUE,
+--     emails TEXT[], -- array to store multiple email addresses
+--     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+--     created_at TIMESTAMPTZ DEFAULT NOW(),
+--     updated_at TIMESTAMPTZ DEFAULT NOW(),
+--     CONSTRAINT uq_supplier_per_builder UNIQUE (company_id, builder_id, company_name),
+--     CONSTRAINT chk_supplier_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+-- );
+
 CREATE TABLE supplier (
     supplier_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2146,11 +2173,17 @@ CREATE TABLE supplier (
     lead_time VARCHAR(100),
     status BOOLEAN DEFAULT TRUE,
     emails TEXT[], -- array to store multiple email addresses
+    work_cover_url VARCHAR(500),
+    pl_insurance_url VARCHAR(500),
+    white_card_url VARCHAR(500),
+    fork_lift_license_url VARCHAR(500),
+    trade_license_url VARCHAR(500),
+    induction_pack_received BOOLEAN DEFAULT FALSE,
+    induction_pack_url VARCHAR(500),
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_supplier_per_builder UNIQUE (company_id, builder_id, company_name),
     CONSTRAINT chk_supplier_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
@@ -2173,16 +2206,16 @@ CREATE TABLE supplier_type_construction_checklist_map(
     CONSTRAINT uq_supplier_type_construction_checklist_map UNIQUE (supplier_type_id, construction_checklist_id)
 );
 
-CREATE TABLE supplier_contacts (
-    supplier_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
-    contact_name VARCHAR(150) NOT NULL,
-    email VARCHAR(150),
-    phone VARCHAR(50),
-    contact_type VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- CREATE TABLE supplier_contacts (
+--     supplier_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     supplier_id UUID NOT NULL REFERENCES supplier(supplier_id) ON DELETE CASCADE,
+--     contact_name VARCHAR(150) NOT NULL,
+--     email VARCHAR(150),
+--     phone VARCHAR(50),
+--     contact_type VARCHAR(100),
+--     created_at TIMESTAMPTZ DEFAULT NOW(),
+--     updated_at TIMESTAMPTZ DEFAULT NOW()
+-- );
 
 CREATE TABLE supplier_documents (
     supplier_document_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2817,7 +2850,7 @@ CREATE TABLE contract_format(
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   builder UUID REFERENCES builder(builder_id) ON DELETE SET NULL,
   format_name VARCHAR(255) NOT NULL,
-  dafualt_format BOOLEAN DEFAULT TRUE,
+  defualt_format BOOLEAN DEFAULT TRUE,
   status BOOLEAN DEFAULT TRUE,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -2951,38 +2984,51 @@ CREATE TABLE master_section_item(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE lead(
-  lead_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  refrence_id VARCHAR(50),
+CREATE TABLE leads (
+  leads_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+
+  refrence_number VARCHAR(30) NOT NULL,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
-  phone VARCHAR(20) NOT NULL,
-  lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE CASCADE,
+  phone VARCHAR(20),
   notes VARCHAR(1000),
   send_letter BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
-);
 
-CREATE TABLE lead_detail(
-  lead_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_id UUID REFERENCES lead(lead_id) ON DELETE CASCADE,
-  source VARCHAR(150) NOT NULL,        -- lead source id
+  lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
+
+  status VARCHAR(20) DEFAULT 'New',
+  outcome VARCHAR(10), -- Won / Lost
   rating VARCHAR(150),              -- none, hot, cold, warm
   land VARCHAR(150),                  -- none, no, yes
   finance VARCHAR(150),               -- none, no, yes
   face_to_face VARCHAR(150),         -- none, yes, no
   purpose VARCHAR(150),             -- none, own house, investment property
-  client_type VARCHAR(150),         -- none, renovator, new build, first house buyer, second home buyer, fourh home buyer, investor
+  client_type_id UUID REFERENCES client_type(client_type_id) ON DELETE SET NULL,
   forcast_close DATE,
-  budget Number(10,2),
-  region_id UUID REFERENCES state(stage_id) ON DELETE SET NULL,
+
+  build_budget NUMERIC(10,2),
+  region_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
   prelim_agreement DATE,
-); 
+  clinet_profile VARCHAR(500),
+  h_l_budget NUMERIC(10,2),
+  assignee_id UUID REFERENCES users(users_id),
+  created_by UUID REFERENCES users(users_id),
+  updated_by UUID REFERENCES users(users_id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE lead_detail(
+  lead_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_id UUID REFERENCES lead(lead_id) ON DELETE CASCADE,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
+  company_id UUID REFERENCES company(company_id) ON DELETE SET NULL,
+  solica
+
+)
 
 CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

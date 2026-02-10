@@ -171,6 +171,10 @@ const queryValidation = Joi.object({
     "number.min": "Limit must be at least 1",
     "number.max": "Limit must be at most 100",
   }),
+
+  name: Joi.string().max(255).optional().messages({
+    "string.base": "Name must be a string",
+  }),
   construction_type_id: Joi.string().uuid().optional().messages({
     "string.uuid": "Construction type ID must be a valid UUID",
   }),

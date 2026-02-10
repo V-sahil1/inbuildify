@@ -1,9 +1,13 @@
 const Joi = require("joi");
 
 const createDocumentCommonSubfolderSchem = Joi.object({
-  document_common_folder_id: Joi.string().uuid().required().messages({
+  document_common_folder_id: Joi.string().uuid().optional().messages({
     "string.guid": "Document common folder ID must be a valid UUID",
     "any.required": "Document common folder ID is required",
+  }),
+
+  parent_subfolder_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Parent subfolder ID must be a valid UUID",
   }),
 
   name: Joi.string().trim().min(1).max(150).required().messages({
@@ -57,10 +61,17 @@ const updateDocumentCommonSubfolderSchema = Joi.object({
   sort_order: Joi.number().integer().default(0).min(0).optional(),
 });
 
+const getDocumentCommonSubfolderByParentIdSchema = Joi.object({
+  parent_subfolder_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Parent subfolder ID must be a valid UUID",
+  }),
+});
+
 module.exports = {
   createDocumentCommonSubfolderSchem,
   getDocumentCommonSubfolderByFolderIdParamsSchema,
   getDocumentCommonSubfolderByFolderIdSchema,
+  getDocumentCommonSubfolderByParentIdSchema,
   deleteDocumentCommonSubfolderSchema,
   updateDocumentCommonSubfolderParamsSchema,
   updateDocumentCommonSubfolderSchema,

@@ -74,14 +74,62 @@ const createSupplierSchema = Joi.object({
       }),
     )
     .optional(),
-  // Supplier document details
-  work_cover_image: Joi.string().uri().allow(null, ""),
-  pl_insurance_image: Joi.string().uri().allow(null, ""),
-  white_card_image: Joi.string().uri().allow(null, ""),
-  fork_lift_license_image: Joi.string().uri().allow(null, ""),
-  trade_license_image: Joi.string().uri().allow(null, ""),
-  induction_pack_image: Joi.string().uri().allow(null, ""),
-  induction_pack_received: Joi.boolean().default(false),
+  // Supplier document URLs - single image per field only
+  work_cover_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  pl_insurance_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  white_card_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  fork_lift_license_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  trade_license_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  induction_pack_received: Joi.boolean().default(false).optional(),
+  induction_pack_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
 });
 
 const getAllSupplierSchema = Joi.object({
@@ -97,11 +145,14 @@ const getAllSupplierSchema = Joi.object({
       "string.max": "phone cannot exceed 50 characters",
     }),
 
-  emails: Joi.array()
-    .items(Joi.string().email({ tlds: { allow: false } }))
-    .unique()
-    .optional(),
-  website: Joi.string().uri().allow(null, "").optional(),
+  emails: Joi.string().max(255).allow(null, "").optional(),
+  website: Joi.string().max(255).allow(null, "").optional(),
+
+  status: Joi.boolean().optional(),
+  supplier_type_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Supplier Type ID must be a valid UUID",
+  }),
+  induction: Joi.boolean().optional(),
 });
 
 const deleteSupplierSchema = Joi.object({
@@ -165,14 +216,82 @@ const updateSupplierSchema = Joi.object({
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
     .optional(),
-  // Supplier document details
-  work_cover_image: Joi.string().uri().allow(null, "").optional(),
-  pl_insurance_image: Joi.string().uri().allow(null, "").optional(),
-  white_card_image: Joi.string().uri().allow(null, "").optional(),
-  fork_lift_license_image: Joi.string().uri().allow(null, "").optional(),
-  trade_license_image: Joi.string().uri().allow(null, "").optional(),
-  induction_pack_image: Joi.string().uri().allow(null, "").optional(),
+  // Supplier contacts - array of contact objects
+  contacts: Joi.array()
+    .items(
+      Joi.object({
+        contact_name: Joi.string().min(2).max(150).allow(null, ""),
+        phone: Joi.string()
+          .pattern(/^[0-9+\-\s()]*$/)
+          .min(10)
+          .max(14)
+          .allow(null, "")
+          .messages({
+            "string.pattern.base":
+              "Contact phone can only contain numbers, spaces, +, -, and parentheses",
+            "string.max": "Contact phone cannot exceed 50 characters",
+          }),
+        email: Joi.string().email().allow(null, ""),
+        contact_type: Joi.string().max(100).allow(null, ""),
+      }),
+    )
+    .optional(),
+  // Supplier document URLs - single image per field only
+  work_cover_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  pl_insurance_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  white_card_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  fork_lift_license_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
+  trade_license_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
   induction_pack_received: Joi.boolean().optional(),
+  induction_pack_url: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(null, ""),
+      Joi.object({
+        location: Joi.string().uri().required(),
+      }),
+    )
+    .allow(null, "")
+    .optional(),
 });
 module.exports = {
   createSupplierSchema,

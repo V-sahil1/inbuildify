@@ -11,7 +11,7 @@ exports.createContractFormat = async (req, res) => {
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
 
-    const { format_name, dafualt_format, status, builder } = req.body;
+    const { format_name, default_format, status, builder } = req.body;
 
     if (!format_name) {
       return errorResponse(res, 400, "format_name is required.");
@@ -33,10 +33,10 @@ exports.createContractFormat = async (req, res) => {
       );
     }
 
-    if (dafualt_format) {
+    if (default_format) {
       await client.query(
         `UPDATE contract_format 
-         SET dafualt_format = false 
+         SET default_format = false 
          WHERE (company_id = $1 OR builder_id = $2)`,
         [companyId, builderId],
       );
@@ -50,7 +50,7 @@ exports.createContractFormat = async (req, res) => {
         builder_id,
         builder,
         format_name,
-        dafualt_format,
+        default_format,
         status,
         created_by,
         updated_by
@@ -64,7 +64,7 @@ exports.createContractFormat = async (req, res) => {
       builderId,
       builder || null,
       format_name,
-      dafualt_format || false,
+      default_format || false,
       status !== undefined ? status : true,
       userId,
       userId,
@@ -139,10 +139,14 @@ exports.getAllContractFormats = async (req, res) => {
     const {
       format_name,
       status,
-      dafualt_format,
+      default_format,
       builder,
       created_at,
       updated_at,
+      start_date,
+      end_date,
+      start_updated_date,
+      end_updated_date,
     } = req.query;
 
     let whereClauses = [];
@@ -171,9 +175,9 @@ exports.getAllContractFormats = async (req, res) => {
       idx++;
     }
 
-    if (dafualt_format !== undefined) {
-      whereClauses.push(`cf.dafualt_format = $${idx}`);
-      values.push(dafualt_format === "true");
+    if (default_format !== undefined) {
+      whereClauses.push(`cf.default_format = $${idx}`);
+      values.push(default_format === "true");
       idx++;
     }
 
@@ -208,6 +212,26 @@ exports.getAllContractFormats = async (req, res) => {
       }
     }
 
+    // Custom date range filter for created_at
+    if (start_date && end_date) {
+      whereClauses.push(
+        `cf.created_at >= $${idx} AND cf.created_at <= $${idx + 1}`,
+      );
+      values.push(
+        new Date(start_date).toISOString(),
+        new Date(end_date).toISOString(),
+      );
+      idx += 2;
+    } else if (start_date) {
+      whereClauses.push(`cf.created_at >= $${idx}`);
+      values.push(new Date(start_date).toISOString());
+      idx++;
+    } else if (end_date) {
+      whereClauses.push(`cf.created_at <= $${idx}`);
+      values.push(new Date(end_date).toISOString());
+      idx++;
+    }
+
     if (updated_at) {
       let dateFilter;
       const now = new Date();
@@ -231,6 +255,26 @@ exports.getAllContractFormats = async (req, res) => {
         values.push(dateFilter.toISOString());
         idx++;
       }
+    }
+
+    // Custom date range filter for updated_at
+    if (start_updated_date && end_updated_date) {
+      whereClauses.push(
+        `cf.updated_at >= $${idx} AND cf.updated_at <= $${idx + 1}`,
+      );
+      values.push(
+        new Date(start_updated_date).toISOString(),
+        new Date(end_updated_date).toISOString(),
+      );
+      idx += 2;
+    } else if (start_updated_date) {
+      whereClauses.push(`cf.updated_at >= $${idx}`);
+      values.push(new Date(start_updated_date).toISOString());
+      idx++;
+    } else if (end_updated_date) {
+      whereClauses.push(`cf.updated_at <= $${idx}`);
+      values.push(new Date(end_updated_date).toISOString());
+      idx++;
     }
 
     const where =
@@ -276,10 +320,12 @@ exports.getAllContractFormats = async (req, res) => {
 
     return successResponse(res, {
       contractFormats: transformedRows,
-      totalRecords: total,
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (err) {
     console.error("Error fetching contract formats:", err);
@@ -355,7 +401,7 @@ exports.updateContractFormat = async (req, res) => {
     const userId = req.user?.user_id;
     const { contract_format_id } = req.params;
 
-    const { format_name, dafualt_format, status, builder } = req.body;
+    const { format_name, default_format, status, builder } = req.body;
 
     await client.query("BEGIN");
 
@@ -406,18 +452,18 @@ exports.updateContractFormat = async (req, res) => {
       index++;
     }
 
-    if (dafualt_format !== undefined) {
-      if (dafualt_format && !existing.dafualt_format) {
+    if (default_format !== undefined) {
+      if (default_format && !existing.default_format) {
         await client.query(
           `UPDATE contract_format 
-           SET dafualt_format = false 
+           SET default_format = false 
            WHERE (company_id = $1 OR builder_id = $2)
              AND contract_format_id != $3`,
           [companyId, builderId, contract_format_id],
         );
       }
-      fields.push(`dafualt_format = $${index}`);
-      values.push(dafualt_format);
+      fields.push(`default_format = $${index}`);
+      values.push(default_format);
       index++;
     }
 
@@ -511,7 +557,7 @@ exports.deleteContractFormat = async (req, res) => {
 
     // Check if contract format exists
     const checkQuery = `
-      SELECT contract_format_id, dafualt_format
+      SELECT contract_format_id, default_format
       FROM contract_format
       WHERE contract_format_id = $1
         AND (company_id = $2 OR builder_id = $3)

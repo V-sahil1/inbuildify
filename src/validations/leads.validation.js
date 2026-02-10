@@ -1,106 +1,185 @@
 const Joi = require("joi");
 
-const nameRule = Joi.string().min(2).max(100).trim().required().messages({
-  "string.base": "Name must be a string",
-  "string.empty": "Name is required",
-  "string.min": "Name must be at least 2 characters long",
-  "string.max": "Name must not exceed 100 characters",
-  "any.required": "Name is required",
-});
-
-const emailRule = Joi.string().email().lowercase().trim().max(150).optional().allow(null, "").messages({
-  "string.email": "Please provide a valid email address",
-  "string.max": "Email must not exceed 150 characters",
-});
-
-const phoneRule = Joi.string()
-  .pattern(/^[0-9]{10,15}$/)
-  .optional()
-  .allow(null, "")
-  .messages({
-    "string.pattern.base": "Phone must contain only digits and be 10-15 characters long",
-  });
-
 const createLeadSchema = Joi.object({
-  lead_source: Joi.string().required().messages({
-    "string.base": "Lead source must be a string",
-    "any.required": "Lead source is required"
+  refrence_number: Joi.string().max(30).optional(),
+  // company_id is optional since it will be automatically provided from authenticated user
+  force_create: Joi.boolean().optional().default(false),
+  name: Joi.string().min(2).max(255).required().messages({
+    "string.min": "Name must be at least 2 characters long",
+    "string.max": "Name must not exceed 255 characters",
+    "any.required": "Name is required",
   }),
-  notes: Joi.string().max(1000).optional().allow(null, ""),
-  contact: Joi.object({
-    name: nameRule,
-    email: emailRule,
-    phone: phoneRule,
-    secondary_phone: phoneRule.optional(),
-    address1: Joi.string().max(255).optional().allow(null, ""),
-    address2: Joi.string().max(255).optional().allow(null, ""),
-    city: Joi.string().max(100).optional().allow(null, ""),
-    zip: Joi.string().max(20).optional().allow(null, ""),
-    country: Joi.string().max(100).optional().allow(null, ""),
-    state: Joi.string().max(100).optional().allow(null, "")
-  }).required().messages({
-    "object.base": "Contact must be an object",
-    "any.required": "Contact is required"
-  })
+  email: Joi.string().email().max(255).required().messages({
+    "string.email": "Please provide a valid email address",
+    "string.max": "Email must not exceed 255 characters",
+    "any.required": "Email is required",
+  }),
+  phone: Joi.string().max(20).optional().allow(null, "").messages({
+    "string.max": "Phone must not exceed 20 characters",
+  }),
+  notes: Joi.string().max(1000).optional().allow(null, "").messages({
+    "string.max": "Notes must not exceed 1000 characters",
+  }),
+  send_letter: Joi.boolean().optional().default(false),
+  lead_source_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Lead source ID must be a valid UUID",
+  }),
+}).messages({
+  "object.unknown": "Only specified fields are allowed during lead creation",
 });
 
 const getLeadByIdSchema = Joi.object({
-  lead_id: Joi.string().uuid().required().messages({
+  leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
-    "any.required": "Lead ID is required"
+    "any.required": "Lead ID is required",
   }),
 });
 
-const updateLeadSchema = {
-  params: Joi.object({
-    lead_id: Joi.string().uuid().required().messages({
-      "string.guid": "Lead ID must be a valid UUID",
-      "any.required": "Lead ID is required"
-    }),
+const updateLeadSchema = Joi.object({
+  refrence_number: Joi.string().max(30).optional(),
+  name: Joi.string().min(2).max(255).optional().messages({
+    "string.min": "Name must be at least 2 characters long",
+    "string.max": "Name must not exceed 255 characters",
   }),
-  body: Joi.object({
-    lead_source: Joi.string().optional().messages({
-      "string.base": "Lead source must be a string"
-    }),
-    notes: Joi.string().max(1000).optional().allow(null, ""),
-    assignee_id: Joi.string().uuid().optional().messages({
-      "string.guid": "Assignee ID must be a valid UUID"
-    }),
-  }).min(1).messages({
-    "object.min": "At least one field (lead_source, notes, assignee_id) must be provided"
+  email: Joi.string().email().max(255).optional().messages({
+    "string.email": "Please provide a valid email address",
+    "string.max": "Email must not exceed 255 characters",
   }),
-};
+  phone: Joi.string().max(20).optional().allow(null, "").messages({
+    "string.max": "Phone must not exceed 20 characters",
+  }),
+  notes: Joi.string().max(1000).optional().allow(null, "").messages({
+    "string.max": "Notes must not exceed 1000 characters",
+  }),
+  send_letter: Joi.boolean().optional(),
+  lead_source_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Lead source ID must be a valid UUID",
+  }),
+  status: Joi.string()
+    .valid("New", "Working", "Qualified", "Closed")
+    .optional()
+    .messages({
+      "any.only": "Status must be one of: New, Working, Qualified, Closed",
+    }),
+  outcome: Joi.string().valid("Won", "Lost").optional().allow(null).messages({
+    "any.only": "Outcome must be either Won or Lost",
+  }),
+  rating: Joi.string()
+    .valid("Hot", "Warm", "Cold", "None")
+    .optional()
+    .allow(null)
+    .messages({
+      "any.only": "Rating must be one of: Hot, Warm, Cold, None",
+    }),
+  land: Joi.string()
+    .valid("None", "No", "Yes")
+    .optional()
+    .allow(null)
+    .messages({
+      "any.only": "Land must be one of: None, No, Yes",
+    }),
+  finance: Joi.string()
+    .valid("None", "No", "Yes")
+    .optional()
+    .allow(null)
+    .messages({
+      "any.only": "Finance must be one of: None, No, Yes",
+    }),
+  face_to_face: Joi.string()
+    .valid("None", "Yes", "No")
+    .optional()
+    .allow(null)
+    .messages({
+      "any.only": "Face to face must be one of: None, Yes, No",
+    }),
+  purpose: Joi.string()
+    .valid("None", "Own House", "Investment Property")
+    .optional()
+    .allow(null)
+    .messages({
+      "any.only":
+        "Purpose must be one of: None, Own House, Investment Property",
+    }),
+  client_type_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Client type ID must be a valid UUID",
+  }),
+  forcast_close: Joi.date().optional().allow(null).messages({
+    "date.base": "Forecast close date must be a valid date",
+  }),
+  build_budget: Joi.number().precision(2).optional().allow(null).messages({
+    "number.base": "Build budget must be a number",
+    "number.precision": "Build budget can have maximum 2 decimal places",
+  }),
+  region_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Region ID must be a valid UUID",
+  }),
+  prelim_agreement: Joi.date().optional().allow(null).messages({
+    "date.base": "Preliminary agreement date must be a valid date",
+  }),
+  client_profile: Joi.string().max(500).optional().allow(null, "").messages({
+    "string.max": "Client profile must not exceed 500 characters",
+  }),
+  h_l_budget: Joi.number().precision(2).optional().allow(null).messages({
+    "number.base": "H&L budget must be a number",
+    "number.precision": "H&L budget can have maximum 2 decimal places",
+  }),
+  assignee_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Assignee ID must be a valid UUID",
+  }),
+})
+  .min(1)
+  .messages({
+    "object.min": "At least one field must be provided for update",
+  });
 
-const updateAssigneeSchema = {
-  params: Joi.object({
-    lead_id: Joi.string().uuid().required().messages({
-      "string.guid": "Lead ID must be a valid UUID",
-      "any.required": "Lead ID is required"
+const updateLeadStatusSchema = Joi.object({
+  status: Joi.string()
+    .valid("New", "Working", "Qualified", "Closed")
+    .required()
+    .messages({
+      "any.only": "Status must be one of: New, Working, Qualified, Closed",
+      "any.required": "Status is required",
     }),
-  }),
-  body: Joi.object({
-    notes: Joi.string().max(1000).optional().allow(null, ""),
-    assignee_id: Joi.string().uuid().optional().messages({
-      "string.guid": "Assignee ID must be a valid UUID"
-    }),
-  }).min(1).messages({
-    "object.min": "At least one field (lead_source, notes, assignee_id) must be provided"
-  }),
-};
+});
 
-const convertLeadSchema = {
-  params: Joi.object({
-    lead_id: Joi.string().uuid().required().messages({
-      "string.guid": "Lead ID must be a valid UUID",
-      "any.required": "Lead ID is required"
-    }),
+const assignLeadSchema = Joi.object({
+  assignee_id: Joi.string().uuid().required().messages({
+    "string.guid": "Assignee ID must be a valid UUID",
+    "any.required": "Assignee ID is required",
   }),
-};
+});
+
+const getAllLeadsQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.integer": "Page must be an integer",
+    "number.min": "Page must be at least 1",
+  }),
+  limit: Joi.number().integer().min(1).max(100).default(25).messages({
+    "number.base": "Limit must be a number",
+    "number.integer": "Limit must be an integer",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit must not exceed 100",
+  }),
+  status: Joi.string()
+    .valid("New", "Working", "Qualified", "Closed")
+    .optional(),
+  outcome: Joi.string().valid("Won", "Lost").optional(),
+  rating: Joi.string().valid("Hot", "Warm", "Cold", "None").optional(),
+  lead_source_id: Joi.string().uuid().optional(),
+  client_type_id: Joi.string().uuid().optional(),
+  region_id: Joi.string().uuid().optional(),
+  assignee_id: Joi.string().uuid().optional(),
+  search: Joi.string().max(100).optional().messages({
+    "string.max": "Search term must not exceed 100 characters",
+  }),
+});
 
 module.exports = {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,
-  updateAssigneeSchema,
-  convertLeadSchema,
+  updateLeadStatusSchema,
+  assignLeadSchema,
+  getAllLeadsQuerySchema,
 };

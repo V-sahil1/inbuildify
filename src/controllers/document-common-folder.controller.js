@@ -207,6 +207,7 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
       );
     }
 
+    // Get all folders with their subfolders
     const dataQuery = `
       SELECT 
         dcf.document_common_folder_id,
@@ -245,12 +246,64 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
       WHERE dcf.builder_id = $1 OR dcf.company_id = $2
       ORDER BY dcf.sort_order, dcf.created_at
     `;
-    const dataResult = await client.query(dataQuery, [builderId, companyId]);
+    const foldersResult = await client.query(dataQuery, [builderId, companyId]);
+
+    // Get all subfolders for these folders
+    const subfoldersQuery = `
+      SELECT 
+        dcsf.document_common_subfolder_id as "documentCommonSubfolderId",
+        dcsf.document_common_folder_id as "documentCommonFolderId",
+        dcsf.parent_subfolder_id as "parentSubfolderId",
+        dcsf.name,
+        dcsf.sort_order,
+        dcsf.created_by,
+        dcsf.updated_by,
+        dcsf.created_at,
+        dcsf.updated_at
+      FROM document_common_subfolder dcsf
+      INNER JOIN document_common_folder dcf ON dcf.document_common_folder_id = dcsf.document_common_folder_id
+      WHERE dcf.builder_id = $1 OR dcf.company_id = $2
+      ORDER BY dcsf.sort_order, dcsf.name
+    `;
+    const subfoldersResult = await client.query(subfoldersQuery, [
+      builderId,
+      companyId,
+    ]);
+
+    const folders = keysToCamelCase(foldersResult.rows);
+    const subfolders = keysToCamelCase(subfoldersResult.rows);
+
+    // Attach subfolder trees to each folder
+    const foldersWithSubfolders = folders.map((folder) => {
+      // Filter subfolders that belong to this specific folder
+      const folderSubfolders = subfolders.filter(
+        (subfolder) =>
+          subfolder.documentCommonFolderId === folder.documentCommonFolderId,
+      );
+
+      // Build tree structure for this folder's subfolders
+      const buildSubfolderTree = (subfolders, parentId = null) => {
+        return subfolders
+          .filter((subfolder) => subfolder.parentSubfolderId === parentId)
+          .map((subfolder) => ({
+            ...subfolder,
+            subFolder: buildSubfolderTree(
+              subfolders,
+              subfolder.documentCommonSubfolderId,
+            ),
+          }));
+      };
+
+      return {
+        ...folder,
+        subfolders: buildSubfolderTree(folderSubfolders, null),
+      };
+    });
 
     return successResponse(
       res,
-      keysToCamelCase(dataResult.rows),
-      "Document common folders fetched successfully.",
+      foldersWithSubfolders,
+      "Document common folders with subfolders fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching document common folders:", error);

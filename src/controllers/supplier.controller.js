@@ -30,15 +30,32 @@ exports.createSupplier = async (req, res) => {
       supplier_type_id,
       // Supplier contact details - now supporting multiple contacts
       contacts,
-      // Supplier document details
-      work_cover_image,
-      pl_insurance_image,
-      white_card_image,
-      fork_lift_license_image,
-      trade_license_image,
-      induction_pack_image,
+      work_cover_url,
+      pl_insurance_url,
+      white_card_url,
+      fork_lift_license_url,
+      trade_license_url,
       induction_pack_received,
+      induction_pack_url,
     } = req.body || {};
+
+    // Handle file uploads with fallback to URLs
+    const finalWorkCoverUrl =
+      req.files?.workCoverImage?.[0]?.location || work_cover_url || null;
+    const finalPlInsuranceUrl =
+      req.files?.plInsuranceImage?.[0]?.location || pl_insurance_url || null;
+    const finalWhiteCardUrl =
+      req.files?.whiteCardImage?.[0]?.location || white_card_url || null;
+    const finalForkLiftLicenseUrl =
+      req.files?.forkLiftLicenseImage?.[0]?.location ||
+      fork_lift_license_url ||
+      null;
+    const finalTradeLicenseUrl =
+      req.files?.tradeLicenseImage?.[0]?.location || trade_license_url || null;
+    const finalInductionPackUrl =
+      req.files?.inductionPackImage?.[0]?.location ||
+      induction_pack_url ||
+      null;
 
     await client.query("BEGIN");
 
@@ -87,6 +104,24 @@ exports.createSupplier = async (req, res) => {
       }
     }
 
+    // Validate supplier_type_id if provided
+    if (supplier_type_id && supplier_type_id.length > 0) {
+      // Check if all supplier_type_id values are valid UUIDs and exist in supplier_type table
+      const checkSupplierTypes = await client.query(
+        `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)`,
+        [supplier_type_id, builderId, companyId],
+      );
+
+      if (checkSupplierTypes.rowCount !== supplier_type_id.length) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "One or more supplier_type_id values are invalid or inactive",
+        );
+      }
+    }
+
     // Validate emails if provided
     let sanitizedEmails = null;
     if (emails) {
@@ -127,10 +162,17 @@ exports.createSupplier = async (req, res) => {
         lead_time,
         status,
         emails,
+        work_cover_url,
+        pl_insurance_url,
+        white_card_url,
+        fork_lift_license_url,
+        trade_license_url,
+        induction_pack_received,
+        induction_pack_url,
         created_by,
         updated_by
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
       )
       RETURNING *;
     `;
@@ -153,6 +195,13 @@ exports.createSupplier = async (req, res) => {
       lead_time || null,
       status !== undefined ? status : true,
       sanitizedEmails,
+      finalWorkCoverUrl,
+      finalPlInsuranceUrl,
+      finalWhiteCardUrl,
+      finalForkLiftLicenseUrl,
+      finalTradeLicenseUrl,
+      induction_pack_received !== undefined ? induction_pack_received : false,
+      finalInductionPackUrl,
       userId,
       userId,
     ];
@@ -182,6 +231,13 @@ exports.createSupplier = async (req, res) => {
         s.lead_time,
         s.status,
         s.emails,
+        s.work_cover_url,
+        s.pl_insurance_url,
+        s.white_card_url,
+        s.fork_lift_license_url,
+        s.trade_license_url,
+        s.induction_pack_received,
+        s.induction_pack_url,
         COALESCE(
           json_agg(
             json_build_object(
@@ -202,8 +258,6 @@ exports.createSupplier = async (req, res) => {
     `;
 
     const responseResult = await client.query(responseQuery, [supplierId]);
-
-    await client.query("COMMIT");
 
     // Handle supplier contacts if provided
     let createdContacts = [];
@@ -269,101 +323,16 @@ exports.createSupplier = async (req, res) => {
       }
     }
 
-    // Handle supplier documents if provided
-    let documents = [];
-    if (
-      work_cover_image ||
-      pl_insurance_image ||
-      white_card_image ||
-      fork_lift_license_image ||
-      trade_license_image ||
-      (induction_pack_image &&
-        (induction_pack_received || induction_pack_received === "true")) ||
-      induction_pack_received === "true"
-    ) {
-      const work_cover_url =
-        req.files?.workCoverImage?.[0]?.location ||
-        req.body.work_cover_image ||
-        null;
-      const pl_insurance_url =
-        req.files?.plInsuranceImage?.[0]?.location ||
-        req.body.pl_insurance_image ||
-        null;
-      const white_card_url =
-        req.files?.whiteCardImage?.[0]?.location ||
-        req.body.white_card_image ||
-        null;
-      const fork_lift_license_url =
-        req.files?.forkLiftLicenseImage?.[0]?.location ||
-        req.body.fork_lift_license_image ||
-        null;
-      const trade_license_url =
-        req.files?.tradeLicenseImage?.[0]?.location ||
-        req.body.trade_license_image ||
-        null;
-      const induction_pack_url =
-        req.files?.inductionPackImage?.[0]?.location ||
-        req.body.induction_pack_image ||
-        null;
-
-      const inductionBoolean =
-        induction_pack_received === true || induction_pack_received === "true";
-
-      if (inductionBoolean && !induction_pack_url) {
-        return errorResponse(
-          res,
-          400,
-          "induction_pack_url is required when induction_pack_received is true.",
-        );
-      }
-
-      if (!inductionBoolean && induction_pack_url) {
-        return errorResponse(
-          res,
-          400,
-          "You cannot provide induction_pack_url when induction_pack_received is false.",
-        );
-      }
-
-      const docInsertQuery = `
-        INSERT INTO supplier_documents (
-          supplier_id,
-         
-          work_cover_url,
-          pl_insurance_url,
-          white_card_url,
-          fork_lift_license_url,
-          trade_license_url,
-          induction_pack_received,
-          induction_pack_url
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-        RETURNING *;
-      `;
-
-      const docValues = [
-        supplierId,
-
-        work_cover_url,
-        pl_insurance_url,
-        white_card_url,
-        fork_lift_license_url,
-        trade_license_url,
-        inductionBoolean,
-        induction_pack_url,
-      ];
-
-      const docResult = await client.query(docInsertQuery, docValues);
-      documents = docResult.rows;
-    }
+    // Commit everything only after all operations are successful
+    await client.query("COMMIT");
 
     return successResponse(
       res,
       {
         supplier: keysToCamelCase(responseResult.rows[0]),
         contacts: keysToCamelCase(createdContacts),
-        documents: keysToCamelCase(documents),
       },
-      "Supplier, contacts, and documents created successfully.",
+      "Supplier created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -382,7 +351,15 @@ exports.getAllSuppliers = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    let { company_name, phone, email, website } = req.query;
+    let {
+      company_name,
+      phone,
+      email,
+      website,
+      status,
+      induction,
+      supplier_type_id,
+    } = req.query;
 
     const conditions = [];
     const values = [];
@@ -416,6 +393,22 @@ exports.getAllSuppliers = async (req, res) => {
       values.push(`%${website}%`);
     }
 
+    if (status !== undefined) {
+      conditions.push(`s.status = $${index++}`);
+      values.push(status === "true");
+    }
+
+    if (induction !== undefined) {
+      conditions.push(`s.induction_pack_received = $${index++}`);
+      values.push(induction === "true");
+    }
+
+    if (supplier_type_id) {
+      conditions.push(`$${index} = ANY(s.supplier_type_id)`);
+      values.push(supplier_type_id);
+      index++;
+    }
+
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`
       : "";
@@ -439,6 +432,13 @@ exports.getAllSuppliers = async (req, res) => {
         s.lead_time,
         s.status,
         s.emails,
+        s.work_cover_url,
+        s.pl_insurance_url,
+        s.white_card_url,
+        s.fork_lift_license_url,
+        s.trade_license_url,
+        s.induction_pack_received,
+        s.induction_pack_url,
         COALESCE(
           json_agg(
             json_build_object(
@@ -569,6 +569,13 @@ exports.updateSupplier = async (req, res) => {
       status,
       emails,
       supplier_type_id,
+      work_cover_url,
+      pl_insurance_url,
+      white_card_url,
+      fork_lift_license_url,
+      trade_license_url,
+      induction_pack_received,
+      induction_pack_url,
     } = req.body;
 
     const checkQuery = `
@@ -612,6 +619,13 @@ exports.updateSupplier = async (req, res) => {
       "lead_time",
       "emails",
       "supplier_type_id",
+      "work_cover_url",
+      "pl_insurance_url",
+      "white_card_url",
+      "fork_lift_license_url",
+      "trade_license_url",
+      "induction_pack_received",
+      "induction_pack_url",
     ];
 
     const updatingOtherFields = fieldsToCheck.some(
@@ -717,8 +731,8 @@ exports.updateSupplier = async (req, res) => {
       if (supplier_type_id.length > 0) {
         // Check if all supplier_type_id values are valid UUIDs and exist in supplier_type table
         const checkSupplierTypes = await client.query(
-          `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[])`,
-          [supplier_type_id],
+          `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)`,
+          [supplier_type_id, builderId, companyId],
         );
 
         if (checkSupplierTypes.rowCount !== supplier_type_id.length) {
@@ -770,6 +784,90 @@ exports.updateSupplier = async (req, res) => {
     if (zip_code !== undefined) push("zip_code", zip_code);
     if (lead_time !== undefined) push("lead_time", lead_time);
 
+    const finalWorkCoverUrl =
+      req.files?.workCoverImage?.[0]?.location || work_cover_url;
+    const finalPlInsuranceUrl =
+      req.files?.plInsuranceImage?.[0]?.location || pl_insurance_url;
+    const finalWhiteCardUrl =
+      req.files?.whiteCardImage?.[0]?.location || white_card_url;
+    const finalForkLiftLicenseUrl =
+      req.files?.forkLiftLicenseImage?.[0]?.location || fork_lift_license_url;
+    const finalTradeLicenseUrl =
+      req.files?.tradeLicenseImage?.[0]?.location || trade_license_url;
+    const finalInductionPackUrl =
+      req.files?.inductionPackImage?.[0]?.location || induction_pack_url;
+
+    // Handle S3 cleanup for document URLs
+    if (
+      finalWorkCoverUrl !== undefined &&
+      oldSupplier.work_cover_url &&
+      oldSupplier.work_cover_url !== finalWorkCoverUrl
+    ) {
+      await deleteFromS3(oldSupplier.work_cover_url).catch((err) => {
+        console.error("Error deleting old work cover from S3:", err);
+      });
+    }
+    if (
+      finalPlInsuranceUrl !== undefined &&
+      oldSupplier.pl_insurance_url &&
+      oldSupplier.pl_insurance_url !== finalPlInsuranceUrl
+    ) {
+      await deleteFromS3(oldSupplier.pl_insurance_url).catch((err) => {
+        console.error("Error deleting old PL insurance from S3:", err);
+      });
+    }
+    if (
+      finalWhiteCardUrl !== undefined &&
+      oldSupplier.white_card_url &&
+      oldSupplier.white_card_url !== finalWhiteCardUrl
+    ) {
+      await deleteFromS3(oldSupplier.white_card_url).catch((err) => {
+        console.error("Error deleting old white card from S3:", err);
+      });
+    }
+    if (
+      finalForkLiftLicenseUrl !== undefined &&
+      oldSupplier.fork_lift_license_url &&
+      oldSupplier.fork_lift_license_url !== finalForkLiftLicenseUrl
+    ) {
+      await deleteFromS3(oldSupplier.fork_lift_license_url).catch((err) => {
+        console.error("Error deleting old fork lift license from S3:", err);
+      });
+    }
+    if (
+      finalTradeLicenseUrl !== undefined &&
+      oldSupplier.trade_license_url &&
+      oldSupplier.trade_license_url !== finalTradeLicenseUrl
+    ) {
+      await deleteFromS3(oldSupplier.trade_license_url).catch((err) => {
+        console.error("Error deleting old trade license from S3:", err);
+      });
+    }
+    if (
+      finalInductionPackUrl !== undefined &&
+      oldSupplier.induction_pack_url &&
+      oldSupplier.induction_pack_url !== finalInductionPackUrl
+    ) {
+      await deleteFromS3(oldSupplier.induction_pack_url).catch((err) => {
+        console.error("Error deleting old induction pack from S3:", err);
+      });
+    }
+
+    if (finalWorkCoverUrl !== undefined)
+      push("work_cover_url", finalWorkCoverUrl);
+    if (finalPlInsuranceUrl !== undefined)
+      push("pl_insurance_url", finalPlInsuranceUrl);
+    if (finalWhiteCardUrl !== undefined)
+      push("white_card_url", finalWhiteCardUrl);
+    if (finalForkLiftLicenseUrl !== undefined)
+      push("fork_lift_license_url", finalForkLiftLicenseUrl);
+    if (finalTradeLicenseUrl !== undefined)
+      push("trade_license_url", finalTradeLicenseUrl);
+    if (induction_pack_received !== undefined)
+      push("induction_pack_received", induction_pack_received);
+    if (finalInductionPackUrl !== undefined)
+      push("induction_pack_url", finalInductionPackUrl);
+
     if (statusInBody) push("status", requestedStatus);
 
     if (sanitizedEmails !== null) push("emails", sanitizedEmails);
@@ -806,203 +904,6 @@ exports.updateSupplier = async (req, res) => {
       return errorResponse(res, 404, "Failed to update supplier.");
     }
 
-    // Handle supplier documents if provided
-    let documents = [];
-    const {
-      work_cover_image,
-      pl_insurance_image,
-      white_card_image,
-      fork_lift_license_image,
-      trade_license_image,
-      induction_pack_image,
-      induction_pack_received,
-    } = req.body;
-
-    if (
-      work_cover_image ||
-      pl_insurance_image ||
-      white_card_image ||
-      fork_lift_license_image ||
-      trade_license_image ||
-      (induction_pack_image &&
-        (induction_pack_received || induction_pack_received === "true")) ||
-      induction_pack_received === "true" ||
-      req.files?.workCoverImage ||
-      req.files?.plInsuranceImage ||
-      req.files?.whiteCardImage ||
-      req.files?.forkLiftLicenseImage ||
-      req.files?.tradeLicenseImage ||
-      req.files?.inductionPackImage
-    ) {
-      // Check if documents already exist for this supplier
-      const existingDocsQuery = `
-        SELECT * FROM supplier_documents 
-        WHERE supplier_id = $1
-      `;
-      const existingDocsResult = await client.query(existingDocsQuery, [
-        supplier_id,
-      ]);
-
-      const work_cover_url =
-        req.files?.workCoverImage?.[0]?.location || req.body.work_cover_image;
-      const pl_insurance_url =
-        req.files?.plInsuranceImage?.[0]?.location ||
-        req.body.pl_insurance_image;
-      const white_card_url =
-        req.files?.whiteCardImage?.[0]?.location || req.body.white_card_image;
-      const fork_lift_license_url =
-        req.files?.forkLiftLicenseImage?.[0]?.location ||
-        req.body.fork_lift_license_image;
-      const trade_license_url =
-        req.files?.tradeLicenseImage?.[0]?.location ||
-        req.body.trade_license_image;
-      const induction_pack_url =
-        req.files?.inductionPackImage?.[0]?.location ||
-        req.body.induction_pack_image;
-
-      const inductionBoolean =
-        induction_pack_received === true || induction_pack_received === "true";
-
-      if (inductionBoolean && !induction_pack_url) {
-        return errorResponse(
-          res,
-          400,
-          "induction_pack_url is required when induction_pack_received is true.",
-        );
-      }
-
-      if (!inductionBoolean && induction_pack_url) {
-        return errorResponse(
-          res,
-          400,
-          "You cannot provide induction_pack_url when induction_pack_received is false.",
-        );
-      }
-
-      if (existingDocsResult.rowCount > 0) {
-        const existingDocs = existingDocsResult.rows[0];
-
-        // Update existing documents with S3 cleanup
-        const docUpdateFields = [];
-        const docValues = [];
-        let docIndex = 1;
-
-        const pushDoc = (field, value, existingValue) => {
-          if (value !== undefined && value !== null) {
-            // Delete old image from S3 if it exists and is different from new one
-            if (existingValue && existingValue !== value) {
-              deleteFromS3(existingValue).catch((err) => {
-                console.error("Error deleting old image from S3:", err);
-              });
-            }
-            docUpdateFields.push(`${field} = $${docIndex++}`);
-            docValues.push(value);
-          }
-        };
-
-        pushDoc("work_cover_url", work_cover_url, existingDocs.work_cover_url);
-        pushDoc(
-          "pl_insurance_url",
-          pl_insurance_url,
-          existingDocs.pl_insurance_url,
-        );
-        pushDoc("white_card_url", white_card_url, existingDocs.white_card_url);
-        pushDoc(
-          "fork_lift_license_url",
-          fork_lift_license_url,
-          existingDocs.fork_lift_license_url,
-        );
-        pushDoc(
-          "trade_license_url",
-          trade_license_url,
-          existingDocs.trade_license_url,
-        );
-
-        if (induction_pack_received !== undefined) {
-          docUpdateFields.push(`induction_pack_received = $${docIndex++}`);
-          docValues.push(inductionBoolean);
-
-          // Handle induction pack URL specifically
-          if (induction_pack_url !== undefined && induction_pack_url !== null) {
-            if (
-              existingDocs.induction_pack_url &&
-              existingDocs.induction_pack_url !== induction_pack_url
-            ) {
-              deleteFromS3(existingDocs.induction_pack_url).catch((err) => {
-                console.error(
-                  "Error deleting old induction pack from S3:",
-                  err,
-                );
-              });
-            }
-            docUpdateFields.push(`induction_pack_url = $${docIndex++}`);
-            docValues.push(induction_pack_url);
-          }
-        } else if (
-          induction_pack_url !== undefined &&
-          induction_pack_url !== null
-        ) {
-          // If only induction_pack_url is provided (without induction_pack_received)
-          if (
-            existingDocs.induction_pack_url &&
-            existingDocs.induction_pack_url !== induction_pack_url
-          ) {
-            deleteFromS3(existingDocs.induction_pack_url).catch((err) => {
-              console.error("Error deleting old induction pack from S3:", err);
-            });
-          }
-          docUpdateFields.push(`induction_pack_url = $${docIndex++}`);
-          docValues.push(induction_pack_url);
-        }
-
-        if (docUpdateFields.length > 0) {
-          docUpdateFields.push(`updated_at = NOW()`);
-          docValues.push(supplier_id);
-
-          const docUpdateQuery = `
-            UPDATE supplier_documents 
-            SET ${docUpdateFields.join(", ")}
-            WHERE supplier_id = $${docIndex}
-            RETURNING *;
-          `;
-
-          const docUpdateResult = await client.query(docUpdateQuery, docValues);
-          documents = docUpdateResult.rows;
-        } else {
-          documents = existingDocsResult.rows;
-        }
-      } else {
-        // Insert new documents
-        const docInsertQuery = `
-          INSERT INTO supplier_documents (
-            supplier_id,
-            work_cover_url,
-            pl_insurance_url,
-            white_card_url,
-            fork_lift_license_url,
-            trade_license_url,
-            induction_pack_received,
-            induction_pack_url
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-          RETURNING *;
-        `;
-
-        const docValues = [
-          supplier_id,
-          work_cover_url,
-          pl_insurance_url,
-          white_card_url,
-          fork_lift_license_url,
-          trade_license_url,
-          inductionBoolean,
-          induction_pack_url,
-        ];
-
-        const docResult = await client.query(docInsertQuery, docValues);
-        documents = docResult.rows;
-      }
-    }
-
     // Fetch the updated supplier with supplier_type details
     const responseQuery = `
       SELECT 
@@ -1023,6 +924,13 @@ exports.updateSupplier = async (req, res) => {
         s.lead_time,
         s.status,
         s.emails,
+        s.work_cover_url,
+        s.pl_insurance_url,
+        s.white_card_url,
+        s.fork_lift_license_url,
+        s.trade_license_url,
+        s.induction_pack_received,
+        s.induction_pack_url,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1048,10 +956,7 @@ exports.updateSupplier = async (req, res) => {
 
     return successResponse(
       res,
-      {
-        supplier: keysToCamelCase(responseResult.rows[0]),
-        documents: keysToCamelCase(documents),
-      },
+      keysToCamelCase(responseResult.rows[0]),
       "Supplier updated successfully.",
     );
   } catch (error) {

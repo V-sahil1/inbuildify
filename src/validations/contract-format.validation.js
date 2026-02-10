@@ -11,8 +11,8 @@ const createContractFormatSchema = Joi.object({
       "string.max": "format_name cannot exceed 255 characters.",
       "any.required": "format_name is required.",
     }),
-  dafualt_format: Joi.boolean().optional().messages({
-    "boolean.base": "dafualt_format must be a boolean.",
+  default_format: Joi.boolean().optional().messages({
+    "boolean.base": "default_format must be a boolean.",
   }),
   status: Joi.boolean().optional().messages({
     "boolean.base": "status must be a boolean.",
@@ -46,8 +46,8 @@ const getAllContractFormatsSchema = Joi.object({
   status: Joi.string().valid("true", "false").optional().messages({
     "any.only": "status must be either 'true' or 'false'.",
   }),
-  dafualt_format: Joi.string().valid("true", "false").optional().messages({
-    "any.only": "dafualt_format must be either 'true' or 'false'.",
+  default_format: Joi.string().valid("true", "false").optional().messages({
+    "any.only": "default_format must be either 'true' or 'false'.",
   }),
   builder: Joi.string().uuid().optional().messages({
     "string.guid": "builder must be a valid UUID.",
@@ -66,6 +66,21 @@ const getAllContractFormatsSchema = Joi.object({
       "any.only":
         "updated_at must be either 'last_7_days', 'last_15_days', or 'last_30_days'.",
     }),
+  start_date: Joi.date().iso().optional().messages({
+    "date.format":
+      "start_date must be a valid date in ISO format (YYYY-MM-DD).",
+  }),
+  end_date: Joi.date().iso().optional().messages({
+    "date.format": "end_date must be a valid date in ISO format (YYYY-MM-DD).",
+  }),
+  start_updated_date: Joi.date().iso().optional().messages({
+    "date.format":
+      "start_updated_date must be a valid date in ISO format (YYYY-MM-DD).",
+  }),
+  end_updated_date: Joi.date().iso().optional().messages({
+    "date.format":
+      "end_updated_date must be a valid date in ISO format (YYYY-MM-DD).",
+  }),
 });
 
 const getContractFormatByIdSchema = Joi.object({
@@ -92,8 +107,8 @@ const updateContractFormatSchema = Joi.object({
       "string.empty": "format_name cannot be empty.",
       "string.max": "format_name cannot exceed 255 characters.",
     }),
-  dafualt_format: Joi.boolean().optional().messages({
-    "boolean.base": "dafualt_format must be a boolean.",
+  default_format: Joi.boolean().optional().messages({
+    "boolean.base": "default_format must be a boolean.",
   }),
   status: Joi.boolean().optional().messages({
     "boolean.base": "status must be a boolean.",

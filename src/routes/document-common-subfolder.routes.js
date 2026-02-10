@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   createDocumentCommonSubfolder,
   getDocumentCommonSubfolderByFolderId,
+  getDocumentCommonSubfolderTree,
   deleteDocumentCommonSubfolder,
   updateDocumentCommonSubfolder,
 } = require("../controllers/document-common-subfolder.controller");
@@ -11,6 +12,7 @@ const {
   createDocumentCommonSubfolderSchem,
   getDocumentCommonSubfolderByFolderIdParamsSchema,
   getDocumentCommonSubfolderByFolderIdSchema,
+  getDocumentCommonSubfolderByParentIdSchema,
   deleteDocumentCommonSubfolderSchema,
   updateDocumentCommonSubfolderParamsSchema,
   updateDocumentCommonSubfolderSchema,
@@ -30,36 +32,45 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createDocumentCommonSubfolderSchem, REQUEST_SOURCE.BODY),
-  createDocumentCommonSubfolder
+  createDocumentCommonSubfolder,
 );
 
 router.get(
   "/:document_common_folder_id",
   validateRequest(
     getDocumentCommonSubfolderByFolderIdParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(
-    getDocumentCommonSubfolderByFolderIdSchema,
-    REQUEST_SOURCE.QUERY
+    getDocumentCommonSubfolderByParentIdSchema,
+    REQUEST_SOURCE.QUERY,
   ),
-  getDocumentCommonSubfolderByFolderId
+  getDocumentCommonSubfolderByFolderId,
+);
+
+router.get(
+  "/:document_common_folder_id/tree",
+  validateRequest(
+    getDocumentCommonSubfolderByFolderIdParamsSchema,
+    REQUEST_SOURCE.PARAMS,
+  ),
+  getDocumentCommonSubfolderTree,
 );
 
 router.delete(
   "/:document_common_subfolder_id",
   validateRequest(deleteDocumentCommonSubfolderSchema, REQUEST_SOURCE.PARAMS),
-  deleteDocumentCommonSubfolder
+  deleteDocumentCommonSubfolder,
 );
 
 router.put(
   "/:document_common_subfolder_id",
   validateRequest(
     updateDocumentCommonSubfolderParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateDocumentCommonSubfolderSchema, REQUEST_SOURCE.BODY),
-  updateDocumentCommonSubfolder
+  updateDocumentCommonSubfolder,
 );
 
 module.exports = router;
