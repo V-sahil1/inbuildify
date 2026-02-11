@@ -90,15 +90,18 @@ exports.createContractFormat = async (req, res) => {
 
     const transformed = keysToCamelCase(builderResult.rows[0]);
     const finalResponse = {
-      ...transformed,
-      builder: transformed.builderInfoId
-        ? {
-            id: transformed.builderInfoId,
-            name: transformed.builderName,
-          }
-        : null,
-      builderInfoId: undefined,
-      builderName: undefined,
+      contractFormatId: transformed.contractFormatId,
+      companyId: transformed.companyId,
+      builderId: transformed.builderId,
+      builder: transformed.builderInfoId || null,
+      builderName: transformed.builderName || null,
+      formatName: transformed.formatName,
+      defaultFormat: transformed.defaultFormat,
+      status: transformed.status,
+      createdBy: transformed.createdBy,
+      updatedBy: transformed.updatedBy,
+      createdAt: transformed.createdAt,
+      updatedAt: transformed.updatedAt,
     };
 
     return successResponse(
@@ -305,16 +308,21 @@ exports.getAllContractFormats = async (req, res) => {
 
     const transformedRows = result.rows.map((row) => {
       const transformed = keysToCamelCase(row);
+      const { builderInfoId, builderName, ...rest } = transformed;
+
       return {
-        ...transformed,
-        builder: transformed.builderInfoId
-          ? {
-              id: transformed.builderInfoId,
-              name: transformed.builderName,
-            }
-          : null,
-        builderInfoId: undefined,
-        builderName: undefined,
+        contractFormatId: rest.contractFormatId,
+        companyId: rest.companyId,
+        builderId: rest.builderId,
+        builder: builderInfoId || null,
+        builderName: builderName || null,
+        formatName: rest.formatName,
+        defaultFormat: rest.defaultFormat,
+        status: rest.status,
+        createdBy: rest.createdBy,
+        updatedBy: rest.updatedBy,
+        createdAt: rest.createdAt,
+        updatedAt: rest.updatedAt,
       };
     });
 
@@ -366,16 +374,20 @@ exports.getContractFormatById = async (req, res) => {
     }
 
     const transformed = keysToCamelCase(result.rows[0]);
+    const { builderInfoId, builderName, ...rest } = transformed;
     const finalResponse = {
-      ...transformed,
-      builder: transformed.builderInfoId
-        ? {
-            id: transformed.builderInfoId,
-            name: transformed.builderName,
-          }
-        : null,
-      builderInfoId: undefined,
-      builderName: undefined,
+      contractFormatId: rest.contractFormatId,
+      companyId: rest.companyId,
+      builderId: rest.builderId,
+      builder: builderInfoId || null,
+      builderName: builderName || null,
+      formatName: rest.formatName,
+      defaultFormat: rest.defaultFormat,
+      status: rest.status,
+      createdBy: rest.createdBy,
+      updatedBy: rest.updatedBy,
+      createdAt: rest.createdAt,
+      updatedAt: rest.updatedAt,
     };
 
     return successResponse(
@@ -517,16 +529,20 @@ exports.updateContractFormat = async (req, res) => {
     await client.query("COMMIT");
 
     const transformed = keysToCamelCase(builderResult.rows[0]);
+    const { builderInfoId, builderName, ...rest } = transformed;
     const finalResponse = {
-      ...transformed,
-      builder: transformed.builderInfoId
-        ? {
-            id: transformed.builderInfoId,
-            name: transformed.builderName,
-          }
-        : null,
-      builderInfoId: undefined,
-      builderName: undefined,
+      contractFormatId: rest.contractFormatId,
+      companyId: rest.companyId,
+      builderId: rest.builderId,
+      builder: builderInfoId || null,
+      builderName: builderName || null,
+      formatName: rest.formatName,
+      defaultFormat: rest.defaultFormat,
+      status: rest.status,
+      createdBy: rest.createdBy,
+      updatedBy: rest.updatedBy,
+      createdAt: rest.createdAt,
+      updatedAt: rest.updatedAt,
     };
 
     return successResponse(

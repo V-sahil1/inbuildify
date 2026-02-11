@@ -26,6 +26,7 @@ exports.createColorItem = async (req, res) => {
       description,
       specification_name,
       units = "non_mandatory",
+      sort_order,
       status = true,
       default_image_index,
     } = req.body;
@@ -128,6 +129,47 @@ exports.createColorItem = async (req, res) => {
       return errorResponse(res, 409, "Item code already exists.");
     }
 
+    // Handle sort order shifting
+    let finalSortOrder = sort_order;
+
+    if (color_category_id) {
+      // If color_category_id is provided, check for existing items in that category
+      const maxSortOrderQuery = `
+        SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
+        FROM color_item
+        WHERE color_category_id = $1
+          AND (company_id = $2 OR builder_id = $3)
+      `;
+      const maxSortResult = await client.query(maxSortOrderQuery, [
+        color_category_id,
+        companyId,
+        builderId,
+      ]);
+
+      const maxSortOrder = parseInt(maxSortResult.rows[0].max_sort_order) || 0;
+
+      if (!sort_order) {
+        // If no sort_order provided, place at the end
+        finalSortOrder = maxSortOrder + 1;
+      } else if (sort_order <= maxSortOrder) {
+        // If sort_order is within existing range, shift existing items
+        const shiftQuery = `
+          UPDATE color_item 
+          SET sort_order = sort_order + 1 
+          WHERE color_category_id = $1
+            AND (company_id = $2 OR builder_id = $3)
+            AND sort_order >= $4
+        `;
+        await client.query(shiftQuery, [
+          color_category_id,
+          companyId,
+          builderId,
+          sort_order,
+        ]);
+      }
+      // If sort_order > maxSortOrder, it's already at the correct position
+    }
+
     /* ---------- INSERT ---------- */
     const insertQuery = `
       INSERT INTO color_item (
@@ -146,13 +188,13 @@ exports.createColorItem = async (req, res) => {
         units,
         color_image,
         specification,
+        sort_order,
         status,
         created_at,
         updated_at
-      )
-      VALUES (
+      ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,NOW(),NOW()
+        $11,$12,$13,$14,$15,$16,$17,NOW(),NOW()
       )
       RETURNING *;
     `;
@@ -173,6 +215,7 @@ exports.createColorItem = async (req, res) => {
       units,
       JSON.stringify(colorImageJson),
       JSON.stringify(specificationJson),
+      finalSortOrder,
       status,
     ];
 
@@ -205,9 +248,10 @@ exports.getAllColorItems = async (req, res) => {
       limit = 25,
       status,
       search,
-      costType,
-      upgradeOption,
+      cost_type,
+      upgrade_option,
       units,
+      color_category_id,
     } = req.query;
 
     page = parseInt(page, 10);
@@ -227,17 +271,17 @@ exports.getAllColorItems = async (req, res) => {
       index++;
     }
 
-    if (costType !== undefined) {
-      if (!["standard", "upgrade"].includes(costType)) {
+    if (cost_type !== undefined) {
+      if (!["standard", "upgrade"].includes(cost_type)) {
         return errorResponse(res, 400, "cost_type must be standard or upgrade");
       }
       conditions.push(`ci.cost_type = $${index}`);
-      values.push(costType);
+      values.push(cost_type);
       index++;
     }
 
-    if (upgradeOption !== undefined) {
-      if (!["fixed", "start_from", "tba"].includes(upgradeOption)) {
+    if (upgrade_option !== undefined) {
+      if (!["fixed", "start_from", "tba"].includes(upgrade_option)) {
         return errorResponse(
           res,
           400,
@@ -245,7 +289,7 @@ exports.getAllColorItems = async (req, res) => {
         );
       }
       conditions.push(`ci.upgrade_option = $${index}`);
-      values.push(upgradeOption);
+      values.push(upgrade_option);
       index++;
     }
 
@@ -259,6 +303,12 @@ exports.getAllColorItems = async (req, res) => {
       }
       conditions.push(`ci.units = $${index}`);
       values.push(units);
+      index++;
+    }
+
+    if (color_category_id !== undefined) {
+      conditions.push(`ci.color_category_id = $${index}`);
+      values.push(color_category_id);
       index++;
     }
 
@@ -341,6 +391,7 @@ exports.updateColorItem = async (req, res) => {
       description,
       specification_name,
       units,
+      sort_order,
       status,
     } = req.body;
 
@@ -438,7 +489,7 @@ exports.updateColorItem = async (req, res) => {
     /* ---------- EXISTING RECORD CHECK ---------- */
     const existingCheck = await client.query(
       `
-      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost
+      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost, sort_order, color_category_id
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
@@ -452,6 +503,16 @@ exports.updateColorItem = async (req, res) => {
     }
 
     const existing = existingCheck.rows[0];
+
+    /* ---------- SORT ORDER VALIDATION ---------- */
+    if (sort_order !== undefined && !existing.color_category_id) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Cannot update sort order when color category is not assigned.",
+      );
+    }
 
     /* ---------- COST TYPE SPECIFIC VALIDATION ---------- */
     if (cost_type !== undefined) {
@@ -628,6 +689,77 @@ exports.updateColorItem = async (req, res) => {
       }
     }
 
+    /* ---------- SORT ORDER SHIFTING LOGIC ---------- */
+    if (sort_order !== undefined && existing.color_category_id) {
+      const currentSortOrder = existing.sort_order;
+      const newSortOrder = sort_order;
+      const categoryId = existing.color_category_id;
+
+      if (newSortOrder !== currentSortOrder) {
+        // Get max sort order in the category
+        const maxSortOrderQuery = `
+          SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
+          FROM color_item
+          WHERE color_category_id = $1
+            AND (company_id = $2 OR builder_id = $3)
+            AND color_item_id != $4
+        `;
+        const maxSortResult = await client.query(maxSortOrderQuery, [
+          categoryId,
+          companyId,
+          builderId,
+          color_item_id,
+        ]);
+
+        const maxSortOrder =
+          parseInt(maxSortResult.rows[0].max_sort_order) || 0;
+
+        // If new sort order is within valid range, shift items
+        if (newSortOrder <= maxSortOrder) {
+          if (newSortOrder < currentSortOrder) {
+            // Moving up: shift items between new and current position down by 1
+            const shiftUpQuery = `
+              UPDATE color_item 
+              SET sort_order = sort_order + 1 
+              WHERE color_category_id = $1
+                AND (company_id = $2 OR builder_id = $3)
+                AND color_item_id != $4
+                AND sort_order >= $5
+                AND sort_order < $6
+            `;
+            await client.query(shiftUpQuery, [
+              categoryId,
+              companyId,
+              builderId,
+              color_item_id,
+              newSortOrder,
+              currentSortOrder,
+            ]);
+          } else {
+            // Moving down: shift items between current and new position up by 1
+            const shiftDownQuery = `
+              UPDATE color_item 
+              SET sort_order = sort_order - 1 
+              WHERE color_category_id = $1
+                AND (company_id = $2 OR builder_id = $3)
+                AND color_item_id != $4
+                AND sort_order > $5
+                AND sort_order <= $6
+            `;
+            await client.query(shiftDownQuery, [
+              categoryId,
+              companyId,
+              builderId,
+              color_item_id,
+              currentSortOrder,
+              newSortOrder,
+            ]);
+          }
+        }
+        // If new sort order > max, it's already at correct position
+      }
+    }
+
     /* ---------- BUILD UPDATE FIELDS ---------- */
     const updateFields = [];
 
@@ -683,6 +815,11 @@ exports.updateColorItem = async (req, res) => {
     if (units !== undefined) {
       updateFields.push(`units = $${paramIndex++}`);
       updateValues.push(units);
+    }
+
+    if (sort_order !== undefined) {
+      updateFields.push(`sort_order = $${paramIndex++}`);
+      updateValues.push(sort_order);
     }
 
     /* ---------- HANDLE COLOR IMAGES ---------- */
@@ -853,13 +990,48 @@ exports.deleteColorItem = async (req, res) => {
       return errorResponse(res, 404, "Color item not found.");
     }
 
+    // Get sort order and color_category_id of item being deleted
+    const sortOrderQuery = `
+      SELECT sort_order, color_category_id
+      FROM color_item
+      WHERE color_item_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+    `;
+    const sortOrderResult = await client.query(sortOrderQuery, [
+      color_item_id,
+      companyId,
+      builderId,
+    ]);
+
+    if (sortOrderResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Color item not found.");
+    }
+
+    const deletedSortOrder = sortOrderResult.rows[0].sort_order;
+    const deletedCategoryId = sortOrderResult.rows[0].color_category_id;
+
+    // Shift up all items with sort_order > deletedSortOrder
+    const shiftQuery = `
+      UPDATE color_item 
+      SET sort_order = sort_order - 1 
+      WHERE color_category_id = $1
+        AND (company_id = $2 OR builder_id = $3)
+        AND sort_order > $4
+    `;
+    await client.query(shiftQuery, [
+      deletedCategoryId,
+      companyId,
+      builderId,
+      deletedSortOrder,
+    ]);
+
     await client.query(
       `
       DELETE FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
       `,
-
       [color_item_id, companyId, builderId],
     );
 
@@ -993,7 +1165,7 @@ exports.getColorItemById = async (req, res) => {
     ]);
 
     if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Color item not found.");
+      return successResponse(res, [], "Color item fetched successfully.");
     }
 
     const colorItem = keysToCamelCase(result.rows[0]);
@@ -1043,7 +1215,6 @@ exports.colorItemMove = async (req, res) => {
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
-
       `,
 
       [color_item_id, companyId, builderId],
@@ -1051,7 +1222,6 @@ exports.colorItemMove = async (req, res) => {
 
     if (colorItemCheck.rowCount === 0) {
       await client.query("ROLLBACK");
-
       return errorResponse(res, 404, "Color item not found.");
     }
 
@@ -1087,27 +1257,19 @@ exports.colorItemMove = async (req, res) => {
 
     if (colorCategoryCheck.rowCount === 0) {
       await client.query("ROLLBACK");
-
       return errorResponse(
         res,
-
         400,
-
         "Color category does not belong to the specified color ID or access denied.",
       );
     }
 
     const categoryBelongsToColorCheck = await client.query(
       `
-
       SELECT 1
-
       FROM color_category
-
       WHERE color_category_id = $1
-
         AND color_id = $2
-
       `,
 
       [color_category_id, color_id],
@@ -1115,27 +1277,19 @@ exports.colorItemMove = async (req, res) => {
 
     if (categoryBelongsToColorCheck.rowCount === 0) {
       await client.query("ROLLBACK");
-
       return errorResponse(
         res,
-
         400,
-
         "Color category ID does not belong to the specified color ID.",
       );
     }
 
     const existingItemCheck = await client.query(
       `
-
       SELECT color_item_id
-
       FROM color_item
-
       WHERE color_category_id = $1
-
         AND (company_id = $2 OR builder_id = $3)
-
       `,
 
       [color_category_id, companyId, builderId],
@@ -1143,21 +1297,16 @@ exports.colorItemMove = async (req, res) => {
 
     if (existingItemCheck.rowCount > 0) {
       await client.query("ROLLBACK");
-
       return errorResponse(
         res,
-
         400,
-
         "Color category already contains a color item.",
       );
     }
 
     const ownershipCheck = await client.query(
       `
-
       SELECT 
-
         ci.color_item_id as item_exists,
         c.color_id as color_exists,
         cc.color_category_id as category_exists
@@ -1174,19 +1323,15 @@ exports.colorItemMove = async (req, res) => {
 
     if (ownershipCheck.rowCount === 0) {
       await client.query("ROLLBACK");
-
       return errorResponse(
         res,
-
         400,
-
         "One or more entities do not belong to your account or access denied.",
       );
     }
 
     const updateResult = await client.query(
       `
-
       UPDATE color_item
       SET color_category_id = $1, updated_at = NOW()
       WHERE color_item_id = $2

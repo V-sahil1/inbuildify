@@ -2792,6 +2792,7 @@ CREATE TABLE color_item(
   features VARCHAR(500),
   description VARCHAR(500),
   specification_name VARCHAR(500),
+  sort_order INT,
   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
   color_image JSONB DEFAULT '[]',
   specification JSONB DEFAULT '[]',
@@ -3012,7 +3013,7 @@ CREATE TABLE leads (
   build_budget NUMERIC(10,2),
   region_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
   prelim_agreement DATE,
-  clinet_profile VARCHAR(500),
+  client_profile VARCHAR(500),
   h_l_budget NUMERIC(10,2),
   assignee_id UUID REFERENCES users(users_id),
   created_by UUID REFERENCES users(users_id),
@@ -3023,12 +3024,15 @@ CREATE TABLE leads (
 
 CREATE TABLE lead_detail(
   lead_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_id UUID REFERENCES lead(lead_id) ON DELETE CASCADE,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  company_id UUID REFERENCES company(company_id) ON DELETE SET NULL,
-  solica
-
-)
+  property JSONB DEFAULT '{}',
+  company JSONB DEFAULT '{}',          
+  conveyancer JSONB DEFAULT '{}',        
+  mortgage_boker JSONB DEFAULT '{}',       
+  financer JSONB DEFAULT '{}',         
+);
 
 CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -3080,7 +3084,6 @@ CREATE TABLE quotation_version_custom_section(
 
 CREATE TABLE property(
   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,  -- make id optional
   lot_no INTEGER,
   street_no INTEGER,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
@@ -3100,3 +3103,14 @@ CREATE TABLE property(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE compnay_detail(
+ compnay_detail_id UUID DEFAULT uuid_generate_v4() primary key,
+ name VARCHAR(255) NoT NULL,
+ email VARCHAR(255) NOT NULL,
+ phone VARCHAR(20),
+ address1, VARCHAR(255)
+ abn_number VARCHAR(20),
+ acn_number VARCHAR(20),
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)

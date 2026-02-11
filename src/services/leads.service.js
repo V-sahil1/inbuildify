@@ -49,8 +49,8 @@ class LeadsService {
       }
 
       // Generate reference number if not provided
-      const refrenceNumber =
-        leadData.refrenceNumber ||
+      const refrence_number =
+        leadData.refrence_number ||
         (await generateDynamicReferenceNumber({
           prefix: "LD",
           tableName: "leads",
@@ -61,16 +61,17 @@ class LeadsService {
 
       const leadDataWithDefaults = {
         ...leadData,
-        refrenceNumber,
-        builderId,
-        companyId: companyId, // Use company from user
-        createdBy: userId,
-        updatedBy: userId,
+        refrence_number,
+        builder_id: builderId,
+        company_id: companyId, // Use company from user
+        created_by: userId,
+        updated_by: userId,
+        assignee_id: leadData.assignee_id || userId, // Auto-assign to logged-in user if not provided
         status: leadData.status || "New",
         rating: leadData.rating || "None",
         land: leadData.land || "None",
         finance: leadData.finance || "None",
-        faceToFace: leadData.faceToFace || "None",
+        face_to_face: leadData.face_to_face || "None",
         purpose: leadData.purpose || "None",
       };
 
@@ -179,7 +180,7 @@ class LeadsService {
 
       const leadDataWithUpdatedBy = {
         ...leadData,
-        updatedBy: userId,
+        updated_by: userId,
       };
 
       const updatedLead = await leadsRepository.updateLead(
@@ -331,12 +332,6 @@ class LeadsService {
   async validateClientType(clientTypeId, builderId, companyId) {
     try {
       const client = getPool();
-
-      console.log("DEBUG: validateClientType called with:", {
-        clientTypeId,
-        builderId,
-        companyId,
-      });
 
       const query = `
         SELECT client_type_id, client_type, is_active 

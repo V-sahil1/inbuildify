@@ -84,8 +84,30 @@ const paramsIdSchema = Joi.object({
   }),
 });
 
+const copyColorCategorySchema = Joi.object({
+  color_id: Joi.string().uuid().required().messages({
+    "string.guid": "Color ID must be a valid UUID",
+    "any.required": "Color ID is required",
+  }),
+  category_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "any.required": "Category name is required",
+      "string.max": "Category name must not exceed 255 characters",
+    }),
+  sort_order: Joi.number().integer().default(1).messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+  }),
+});
+
 module.exports = {
   createColorCategorySchema,
   updateColorCategorySchema,
   paramsIdSchema,
+  copyColorCategorySchema,
 };

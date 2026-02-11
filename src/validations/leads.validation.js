@@ -37,6 +37,7 @@ const getLeadByIdSchema = Joi.object({
 
 const updateLeadSchema = Joi.object({
   refrence_number: Joi.string().max(30).optional(),
+
   name: Joi.string().min(2).max(255).optional().messages({
     "string.min": "Name must be at least 2 characters long",
     "string.max": "Name must not exceed 255 characters",

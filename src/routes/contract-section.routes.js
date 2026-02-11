@@ -21,14 +21,18 @@ const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
-const { createUpload, handleMulterError } = require("../utils/s3Upload");
+const {
+  createUpload,
+  handleMulterError,
+  createImageOrPdfUpload,
+} = require("../utils/s3Upload");
 
 const { REQUEST_SOURCE } = require("../config/constants");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-const upload = createUpload("contract-section");
+const upload = createImageOrPdfUpload("contract-section");
 
 router.post(
   "/",

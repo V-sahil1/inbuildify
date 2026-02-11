@@ -39,7 +39,25 @@ const updateColorSchema = Joi.object({
   }),
 });
 
+const copyColorSchema = Joi.object({
+  color_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .required()
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .messages({
+      "any.required": "Color name is required",
+      "string.max": "Color name must not exceed 255 characters",
+    }),
+  sort_order: Joi.number().integer().default(1).messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+  }),
+});
+
 module.exports = {
   createColorSchema,
   updateColorSchema,
+  copyColorSchema,
 };

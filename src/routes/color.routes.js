@@ -7,6 +7,7 @@ const {
   getColorById,
   updateColor,
   deleteColor,
+  copyColor,
 } = require("../controllers/color.controller");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -17,12 +18,12 @@ const { REQUEST_SOURCE } = require("../config/constants");
 const {
   createColorSchema,
   updateColorSchema,
+  copyColorSchema,
 } = require("../validations/color.validation");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-// POST /api/color - Create a new color
 router.post(
   "/",
   camelToSnakeMiddleware,
@@ -30,13 +31,10 @@ router.post(
   createColor,
 );
 
-// GET /api/color - Get all colors with optional filtering and pagination
 router.get("/", getColors);
 
-// GET /api/color/:id - Get a specific color by ID
 router.get("/:id", getColorById);
 
-// PUT /api/color/:id - Update a specific color by ID
 router.put(
   "/:id",
   camelToSnakeMiddleware,
@@ -44,7 +42,13 @@ router.put(
   updateColor,
 );
 
-// DELETE /api/color/:id - Delete a specific color by ID
 router.delete("/:id", deleteColor);
+
+router.post(
+  "/copy/:color_id",
+  camelToSnakeMiddleware,
+  validateRequest(copyColorSchema, REQUEST_SOURCE.BODY),
+  copyColor,
+);
 
 module.exports = router;

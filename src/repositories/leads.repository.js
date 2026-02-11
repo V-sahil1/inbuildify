@@ -10,52 +10,54 @@ class LeadsRepository {
     const client = await this.pool.connect();
     try {
       const {
-        refrenceNumber,
-        companyId,
-        builderId,
+        refrence_number,
+        company_id,
+        builder_id,
         name,
         email,
         phone,
         notes,
-        sendLetter,
+        send_letter,
         lead_source_id,
         status,
         rating,
         land,
         finance,
-        faceToFace,
+        face_to_face,
         purpose,
-        createdBy,
+        assignee_id,
+        created_by,
       } = leadData;
 
       const query = `
         INSERT INTO leads (
           refrence_number, company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
-          face_to_face, purpose, created_by, updated_by
+          face_to_face, purpose, assignee_id, created_by, updated_by
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
         ) RETURNING *
       `;
 
       const values = [
-        refrenceNumber,
-        companyId,
-        builderId,
+        refrence_number,
+        company_id,
+        builder_id,
         name,
         email,
         phone,
         notes,
-        sendLetter === true || sendLetter === "true" ? true : false, // Ensure proper boolean
+        send_letter === true || send_letter === "true" ? true : false, // Ensure proper boolean
         lead_source_id,
         status,
         rating,
         land,
         finance,
-        faceToFace,
+        face_to_face,
         purpose,
-        createdBy,
-        createdBy,
+        assignee_id,
+        created_by,
+        created_by,
       ];
 
       const result = await client.query(query, values);
@@ -74,10 +76,10 @@ class LeadsRepository {
         status,
         outcome,
         rating,
-        leadSourceId,
-        clientTypeId,
-        regionId,
-        assigneeId,
+        lead_source_id,
+        client_type_id,
+        region_id,
+        assignee_id,
         search,
         email, // Add email filter
       } = filters;
@@ -102,24 +104,24 @@ class LeadsRepository {
         queryParams.push(rating);
       }
 
-      if (leadSourceId) {
+      if (lead_source_id) {
         whereConditions.push(`l.lead_source_id = $${paramIndex++}`);
-        queryParams.push(leadSourceId);
+        queryParams.push(lead_source_id);
       }
 
-      if (clientTypeId) {
+      if (client_type_id) {
         whereConditions.push(`l.client_type_id = $${paramIndex++}`);
-        queryParams.push(clientTypeId);
+        queryParams.push(client_type_id);
       }
 
-      if (regionId) {
+      if (region_id) {
         whereConditions.push(`l.region_id = $${paramIndex++}`);
-        queryParams.push(regionId);
+        queryParams.push(region_id);
       }
 
-      if (assigneeId) {
+      if (assignee_id) {
         whereConditions.push(`l.assignee_id = $${paramIndex++}`);
-        queryParams.push(assigneeId);
+        queryParams.push(assignee_id);
       }
 
       if (search) {
@@ -229,24 +231,24 @@ class LeadsRepository {
         email,
         phone,
         notes,
-        sendLetter,
+        send_letter,
         lead_source_id,
         status,
         outcome,
         rating,
         land,
         finance,
-        faceToFace,
+        face_to_face,
         purpose,
         client_type_id,
         forcast_close,
-        buildBudget,
+        build_budget,
         region_id,
-        prelimAgreement,
-        clientProfile,
-        hLBudget,
-        assigneeId,
-        updatedBy,
+        prelim_agreement,
+        client_profile,
+        h_l_budget,
+        assignee_id,
+        updated_by,
       } = leadData;
 
       const updateFields = [];
@@ -273,9 +275,9 @@ class LeadsRepository {
         values.push(notes);
       }
 
-      if (sendLetter !== undefined) {
+      if (send_letter !== undefined) {
         updateFields.push(`send_letter = $${paramIndex++}`);
-        values.push(sendLetter);
+        values.push(send_letter);
       }
 
       if (lead_source_id !== undefined) {
@@ -308,9 +310,9 @@ class LeadsRepository {
         values.push(finance);
       }
 
-      if (faceToFace !== undefined) {
+      if (face_to_face !== undefined) {
         updateFields.push(`face_to_face = $${paramIndex++}`);
-        values.push(faceToFace);
+        values.push(face_to_face);
       }
 
       if (purpose !== undefined) {
@@ -328,9 +330,9 @@ class LeadsRepository {
         values.push(forcast_close);
       }
 
-      if (buildBudget !== undefined) {
+      if (build_budget !== undefined) {
         updateFields.push(`build_budget = $${paramIndex++}`);
-        values.push(buildBudget);
+        values.push(build_budget);
       }
 
       if (region_id !== undefined) {
@@ -338,24 +340,24 @@ class LeadsRepository {
         values.push(region_id);
       }
 
-      if (prelimAgreement !== undefined) {
+      if (prelim_agreement !== undefined) {
         updateFields.push(`prelim_agreement = $${paramIndex++}`);
-        values.push(prelimAgreement);
+        values.push(prelim_agreement);
       }
 
-      if (clientProfile !== undefined) {
-        updateFields.push(`clinet_profile = $${paramIndex++}`);
-        values.push(clientProfile);
+      if (client_profile !== undefined) {
+        updateFields.push(`client_profile = $${paramIndex++}`);
+        values.push(client_profile);
       }
 
-      if (hLBudget !== undefined) {
+      if (h_l_budget !== undefined) {
         updateFields.push(`h_l_budget = $${paramIndex++}`);
-        values.push(hLBudget);
+        values.push(h_l_budget);
       }
 
-      if (assigneeId !== undefined) {
+      if (assignee_id !== undefined) {
         updateFields.push(`assignee_id = $${paramIndex++}`);
-        values.push(assigneeId);
+        values.push(assignee_id);
       }
 
       if (updateFields.length === 0) {
@@ -364,7 +366,7 @@ class LeadsRepository {
 
       updateFields.push(`updated_by = $${paramIndex++}`);
       updateFields.push(`updated_at = NOW()`);
-      values.push(updatedBy);
+      values.push(updated_by);
 
       values.push(leadId, builderId);
 

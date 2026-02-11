@@ -8,6 +8,7 @@ const {
   getColorCategoriesByColorId,
   updateColorCategory,
   deleteColorCategory,
+  copyColorCategory,
 } = require("../controllers/color-category.controller");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -19,6 +20,7 @@ const {
   createColorCategorySchema,
   updateColorCategorySchema,
   paramsIdSchema,
+  copyColorCategorySchema,
 } = require("../validations/color-category.validation");
 
 router.use(authMiddleware);
@@ -47,6 +49,15 @@ router.delete(
   "/:id",
   validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
   deleteColorCategory,
+);
+
+// POST /api/color-category/:id/copy - Copy a color category to a specific color
+router.post(
+  "/copy/:id",
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
+  camelToSnakeMiddleware,
+  validateRequest(copyColorCategorySchema, REQUEST_SOURCE.BODY),
+  copyColorCategory,
 );
 
 module.exports = router;

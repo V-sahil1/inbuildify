@@ -572,3 +572,218 @@ exports.deleteColorCategory = async (req, res) => {
     client.release();
   }
 };
+
+exports.copyColorCategory = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+    const { id: source_category_id } = req.params;
+    const { color_id, category_name, sort_order } = req.body;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    if (!source_category_id) {
+      return errorResponse(res, 400, "Source category ID is required.");
+    }
+
+    if (!color_id) {
+      return errorResponse(res, 400, "Target color ID is required.");
+    }
+
+    if (!category_name || category_name.trim() === "") {
+      return errorResponse(res, 400, "Category name is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const sourceCategoryQuery = `
+      SELECT cc.*, c.color_name 
+      FROM color_category cc
+      JOIN color c ON cc.color_id = c.color_id
+      WHERE cc.color_category_id = $1 
+        AND (c.builder_id = $2 OR c.company_id = $3)
+        AND c.status = true 
+        AND cc.status = true
+      LIMIT 1
+    `;
+    const sourceCategoryResult = await client.query(sourceCategoryQuery, [
+      source_category_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (sourceCategoryResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Source category not found or inactive.");
+    }
+
+    const targetColorCheck = await client.query(
+      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      [color_id, builderId, companyId],
+    );
+
+    if (targetColorCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Target color not found or inactive.");
+    }
+
+    const categoryCountQuery = `
+      SELECT COUNT(*) as total_categories
+      FROM color_category
+      WHERE color_id = $1
+    `;
+    const categoryCountResult = await client.query(categoryCountQuery, [
+      color_id,
+    ]);
+
+    const totalCategories = parseInt(
+      categoryCountResult.rows[0].total_categories,
+    );
+    const maxAllowedSortOrder = totalCategories + 1;
+
+    if (sort_order && sort_order > maxAllowedSortOrder) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Sort order cannot be more than ${maxAllowedSortOrder}. Current total categories: ${totalCategories}`,
+      );
+    }
+
+    let finalSortOrder = sort_order || maxAllowedSortOrder;
+
+    const duplicateCategoryCheck = await client.query(
+      `
+      SELECT 1
+      FROM color_category
+      WHERE color_id = $1
+        AND LOWER(category_name) = LOWER($2)
+      `,
+      [color_id, category_name.trim()],
+    );
+
+    if (duplicateCategoryCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        409,
+        "Category with this name already exists in this color.",
+      );
+    }
+
+    const shiftCategoriesQuery = `
+      UPDATE color_category 
+      SET sort_order = sort_order + 1 
+      WHERE color_id = $1 
+        AND sort_order >= $2
+    `;
+    await client.query(shiftCategoriesQuery, [color_id, finalSortOrder]);
+
+    // Create new category
+    const newCategoryQuery = `
+      INSERT INTO color_category (
+        color_id, category_name, selection_type, sort_order, status,
+        suppliers, color_group, created_by, updated_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+    const newCategoryResult = await client.query(newCategoryQuery, [
+      color_id,
+      category_name.trim(),
+      sourceCategoryResult.rows[0].selection_type || "multiple",
+      finalSortOrder,
+      true,
+      sourceCategoryResult.rows[0].suppliers || [],
+      sourceCategoryResult.rows[0].color_group || [],
+      userId,
+      userId,
+    ]);
+
+    const newCategoryId = newCategoryResult.rows[0].color_category_id;
+
+    const colorItemsQuery = `
+      SELECT * FROM color_item 
+      WHERE color_category_id = $1
+    `;
+    const colorItemsResult = await client.query(colorItemsQuery, [
+      source_category_id,
+    ]);
+
+    for (const item of colorItemsResult.rows) {
+      const newItemQuery = `
+        INSERT INTO color_item (
+          company_id, builder_id, color_category_id, item_name, item_code,
+          supplier_id, upgrade_option, cost_type, cost, features, description,
+          specification_name, units, color_image, specification, sort_order, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING color_item_id
+      `;
+      const newItemResult = await client.query(newItemQuery, [
+        companyId,
+        builderId,
+        newCategoryId,
+        item.item_name,
+        item.item_code,
+        item.supplier_id,
+        item.upgrade_option,
+        item.cost_type,
+        item.cost,
+        item.features,
+        item.description,
+        item.specification_name,
+        item.units,
+        item.color_image,
+        item.specification,
+        item.sort_order,
+        item.status,
+      ]);
+
+      const newColorItemId = newItemResult.rows[0].color_item_id;
+
+      // Copy custom fields for this color item
+      const customFieldsQuery = `
+        SELECT * FROM color_item_custom_field 
+        WHERE color_item = $1
+        ORDER BY sort_order
+      `;
+      const customFieldsResult = await client.query(customFieldsQuery, [
+        item.color_item_id,
+      ]);
+
+      for (const customField of customFieldsResult.rows) {
+        const newCustomFieldQuery = `
+          INSERT INTO color_item_custom_field (
+            color_item, field_type, field_name, required_field, sort_order
+          ) VALUES ($1, $2, $3, $4, $5)
+        `;
+        await client.query(newCustomFieldQuery, [
+          newColorItemId,
+          customField.field_type,
+          customField.field_name,
+          customField.required_field,
+          customField.sort_order,
+        ]);
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(newCategoryResult.rows[0]),
+      "Color category copied successfully with all items.",
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error copying color category:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

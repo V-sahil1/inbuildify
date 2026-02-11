@@ -110,63 +110,7 @@ exports.getColors = async (req, res) => {
         c.sort_order,
         c.status,
         c.created_at,
-        c.updated_at,
-        (
-          SELECT COALESCE(json_agg(
-            json_build_object(
-              'colorCategoryId', cc.color_category_id,
-              'categoryName', cc.category_name,
-              'colorId', cc.color_id,
-              'selectionType', cc.selection_type,
-              'sortOrder', cc.sort_order,
-              'status', cc.status,
-              'suppliers', cc.suppliers,
-              'colorGroup', cc.color_group,
-              'createdAt', cc.created_at,
-              'updatedAt', cc.updated_at,
-              'colorItems', (
-                SELECT COALESCE(json_agg(
-                  json_build_object(
-                    'colorItemId', ci.color_item_id,
-                    'itemName', ci.item_name,
-                    'itemCode', ci.item_code,
-                    'supplierId', ci.supplier_id,
-                    'upgradeOption', ci.upgrade_option,
-                    'costType', ci.cost_type,
-                    'cost', ci.cost,
-                    'features', ci.features,
-                    'description', ci.description,
-                    'units', ci.units,
-                    'colorImage', ci.color_image,
-                    'specification', ci.specification,
-                    'status', ci.status,
-                    'createdAt', ci.created_at,
-                    'updatedAt', ci.updated_at,
-                    'customFields', (
-                      SELECT COALESCE(json_agg(
-                        json_build_object(
-                          'colorItemCustomFieldId', cicf.color_item_custom_field_id,
-                          'fieldType', cicf.field_type,
-                          'fieldName', cicf.field_name,
-                          'requiredField', cicf.required_field,
-                          'sortOrder', cicf.sort_order,
-                          'createdAt', cicf.created_at,
-                          'updatedAt', cicf.updated_at
-                        )
-                      ), '[]'::json)
-                      FROM color_item_custom_field cicf
-                      WHERE cicf.color_item = ci.color_item_id
-                    )
-                  )
-                ), '[]'::json)
-                FROM color_item ci
-                WHERE ci.color_category_id = cc.color_category_id
-              )
-            )
-          ), '[]'::json)
-          FROM color_category cc
-          WHERE cc.color_id = c.color_id
-        ) AS color_categories
+        c.updated_at
       FROM color c
       WHERE c.company_id = $1 AND c.builder_id = $2
       ORDER BY c.sort_order ASC, c.created_at 
@@ -193,7 +137,7 @@ exports.getColors = async (req, res) => {
         pagination: {
           currentPage: parseInt(page),
           totalPages,
-          total,
+          totalRecords: total,
           limit: parseInt(limit),
         },
       },
@@ -440,6 +384,240 @@ exports.deleteColor = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error deleting color:", err);
     return errorResponse(res, 400, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.copyColor = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+    const { color_id } = req.params;
+    const { color_name, sort_order } = req.body;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    if (!color_id) {
+      return errorResponse(res, 400, "Color ID is required.");
+    }
+
+    if (!color_name || color_name.trim() === "") {
+      return errorResponse(res, 400, "Color name is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const sourceColorQuery = `
+      SELECT * FROM color 
+      WHERE color_id = $1 
+        AND (company_id = $2 OR builder_id = $3)
+    `;
+    const sourceColorResult = await client.query(sourceColorQuery, [
+      color_id,
+      companyId,
+      builderId,
+    ]);
+
+    if (sourceColorResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Source color not found.");
+    }
+
+    const duplicateCheck = await client.query(
+      `
+      SELECT 1
+      FROM color
+      WHERE company_id = $1
+        AND builder_id = $2
+        AND LOWER(color_name) = LOWER($3)
+      `,
+      [companyId, builderId, color_name.trim()],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 409, "Color with this name already exists.");
+    }
+
+    const colorCountQuery = `
+      SELECT COUNT(*) as total_colors
+      FROM color
+      WHERE company_id = $1 OR builder_id = $2
+    `;
+    const colorCountResult = await client.query(colorCountQuery, [
+      companyId,
+      builderId,
+    ]);
+
+    const totalColors = parseInt(colorCountResult.rows[0].total_colors);
+    const maxAllowedSortOrder = totalColors + 1;
+
+    if (sort_order && sort_order > maxAllowedSortOrder) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Sort order cannot be more than ${maxAllowedSortOrder}. Current total colors: ${totalColors}`,
+      );
+    }
+
+    let finalSortOrder = sort_order || maxAllowedSortOrder;
+
+    const shiftColorsQuery = `
+      UPDATE color 
+      SET sort_order = sort_order + 1 
+      WHERE company_id = $1 
+        AND builder_id = $2 
+        AND sort_order >= $3
+    `;
+    await client.query(shiftColorsQuery, [
+      companyId,
+      builderId,
+      finalSortOrder,
+    ]);
+
+    // Create the new color
+    const newColorQuery = `
+      INSERT INTO color (
+        company_id, builder_id, color_name, sort_order, status, 
+        created_by, updated_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    const newColorResult = await client.query(newColorQuery, [
+      companyId,
+      builderId,
+      color_name.trim(),
+      finalSortOrder,
+      true,
+      userId,
+      userId,
+    ]);
+
+    const newColorId = newColorResult.rows[0].color_id;
+
+    // Copy all color categories
+    const colorCategoriesQuery = `
+      SELECT * FROM color_category 
+      WHERE color_id = $1
+      ORDER BY sort_order
+    `;
+    const colorCategoriesResult = await client.query(colorCategoriesQuery, [
+      color_id,
+    ]);
+
+    const categoryMapping = {}; // Map old category IDs to new ones
+
+    for (const category of colorCategoriesResult.rows) {
+      const newCategoryQuery = `
+        INSERT INTO color_category (
+          color_id, category_name, selection_type, sort_order, status,
+          suppliers, color_group, created_by, updated_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING color_category_id
+      `;
+      const newCategoryResult = await client.query(newCategoryQuery, [
+        newColorId,
+        category.category_name,
+        category.selection_type,
+        category.sort_order,
+        category.status,
+        category.suppliers,
+        category.color_group,
+        userId,
+        userId,
+      ]);
+
+      categoryMapping[category.color_category_id] =
+        newCategoryResult.rows[0].color_category_id;
+    }
+
+    // Copy all color items
+    const colorItemsQuery = `
+      SELECT * FROM color_item 
+      WHERE color_category_id = ANY($1)
+    `;
+    const colorItemsResult = await client.query(colorItemsQuery, [
+      Object.keys(categoryMapping),
+    ]);
+
+    for (const item of colorItemsResult.rows) {
+      const newCategoryId = categoryMapping[item.color_category_id];
+
+      const newItemQuery = `
+        INSERT INTO color_item (
+          company_id, builder_id, color_category_id, item_name, item_code,
+          supplier_id, upgrade_option, cost_type, cost, features, description,
+          specification_name, units, color_image, specification, sort_order, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING color_item_id
+      `;
+      const newItemResult = await client.query(newItemQuery, [
+        companyId,
+        builderId,
+        newCategoryId,
+        item.item_name,
+        item.item_code,
+        item.supplier_id,
+        item.upgrade_option,
+        item.cost_type,
+        item.cost,
+        item.features,
+        item.description,
+        item.specification_name,
+        item.units,
+        item.color_image,
+        item.specification,
+        item.sort_order,
+        item.status,
+      ]);
+
+      const newColorItemId = newItemResult.rows[0].color_item_id;
+
+      // Copy custom fields for this color item
+      const customFieldsQuery = `
+        SELECT * FROM color_item_custom_field 
+        WHERE color_item = $1
+        ORDER BY sort_order
+      `;
+      const customFieldsResult = await client.query(customFieldsQuery, [
+        item.color_item_id,
+      ]);
+
+      for (const customField of customFieldsResult.rows) {
+        const newCustomFieldQuery = `
+          INSERT INTO color_item_custom_field (
+            color_item, field_type, field_name, required_field, sort_order
+          ) VALUES ($1, $2, $3, $4, $5)
+        `;
+        await client.query(newCustomFieldQuery, [
+          newColorItemId,
+          customField.field_type,
+          customField.field_name,
+          customField.required_field,
+          customField.sort_order,
+        ]);
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(newColorResult.rows[0]),
+      "Color copied successfully with all categories and items.",
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error copying color:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }

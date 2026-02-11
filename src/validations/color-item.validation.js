@@ -22,7 +22,12 @@ const getAllColorItemsSchema = Joi.object({
     "string.max": "Search term must not exceed 255 characters",
   }),
 
-  costType: Joi.string()
+  color_category_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.uuid": "color category ID must be a valid UUID",
+    "string.guid": "color category ID must be a valid UUID",
+  }),
+
+  cost_type: Joi.string()
     .max(50)
     .valid("standard", "upgrade")
     .optional()
@@ -30,7 +35,7 @@ const getAllColorItemsSchema = Joi.object({
       "any.only": "Cost type must be either 'standard' or 'upgrade'",
     }),
 
-  upgradeOption: Joi.string()
+  upgrade_option: Joi.string()
     .max(50)
     .valid("fixed", "start_from", "tba")
     .optional()
@@ -159,6 +164,11 @@ const createColorItemSchema = Joi.object({
   status: Joi.boolean().default(true).messages({
     "boolean.base": "Status must be true or false",
   }),
+
+  sort_order: Joi.number().integer().optional().allow(null).messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+  }),
 });
 
 const updateColorItemSchema = Joi.object({
@@ -257,6 +267,11 @@ const updateColorItemSchema = Joi.object({
 
   status: Joi.boolean().optional().messages({
     "boolean.base": "Status must be true or false",
+  }),
+
+  sort_order: Joi.number().integer().optional().allow(null).messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
   }),
 })
   .min(1)
