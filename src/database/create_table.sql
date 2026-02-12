@@ -2736,6 +2736,18 @@ CREATE TABLE recalculate_date(
   CONSTRAINT uq_recalculate_date_scope UNIQUE (company_id, builder_id)
 );
 
+CREATE TABLE color_type(
+  color_type_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  color_type_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_color_type_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
 CREATE TABLE color(
   color_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2792,6 +2804,8 @@ CREATE TABLE color_item(
   features VARCHAR(500),
   description VARCHAR(500),
   specification_name VARCHAR(500),
+  color_type_id UUID[] DEFAULT '{}',
+  range_id UUID[] DEFAULT '{}',
   sort_order INT,
   units VARCHAR(50) CHECK(units IN('mandatory', 'non_mandatory', 'not_required')) DEFAULT 'non_mandatory',
   color_image JSONB DEFAULT '[]',
@@ -3027,19 +3041,14 @@ CREATE TABLE lead_detail(
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  property JSONB DEFAULT '{}',
-  company JSONB DEFAULT '{}',          
-  conveyancer JSONB DEFAULT '{}',        
-  mortgage_boker JSONB DEFAULT '{}',       
-  financer JSONB DEFAULT '{}',         
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,  
 );
 
 CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  refrence_id VARCHAR(50),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
+  refrence_id VARCHAR(50),                            --- need to decide contat update un quotatio  or not
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
@@ -3055,9 +3064,12 @@ CREATE TABLE quotation_version(
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,          -- make property object to create the property
   package_id UUID[] DEFAULT '{}',
   floor_plan_id UUID[] DEFAULT '{}',
   facade_id UUID[] DEFAULT '{}',
+  is_approve BOOLEAN DEFAULT FALSE,
+  sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -3082,7 +3094,7 @@ CREATE TABLE quotation_version_custom_section(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE property(
+CREATE TABLE property(       -- any api make property ovject
   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   lot_no INTEGER,
   street_no INTEGER,
@@ -3103,14 +3115,101 @@ CREATE TABLE property(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE compnay_detail(
- compnay_detail_id UUID DEFAULT uuid_generate_v4() primary key,
- name VARCHAR(255) NoT NULL,
- email VARCHAR(255) NOT NULL,
- phone VARCHAR(20),
- address1, VARCHAR(255)
- abn_number VARCHAR(20),
- acn_number VARCHAR(20),
- created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
- updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+CREATE TABLE house_land_package(
+  house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  template_id UUID REFERENCES template(template_id) ON DELETE SET NULL,                    -- need to decide which template is used
+  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  lot_id UUID REFERENCES lot(lot_id) On DELETE SET NULL,
+  -- check the price clumn for and need to add price column
+  price_list_item_id UUID[] DEFAULT '{}',
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
+  facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
+  package_group_id UUID[] '{}',                -- which package group is used?
+  package_description VARCHAR(3000),
+  -- there is not any house feature created so that have to decide and create and seletect the house feature
+  disclaimer_type VARCHAR(255),              -- standard and other type to decide
+  disclaimer_description VARCHAR(3000),
+  attach_files VARCHAR(500),                   -- attach pdf
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE lot(
+  lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  estate_id UUID DEFAULT estate(estate_id) ON DELETE CASCADE,
+  estate_stage_id UUID DEFAULT estate_stages(estate_stage_id) ON DELETE CASCADE,
+  lot_number VARCHAR(255) NOT NULL,
+  street VARCHAR(255) NOT NULL,
+  city VARCHAR(255) NOT NULL,
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  zip_code VARCHAR(10) NOT NULL,
+  title_status VARCHAR(255),                  -- in this desicdde which status is 
+  title_date DATE,
+  lost_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
+  corner_block VARCHAR(50),               -- yes or  no
+  width_m NUMERIC(10,2),
+  depth_m NUMERIC(10,2),
+  size_m2 NUMERIC(10,2),
+  price NUMERIC(10,2),
+  site_fall_mm NUMERIC(10,2),
+  land_fill_mm NUMERIC(10,2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+);
+
+CREATE TABLE h_l_package_pricelist_item_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+  quantity INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE business_contact (
+    business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
+
+    contact_type VARCHAR(50) NOT NULL,
+    -- 'company'
+    -- 'conveyancer'
+    -- 'mortgage_broker'
+    -- 'financer'
+
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    address1 VARCHAR(255),
+    address2 VARCHAR(255),
+    city VARCHAR(255),
+    zip_code VARCHAR(10),
+    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    abn_number VARCHAR(20),
+    acn_number VARCHAR(20),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE job_form(
+  job_form_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_detail_id UUID REFERENCES lead_detail_id(lead_detail) ON DELETE CASCADE,
+  street_name VARCHAR(255) NOT NULL,
+  land_developer VARCHAR(255),
+  council VARCHAR(255),
+  title_volume VARCHAR(255),
+  folio VARCHAR(255),
+  plan_subdivision VARCHAR(255),
+  site_fall VARCHAR(255),          --   valid under_1_m, 1_2_m, 2_3_m, above_3_m
+  existing_tree BOOLEAN DEFAULT FALSE,
+  driveaway_location VARCHAR(255),          -- valid front_left, front_right, rear_side
+  any_sewer_tie BOOLEAN DEFAULT FALSE,
+  easements BOOLEAN DEFAULT FALSE,
+  buildup_area_easements BOOLEAN DEFAULT FALSE,
+);

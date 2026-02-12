@@ -9,6 +9,7 @@ const {
   deleteColorItem,
   deleteImageField,
   colorItemMove,
+  copyColorItem,
 } = require("../controllers/color-item.controller");
 const {
   createColorItemSchema,
@@ -18,6 +19,7 @@ const {
   deleteColorItemSchema,
   deleteImageFieldSchema,
   colorItemMoveSchema,
+  copyColorItemSchema,
 } = require("../validations/color-item.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -95,6 +97,13 @@ router.post(
   validateRequest(getColorItemByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(colorItemMoveSchema, REQUEST_SOURCE.BODY),
   colorItemMove,
+);
+
+router.post(
+  "/copy/:color_item_id",
+  validateRequest(getColorItemByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(copyColorItemSchema, REQUEST_SOURCE.BODY),
+  copyColorItem,
 );
 
 module.exports = router;

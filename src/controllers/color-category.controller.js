@@ -720,8 +720,9 @@ exports.copyColorCategory = async (req, res) => {
         INSERT INTO color_item (
           company_id, builder_id, color_category_id, item_name, item_code,
           supplier_id, upgrade_option, cost_type, cost, features, description,
-          specification_name, units, color_image, specification, sort_order, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          specification_name, units, color_image, specification, sort_order,
+          color_type_id, range_id, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         RETURNING color_item_id
       `;
       const newItemResult = await client.query(newItemQuery, [
@@ -741,6 +742,8 @@ exports.copyColorCategory = async (req, res) => {
         item.color_image,
         item.specification,
         item.sort_order,
+        item.color_type_id,
+        item.range_id,
         item.status,
       ]);
 

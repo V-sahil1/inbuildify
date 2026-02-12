@@ -114,6 +114,18 @@ const createColorItemSchema = Joi.object({
     "number.precision": "Cost can have maximum 2 decimal places",
   }),
 
+  color_type_id: Joi.array().optional().allow(null).messages({
+    "array.base": "Color type ID must be an array",
+    "array.empty": "Color type ID cannot be empty",
+    "array.includes": "Color type ID must be a valid UUID",
+  }),
+
+  range_id: Joi.array().optional().allow(null).messages({
+    "array.base": "Range ID must be an array",
+    "array.empty": "Range ID cannot be empty",
+    "array.includes": "Range ID must be a valid UUID",
+  }),
+
   features: Joi.string()
     .trim()
     .max(500)
@@ -265,6 +277,18 @@ const updateColorItemSchema = Joi.object({
     "string.max": "Specification must not exceed 500 characters",
   }),
 
+  range_id: Joi.array().optional().allow(null).messages({
+    "array.base": "Range ID must be an array",
+    "array.empty": "Range ID cannot be empty",
+    "array.includes": "Range ID must be a valid UUID",
+  }),
+
+  color_type_id: Joi.array().optional().allow(null).messages({
+    "array.base": "Color type ID must be an array",
+    "array.empty": "Color type ID cannot be empty",
+    "array.includes": "Color type ID must be a valid UUID",
+  }),
+
   status: Joi.boolean().optional().messages({
     "boolean.base": "Status must be true or false",
   }),
@@ -311,6 +335,34 @@ const colorItemMoveSchema = Joi.object({
     "string.guid": "Color categroy ID must be a valid UUID",
   }),
 });
+
+const copyColorItemSchema = Joi.object({
+  color_id: Joi.string().uuid().required().messages({
+    "any.required": "Color ID is required",
+    "string.uuid": "Color ID must be a valid UUID",
+    "string.guid": "Color ID must be a valid UUID",
+  }),
+
+  color_category_id: Joi.string().uuid().required().messages({
+    "any.required": "Color category ID is required",
+    "string.uuid": "Color category ID must be a valid UUID",
+    "string.guid": "Color category ID must be a valid UUID",
+  }),
+
+  item_name: Joi.string().trim().min(1).max(255).required().messages({
+    "any.required": "Item name is required",
+    "string.empty": "Item name cannot be empty",
+    "string.min": "Item name must be at least 1 character long",
+    "string.max": "Item name must not exceed 255 characters",
+  }),
+
+  sort_order: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Sort order must be a number",
+    "number.integer": "Sort order must be an integer",
+    "number.min": "Sort order must be at least 1",
+  }),
+});
+
 module.exports = {
   getAllColorItemsSchema,
   getColorItemByIdSchema,
@@ -319,4 +371,5 @@ module.exports = {
   deleteColorItemSchema,
   deleteImageFieldSchema,
   colorItemMoveSchema,
+  copyColorItemSchema,
 };
