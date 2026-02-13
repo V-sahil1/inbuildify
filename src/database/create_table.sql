@@ -3014,7 +3014,7 @@ CREATE TABLE leads (
 
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
-  status VARCHAR(20) DEFAULT 'New',
+  status VARCHAR(20) DEFAULT 'New',                -- valid new, working, convert
   outcome VARCHAR(10), -- Won / Lost
   rating VARCHAR(150),              -- none, hot, cold, warm
   land VARCHAR(150),                  -- none, no, yes
@@ -3115,22 +3115,107 @@ CREATE TABLE property(       -- any api make property ovject
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE job_form(
+  job_form_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lead_detail_id UUID REFERENCES lead_detail_id(lead_detail) ON DELETE CASCADE,
+  street_name VARCHAR(255) NOT NULL,
+  land_developer VARCHAR(255),
+  council VARCHAR(255),
+  title_volume VARCHAR(255),
+  folio VARCHAR(255),
+  plan_subdivision VARCHAR(255),
+  site_fall VARCHAR(255),          --   valid under_1_m, 1_2_m, 2_3_m, above_3_m
+  existing_tree BOOLEAN,
+  driveaway_location VARCHAR(255),          -- valid front_left, front_right, rear_side
+  any_sewer_tie BOOLEAN,
+  easements BOOLEAN,
+  buildup_area_easements BOOLEAN,
+  build_zone VARCHAR(255),                        -- valid north_west, south_east, north, west
+  story_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  finished_surface_m NUMERIC(10,2),
+  existing_surface_m NUMERIC(10,2),
+  filled_area_fail_m NUMERIC(10,2),
+  max_fill_location VARCHAR(255),               -- valid front_left, front_right, rear_left, rear_right
+  max_finished_surface_m NUMERIC(10,2),
+  min_finished_surface_m NUMERIC(10,2),
+  engineering_fail_m NUMERIC(10,2),
+  fail_type VARCHAR(255),                       -- valid front_to_rear, rear_to_front, diagonal_front_to_rear, diagonal_rear_to_front
+  ceiling_height NUMERIC(10,2),
+  eaves_location VARCHAR(255),
+  lot_type VARCHAR(255),                   -- valid under_300_m2 or over_300_m2
+  site_coverage_allowed VARCHAR(255),          -- vlid less_then_60 or 60 or 70 or 80 or 90
+  eaves_size VARCHAR(255),                   -- valid 450 mm or 600 mm
+  eaves_return VARCHAR(255),                -- valid 2_m, 3_m, 4_m, all_around, side_only, n_a
+  roof_covering VARCHAR(255),          -- valid concrete_tiles, standard, simline, flat, colorbond_roof, with_blanket, with_sarking
+  roof_pitch VARCHAR(255),               -- valid 15, 18, 20, 22.5, 25
+  flat_roof_pitch VARCHAR(255),            -- valid 5
+  parapet_wall VARCHAR(255),              -- valid front_only, all_around, n_a
+  single_story VARCHAR(255),            -- valid brick, hebel,
+  double_story_gf VARCHAR(255),             -- valid brick, hebel
+  double_story_ff VARCHAR(255),         --  valid brick, poly, hebel
+  wall_over_garage VARCHAR(255),         -- valid brick, poly, hebel
+  wall_over_lower_roof VARCHAR(255),         -- valid poly, xon_cladding, whetherboard
+  all_electric BOOLEAN,
+  type_of_cooling VARCHAR(255),
+  garage_door_type VARCHAR(255),
+  connection VARCHAR(255),                -- nbn, opticom
+  recycled_water BOOLEAN,
+  extra_requirement VARCHAR(255),            -- valid rainwater_tank, solar_hot_water, heat_pump
+  3_phase BOOLEAN,
+  driveway VARCHAR(255),                   -- valid by_client, by_builder
+  front_wall VARCHAR(255),
+  between_garage_building VARCHAR(255),
+  garage_side VARCHAR(255),
+  other_side VARCHAR(255),
+  rear VARCHAR(255),
+  allowed_porch_encroachment VARCHAR(255),
+  boundry_build BOOLEAN,
+  boundry_construction BOOLEAN,
+  double_story_front_wall VARCHAR(255),
+  double_story_garage_side VARCHAR(255),
+  double_story_other_side VARCHAR(255),
+  double_story_rear VARCHAR(255),
+  double_story_balcony_encroachment VARCHAR(255),
+  facade_material_requirement JSONB DEFAULT '{}'::jsonb,         --  in this json user have to input material name and percentage value, max 3 reocrd input
+  raised_porch_facade BOOLEAN,
+  parapet_walls_pitch_roof BOOLEAN,
+  parapet_walls_tray_deck_roof BOOLEAN,
+  concept_inspiration BOOLEAN,
+  plan_subdivision_engineering BOOLEAN,
+  memorandum_common_provisions BOOLEAN,
+  developer_guidelines BOOLEAN,
+  contact_for_sale BOOLEAN,
+  variational_list BOOLEAN,
+  special_job_notes VARCHAR(500),
+);
+
+CREATE TABLE house_feature(
+  house_feature_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description VARCHAR(3000),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_house_feature_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
 CREATE TABLE house_land_package(
   house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
   title VARCHAR(255),
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   template_id UUID REFERENCES template(template_id) ON DELETE SET NULL,                    -- need to decide which template is used
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  lot_id UUID REFERENCES lot(lot_id) On DELETE SET NULL,
   -- check the price clumn for and need to add price column
   price_list_item_id UUID[] DEFAULT '{}',
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
   package_group_id UUID[] '{}',                -- which package group is used?
   package_description VARCHAR(3000),
-  -- there is not any house feature created so that have to decide and create and seletect the house feature
+  house_feature_id UUID REFERENCES house_feature(house_feature_id) ON DELETE SET NULL,
   disclaimer_type VARCHAR(255),              -- standard and other type to decide
   disclaimer_description VARCHAR(3000),
   attach_files VARCHAR(500),                   -- attach pdf
@@ -3140,9 +3225,9 @@ CREATE TABLE house_land_package(
 
 CREATE TABLE lot(
   lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
-  estate_id UUID DEFAULT estate(estate_id) ON DELETE CASCADE,
-  estate_stage_id UUID DEFAULT estate_stages(estate_stage_id) ON DELETE CASCADE,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_pa  ckage_id) ON DELETE CASCADE,
+  estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+  estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
   lot_number VARCHAR(255) NOT NULL,
   street VARCHAR(255) NOT NULL,
   city VARCHAR(255) NOT NULL,
@@ -3151,7 +3236,7 @@ CREATE TABLE lot(
   title_status VARCHAR(255),                  -- in this desicdde which status is 
   title_date DATE,
   lost_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
-  corner_block VARCHAR(50),               -- yes or  no
+  corner_block BOOLEAN,
   width_m NUMERIC(10,2),
   depth_m NUMERIC(10,2),
   size_m2 NUMERIC(10,2),
@@ -3197,19 +3282,3 @@ CREATE TABLE business_contact (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE job_form(
-  job_form_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_detail_id UUID REFERENCES lead_detail_id(lead_detail) ON DELETE CASCADE,
-  street_name VARCHAR(255) NOT NULL,
-  land_developer VARCHAR(255),
-  council VARCHAR(255),
-  title_volume VARCHAR(255),
-  folio VARCHAR(255),
-  plan_subdivision VARCHAR(255),
-  site_fall VARCHAR(255),          --   valid under_1_m, 1_2_m, 2_3_m, above_3_m
-  existing_tree BOOLEAN DEFAULT FALSE,
-  driveaway_location VARCHAR(255),          -- valid front_left, front_right, rear_side
-  any_sewer_tie BOOLEAN DEFAULT FALSE,
-  easements BOOLEAN DEFAULT FALSE,
-  buildup_area_easements BOOLEAN DEFAULT FALSE,
-);

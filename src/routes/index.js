@@ -134,6 +134,8 @@ const contractFormatRoutes = require("./contract-format.routes");
 const contractSectionRoutes = require("./contract-section.routes");
 const quotationFormatMasterSectionRoutes = require("./quotation-format-master-section.routes");
 const contactRoutes = require("./contact.routes");
+const lotRoutes = require("./lot.routes");
+const houseFeatureRoutes = require("./house-feature.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -290,4 +292,6 @@ module.exports = function (app) {
   app.use("/contract-section", contractSectionRoutes);
   app.use("/quotation-format", quotationFormatMasterSectionRoutes);
   app.use("/contact", contactRoutes);
+  app.use("/lot", lotRoutes);
+  app.use("/house-feature", houseFeatureRoutes);
 };

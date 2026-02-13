@@ -92,12 +92,7 @@ exports.getAllColorGroups = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    let { page = 1, limit = 25, status, search } = req.query;
-
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-
-    const offset = (page - 1) * limit;
+    const { status, search } = req.query;
 
     let conditions = [`company_id = $1`, `builder_id = $2`];
     let values = [companyId, builderId];
@@ -121,43 +116,18 @@ exports.getAllColorGroups = async (req, res) => {
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM color_group
-      ${whereClause};
-    `;
-
-    const listQuery = `
+    const query = `
       SELECT *
       FROM color_group
       ${whereClause}
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset};
+      ORDER BY created_at DESC;
     `;
 
-    const [countResult, listResult] = await Promise.all([
-      client.query(countQuery, values),
-      client.query(listQuery, values),
-    ]);
+    const result = await client.query(query, values);
 
-    const rows = keysToCamelCase(listResult.rows);
-    const total = parseInt(countResult.rows[0].total, 10);
+    const rows = keysToCamelCase(result.rows);
 
-    const pagination = {
-      totalRecords: total,
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-
-    return successResponse(
-      res,
-      {
-        colorGroups: rows,
-        pagination,
-      },
-      "Color groups fetched successfully.",
-    );
+    return successResponse(res, rows, "Color groups fetched successfully.");
   } catch (error) {
     console.error("Error fetching color groups:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");

@@ -88,7 +88,7 @@ router.delete(
  * Convert contact → full user with login credentials
  */
 router.post(
-  "/:contactId/convert-to-user",
+  "/:contact_id/convert-to-user",
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,

@@ -66,7 +66,7 @@ const createContactSchema = Joi.object({
   phone: phoneRule,
   secondary_phone: phoneRule,
   remark: remarkRule,
-  role_id: uuidRule.required(),
+  role_id: uuidRule.optional(),
   address: addressJsonRule,
 });
 
@@ -80,7 +80,7 @@ const updateContactSchema = Joi.object({
   phone: phoneRule.optional(),
   secondary_phone: phoneRule.optional(),
   remark: remarkRule.optional(),
-  role_id: uuidRule.optional(),
+  is_active: Joi.boolean().optional(),
   address: addressJsonRule.optional(),
 });
 
@@ -99,17 +99,11 @@ const convertContactSchema = Joi.object({
 ============================================================ */
 
 const getContactsSchema = Joi.object({
-  page: Joi.number().min(1).default(1).messages({
-    "number.base": "Page must be a number",
-    "number.min": "Page must be greater than 0",
-  }),
-  limit: Joi.number().min(1).max(100).default(25).messages({
-    "number.base": "Limit must be a number",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit cannot exceed 100",
-  }),
   search: Joi.string().allow("", null).max(100).messages({
     "string.max": "Search term cannot exceed 100 characters",
+  }),
+  is_active: Joi.boolean().optional().messages({
+    "boolean.base": "is_active must be a boolean value",
   }),
 });
 

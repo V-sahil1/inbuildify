@@ -55,7 +55,7 @@ module.exports.deleteContact = async (req, res) => {
 
 module.exports.convertContactToUser = async (req, res) => {
   try {
-    const contactId = req.params.contactId;
+    const contactId = req.params.contact_id;
     const data = await contactService.convertContactToUser(
       req.user,
       contactId,

@@ -2,6 +2,80 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
+exports.getColorItemsWithoutCategory = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId || !companyId) {
+      return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    const sql = `
+      SELECT 
+        ci.color_item_id,
+        ci.company_id,
+        ci.builder_id,
+        ci.item_name,
+        ci.item_code,
+        ci.supplier_id,
+        ci.color_category_id,
+        ci.upgrade_option,
+        ci.cost_type,
+        ci.cost,
+        ci.features,
+        ci.description,
+        ci.specification_name,
+        ci.units,
+        ci.sort_order,
+        ci.color_type_id,
+        ci.range_id,
+        ci.status,
+        ci.color_image,
+        ci.specification,
+        ci.created_at,
+        ci.updated_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'color_group_id', cg.color_group_id,
+              'color_group_name', cg.name
+            )
+          ) FILTER (WHERE cg.color_group_id IS NOT NULL),
+          '[]'
+        ) AS color_groups
+      FROM color_item ci
+      LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id
+      LEFT JOIN color_group cg ON cg.color_group_id = cg.color_group_id
+      WHERE (ci.company_id = $1 OR ci.builder_id = $2)
+        AND ci.color_category_id IS NULL
+      GROUP BY 
+        ci.color_item_id, ci.company_id, ci.builder_id, ci.item_name, 
+        ci.item_code, ci.supplier_id, ci.color_category_id, ci.upgrade_option,
+        ci.cost_type, ci.cost, ci.features, ci.description, ci.specification_name,
+        ci.units, ci.sort_order, ci.color_type_id, ci.range_id, ci.status,
+        ci.color_image, ci.specification, ci.created_at, ci.updated_at
+      ORDER BY ci.created_at DESC
+    `;
+
+    const result = await client.query(sql, [companyId, builderId]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows),
+      "Color items without category fetched successfully",
+    );
+  } catch (error) {
+    console.error("Get color items without category error:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};
+
 exports.createColorItem = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -1579,6 +1653,16 @@ exports.colorItemMove = async (req, res) => {
 
     const currentItem = currentItemCheck.rows[0];
 
+    // Check if color item has a color category - if not, user cannot move it
+    if (!currentItem.current_category_id) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Color item does not have a color category assigned. Cannot move without a category.",
+      );
+    }
+
     const maxSortOrderQuery = `
       SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
       FROM color_item
@@ -1692,6 +1776,16 @@ exports.copyColorItem = async (req, res) => {
     }
 
     const sourceItem = sourceItemCheck.rows[0];
+
+    // Check if source color item has a color category - if not, user cannot copy it
+    if (!sourceItem.color_category_id) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Source color item does not have a color category assigned. Cannot copy without a category.",
+      );
+    }
 
     const targetColorCheck = await client.query(
       `

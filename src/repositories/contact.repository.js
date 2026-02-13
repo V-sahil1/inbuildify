@@ -4,11 +4,36 @@ const { keysToCamelCase } = require("../utils/common");
 /* ============================================================
         GET CONTACT LIST (pagination + search)
   ============================================================ */
-async function getContacts({ builderId, page, limit, search }) {
+async function getContacts({ builderId, search, is_active }) {
   const pool = getPool();
-  const offset = (page - 1) * limit;
+  let whereConditions = [];
+  let queryParams = [];
+  let paramIndex = 1;
 
-  const searchFilter = `%${search.toLowerCase()}%`;
+  // Build WHERE conditions
+  whereConditions.push(`u.builder_id = $${paramIndex++}`);
+  queryParams.push(builderId);
+
+  whereConditions.push(`u.is_deleted = FALSE`);
+
+  whereConditions.push(`LOWER(r.name) = 'contact'`);
+
+  if (search) {
+    whereConditions.push(`(
+      LOWER(u.name) LIKE $${paramIndex++} OR
+      LOWER(u.email) LIKE $${paramIndex++} OR
+      LOWER(u.phone) LIKE $${paramIndex++}
+    )`);
+    const searchTerm = `%${search.toLowerCase()}%`;
+    queryParams.push(searchTerm, searchTerm, searchTerm);
+  }
+
+  if (is_active !== undefined) {
+    whereConditions.push(`u.is_active = $${paramIndex++}`);
+    queryParams.push(is_active);
+  }
+
+  const whereClause = whereConditions.join(" AND ");
 
   const rowsResult = await pool.query(
     `
@@ -21,59 +46,24 @@ async function getContacts({ builderId, page, limit, search }) {
         u.remark,
         u.is_active,
         u.created_at,
-        a.address_line1,
-        a.address_line2,
-        a.city,
-        a.zip_code,
-        a.country_id,
-        a.state_id,
-        r.name AS role_name
+        jsonb_build_object(
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'zip_code', a.zip_code,
+          'country_id', a.country_id,
+          'state_id', a.state_id
+        ) AS address
       FROM users u
       LEFT JOIN address a ON a.address_id = u.address_id
       LEFT JOIN role r ON r.role_id = u.role_id
-      WHERE u.builder_id = $1
-        AND u.is_deleted = FALSE
-        AND LOWER(r.name) = 'contact'
-        AND (
-          LOWER(u.name) LIKE $2
-          OR LOWER(u.email) LIKE $2
-          OR LOWER(u.phone) LIKE $2
-        )
+      WHERE ${whereClause}
       ORDER BY u.created_at DESC
-      LIMIT $3 OFFSET $4
       `,
-    [builderId, searchFilter, limit, offset],
+    [...queryParams],
   );
 
-  const countResult = await pool.query(
-    `
-      SELECT COUNT(*)::int
-      FROM users u
-      LEFT JOIN role r ON r.role_id = u.role_id
-      WHERE u.builder_id = $1
-        AND u.is_deleted = FALSE
-        AND LOWER(r.name) = 'contact'
-        AND (
-          LOWER(u.name) LIKE $2
-          OR LOWER(u.email) LIKE $2
-          OR LOWER(u.phone) LIKE $2
-        )
-      `,
-    [builderId, searchFilter],
-  );
-
-  const total = countResult.rows[0].count;
-  const totalPages = Math.ceil(total / limit);
-
-  return {
-    contacts: keysToCamelCase(rowsResult.rows),
-    pagination: {
-      currentPage: page,
-      totalPages,
-      totalItems: total,
-      itemsPerPage: limit,
-    },
-  };
+  return keysToCamelCase(rowsResult.rows);
 }
 
 /* ============================================================
@@ -95,12 +85,14 @@ async function getContactById(builderId, contact_id) {
         u.address_id,
         u.has_login,
         u.is_active,
-        a.address_line1,
-        a.address_line2,
-        a.city,
-        a.zip_code,
-        a.country_id,
-        a.state_id
+        jsonb_build_object(
+          'address_line1', a.address_line1,
+          'address_line2', a.address_line2,
+          'city', a.city,
+          'zip_code', a.zip_code,
+          'country_id', a.country_id,
+          'state_id', a.state_id
+        ) AS address
       FROM users u
       LEFT JOIN address a ON a.address_id = u.address_id
       LEFT JOIN role r ON r.role_id = u.role_id
@@ -169,7 +161,39 @@ async function createContact(data) {
     );
 
     await client.query("COMMIT");
-    return keysToCamelCase(result.rows[0]);
+
+    const contactResult = await pool.query(
+      `
+        SELECT 
+          u.users_id,
+          u.name,
+          u.email,
+          u.phone,
+          u.secondary_phone,
+          u.remark,
+          u.role_id,
+          u.address_id,
+          u.has_login,
+          u.is_active,
+          u.created_at,
+          jsonb_build_object(
+            'address_line1', a.address_line1,
+            'address_line2', a.address_line2,
+            'city', a.city,
+            'zip_code', a.zip_code,
+            'country_id', a.country_id,
+            'state_id', a.state_id
+          ) AS address
+        FROM users u
+        LEFT JOIN address a ON a.address_id = u.address_id
+        WHERE u.users_id = $1
+          AND u.is_deleted = FALSE
+          AND u.builder_id = $2
+      `,
+      [result.rows[0].users_id, builder_id],
+    );
+
+    return keysToCamelCase(contactResult.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -202,6 +226,41 @@ async function updateContact(contactId, data) {
         `,
       [...values, contactId],
     );
+
+    const contactResult = await pool.query(
+      `
+        SELECT 
+          u.users_id,
+          u.name,
+          u.email,
+          u.phone,
+          u.secondary_phone,
+          u.remark,
+          u.role_id,
+          u.address_id,
+          u.has_login,
+          u.is_active,
+          u.created_at,
+          u.updated_at,
+          jsonb_build_object(
+            'address_line1', a.address_line1,
+            'address_line2', a.address_line2,
+            'city', a.city,
+            'zip_code', a.zip_code,
+            'country_id', a.country_id,
+            'state_id', a.state_id
+          ) AS address
+        FROM users u
+        LEFT JOIN address a ON a.address_id = u.address_id
+        LEFT JOIN role r ON r.role_id = u.role_id
+        WHERE u.users_id = $1
+          AND u.is_deleted = FALSE
+          AND LOWER(r.name) = 'contact'
+      `,
+      [contactId],
+    );
+
+    return keysToCamelCase(contactResult.rows[0]);
   } finally {
     client.release();
   }

@@ -18,15 +18,13 @@ const getPool = require("../config/database");
 async function getContacts(currentUser, query) {
   const builderId = currentUser.builder_id;
 
-  const page = parseInt(query.page || 1);
-  const limit = parseInt(query.limit || 25);
   const search = query.search || "";
+  const is_active = query.is_active;
 
   return await contactRepository.getContacts({
     builderId,
-    page,
-    limit,
     search,
+    is_active,
   });
 }
 
@@ -64,26 +62,41 @@ async function createContact(currentUser, body) {
     address: addressJson,
   } = body;
 
-  const roleResult = await getPool().query(
-    "SELECT role_id, name FROM role WHERE role_id = $1",
-    [role_id],
-  );
-
-  if (roleResult.rows.length === 0) {
-    const error = new Error(
-      "Invalid role ID or role does not belong to your account.",
+  let finalRoleId = role_id;
+  if (!finalRoleId) {
+    const contactRoleResult = await getPool().query(
+      "SELECT role_id FROM role WHERE LOWER(name) = 'contact' LIMIT 1",
     );
-    error.status = 400;
-    throw error;
-  }
 
-  const roleName = roleResult.rows[0].name.toLowerCase();
-  if (roleName !== "contact") {
-    const error = new Error(
-      "Only Contact role is allowed for creating contacts.",
+    if (contactRoleResult.rows.length === 0) {
+      const error = new Error("Contact role not found in the system.");
+      error.status = 500;
+      throw error;
+    }
+
+    finalRoleId = contactRoleResult.rows[0].role_id;
+  } else {
+    const roleResult = await getPool().query(
+      "SELECT role_id, name FROM role WHERE role_id = $1",
+      [finalRoleId],
     );
-    error.status = 400;
-    throw error;
+
+    if (roleResult.rows.length === 0) {
+      const error = new Error(
+        "Invalid role ID or role does not belong to your account.",
+      );
+      error.status = 400;
+      throw error;
+    }
+
+    const roleName = roleResult.rows[0].name.toLowerCase();
+    if (roleName !== "contact") {
+      const error = new Error(
+        "Only Contact role is allowed for creating contacts.",
+      );
+      error.status = 400;
+      throw error;
+    }
   }
 
   const existing = await userRepository.findByEmail(email);
@@ -99,19 +112,16 @@ async function createContact(currentUser, body) {
     }
   }
 
-  // Parse address
   let addressObj = null;
   if (addressJson) {
-    addressObj = addressJson; // Already an object from validation
+    addressObj = addressJson;
   }
 
-  // Create address (optional)
   let addressId = null;
   if (addressObj) {
     addressId = await addressRepository.createOrUpdateAddress(null, addressObj);
   }
 
-  // Create contact in users table
   const created = await contactRepository.createContact({
     name,
     email,
@@ -120,7 +130,7 @@ async function createContact(currentUser, body) {
     remark,
     builder_id: builderId,
     address_id: addressId,
-    role_id,
+    role_id: finalRoleId,
     has_login: false, // CONTACT only
     password: null,
     login_id: null,
@@ -152,39 +162,18 @@ async function updateContact(currentUser, contact_id, body) {
     phone,
     secondary_phone,
     remark,
-    role_id,
+    is_active,
     address: addressJson,
   } = body;
 
-  if (role_id) {
-    const roleResult = await getPool().query(
-      "SELECT role_id, name FROM role WHERE role_id = $1",
-      [role_id],
-    );
-
-    if (roleResult.rows.length === 0) {
-      const error = new Error(
-        "Invalid role ID or role does not belong to your account.",
-      );
-      error.status = 400;
-      throw error;
-    }
-
-    const roleName = roleResult.rows[0].name.toLowerCase();
-    if (roleName !== "contact") {
-      const error = new Error("Only Contact role is allowed for contacts.");
-      error.status = 400;
-      throw error;
-    }
-  }
-
+  // Remove role_id from updateData - users cannot update roles
   let updateData = {
     name,
     email,
     phone,
     secondary_phone,
     remark,
-    role_id,
+    is_active,
   };
 
   if (email && email.toLowerCase() !== existing.email.toLowerCase()) {
@@ -243,12 +232,12 @@ async function deleteContact(currentUser, contact_id) {
 /* ------------------------------------------------------------
       CONVERT CONTACT → USER
   ------------------------------------------------------------ */
-async function convertContactToUser(currentUser, contactId, body) {
+async function convertContactToUser(currentUser, contact_id, body) {
   const { role_id } = body;
 
   const builderId = currentUser.builder_id;
 
-  const contact = await contactRepository.getContactById(builderId, contactId);
+  const contact = await contactRepository.getContactById(builderId, contact_id);
 
   if (!contact) {
     const error = new Error("Contact not found.");
@@ -266,7 +255,7 @@ async function convertContactToUser(currentUser, contactId, body) {
   const loginId = contact.email.toLowerCase();
 
   const loginCheck = await userRepository.findByLoginId(loginId);
-  if (loginCheck && loginCheck.user_id !== contactId) {
+  if (loginCheck && loginCheck.user_id !== contact_id) {
     const error = new Error("This email is already used as a login ID.");
     error.status = 400;
     throw error;
@@ -282,22 +271,23 @@ async function convertContactToUser(currentUser, contactId, body) {
   const encryptedPwd = encrypt(password);
 
   // Update user to become a full system user
-  await contactRepository.updateContact(contactId, {
+  await contactRepository.updateContact(contact_id, {
     role_id,
     has_login: true,
     login_id: loginId,
     password: encryptedPwd,
     is_active: true,
     is_locked: false,
+    is_verified: true,
   });
 
   // Invalidate any previous tokens (just in case)
-  await tokenRepository.invalidateUserSessions(contactId);
+  await tokenRepository.invalidateUserSessions(contact_id);
 
   await emailService.sendPasswordEmail(contact.email, loginId, password);
 
   return {
-    user_id: contactId,
+    user_id: contact_id,
     login_id: loginId,
   };
 }

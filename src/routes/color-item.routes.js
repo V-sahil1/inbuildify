@@ -10,6 +10,7 @@ const {
   deleteImageField,
   colorItemMove,
   copyColorItem,
+  getColorItemsWithoutCategory,
 } = require("../controllers/color-item.controller");
 const {
   createColorItemSchema,
@@ -57,6 +58,14 @@ router.get(
   "/",
   validateRequest(getAllColorItemsSchema, REQUEST_SOURCE.QUERY),
   getAllColorItems,
+);
+
+// Get color items without category
+router.get(
+  "/without-category",
+  authMiddleware,
+  roleMiddleware,
+  getColorItemsWithoutCategory,
 );
 
 router.get(
