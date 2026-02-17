@@ -39,25 +39,22 @@ exports.getColorItemsWithoutCategory = async (req, res) => {
         ci.created_at,
         ci.updated_at,
         COALESCE(
-          json_agg(
-            json_build_object(
-              'color_group_id', cg.color_group_id,
-              'color_group_name', cg.name
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_group_id', cg.color_group_id,
+                'color_group_name', cg.name
+              )
             )
-          ) FILTER (WHERE cg.color_group_id IS NOT NULL),
-          '[]'
+            FROM color_group_item_map cgim_sub
+            LEFT JOIN color_group cg ON cg.color_group_id = cgim_sub.color_group_id
+            WHERE cgim_sub.color_item_id = ci.color_item_id
+          ),
+          '[]'::json
         ) AS color_groups
       FROM color_item ci
-      LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id
-      LEFT JOIN color_group cg ON cg.color_group_id = cg.color_group_id
       WHERE (ci.company_id = $1 OR ci.builder_id = $2)
         AND ci.color_category_id IS NULL
-      GROUP BY 
-        ci.color_item_id, ci.company_id, ci.builder_id, ci.item_name, 
-        ci.item_code, ci.supplier_id, ci.color_category_id, ci.upgrade_option,
-        ci.cost_type, ci.cost, ci.features, ci.description, ci.specification_name,
-        ci.units, ci.sort_order, ci.color_type_id, ci.range_id, ci.status,
-        ci.color_image, ci.specification, ci.created_at, ci.updated_at
       ORDER BY ci.created_at DESC
     `;
 

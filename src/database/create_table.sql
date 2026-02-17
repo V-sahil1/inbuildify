@@ -3041,7 +3041,7 @@ CREATE TABLE lead_detail(
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,  
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,
 );
 
 CREATE TABLE quotation(
@@ -3117,7 +3117,7 @@ CREATE TABLE property(       -- any api make property ovject
 
 CREATE TABLE job_form(
   job_form_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_detail_id UUID REFERENCES lead_detail_id(lead_detail) ON DELETE CASCADE,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   street_name VARCHAR(255) NOT NULL,
   land_developer VARCHAR(255),
   council VARCHAR(255),
@@ -3161,7 +3161,7 @@ CREATE TABLE job_form(
   connection VARCHAR(255),                -- nbn, opticom
   recycled_water BOOLEAN,
   extra_requirement VARCHAR(255),            -- valid rainwater_tank, solar_hot_water, heat_pump
-  3_phase BOOLEAN,
+  three_phase BOOLEAN,
   driveway VARCHAR(255),                   -- valid by_client, by_builder
   front_wall VARCHAR(255),
   between_garage_building VARCHAR(255),
@@ -3187,6 +3187,8 @@ CREATE TABLE job_form(
   contact_for_sale BOOLEAN,
   variational_list BOOLEAN,
   special_job_notes VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE house_feature(
@@ -3244,7 +3246,7 @@ CREATE TABLE lot(
   site_fall_mm NUMERIC(10,2),
   land_fill_mm NUMERIC(10,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE h_l_package_pricelist_item_map(
@@ -3258,7 +3260,7 @@ CREATE TABLE h_l_package_pricelist_item_map(
 
 CREATE TABLE business_contact (
     business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
+    leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
 
     contact_type VARCHAR(50) NOT NULL,
     -- 'company'

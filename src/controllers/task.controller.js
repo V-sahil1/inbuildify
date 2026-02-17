@@ -1,6 +1,9 @@
 const getPool = require("../config/database");
+
 const { successResponse, errorResponse } = require("../helper/response");
+
 const { keysToCamelCase } = require("../utils/common");
+
 const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createTask = async (req, res) => {
@@ -38,6 +41,7 @@ exports.createTask = async (req, res) => {
         `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
         [assignee_id],
       );
+
       if (assigneeCheck.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Invalid assignee_id");
@@ -49,6 +53,7 @@ exports.createTask = async (req, res) => {
         `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
         [link_to],
       );
+
       if (linkToCheck.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(res, 400, "Invalid link_to user_id");
@@ -99,22 +104,63 @@ exports.createTask = async (req, res) => {
       link_type || null,
       priority,
       status,
-      attach_files || null,
+      attach_files,
       createdBy,
       createdBy,
     ]);
 
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Task created successfully",
-    );
-  } catch (error) {
+    let assigneeName = null;
+    if (assignee_id) {
+      const assigneeResult = await client.query(
+        `SELECT name as assignee_name FROM users WHERE users_id = $1`,
+        [assignee_id],
+      );
+      if (assigneeResult.rowCount > 0) {
+        assigneeName = assigneeResult.rows[0].assignee_name;
+      }
+    }
+
+    const transformed = keysToCamelCase(result.rows[0]);
+
+    transformed.assigneeName = assigneeName;
+    transformed.linkTo = link_to;
+    transformed.linkType = link_type;
+
+    const orderedTask = {};
+    const fieldOrder = [
+      "taskId",
+      "companyId",
+      "builderId",
+      "name",
+      "description",
+      "dueDate",
+      "dueTime",
+      "assigneeId",
+      "assigneeName",
+      "linkTo",
+      "linkType",
+      "priority",
+      "status",
+      "attachFiles",
+      "createdBy",
+      "updatedBy",
+      "createdAt",
+      "updatedAt",
+    ];
+
+    fieldOrder.forEach((field) => {
+      if (transformed.hasOwnProperty(field)) {
+        orderedTask[field] = transformed[field];
+      }
+    });
+
+    return successResponse(res, orderedTask, "Task created successfully.");
+  } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Error creating task:", error);
-    return errorResponse(res, 500, "Internal server error");
+    console.error("Error creating task:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -146,9 +192,9 @@ exports.getAllTasks = async (req, res) => {
     const pageValue = parseInt(page, 10);
     const limitValue = parseInt(limit, 10);
     const offset = (pageValue - 1) * limitValue;
-
     const filters = [];
     const values = [];
+
     let index = 1;
 
     filters.push(`t.builder_id = $${index}`);
@@ -200,41 +246,135 @@ exports.getAllTasks = async (req, res) => {
     const whereClause =
       filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
 
+    const counterQuery = `
+    SELECT
+      COUNT(*) FILTER (
+        WHERE t.due_date = CURRENT_DATE
+        AND t.status NOT IN ('Completed','Cancelled','Skipped')
+      ) AS today_count,
+
+      COUNT(*) FILTER (
+        WHERE t.due_date = CURRENT_DATE + INTERVAL '1 day'
+        AND t.status NOT IN ('Completed','Cancelled','Skipped')
+      ) AS tomorrow_count,
+
+      COUNT(*) FILTER (
+        WHERE t.due_date BETWEEN
+          date_trunc('week', CURRENT_DATE)
+          AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'
+        AND t.status NOT IN ('Completed','Cancelled','Skipped')
+      ) AS this_week_count,
+
+      COUNT(*) FILTER (
+        WHERE t.due_date BETWEEN
+          date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+          AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days'
+        AND t.status NOT IN ('Completed','Cancelled','Skipped')
+      ) AS next_week_count,
+
+      COUNT(*) FILTER (
+        WHERE t.due_date < CURRENT_DATE
+        AND t.status NOT IN ('Completed','Cancelled','Skipped')
+      ) AS overdue_count,
+
+      COUNT(*) FILTER (
+        WHERE t.status IN ('Yet to Start','In Progress')
+      ) AS pending_count
+
+    FROM task t
+    WHERE t.builder_id = $1
+  `;
+
+    const counterResult = await client.query(counterQuery, [builderId]);
+    const counters = {
+      todayCount: Number(counterResult.rows[0].today_count) || 0,
+      tomorrowCount: Number(counterResult.rows[0].tomorrow_count) || 0,
+      thisWeekCount: Number(counterResult.rows[0].this_week_count) || 0,
+      nextWeekCount: Number(counterResult.rows[0].next_week_count) || 0,
+      overdueCount: Number(counterResult.rows[0].overdue_count) || 0,
+      pendingCount: Number(counterResult.rows[0].pending_count) || 0,
+    };
+
     const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM task t
-      ${whereClause}
-    `;
+        SELECT COUNT(*) AS total
+        FROM task t
+        ${whereClause}
+      `;
+
     const countResult = await client.query(countQuery, values);
     const totalRecords = parseInt(countResult.rows[0].total, 10);
     const totalPages = Math.ceil(totalRecords / limitValue);
-
     const dataQuery = `
-      SELECT *
-      FROM task t
-      ${whereClause}
-      ORDER BY t.created_at DESC
-      LIMIT ${limitValue}
-      OFFSET ${offset}
-    `;
+
+        SELECT t.*,
+              u.name as assignee_name
+        FROM task t
+        LEFT JOIN users u ON t.assignee_id = u.users_id
+        ${whereClause}
+        ORDER BY t.created_at DESC
+        LIMIT ${limitValue}
+        OFFSET ${offset}
+
+      `;
 
     const dataResult = await client.query(dataQuery, values);
+
+    const transformedTasks = keysToCamelCase(dataResult.rows).map((task) => {
+      const transformed = {
+        ...task,
+        assigneeName: task.assigneeName,
+        linkTo: task.linkTo,
+        linkType: task.linkType,
+      };
+
+      const orderedTask = {};
+      const fieldOrder = [
+        "taskId",
+        "companyId",
+        "builderId",
+        "name",
+        "description",
+        "dueDate",
+        "dueTime",
+        "assigneeId",
+        "assigneeName",
+        "linkTo",
+        "linkType",
+        "priority",
+        "status",
+        "attachFiles",
+        "createdBy",
+        "updatedBy",
+        "createdAt",
+        "updatedAt",
+      ];
+
+      fieldOrder.forEach((field) => {
+        if (transformed.hasOwnProperty(field)) {
+          orderedTask[field] = transformed[field];
+        }
+      });
+
+      return orderedTask;
+    });
 
     return successResponse(
       res,
       {
-        tasks: keysToCamelCase(dataResult.rows),
+        tasks: transformedTasks,
         pagination: {
           currentPage: pageValue,
           totalPages,
           totalRecords,
           limit: limitValue,
         },
+        counters,
       },
       "Tasks fetched successfully",
     );
   } catch (error) {
     console.error("Error in getAllTasks:", error);
+
     return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
@@ -244,7 +384,6 @@ exports.getAllTasks = async (req, res) => {
 exports.deleteTask = async (req, res) => {
   const { task_id } = req.params;
   const builderId = req.user?.builder_id;
-
   const pool = getPool();
   const client = await pool.connect();
 
@@ -256,6 +395,7 @@ exports.deleteTask = async (req, res) => {
       FROM task
       WHERE task_id = $1
     `;
+
     const checkResult = await client.query(checkQuery, [task_id]);
 
     if (checkResult.rows.length === 0) {
@@ -267,6 +407,7 @@ exports.deleteTask = async (req, res) => {
 
     if (task.builder_id !== builderId) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
         403,
@@ -275,9 +416,7 @@ exports.deleteTask = async (req, res) => {
     }
 
     await client.query(`DELETE FROM task WHERE task_id = $1`, [task_id]);
-
     await client.query("COMMIT");
-
     return successResponse(res, {}, "Task deleted successfully");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -318,10 +457,12 @@ exports.updateTask = async (req, res) => {
       SELECT * FROM task 
       WHERE task_id = $1 AND builder_id = $2
     `;
+
     const findResult = await client.query(findQuery, [task_id, builderId]);
 
     if (findResult.rows.length === 0) {
       await client.query("ROLLBACK");
+
       return errorResponse(
         res,
         404,
@@ -331,6 +472,7 @@ exports.updateTask = async (req, res) => {
 
     function isValidDate(dateString) {
       const date = new Date(dateString);
+
       return (
         !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString
       );
@@ -342,6 +484,7 @@ exports.updateTask = async (req, res) => {
 
     const fields = [];
     const values = [];
+
     let index = 1;
 
     if (name) {
@@ -388,6 +531,7 @@ exports.updateTask = async (req, res) => {
 
       if (assigneeCheck.rows.length === 0) {
         await client.query("ROLLBACK");
+
         return errorResponse(
           res,
           400,
@@ -424,10 +568,10 @@ exports.updateTask = async (req, res) => {
 
     if (attach_files !== undefined || req.files?.attachFiles) {
       const existingTask = findResult.rows[0];
+
       const newAttachFiles =
         req.files?.attachFiles?.[0]?.location || attach_files;
 
-      // If there's a new file and it's different from the existing one, delete the old file
       if (
         newAttachFiles &&
         existingTask.attach_files &&
@@ -437,11 +581,9 @@ exports.updateTask = async (req, res) => {
           await deleteFromS3(existingTask.attach_files);
         } catch (s3Error) {
           console.error("Error deleting old attachment from S3:", s3Error);
-          // Continue with the update even if S3 deletion fails
         }
       }
 
-      // Handle case where attach_files is explicitly set to null/empty to remove the file
       if (attach_files === "" || attach_files === null) {
         if (existingTask.attach_files) {
           try {
@@ -450,6 +592,7 @@ exports.updateTask = async (req, res) => {
             console.error("Error deleting old attachment from S3:", s3Error);
           }
         }
+
         fields.push(`attach_files = $${index}`);
         values.push(null);
         index++;
@@ -469,7 +612,6 @@ exports.updateTask = async (req, res) => {
     fields.push(`updated_by = $${index}`);
     values.push(userId);
     index++;
-
     values.push(task_id);
 
     const updateQuery = `
@@ -478,18 +620,56 @@ exports.updateTask = async (req, res) => {
       WHERE task_id = $${index}
       RETURNING *
     `;
-
     const updateResult = await client.query(updateQuery, values);
-
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      {
-        task: keysToCamelCase(updateResult.rows[0]),
-      },
-      "Task updated successfully",
-    );
+    const updatedTask = updateResult.rows[0];
+    let assigneeName = null;
+    if (updatedTask.assignee_id) {
+      const assigneeResult = await client.query(
+        `SELECT name as assignee_name FROM users WHERE users_id = $1`,
+        [updatedTask.assignee_id],
+      );
+      if (assigneeResult.rowCount > 0) {
+        assigneeName = assigneeResult.rows[0].assignee_name;
+      }
+    }
+
+    const transformed = keysToCamelCase(updateResult.rows[0]);
+
+    transformed.assigneeName = assigneeName;
+    transformed.linkTo = transformed.linkTo || link_to;
+    transformed.linkType = transformed.linkType || link_type;
+
+    const orderedTask = {};
+    const fieldOrder = [
+      "taskId",
+      "companyId",
+      "builderId",
+      "name",
+      "description",
+      "dueDate",
+      "dueTime",
+      "assigneeId",
+      "assigneeName",
+      "linkTo",
+      "linkType",
+      "priority",
+      "status",
+      "attachFiles",
+      "createdBy",
+      "updatedBy",
+      "createdAt",
+      "updatedAt",
+    ];
+
+    fieldOrder.forEach((field) => {
+      if (transformed.hasOwnProperty(field)) {
+        orderedTask[field] = transformed[field];
+      }
+    });
+
+    return successResponse(res, orderedTask, "Task updated successfully");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating task:", error);

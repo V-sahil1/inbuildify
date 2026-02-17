@@ -48,7 +48,7 @@ const createTaskSchema = Joi.object({
 });
 
 const getAllTaskSchema = Joi.object({
-  name: Joi.string().min(2).max(200).optional(),
+  name: Joi.string().max(200).optional(),
 
   due_date: Joi.date()
     .allow(null)
