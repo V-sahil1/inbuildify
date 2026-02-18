@@ -4,6 +4,38 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../helper/sendMail");
 const { upsertCompany } = require("./company.service");
 
+// Helper function to send verification email
+async function sendVerificationEmail(
+  email,
+  otp,
+  resetPasswordToken = null,
+  inviteToken = null,
+) {
+  let subject;
+  let verificationLink;
+  let text;
+  try {
+    if (resetPasswordToken) {
+      subject = "CRMSimplify - Password Reset Request";
+      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
+      text = `You requested a password reset. Use the following link to reset your password:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
+    } else if (inviteToken) {
+      subject = "Invitation to Join";
+      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
+      text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
+    } else {
+      subject = "OTP for Email Verification";
+      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/verify-email?email=${email}`;
+      text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
+    }
+
+    return await sendEmail(email, subject, text);
+  } catch (error) {
+    console.error("Email sending error:", error);
+    return false;
+  }
+}
+
 const {
   generateOtp,
   generateAccessToken,
@@ -77,8 +109,8 @@ async function registerRoot({ name, email, password, role_id }) {
 
     await upsertCompany(builder_id, defaultCompanyPayload, client);
 
-    // Send OTP Email
-    await sendEmail(lowerEmail, "Verify Email - OTP", `Your OTP is: ${otp}`);
+    // Send OTP Email using helper function
+    await sendVerificationEmail(lowerEmail, otp);
 
     await client.query("COMMIT");
     return { email: lowerEmail };
@@ -178,7 +210,7 @@ async function resendOtp(email) {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await sendEmail(lowerEmail, "OTP Verification", `Your OTP is ${otp}`);
+    await sendVerificationEmail(lowerEmail, otp);
 
     await client.query(
       `UPDATE users
@@ -331,11 +363,7 @@ async function forgotPassword(email) {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await sendEmail(
-      lowerEmail,
-      "Reset Password",
-      `Your reset link: ${process.env.FRONTEND_URL}/reset?token=${token}`,
-    );
+    await sendVerificationEmail(lowerEmail, null, token);
 
     await client.query(
       `UPDATE users

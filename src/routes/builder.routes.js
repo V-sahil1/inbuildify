@@ -28,7 +28,7 @@ router.post(
   parseFormDataJson,
   camelToSnakeMiddleware,
   validateRequest(upsertBuilderSchema, REQUEST_SOURCE.FORM_DATA),
-  upsertBuilder
+  upsertBuilder,
 );
 
 module.exports = router;

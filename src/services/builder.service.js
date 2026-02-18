@@ -1,7 +1,10 @@
 const getPool = require("../config/database");
 const { deleteFromS3 } = require("../utils/s3Upload");
 const { buildDynamicUpdate } = require("../utils/buildDynamicUpdate");
-const { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } = require("../constants/updateFields");
+const {
+  BUILDER_UPDATE_FIELDS,
+  INSURER_UPDATE_FIELDS,
+} = require("../constants/updateFields");
 const { upsertAddress } = require("./address.service");
 
 async function upsertBuilder(builderId, payload, logoUrl) {
@@ -13,7 +16,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
 
     const existingRes = await client.query(
       `SELECT * FROM builder WHERE builder_id = $1`,
-      [builderId]
+      [builderId],
     );
 
     const exists = existingRes.rowCount > 0;
@@ -72,7 +75,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
           payload.account_bsb,
           addressId || null,
           logoUrl || null,
-        ]
+        ],
       );
     } else {
       // UPDATE (DYNAMIC)
@@ -102,7 +105,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     if (payload.insurer) {
       const insurerRes = await client.query(
         `SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1`,
-        [builderId]
+        [builderId],
       );
 
       if (insurerRes.rowCount === 0) {
@@ -130,7 +133,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
             payload.insurer.address_line2,
             payload.insurer.state_id,
             payload.insurer.zip_code,
-          ]
+          ],
         );
       } else {
         // UPDATE insurer (dynamic)
@@ -145,7 +148,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
         if (insurerUpdateQuery) {
           await client.query(
             insurerUpdateQuery.query,
-            insurerUpdateQuery.values
+            insurerUpdateQuery.values,
           );
         }
       }
@@ -196,7 +199,7 @@ async function getBuilderProfile(builderId) {
       WHERE b.builder_id = $1
       LIMIT 1
       `,
-      [builderId]
+      [builderId],
     );
 
     return result.rows[0] || null;
@@ -250,7 +253,7 @@ async function getAllBuilders() {
       LEFT JOIN address a ON a.address_id = b.address_id
       LEFT JOIN builder_insurer bi ON bi.builder_id = b.builder_id
       ORDER BY b.name ASC
-      `
+      `,
     );
 
     return result.rows;

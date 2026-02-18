@@ -1,6 +1,127 @@
 const Joi = require("joi");
 
+const validConditions = ["site_fall", "land_size", "corner_block", "land_fill"];
+
+const conditionSchema = Joi.object({
+  condition_name: Joi.string()
+    .valid(...validConditions)
+    .required()
+    .messages({
+      "any.only":
+        "condition_name must be one of: site_fall, land_size, corner_block, land_fill",
+      "any.required": "condition_name is required",
+    }),
+
+  status: Joi.boolean(),
+
+  range_start: Joi.number(),
+
+  range_end: Joi.number().greater(Joi.ref("range_start")).messages({
+    "number.greater": "range_end must be greater than range_start",
+  }),
+}).custom((value, helpers) => {
+  const { condition_name, status, range_start, range_end } = value;
+
+  // If condition_name invalid → stop here
+  if (!validConditions.includes(condition_name)) {
+    return helpers.error("any.only", { valids: validConditions });
+  }
+
+  if (condition_name === "corner_block") {
+    if (status === undefined) {
+      return helpers.message(
+        "status is required when condition_name is corner_block",
+      );
+    }
+    if (range_start !== undefined || range_end !== undefined) {
+      return helpers.message(
+        "range_start and range_end are not allowed when condition_name is corner_block",
+      );
+    }
+  } else {
+    if (range_start === undefined || range_end === undefined) {
+      return helpers.message(
+        "range_start and range_end are required for this condition",
+      );
+    }
+  }
+
+  return value;
+});
+
 const createPriceListItemSchema = Joi.object({
+  conditions: Joi.array().items(conditionSchema).max(4).optional(),
+
+  // conditions: Joi.array()
+  //   .items(
+  //     Joi.object({
+  //       condition_name: Joi.string()
+  //         .max(255)
+  //         .valid("site_fall", "land_size", "corner_block", "land_fill")
+  //         .required()
+  //         .messages({
+  //           "any.only":
+  //             "condition_name must be one of: site_fall, land_size, corner_block, land_fill. Note: 'lad_fill' is not valid, did you mean 'land_fill'?",
+  //           "any.required": "condition_name is required",
+  //           "string.empty": "condition_name cannot be empty",
+  //         }),
+  //       status: Joi.boolean().when("condition_name", {
+  //         is: Joi.string().valid("corner_block"),
+  //         then: Joi.required().messages({
+  //           "any.required":
+  //             "status is required when condition_name is corner_block",
+  //         }),
+  //         otherwise: Joi.optional(),
+  //       }),
+  //       range_start: Joi.number().when("condition_name", {
+  //         is: Joi.string().valid("site_fall", "land_size", "land_fill"),
+  //         then: Joi.required().messages({
+  //           "any.required":
+  //             "range_start is required when condition_name is site_fall, land_size, or land_fill",
+  //         }),
+  //         otherwise: Joi.forbidden().messages({
+  //           "any.unknown":
+  //             "range_start is not allowed when condition_name is corner_block",
+  //         }),
+  //       }),
+  //       range_end: Joi.number().when("condition_name", {
+  //         is: Joi.valid("site_fall", "land_size", "land_fill"),
+  //         then: Joi.number()
+  //           .required()
+  //           .greater(Joi.ref("range_start"))
+  //           .messages({
+  //             "any.required":
+  //               "range_end is required when condition_name is site_fall, land_size, or land_fill",
+  //             "number.greater": "range_end must be greater than range_start",
+  //           }),
+  //         otherwise: Joi.forbidden().messages({
+  //           "any.unknown":
+  //             "range_end is not allowed when condition_name is corner_block",
+  //         }),
+  //       }),
+  //     }),
+  //   )
+  //   .max(4)
+  //   .optional()
+  //   .custom((value, helpers) => {
+  //     if (!value || !Array.isArray(value)) {
+  //       return value;
+  //     }
+
+  //     const conditionNames = value.map((c) => c.condition_name);
+  //     const uniqueNames = [...new Set(conditionNames)];
+
+  //     if (conditionNames.length !== uniqueNames.length) {
+  //       return helpers.error("conditions.unique");
+  //     }
+
+  //     return value;
+  //   })
+  //   .messages({
+  //     "conditions.unique":
+  //       "Condition names must be unique. Each condition type can only be used once.",
+  //     "array.max": "Maximum 4 conditions allowed per price list item.",
+  //   }),
   price_list_id: Joi.string().uuid().required().messages({
     "any.required": "price_list_id is required",
     "string.uuid": "price_list_id must be a valid UUID",

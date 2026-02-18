@@ -1255,3 +1255,78 @@ exports.getSubTasks = async (taskId, builderId, companyId) => {
     updatedAt: row.updated_at,
   }));
 };
+
+/**
+ * GET ALL TASKS - TASK DETAILS ONLY
+ */
+exports.getAllTasksOnly = async (builderId, companyId) => {
+  const pool = getPool();
+
+  const { rows } = await pool.query(
+    `
+    SELECT
+      t.job_process_task_id,
+      t.name,
+      t.description,
+      t.sort_order,
+      t.no_of_days,
+      t.assignee_id,
+      t.notify,
+      t.milestone,
+      t.attachment_mandatory,
+      t.created_at,
+      t.updated_at,
+      
+      d.predecessor_task_id,
+      pt.name AS predecessor_task_name
+
+    FROM job_process_task t
+    JOIN job_process_sub_stage ss ON ss.sub_stage_id = t.sub_stage_id
+    JOIN job_process_stage s ON s.stage_id = ss.stage_id
+    LEFT JOIN job_process_task_dependency d ON d.task_id = t.job_process_task_id
+    LEFT JOIN job_process_task pt ON pt.job_process_task_id = d.predecessor_task_id
+    WHERE s.builder_id = $1 
+      AND s.company_id = $2
+    ORDER BY t.sort_order
+    `,
+    [builderId, companyId],
+  );
+
+  const taskMap = new Map();
+
+  for (const r of rows) {
+    if (!taskMap.has(r.job_process_task_id)) {
+      taskMap.set(r.job_process_task_id, {
+        jobProcessTaskId: r.job_process_task_id,
+        name: r.name,
+        description: r.description,
+        sortOrder: r.sort_order,
+        noOfDays: r.no_of_days,
+        assigneeId: r.assignee_id,
+        notify: r.notify,
+        milestone: r.milestone,
+        attachmentMandatory: r.attachment_mandatory,
+        predecessorTask: [],
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      });
+    }
+
+    const task = taskMap.get(r.job_process_task_id);
+
+    if (r.predecessor_task_id) {
+      const exists = task.predecessorTask.some(
+        (p) => p.id === r.predecessor_task_id,
+      );
+
+      if (!exists) {
+        task.predecessorTask.push({
+          id: r.predecessor_task_id,
+          name: r.predecessor_task_name || "Unknown Task",
+        });
+      }
+    }
+  }
+
+  return Array.from(taskMap.values());
+};

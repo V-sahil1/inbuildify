@@ -3012,10 +3012,14 @@ CREATE TABLE leads (
   notes VARCHAR(1000),
   send_letter BOOLEAN DEFAULT FALSE,
 
+  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
+
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
-  status VARCHAR(20) DEFAULT 'New',                -- valid new, working, convert
+  status VARCHAR(20) DEFAULT 'new',                -- valid new, working, convert
   outcome VARCHAR(10), -- Won / Lost
+  
   rating VARCHAR(150),              -- none, hot, cold, warm
   land VARCHAR(150),                  -- none, no, yes
   finance VARCHAR(150),               -- none, no, yes
@@ -3036,17 +3040,9 @@ CREATE TABLE leads (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE lead_detail(
-  lead_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
-  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,
-);
-
 CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lead_detail_id UUID REFERENCES lead_detail(lead_detail_id) ON DELETE CASCADE,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   refrence_id VARCHAR(50),                            --- need to decide contat update un quotatio  or not
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -3094,8 +3090,9 @@ CREATE TABLE quotation_version_custom_section(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE property(       -- any api make property ovject
+CREATE TABLE property(  
   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   lot_no INTEGER,
   street_no INTEGER,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
@@ -3211,9 +3208,12 @@ CREATE TABLE house_land_package(
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   template_id UUID REFERENCES template(template_id) ON DELETE SET NULL,                    -- need to decide which template is used
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  -- check the price clumn for and need to add price column
-  price_list_item_id UUID[] DEFAULT '{}',
+  price_type VARCHAR(100),                 -- valid esimate, fixed DEFAULT estimate
+  price_total NUMERIC(12,2) DEFAULT 0,
+  commission_total NUMERIC(12,2) DEFAULT 0,
+  house_total NUMERIC(12,2) DEFAULT 0;
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
+  floor_plan_description VARCHAR(1000),            -- if the floor plan select then user can input description if not then can not input it is optional
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
   package_group_id UUID[] '{}',                -- which package group is used?
   package_description VARCHAR(3000),
@@ -3258,6 +3258,12 @@ CREATE TABLE h_l_package_pricelist_item_map(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE h_l_package_commission_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  job_commission_id UUID REFERENCES job_commission(job_commission_id) ON DELETE CASCADE
+);
+
 CREATE TABLE business_contact (
     business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
@@ -3283,4 +3289,3 @@ CREATE TABLE business_contact (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-

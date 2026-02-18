@@ -10,7 +10,6 @@ class LeadsRepository {
     const client = await this.pool.connect();
     try {
       const {
-        refrence_number,
         company_id,
         builder_id,
         name,
@@ -31,7 +30,7 @@ class LeadsRepository {
 
       const query = `
         INSERT INTO leads (
-          refrence_number, company_id, builder_id, name, email, phone, 
+          company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
           face_to_face, purpose, assignee_id, created_by, updated_by
         ) VALUES (
@@ -40,7 +39,6 @@ class LeadsRepository {
       `;
 
       const values = [
-        refrence_number,
         company_id,
         builder_id,
         name,

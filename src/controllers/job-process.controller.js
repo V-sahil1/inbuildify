@@ -332,6 +332,22 @@ exports.getAllJobTasks = async (req, res) => {
   }
 };
 
+exports.getAllTasksOnly = async (req, res) => {
+  try {
+    const { builder_id: builderId, company_id: companyId } = req.user;
+
+    const tasks = await taskService.getAllTasksOnly(builderId, companyId);
+
+    return successResponse(
+      res,
+      tasks,
+      "All tasks (details only) fetched successfully.",
+    );
+  } catch (err) {
+    return errorResponse(res, 500, err.message);
+  }
+};
+
 /* =========================================================
    TASK DEPENDENCY
 ========================================================= */

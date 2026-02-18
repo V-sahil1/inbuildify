@@ -24,7 +24,7 @@ const createSurveyQuestionSchema = Joi.object({
   options: Joi.when("option_type", {
     is: "radio",
     then: Joi.array()
-      .items(Joi.string().trim().required())
+      .items(Joi.string().trim().optional())
       .min(1)
       .optional()
       .messages({
@@ -89,9 +89,9 @@ const updateSurveyTemplateQuestionSchema = Joi.object({
   options: Joi.when("option_type", {
     is: "radio",
     then: Joi.array()
-      .items(Joi.string().trim().required())
+      .items(Joi.string().trim().optional())
       .min(1)
-      .required()
+      .optional()
       .messages({
         "any.required": "options array is required when option_type is radio",
         "array.min": "options array cannot be empty when option_type is radio",

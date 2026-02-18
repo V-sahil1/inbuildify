@@ -58,7 +58,7 @@ const upsertCompanySchema = Joi.object({
     .min(2)
     .max(150)
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .required()
+    .optional()
     .messages({
       "any.required": "Company name is required",
       "string.min": "Company name must be at least 2 characters long",
@@ -70,11 +70,11 @@ const upsertCompanySchema = Joi.object({
     "string.min": "ABN number must be at least 11 characters long",
     "string.max": "ABN number must not exceed 11 characters",
   }),
-  timezone_id: Joi.string().uuid().required().messages({
+  timezone_id: Joi.string().uuid().optional().messages({
     "string.guid": "timezone ID must be a valid UUID",
     "any.required": "timezone ID is required",
   }),
-  address: addressSchema.required().messages({
+  address: addressSchema.optional().messages({
     "any.required": "Address is required",
   }),
   bank_name: Joi.string()

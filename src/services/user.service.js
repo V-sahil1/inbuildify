@@ -149,11 +149,20 @@ async function createUser(currentUser, body, files) {
 
   let addressId = null;
 
-  if (use_company_address === "true") {
+  if (use_company_address === "true" || use_company_address === true) {
     const companyAddress = await builderRepo.getCompanyAddress(
       currentUser.builder_id,
     );
     if (companyAddress) {
+      if (
+        !companyAddress.address_line1 ||
+        companyAddress.address_line1.trim() === ""
+      ) {
+        throw new Error(
+          "Company address line 1 is required. Please update company address before creating user with company address.",
+        );
+      }
+
       const newAddress = {
         address_line1: companyAddress.address_line1,
         address_line2: companyAddress.address_line2,

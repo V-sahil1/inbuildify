@@ -22,6 +22,11 @@ const getAllColorItemsSchema = Joi.object({
     "string.max": "Search term must not exceed 255 characters",
   }),
 
+  color_group_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "color group ID must be a valid UUID",
+    "string.guid": "color group ID must be a valid UUID",
+  }),
+
   color_category_id: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "color category ID must be a valid UUID",
     "string.guid": "color category ID must be a valid UUID",

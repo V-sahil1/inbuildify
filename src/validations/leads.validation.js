@@ -1,7 +1,6 @@
 const Joi = require("joi");
 
 const createLeadSchema = Joi.object({
-  refrence_number: Joi.string().max(30).optional(),
   // company_id is optional since it will be automatically provided from authenticated user
   force_create: Joi.boolean().optional().default(false),
   name: Joi.string().min(2).max(255).required().messages({

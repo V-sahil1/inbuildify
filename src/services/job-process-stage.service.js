@@ -1,33 +1,21 @@
 const getPool = require("../config/database");
-
 const {
   ensureWorkflowStageByStageId,
 } = require("./job-process-workflow.guard");
 
 /**
-
  * CREATE STAGE
-
  */
-
 async function createStage(companyId, builderId, payload) {
   const pool = getPool();
-
   const duplicateCheck = await pool.query(
     `
-
     SELECT stage_id 
-
     FROM job_process_stage
-
     WHERE company_id = $1 
-
       AND builder_id = $2 
-
       AND name = $3
-
     `,
-
     [companyId, builderId, payload.name],
   );
 
@@ -38,20 +26,14 @@ async function createStage(companyId, builderId, payload) {
   }
 
   const maxSortOrderQuery = `
-
     SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-
     FROM job_process_stage
-
     WHERE company_id = $1 
-
       AND builder_id = $2
-
   `;
 
   const maxSortOrderResult = await pool.query(maxSortOrderQuery, [
     companyId,
-
     builderId,
   ]);
 
@@ -73,79 +55,50 @@ async function createStage(companyId, builderId, payload) {
 
   if (payload.sort_order !== undefined) {
     const shiftSortOrderQuery = `
-
       UPDATE job_process_stage
-
       SET sort_order = sort_order + 1
-
       WHERE company_id = $1 
-
         AND builder_id = $2 
-
         AND sort_order >= $3
-
     `;
 
     await pool.query(shiftSortOrderQuery, [
       companyId,
-
       builderId,
-
       payload.sort_order,
     ]);
   }
 
   const result = await pool.query(
     `
-
     INSERT INTO job_process_stage
-
     (company_id, builder_id, name, functionality_id, sort_order, dependent_stage_id)
-
     VALUES ($1,$2,$3,$4,$5,$6)
-
     RETURNING *
-
     `,
 
     [
       companyId,
-
       builderId,
-
       payload.name,
-
       payload.functionality_id,
-
       finalSortOrder,
-
       payload.dependent_stage_id || null,
     ],
   );
 
   const { rows: createdRows } = await pool.query(
     `
-
     SELECT 
-
       s.*,
-
       ds.name AS dependent_stage_name,
-
       f.functionality_id,
-
       f.name AS functionality_name,
-
       f.is_workflow
-
     FROM job_process_stage s
-
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-
     WHERE s.stage_id = $1
-
     `,
 
     [result.rows[0].stage_id],
@@ -155,55 +108,37 @@ async function createStage(companyId, builderId, payload) {
 
   return {
     stageId: stageData.stage_id,
-
     name: stageData.name,
-
     sortOrder: stageData.sort_order,
-
     dependentStage: stageData.dependent_stage_id
       ? {
           id: stageData.dependent_stage_id,
-
           name: stageData.dependent_stage_name,
         }
       : null,
 
     functionality: {
       id: stageData.functionality_id,
-
       name: stageData.functionality_name,
     },
-
     isWorkflow: stageData.is_workflow,
-
     companyId: stageData.company_id,
-
     builderId: stageData.builder_id,
-
     createdAt: stageData.created_at,
-
     updatedAt: stageData.updated_at,
   };
 }
 
 /**
-
  * UPDATE STAGE
-
  */
-
 async function updateStage(stageId, payload, builderId, companyId) {
   const pool = getPool();
-
   const checkQuery = await pool.query(
     `
-
     SELECT stage_id, builder_id, company_id, name, sort_order
-
     FROM job_process_stage
-
     WHERE stage_id = $1 AND builder_id = $2 AND company_id = $3
-
     `,
 
     [stageId, builderId, companyId],
@@ -218,28 +153,18 @@ async function updateStage(stageId, payload, builderId, companyId) {
   if (payload.name && payload.name !== existingStage.name) {
     const duplicateCheck = await pool.query(
       `
-
       SELECT stage_id 
-
       FROM job_process_stage
-
       WHERE company_id = $1 
-
         AND builder_id = $2 
-
         AND name = $3
-
         AND stage_id != $4
-
       `,
 
       [
         existingStage.company_id,
-
         existingStage.builder_id,
-
         payload.name,
-
         stageId,
       ],
     );
@@ -256,20 +181,14 @@ async function updateStage(stageId, payload, builderId, companyId) {
     payload.sort_order !== existingStage.sort_order
   ) {
     const maxSortOrderQuery = `
-
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-
       FROM job_process_stage
-
       WHERE company_id = $1 
-
         AND builder_id = $2
-
     `;
 
     const maxSortOrderResult = await pool.query(maxSortOrderQuery, [
       existingStage.company_id,
-
       existingStage.builder_id,
     ]);
 
@@ -284,56 +203,36 @@ async function updateStage(stageId, payload, builderId, companyId) {
     if (payload.sort_order > existingStage.sort_order) {
       await pool.query(
         `
-
         UPDATE job_process_stage
-
         SET sort_order = sort_order - 1
-
         WHERE sort_order > $1
-
           AND sort_order <= $2
-
           AND stage_id != $3
-
           AND builder_id = $4
-
         `,
 
         [
           existingStage.sort_order,
-
           payload.sort_order,
-
           stageId,
-
           existingStage.builder_id,
         ],
       );
     } else {
       await pool.query(
         `
-
         UPDATE job_process_stage
-
         SET sort_order = sort_order + 1
-
         WHERE sort_order >= $1
-
           AND sort_order < $2
-
           AND stage_id != $3
-
           AND builder_id = $4
-
         `,
 
         [
           payload.sort_order,
-
           existingStage.sort_order,
-
           stageId,
-
           existingStage.builder_id,
         ],
       );
@@ -342,36 +241,22 @@ async function updateStage(stageId, payload, builderId, companyId) {
 
   const result = await pool.query(
     `
-
     UPDATE job_process_stage
-
     SET
-
       name = COALESCE($2, name),
-
       sort_order = COALESCE($3, sort_order),
-
       dependent_stage_id = COALESCE($4, dependent_stage_id),
-
       functionality_id = COALESCE($5, functionality_id),
-
       updated_at = NOW()
-
     WHERE stage_id = $1
-
     RETURNING *
-
     `,
 
     [
       stageId,
-
       payload.name,
-
       payload.sort_order,
-
       payload.dependent_stage_id,
-
       payload.functionality_id,
     ],
   );
@@ -382,27 +267,16 @@ async function updateStage(stageId, payload, builderId, companyId) {
 
   const { rows: updatedRows } = await pool.query(
     `
-
     SELECT 
-
       s.*,
-
       ds.name AS dependent_stage_name,
-
       f.functionality_id,
-
       f.name AS functionality_name,
-
       f.is_workflow
-
     FROM job_process_stage s
-
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-
     WHERE s.stage_id = $1
-
     `,
 
     [stageId],
@@ -412,31 +286,23 @@ async function updateStage(stageId, payload, builderId, companyId) {
 
   return {
     stageId: stageData.stage_id,
-
     name: stageData.name,
-
     sortOrder: stageData.sort_order,
-
     dependentStage: stageData.dependent_stage_id
       ? {
           id: stageData.dependent_stage_id,
-
           name: stageData.dependent_stage_name,
         }
       : null,
 
     functionality: {
       id: stageData.functionality_id,
-
       name: stageData.functionality_name,
     },
 
     isWorkflow: stageData.is_workflow,
-
     companyId: stageData.company_id,
-
     builderId: stageData.builder_id,
-
     updatedAt: stageData.updated_at,
   };
 }
@@ -444,19 +310,14 @@ async function updateStage(stageId, payload, builderId, companyId) {
 /**
  * DELETE STAGE
  */
-
 async function deleteStage(stageId, builderId) {
   const pool = getPool();
 
   const checkQuery = await pool.query(
     `
-
     SELECT stage_id, builder_id, sort_order
-
     FROM job_process_stage
-
     WHERE stage_id = $1
-
     `,
 
     [stageId],
@@ -489,13 +350,9 @@ async function createSubStage(stageId, payload) {
 
     const stageQuery = await client.query(
       `
-
       SELECT company_id, builder_id
-
       FROM job_process_stage
-
       WHERE stage_id = $1
-
       `,
 
       [stageId],
@@ -509,15 +366,10 @@ async function createSubStage(stageId, payload) {
 
     const duplicateCheck = await client.query(
       `
-
       SELECT sub_stage_id 
-
       FROM job_process_sub_stage
-
       WHERE stage_id = $1 
-
         AND name = $2
-
       `,
 
       [stageId, payload.name],
@@ -530,17 +382,12 @@ async function createSubStage(stageId, payload) {
     }
 
     const maxSortOrderQuery = `
-
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-
       FROM job_process_sub_stage
-
       WHERE stage_id = $1
-
     `;
 
     const maxSortOrderResult = await client.query(maxSortOrderQuery, [stageId]);
-
     const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
 
     let finalSortOrder;
@@ -559,15 +406,10 @@ async function createSubStage(stageId, payload) {
 
     if (payload.sort_order !== undefined) {
       const shiftSortOrderQuery = `
-
         UPDATE job_process_sub_stage
-
         SET sort_order = sort_order + 1
-
         WHERE stage_id = $1 
-
           AND sort_order >= $2
-
       `;
 
       await client.query(shiftSortOrderQuery, [stageId, payload.sort_order]);
@@ -575,15 +417,10 @@ async function createSubStage(stageId, payload) {
 
     const result = await client.query(
       `
-
       INSERT INTO job_process_sub_stage
-
       (stage_id, name, sort_order)
-
       VALUES ($1, $2, $3)
-
       RETURNING *
-
       `,
 
       [stageId, payload.name, finalSortOrder],
@@ -611,15 +448,10 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
 
     const checkQuery = await client.query(
       `
-
       SELECT ss.sub_stage_id, ss.stage_id, ss.name, ss.sort_order, s.builder_id, s.company_id
-
       FROM job_process_sub_stage ss
-
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
-
       WHERE ss.sub_stage_id = $1
-
       `,
 
       [subStageId],
@@ -641,17 +473,11 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
     if (payload.name && payload.name !== existingSubStage.name) {
       const duplicateCheck = await client.query(
         `
-
         SELECT sub_stage_id 
-
         FROM job_process_sub_stage
-
         WHERE stage_id = $1 
-
           AND name = $2
-
           AND sub_stage_id != $3
-
         `,
 
         [existingSubStage.stage_id, payload.name, subStageId],
@@ -669,13 +495,9 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
       payload.sort_order !== existingSubStage.sort_order
     ) {
       const maxSortOrderQuery = `
-
         SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-
         FROM job_process_sub_stage
-
         WHERE stage_id = $1
-
       `;
 
       const maxSortOrderResult = await client.query(maxSortOrderQuery, [
@@ -693,56 +515,36 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
       if (payload.sort_order > existingSubStage.sort_order) {
         await client.query(
           `
-
           UPDATE job_process_sub_stage
-
           SET sort_order = sort_order - 1
-
           WHERE sort_order > $1
-
             AND sort_order <= $2
-
             AND sub_stage_id != $3
-
             AND stage_id = $4
-
           `,
 
           [
             existingSubStage.sort_order,
-
             payload.sort_order,
-
             subStageId,
-
             existingSubStage.stage_id,
           ],
         );
       } else {
         await client.query(
           `
-
           UPDATE job_process_sub_stage
-
           SET sort_order = sort_order + 1
-
           WHERE sort_order >= $1
-
             AND sort_order < $2
-
             AND sub_stage_id != $3
-
             AND stage_id = $4
-
           `,
 
           [
             payload.sort_order,
-
             existingSubStage.sort_order,
-
             subStageId,
-
             existingSubStage.stage_id,
           ],
         );
@@ -751,21 +553,13 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
 
     const { rows, rowCount } = await client.query(
       `
-
       UPDATE job_process_sub_stage
-
       SET
-
         name = COALESCE($2, name),
-
         sort_order = COALESCE($3, sort_order),
-
         updated_at = NOW()
-
       WHERE sub_stage_id = $1
-
       RETURNING *
-
       `,
 
       [subStageId, payload.name, payload.sort_order],
@@ -785,15 +579,7 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
   }
 }
 
-async function deleteSubStage(
-  subStageId,
-
-  builderId,
-
-  companyId,
-
-  taskId = null,
-) {
+async function deleteSubStage(subStageId, builderId, companyId, taskId = null) {
   const pool = getPool();
 
   const client = await pool.connect();
@@ -803,15 +589,10 @@ async function deleteSubStage(
 
     const checkQuery = await client.query(
       `
-
       SELECT ss.sub_stage_id, ss.stage_id, ss.sort_order, s.builder_id, s.company_id
-
       FROM job_process_sub_stage ss
-
       JOIN job_process_stage s ON s.stage_id = ss.stage_id
-
       WHERE ss.sub_stage_id = $1 AND s.builder_id = $2 AND s.company_id = $3
-
       `,
 
       [subStageId, builderId, companyId],
@@ -829,15 +610,10 @@ async function deleteSubStage(
 
     const tasksInDeletedSubStage = await client.query(
       `
-
       SELECT job_process_task_id, sort_order
-
       FROM job_process_task
-
       WHERE sub_stage_id = $1
-
       ORDER BY sort_order
-
       `,
 
       [subStageId],
@@ -846,13 +622,9 @@ async function deleteSubStage(
     if (taskId) {
       const taskQuery = await client.query(
         `
-
         SELECT sub_stage_id, sort_order
-
         FROM job_process_task
-
         WHERE job_process_task_id = $1
-
         `,
 
         [taskId],
@@ -867,13 +639,9 @@ async function deleteSubStage(
 
       await client.query(
         `
-
         UPDATE job_process_task
-
         SET sort_order = sort_order + $1
-
         WHERE sub_stage_id = $2 AND sort_order > $3
-
         `,
 
         [
@@ -889,13 +657,9 @@ async function deleteSubStage(
 
         await client.query(
           `
-
           UPDATE job_process_task
-
           SET sub_stage_id = $1, sort_order = $2
-
           WHERE job_process_task_id = $3
-
           `,
 
           [targetSubStageId, newSortOrder, task.job_process_task_id],
@@ -904,26 +668,18 @@ async function deleteSubStage(
     } else {
       await handleAllTaskRelocation(
         client,
-
         subStageId,
-
         stageId,
-
         existingSortOrder,
       );
     }
 
     await client.query(
       `
-
       UPDATE job_process_sub_stage
-
       SET sort_order = sort_order - 1
-
       WHERE stage_id = $1 
-
         AND sort_order > $2
-
       `,
 
       [stageId, existingSortOrder],
@@ -947,13 +703,9 @@ async function deleteSubStage(
 
 async function handleAllTaskRelocation(
   client,
-
   deletedSubStageId,
-
   stageId,
-
   deletedSortOrder,
-
   specificTasks = null,
 ) {
   let targetSubStageQuery;
@@ -961,23 +713,14 @@ async function handleAllTaskRelocation(
   if (specificTasks) {
     targetSubStageQuery = await client.query(
       `
-
       SELECT sub_stage_id, sort_order
-
       FROM job_process_sub_stage
-
       WHERE stage_id = (
-
         SELECT stage_id FROM job_process_sub_stage WHERE sub_stage_id = $1
-
       )
-
       AND sub_stage_id != $1
-
       ORDER BY sort_order
-
       LIMIT 1
-
       `,
 
       [deletedSubStageId],
@@ -985,17 +728,11 @@ async function handleAllTaskRelocation(
   } else {
     targetSubStageQuery = await client.query(
       `
-
       SELECT sub_stage_id, sort_order
-
       FROM job_process_sub_stage
-
       WHERE stage_id = $1 AND sort_order > $2
-
       ORDER BY sort_order
-
       LIMIT 1
-
       `,
 
       [stageId, deletedSortOrder],
@@ -1012,15 +749,10 @@ async function handleAllTaskRelocation(
     specificTasks ||
     (await client.query(
       `
-
     SELECT job_process_task_id, sort_order
-
     FROM job_process_task
-
     WHERE sub_stage_id = $1
-
     ORDER BY sort_order
-
     `,
 
       [deletedSubStageId],
@@ -1028,13 +760,9 @@ async function handleAllTaskRelocation(
 
   const maxSortOrderQuery = await client.query(
     `
-
     SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
-
     FROM job_process_task
-
     WHERE sub_stage_id = $1
-
     `,
 
     [targetSubStageId],
@@ -1049,13 +777,9 @@ async function handleAllTaskRelocation(
 
     await client.query(
       `
-
       UPDATE job_process_task
-
       SET sub_stage_id = $1, sort_order = $2
-
       WHERE job_process_task_id = $3
-
       `,
 
       [targetSubStageId, newSortOrder, task.job_process_task_id],
@@ -1068,85 +792,40 @@ async function getJobProcess(companyId, builderId) {
 
   const { rows } = await pool.query(
     `
-
     SELECT
-
       s.stage_id,
-
       s.name AS stage_name,
-
       s.sort_order AS stage_order,
-
       s.dependent_stage_id,
-
       ds.name AS dependent_stage_name,
-
       f.functionality_id,
-
       f.name AS functionality_name,
-
       f.is_workflow,
-
-
-
       ss.sub_stage_id,
-
       ss.name AS sub_stage_name,
-
       ss.sort_order AS sub_stage_order,
-
-
-
       t.job_process_task_id,
-
       t.name AS task_name,
-
       t.sort_order AS task_order,
-
-
-
       d.predecessor_task_id,
-
       pt.name AS predecessor_task_name,
-
-
-
       st.job_process_subtask_id,
-
       st.name AS subtask_name,
-
       st.sort_order AS subtask_order
-
-
-
     FROM job_process_stage s
-
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-
     LEFT JOIN job_process_sub_stage ss ON ss.stage_id = s.stage_id
-
     LEFT JOIN job_process_task t ON t.sub_stage_id = ss.sub_stage_id
-
     LEFT JOIN job_process_task_dependency d ON d.task_id = t.job_process_task_id
-
     LEFT JOIN job_process_task pt ON d.predecessor_task_id = pt.job_process_task_id
-
     LEFT JOIN job_process_subtask st ON st.job_process_task_id = t.job_process_task_id
-
     WHERE s.company_id = $1 AND s.builder_id = $2
-
     ORDER BY
-
       s.sort_order,
-
       ss.sort_order,
-
       t.sort_order,
-
       st.sort_order
-
   `,
 
     [companyId, builderId],
@@ -1158,27 +837,19 @@ async function getJobProcess(companyId, builderId) {
     if (!stageMap.has(r.stage_id)) {
       stageMap.set(r.stage_id, {
         stageId: r.stage_id,
-
         name: r.stage_name,
-
         sortOrder: r.stage_order,
-
         dependentStage: r.dependent_stage_id
           ? {
               id: r.dependent_stage_id,
-
               name: r.dependent_stage_name,
             }
           : null,
-
         functionality: {
           id: r.functionality_id,
-
           name: r.functionality_name,
-
           isWorkflow: r.is_workflow,
         },
-
         subStages: [],
       });
     }
@@ -1193,11 +864,8 @@ async function getJobProcess(companyId, builderId) {
       if (!subStage) {
         subStage = {
           subStageId: r.sub_stage_id,
-
           name: r.sub_stage_name,
-
           sortOrder: r.sub_stage_order,
-
           tasks: [],
         };
 
@@ -1212,13 +880,9 @@ async function getJobProcess(companyId, builderId) {
         if (!task) {
           task = {
             taskId: r.job_process_task_id,
-
             name: r.task_name,
-
             sortOrder: r.task_order,
-
             dependencies: [],
-
             subTasks: [],
           };
 
@@ -1231,7 +895,6 @@ async function getJobProcess(companyId, builderId) {
         ) {
           task.dependencies.push({
             id: r.predecessor_task_id,
-
             name: r.predecessor_task_name,
           });
         }
@@ -1244,9 +907,7 @@ async function getJobProcess(companyId, builderId) {
           ) {
             task.subTasks.push({
               subTaskId: r.job_process_subtask_id,
-
               name: r.subtask_name,
-
               sortOrder: r.subtask_order,
             });
           }
@@ -1263,39 +924,22 @@ async function getStages(companyId, builderId) {
 
   const { rows } = await pool.query(
     `
-
     SELECT
-
       s.stage_id,
-
       s.name,
-
       s.sort_order,
-
       s.dependent_stage_id,
-
       ds.name AS dependent_stage_name,
-
       f.functionality_id,
-
       f.name AS functionality_name,
-
       f.is_workflow
-
     FROM job_process_stage s
-
     JOIN job_process_stage_functionality f
-
     ON f.functionality_id = s.functionality_id
-
     LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-
     WHERE s.company_id = $1
-
       AND s.builder_id = $2
-
     ORDER BY s.sort_order
-
     `,
 
     [companyId, builderId],
@@ -1303,25 +947,18 @@ async function getStages(companyId, builderId) {
 
   return rows.map((row) => ({
     stageId: row.stage_id,
-
     name: row.name,
-
     sortOrder: row.sort_order,
-
     dependentStage: row.dependent_stage_id
       ? {
           id: row.dependent_stage_id,
-
           name: row.dependent_stage_name,
         }
       : null,
-
     functionality: {
       id: row.functionality_id,
-
       name: row.functionality_name,
     },
-
     isWorkflow: row.is_workflow,
   }));
 }
@@ -1331,17 +968,11 @@ async function getSubStages(stageId) {
 
   const workflowCheck = await pool.query(
     `
-
     SELECT f.is_workflow
-
     FROM job_process_stage s
-
     JOIN job_process_stage_functionality f
-
       ON f.functionality_id = s.functionality_id
-
     WHERE s.stage_id = $1
-
     `,
 
     [stageId],
@@ -1353,23 +984,14 @@ async function getSubStages(stageId) {
 
   const { rows } = await pool.query(
     `
-
     SELECT
-
       sub_stage_id,
-
       name,
-
       sort_order
-
     FROM job_process_sub_stage
-
     WHERE stage_id = $1
-
     ORDER BY sort_order
-
     `,
-
     [stageId],
   );
 
@@ -1388,22 +1010,13 @@ async function getStageFunctionalities() {
 
 module.exports = {
   createStage,
-
   updateStage,
-
   deleteStage,
-
   createSubStage,
-
   updateSubStage,
-
   deleteSubStage,
-
   getStages,
-
   getSubStages,
-
   getStageFunctionalities,
-
   getJobProcess,
 };

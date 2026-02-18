@@ -483,6 +483,7 @@ exports.getAllColorItems = async (req, res) => {
       upgrade_option,
       units,
       color_category_id,
+      color_group_id,
     } = req.query;
 
     page = parseInt(page, 10);
@@ -543,6 +544,12 @@ exports.getAllColorItems = async (req, res) => {
       index++;
     }
 
+    if (color_group_id !== undefined) {
+      conditions.push(`cgim.color_group_id = $${index}`);
+      values.push(color_group_id);
+      index++;
+    }
+
     if (search !== undefined && search.trim() !== "") {
       conditions.push(
         `(LOWER(ci.item_name) LIKE LOWER($${index}) OR LOWER(ci.item_code) LIKE LOWER($${index + 1}))`,
@@ -557,12 +564,14 @@ exports.getAllColorItems = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM color_item ci
+      ${color_group_id ? "LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id" : ""}
       ${whereClause};
     `;
 
     const listQuery = `
       SELECT ci.*
       FROM color_item ci
+      ${color_group_id ? "LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id" : ""}
       ${whereClause}
       ORDER BY ci.created_at DESC
       LIMIT ${limit} OFFSET ${offset};

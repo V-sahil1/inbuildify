@@ -66,7 +66,7 @@ router.delete(
   "/sub-stages/:sub_stage_id",
   camelToSnakeMiddleware,
   validateRequest(validation.subStageParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(validation.deleteSubStageSchema, REQUEST_SOURCE.BODY),
+  // validateRequest(validation.deleteSubStageSchema, REQUEST_SOURCE.BODY),
   controller.deleteSubStage,
 );
 
@@ -143,5 +143,7 @@ router.delete(
 router.get("/", controller.getJobProcess);
 
 router.get("/tasks", camelToSnakeMiddleware, controller.getAllJobTasks);
+
+router.get("/tasks-only", camelToSnakeMiddleware, controller.getAllTasksOnly);
 
 module.exports = router;

@@ -62,6 +62,9 @@ async function upsertCompany(builderId, payload, client) {
       existingCompany?.addressId || null,
       payload.address,
     );
+  } else if (existingCompany?.addressId) {
+    // Keep existing address if no new address provided
+    addressId = existingCompany.addressId;
   }
 
   const mapTimezone = async (company) => {
@@ -70,7 +73,6 @@ async function upsertCompany(builderId, payload, client) {
     if (company.timezone_id) {
       const tzResult = await client.query(
         `SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1`,
-
         [company.timezone_id],
       );
 
@@ -87,60 +89,34 @@ async function upsertCompany(builderId, payload, client) {
 
   if (!existingCompany) {
     const insertQuery = `
-
       INSERT INTO company (
-
         builder_id,
-
         name,
-
         abn_number,
-
         timezone_id,
-
         address_id,
-
         bank_name,
-
         account_name,
-
         account_number,
-
         account_bsb,
-
         email_signature_logo,
-
         company_logo
-
       )
-
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-
       RETURNING *;
-
     `;
 
     const values = [
       builderId,
-
       payload.name,
-
       payload.abn_number,
-
       payload.timezone_id,
-
       addressId,
-
       payload.bank_name,
-
       payload.account_name,
-
       payload.account_number,
-
       payload.account_bsb,
-
       payload.email_signature_logo,
-
       payload.company_logo,
     ];
 
@@ -149,80 +125,51 @@ async function upsertCompany(builderId, payload, client) {
     const company = insertResult.rows[0];
 
     // LINK COMPANY → BUILDER
-
     await client.query(
       `
-
     UPDATE builder
-
     SET company_id = $1, updated_at = NOW()
-
     WHERE builder_id = $2
-
     `,
-
       [company.company_id, builderId],
     );
 
     return mapTimezone(insertResult.rows[0]);
   }
 
+  // For update, preserve existing values for fields not provided in payload
   const updateQuery = `
-
     UPDATE company
-
     SET
-
-      name = $2,
-
-      abn_number = $3,
-
-      timezone_id = $4,
-
-      address_id = $5,
-
-      bank_name = $6,
-
-      account_name = $7,
-
-      account_number = $8,
-
-      account_bsb = $9,
-
-      email_signature_logo = $10,
-
-      company_logo = $11,
-
+      name = COALESCE($2, name),
+      abn_number = COALESCE($3, abn_number),
+      timezone_id = COALESCE($4, timezone_id),
+      address_id = COALESCE($5, address_id),
+      bank_name = COALESCE($6, bank_name),
+      account_name = COALESCE($7, account_name),
+      account_number = COALESCE($8, account_number),
+      account_bsb = COALESCE($9, account_bsb),
+      email_signature_logo = COALESCE($10, email_signature_logo),
+      company_logo = COALESCE($11, company_logo),
       updated_at = NOW()
-
     WHERE builder_id = $1
-
     RETURNING *;
-
   `;
 
   const values = [
     builderId,
-
-    payload.name,
-
-    payload.abn_number,
-
-    payload.timezone_id,
-
-    addressId,
-
-    payload.bank_name,
-
-    payload.account_name,
-
-    payload.account_number,
-
-    payload.account_bsb,
-
-    payload.email_signature_logo,
-
-    payload.company_logo,
+    payload.name !== undefined ? payload.name : null,
+    payload.abn_number !== undefined ? payload.abn_number : null,
+    payload.timezone_id !== undefined ? payload.timezone_id : null,
+    addressId !== undefined ? addressId : null,
+    payload.bank_name !== undefined ? payload.bank_name : null,
+    payload.account_name !== undefined ? payload.account_name : null,
+    payload.account_number !== undefined ? payload.account_number : null,
+    payload.account_bsb !== undefined ? payload.account_bsb : null,
+    payload.email_signature_logo !== undefined
+      ? payload.email_signature_logo
+      : null,
+    payload.company_logo !== undefined ? payload.company_logo : null,
   ];
 
   const updateResult = await client.query(updateQuery, values);

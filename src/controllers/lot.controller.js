@@ -42,7 +42,6 @@ exports.createLot = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Validate house_land_package_id if provided
     if (house_land_package_id) {
       const houseLandPackageCheck = await client.query(
         "SELECT house_land_package_id FROM house_land_package WHERE house_land_package_id = $1 LIMIT 1",
@@ -59,7 +58,6 @@ exports.createLot = async (req, res) => {
       }
     }
 
-    // Validate estate_id if provided
     if (estate_id) {
       const estateCheck = await client.query(
         "SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2 LIMIT 1",
@@ -76,7 +74,6 @@ exports.createLot = async (req, res) => {
       }
     }
 
-    // Validate estate_stage_id if provided and check if it belongs to estate_id
     if (estate_stage_id) {
       const estateStageCheck = await client.query(
         "SELECT estate_stage_id, estate_id FROM estate_stages WHERE estate_stage_id = $1 LIMIT 1",
@@ -92,7 +89,6 @@ exports.createLot = async (req, res) => {
         );
       }
 
-      // Check if estate_stage belongs to the provided estate_id
       const stageEstateId = estateStageCheck.rows[0].estate_id;
       if (estate_id && stageEstateId !== estate_id) {
         await client.query("ROLLBACK");
@@ -349,7 +345,6 @@ exports.updateLot = async (req, res) => {
       );
     }
 
-    // Check if lot exists
     const checkSql = "SELECT * FROM lot WHERE lot_id = $1";
     const checkResult = await client.query(checkSql, [lot_id]);
 
@@ -363,7 +358,6 @@ exports.updateLot = async (req, res) => {
     const updateValues = [];
     let paramIndex = 1;
 
-    // Build dynamic update query - exclude house_land_package_id, estate_id, and estate_stage_id
     const allowedFields = [
       "lot_number",
       "street",
@@ -382,7 +376,6 @@ exports.updateLot = async (req, res) => {
       "land_fill_mm",
     ];
 
-    // Check if user is trying to update restricted fields
     const restrictedFields = [
       "house_land_package_id",
       "estate_id",
@@ -454,7 +447,6 @@ exports.deleteLot = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing");
     }
 
-    // Check if lot exists
     const checkSql = "SELECT * FROM lot WHERE lot_id = $1";
     const checkResult = await client.query(checkSql, [lot_id]);
 

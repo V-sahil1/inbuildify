@@ -240,6 +240,40 @@ exports.createPriceListItem = async (req, res) => {
     ];
 
     const result = await client.query(insertQuery, values);
+    const newItemId = result.rows[0].price_list_item_id;
+
+    // Process conditions after the item is created
+    const conditionValues = [];
+    const placeholders = [];
+
+    if (req.body.conditions && Array.isArray(req.body.conditions)) {
+      req.body.conditions.forEach((c, index) => {
+        const baseIndex = index * 5;
+
+        placeholders.push(
+          `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`,
+        );
+
+        conditionValues.push(
+          newItemId,
+          c.condition_name,
+          c.condition_name === "corner_block" ? c.status : null,
+          c.condition_name === "corner_block" ? null : c.range_start,
+          c.condition_name === "corner_block" ? null : c.range_end,
+        );
+      });
+    }
+
+    if (placeholders.length > 0) {
+      await client.query(
+        `
+  INSERT INTO price_list_item_condition
+  (price_list_item_id, condition_name, status, range_start, range_end)
+  VALUES ${placeholders.join(",")}
+  `,
+        conditionValues,
+      );
+    }
 
     await client.query("COMMIT");
 
