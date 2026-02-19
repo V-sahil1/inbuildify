@@ -17,9 +17,15 @@ module.exports.createAgentReferralPartner = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Transform response to match get all API structure
+    const transformedData =
+      await agentReferralPartnerService.transformAgentReferralPartnerResponse(
+        data,
+      );
+
     return successResponse(
       res,
-      keysToCamelCase(data),
+      transformedData,
       "Agent referral partner created successfully.",
     );
   } catch (err) {
@@ -36,9 +42,15 @@ module.exports.getAgentReferralPartnerById = async (req, res) => {
     const data =
       await agentReferralPartnerService.getAgentReferralPartnerById(partner_id);
 
+    // Transform response to match get all API structure
+    const transformedData =
+      await agentReferralPartnerService.transformAgentReferralPartnerResponse(
+        data,
+      );
+
     return successResponse(
       res,
-      keysToCamelCase(data),
+      transformedData,
       "Agent referral partner retrieved successfully.",
     );
   } catch (err) {
@@ -61,15 +73,7 @@ module.exports.getAgentReferralPartners = async (req, res) => {
 
     return successResponse(
       res,
-      {
-        agent: data.data,
-        pagination: {
-          totalRecords: data.total,
-          currentPage: pageNum,
-          totalPages,
-          limit: limitNum,
-        },
-      },
+      data.data,
       "Agent referral partners retrieved successfully.",
     );
   } catch (err) {
@@ -94,9 +98,15 @@ module.exports.updateAgentReferralPartner = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Transform response to match get all API structure
+    const transformedData =
+      await agentReferralPartnerService.transformAgentReferralPartnerResponse(
+        data,
+      );
+
     return successResponse(
       res,
-      keysToCamelCase(data),
+      transformedData,
       "Agent referral partner updated successfully.",
     );
   } catch (err) {

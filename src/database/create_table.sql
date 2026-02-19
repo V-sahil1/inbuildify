@@ -2696,6 +2696,7 @@ CREATE TABLE appointment(
   select_users UUID[] DEFAULT '{}',
   notes VARCHAR(255),
   is_deleted BOOLEAN DEFAULT FALSE,
+  send_appointment_customer BOOLEAN DEFAULT FALSE,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2884,33 +2885,6 @@ CREATE TABLE contract_section(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- CREATE TABLE agent_referral_partner(
---   agent_referral_partner_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
---   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
---   name VARCHAR(255) NOT NULL,
---   email VARCHAR(255) NOT NULL,
---   phone VARCHAR(255) NOT NULL,
---   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
---   account_name VARCHAR(255),
---   account_bsb VARCHAR(255),
---   account_number VARCHAR(255),
---   abn VARCHAR(255),
---   company_name VARCHAR(255),
---   referred_user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
---   create_login BOOLEAN DEFAULT FALSE,
---   login_id VARCHAR(100),
---   password VARCHAR(255),
---   password_auto_generated BOOLEAN DEFAULT FALSE,
---   next_login_password_change BOOLEAN DEFAULT FALSE,
---   email_login_credentials BOOLEAN DEFAULT FALSE,
---   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
---   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
---   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---   CONSTRAINT chk_agent_referral_partner_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
--- );
-
 CREATE TABLE agent_referral_partner(
   agent_referral_partner_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -2999,6 +2973,8 @@ CREATE TABLE master_section_item(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+--  make one api for the transfer, on hold , blocklist, convert to opportunity, send welcome letter
+-- make one api for the delete
 CREATE TABLE leads (
   leads_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
 
@@ -3018,7 +2994,7 @@ CREATE TABLE leads (
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
   status VARCHAR(20) DEFAULT 'new',                -- valid new, working, convert
-  outcome VARCHAR(10), -- Won / Lost
+  outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
   
   rating VARCHAR(150),              -- none, hot, cold, warm
   land VARCHAR(150),                  -- none, no, yes
@@ -3044,6 +3020,7 @@ CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   refrence_id VARCHAR(50),                            --- need to decide contat update un quotatio  or not
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,        
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
@@ -3060,7 +3037,6 @@ CREATE TABLE quotation_version(
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
-  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,          -- make property object to create the property
   package_id UUID[] DEFAULT '{}',
   floor_plan_id UUID[] DEFAULT '{}',
   facade_id UUID[] DEFAULT '{}',

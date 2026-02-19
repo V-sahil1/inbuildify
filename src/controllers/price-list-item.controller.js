@@ -300,7 +300,20 @@ exports.createPriceListItem = async (req, res) => {
           )
           FROM dwelling_type dt
           WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'priceListItemConditionId', plic.price_list_item_condition_id,
+              'conditionName', plic.condition_name,
+              'status', plic.status,
+              'rangeStart', plic.range_start,
+              'rangeEnd', plic.range_end
+            ) ORDER BY plic.price_list_item_condition_id
+          )
+          FROM price_list_item_condition plic
+          WHERE plic.price_list_item_id = pli.price_list_item_id
+        ) as conditions_data
       FROM price_list_item pli
       LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
       WHERE pli.price_list_item_id = $1
@@ -310,6 +323,17 @@ exports.createPriceListItem = async (req, res) => {
       result.rows[0].price_list_item_id,
     ]);
     const createdItem = keysToCamelCase(createdItemResult.rows[0]);
+
+    let conditionsData = createdItem.conditionsData || [];
+    if (conditionsData.length > 0) {
+      conditionsData = conditionsData.map((condition) => ({
+        priceListItemConditionId: condition.priceListItemConditionId,
+        conditionName: condition.conditionName,
+        status: condition.status,
+        rangeStart: condition.rangeStart,
+        rangeEnd: condition.rangeEnd,
+      }));
+    }
 
     const formattedItem = {
       priceListItemId: createdItem.priceListItemId,
@@ -337,6 +361,7 @@ exports.createPriceListItem = async (req, res) => {
       showOnlyInPackage: createdItem.showOnlyInPackage,
       range: createdItem.rangeData || [],
       dwellingType: createdItem.dwellingTypeData || [],
+      conditions: conditionsData,
       createdBy: createdItem.createdBy,
       updatedBy: createdItem.updatedBy,
       createdAt: createdItem.createdAt,

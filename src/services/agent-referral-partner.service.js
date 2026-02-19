@@ -3,6 +3,7 @@ const addressRepo = require("../repositories/address.repository");
 const { keysToCamelCase } = require("../utils/common");
 const { encrypt } = require("../utils/crypto.util");
 const { generateStrongPassword } = require("../utils/password.util");
+const getPool = require("../config/database");
 
 const { sendPasswordEmail } = require("../service/email.service");
 
@@ -208,6 +209,100 @@ async function getAgentReferralPartnerById(partnerId) {
   return keysToCamelCase(partner);
 }
 
+async function transformAgentReferralPartnerResponse(partner) {
+  const transformed = keysToCamelCase(partner);
+
+  // Fetch detailed user data if userId exists
+  let userObject = {};
+  if (partner.userId) {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      const userQuery = await client.query(
+        `SELECT users_id, name, email, phone, login_id, password, 
+                next_login_password_change, email_login_credentials, 
+                password_auto_generated, is_active
+         FROM users 
+         WHERE users_id = $1 AND is_deleted = false`,
+        [partner.userId],
+      );
+
+      if (userQuery.rowCount > 0) {
+        const user = userQuery.rows[0];
+        userObject = {
+          userId: user.users_id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          createLogin: user.password_auto_generated || false,
+          loginId: user.login_id,
+          passwordOption: user.password ? "manual" : null,
+          manualPassword: user.password || null,
+          nextLoginPasswordChange: user.next_login_password_change || false,
+          emailLoginCredentials: user.email_login_credentials || false,
+          isActive: user.is_active,
+        };
+      }
+    } finally {
+      client.release();
+    }
+  }
+
+  // Fetch detailed address data if addressId exists (single object, not array)
+  let addressObject = {};
+  if (partner.addressId) {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      const addressQuery = await client.query(
+        `SELECT address_id, address_line1, address_line2, city, state_id, country_id, zip_code 
+             FROM address WHERE address_id = $1`,
+        [partner.addressId],
+      );
+
+      if (addressQuery.rowCount > 0) {
+        const address = addressQuery.rows[0];
+        addressObject = {
+          addressId: address.address_id,
+          addressLine1: address.address_line1,
+          addressLine2: address.address_line2,
+          city: address.city,
+          stateId: address.state_id,
+          countryId: address.country_id,
+          zipCode: address.zip_code,
+        };
+      }
+    } finally {
+      client.release();
+    }
+  }
+
+  // Remove individual fields that are now in nested objects
+  delete transformed.userId;
+  delete transformed.addressId;
+
+  // Build response with proper field order
+  const response = {
+    agentReferralPartnerId: transformed.agentReferralPartnerId,
+    companyId: transformed.companyId,
+    builderId: transformed.builderId,
+    user: userObject,
+    address: addressObject,
+    companyName: transformed.companyName,
+    accountName: transformed.accountName,
+    accountBsb: transformed.accountBsb,
+    accountNumber: transformed.accountNumber,
+    abn: transformed.abn,
+    referredUserId: transformed.referredUserId,
+    createdBy: transformed.createdBy,
+    updatedBy: transformed.updatedBy,
+    createdAt: transformed.createdAt,
+    updatedAt: transformed.updatedAt,
+  };
+
+  return response;
+}
+
 async function getAgentReferralPartners(currentUser, query) {
   let result;
 
@@ -225,9 +320,107 @@ async function getAgentReferralPartners(currentUser, query) {
     throw { status: 403, message: "User must belong to a company or builder." };
   }
 
+  // Transform data to match required response structure
+  const transformedData = await Promise.all(
+    result.data.map(async (partner) => {
+      const transformed = keysToCamelCase(partner);
+
+      // Fetch detailed user data if user_id exists
+      let userObject = null;
+      if (partner.user_id) {
+        const pool = getPool();
+        const client = await pool.connect();
+        try {
+          const userQuery = await client.query(
+            `SELECT users_id, name, email, phone, login_id, password, 
+                    next_login_password_change, email_login_credentials, 
+                    password_auto_generated, is_active, is_locked
+             FROM users 
+             WHERE users_id = $1 AND is_deleted = false`,
+            [partner.user_id],
+          );
+
+          if (userQuery.rowCount > 0) {
+            const user = userQuery.rows[0];
+            userObject = {
+              userId: user.users_id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone,
+              createLogin: user.password_auto_generated || false,
+              loginId: user.login_id,
+              passwordOption: user.password ? "manual" : null,
+              manualPassword: user.password || null,
+              nextLoginPasswordChange: user.next_login_password_change || false,
+              emailLoginCredentials: user.email_login_credentials || false,
+              isActive: user.is_active,
+              isLocked: user.is_locked || false,
+            };
+          }
+        } finally {
+          client.release();
+        }
+      }
+
+      // Fetch detailed address data if address_id exists (single object, not array)
+      let addressObject = null;
+      if (partner.address_id) {
+        const pool = getPool();
+        const client = await pool.connect();
+        try {
+          const addressQuery = await client.query(
+            `SELECT address_id, address_line1, address_line2, city, state_id, country_id, zip_code 
+             FROM address WHERE address_id = $1`,
+            [partner.address_id],
+          );
+
+          if (addressQuery.rowCount > 0) {
+            const address = addressQuery.rows[0];
+            addressObject = {
+              addressId: address.address_id,
+              addressLine1: address.address_line1,
+              addressLine2: address.address_line2,
+              city: address.city,
+              stateId: address.state_id,
+              countryId: address.country_id,
+              zipCode: address.zip_code,
+            };
+          }
+        } finally {
+          client.release();
+        }
+      }
+
+      // Remove individual fields that are now in nested objects
+      delete transformed.userId;
+      delete transformed.addressId;
+
+      // Build response with proper field order
+      const response = {
+        agentReferralPartnerId: transformed.agentReferralPartnerId,
+        companyId: transformed.companyId,
+        builderId: transformed.builderId,
+        user: userObject,
+        address: addressObject,
+        companyName: transformed.companyName,
+        accountName: transformed.accountName,
+        accountBsb: transformed.accountBsb,
+        accountNumber: transformed.accountNumber,
+        abn: transformed.abn,
+        referredUserId: transformed.referredUserId,
+        createdBy: transformed.createdBy,
+        updatedBy: transformed.updatedBy,
+        createdAt: transformed.createdAt,
+        updatedAt: transformed.updatedAt,
+      };
+
+      return response;
+    }),
+  );
+
   return {
     ...result,
-    data: result.data.map(keysToCamelCase),
+    data: transformedData,
   };
 }
 
@@ -288,6 +481,7 @@ async function updateAgentReferralPartner(
     manual_password,
     next_login_password_change,
     email_login_credentials,
+    is_active,
   } = user || {};
 
   // Get existing user email if not provided in update
@@ -421,6 +615,7 @@ async function updateAgentReferralPartner(
     if (name !== undefined) userUpdateData.name = name;
     if (email !== undefined) userUpdateData.email = email;
     if (phone !== undefined) userUpdateData.phone = phone;
+    if (is_active !== undefined) userUpdateData.is_active = is_active;
 
     if (create_login !== undefined) {
       if (create_login) {
@@ -474,16 +669,52 @@ async function updateAgentReferralPartner(
     }
   }
 
+  if (referred_user_id !== undefined && referred_user_id !== null) {
+    const referredUser = await client.query(
+      "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_active = true",
+      [referred_user_id],
+    );
+
+    if (referredUser.rowCount === 0) {
+      throw {
+        status: 400,
+        message: "Referred user not found or is inactive.",
+      };
+    }
+  }
+
   const updateData = {
-    address_id: addressId,
-    account_name,
-    account_bsb,
-    account_number,
-    abn,
-    company_name,
-    referred_user_id,
+    address_id: existingPartner.address_id,
+    account_name: existingPartner.account_name,
+    account_bsb: existingPartner.account_bsb,
+    account_number: existingPartner.account_number,
+    abn: existingPartner.abn,
+    company_name: existingPartner.company_name,
+    referred_user_id: existingPartner.referred_user_id,
     updated_by: currentUser.user_id || currentUser.users_id,
   };
+
+  if (addressId !== undefined) {
+    updateData.address_id = addressId;
+  }
+  if (account_name !== undefined) {
+    updateData.account_name = account_name;
+  }
+  if (account_bsb !== undefined) {
+    updateData.account_bsb = account_bsb;
+  }
+  if (account_number !== undefined) {
+    updateData.account_number = account_number;
+  }
+  if (abn !== undefined) {
+    updateData.abn = abn;
+  }
+  if (company_name !== undefined) {
+    updateData.company_name = company_name;
+  }
+  if (referred_user_id !== undefined) {
+    updateData.referred_user_id = referred_user_id;
+  }
 
   const partner = await agentReferralPartnerRepo.updateAgentReferralPartner(
     partnerId,
@@ -535,4 +766,5 @@ module.exports = {
   getAgentReferralPartners,
   updateAgentReferralPartner,
   deleteAgentReferralPartner,
+  transformAgentReferralPartnerResponse,
 };

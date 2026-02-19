@@ -39,6 +39,10 @@ const createAppointmentSchema = Joi.object({
     .max(255)
     .pattern(/^[^<>]*$/)
     .allow(null, ""),
+
+  send_appointment_customer: Joi.boolean().default(false).messages({
+    "boolean.base": "send_appointment_customer must be a boolean value",
+  }),
 });
 
 const getAllAppointmentSchema = Joi.object({
@@ -120,6 +124,10 @@ const updateAppointmentSchema = Joi.object({
     .allow(null, "")
     .pattern(/^[^<>]*$/)
     .optional(),
+
+  send_appointment_customer: Joi.boolean().optional().messages({
+    "boolean.base": "send_appointment_customer must be a boolean value",
+  }),
 });
 module.exports = {
   createAppointmentSchema,

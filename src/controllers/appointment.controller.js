@@ -20,6 +20,7 @@ exports.createAppointment = async (req, res) => {
       link_to,
       select_users,
       notes,
+      send_appointment_customer,
     } = req.body;
 
     if (start_time >= end_time) {
@@ -102,6 +103,7 @@ exports.createAppointment = async (req, res) => {
         link_to,
         select_users,
         notes,
+        send_appointment_customer,
         created_by,
         updated_by
       )
@@ -113,9 +115,26 @@ exports.createAppointment = async (req, res) => {
         $9,
         $10,
         $11,
-        $12
+        $12,
+        $13
       )
-      RETURNING *
+      RETURNING 
+        appointment_id,
+        company_id,
+        builder_id,
+        title,
+        date,
+        start_time,
+        end_time,
+        link_to,
+        select_users,
+        notes,
+        send_appointment_customer,
+        is_deleted,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
     `;
 
     const values = [
@@ -129,19 +148,68 @@ exports.createAppointment = async (req, res) => {
       link_to || null,
       select_users || [],
       notes || null,
+      send_appointment_customer || false,
       userId,
       userId,
     ];
 
     const result = await client.query(insertQuery, values);
 
+    let locationData = [];
+    if (location_id) {
+      const locationQuery = await client.query(
+        `SELECT location_id, name FROM location WHERE location_id = $1`,
+        [location_id],
+      );
+      if (locationQuery.rowCount > 0) {
+        locationData = [
+          {
+            id: locationQuery.rows[0].location_id,
+            name: locationQuery.rows[0].name,
+          },
+        ];
+      }
+    }
+
+    let selectUsersData = [];
+    if (select_users && select_users.length > 0) {
+      const usersQuery = await client.query(
+        `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+        [select_users],
+      );
+      if (usersQuery.rowCount > 0) {
+        selectUsersData = usersQuery.rows.map((user) => ({
+          id: user.users_id,
+          name: user.name,
+        }));
+      }
+    }
+
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Appointment created successfully.",
-    );
+    const appointmentData = keysToCamelCase(result.rows[0]);
+
+    const response = {
+      appointmentId: appointmentData.appointmentId,
+      companyId: appointmentData.companyId,
+      builderId: appointmentData.builderId,
+      title: appointmentData.title,
+      date: appointmentData.date,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      location: locationData,
+      linkTo: appointmentData.linkTo,
+      selectUsers: selectUsersData,
+      notes: appointmentData.notes,
+      sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
+      isDeleted: appointmentData.isDeleted,
+      createdBy: appointmentData.createdBy,
+      updatedBy: appointmentData.updatedBy,
+      createdAt: appointmentData.createdAt,
+      updatedAt: appointmentData.updatedAt,
+    };
+
+    return successResponse(res, response, "Appointment created successfully.");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating appointment:", err);
@@ -179,43 +247,43 @@ exports.getAllAppointments = async (req, res) => {
     let idx = 1;
 
     if (builderId) {
-      whereClauses.push(`builder_id = $${idx}`);
+      whereClauses.push(`a.builder_id = $${idx}`);
       values.push(builderId);
       idx++;
     } else {
-      whereClauses.push(`company_id = $${idx}`);
+      whereClauses.push(`a.company_id = $${idx}`);
       values.push(companyId);
       idx++;
     }
 
     if (title) {
-      whereClauses.push(`LOWER(title) LIKE LOWER($${idx})`);
+      whereClauses.push(`LOWER(a.title) LIKE LOWER($${idx})`);
       values.push(`%${title}%`);
       idx++;
     }
 
     if (date) {
-      whereClauses.push(`date = $${idx}`);
+      whereClauses.push(`a.date = $${idx}`);
       values.push(date);
       idx++;
     }
 
     if (location_id) {
-      whereClauses.push(`location_id = $${idx}`);
+      whereClauses.push(`a.location_id = $${idx}`);
       values.push(location_id);
       idx++;
     }
 
     if (link_to) {
-      whereClauses.push(`link_to = $${idx}`);
+      whereClauses.push(`a.link_to = $${idx}`);
       values.push(link_to);
       idx++;
     }
 
     if (is_deleted === undefined) {
-      whereClauses.push(`is_deleted = false`);
+      whereClauses.push(`a.is_deleted = false`);
     } else {
-      whereClauses.push(`is_deleted = $${idx}`);
+      whereClauses.push(`a.is_deleted = $${idx}`);
       values.push(is_deleted === "true");
       idx++;
     }
@@ -223,22 +291,68 @@ exports.getAllAppointments = async (req, res) => {
     const where =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
-    const countQuery = `SELECT COUNT(*) FROM appointment ${where}`;
+    const countQuery = `SELECT COUNT(*) FROM appointment a ${where}`;
     const countResult = await client.query(countQuery, values);
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = `
-      SELECT *
-      FROM appointment
+      SELECT 
+        a.appointment_id,
+        a.company_id,
+        a.builder_id,
+        a.title,
+        a.date,
+        a.start_time,
+        a.end_time,
+        CASE 
+          WHEN l.location_id IS NOT NULL THEN 
+            json_build_object('id', l.location_id, 'name', l.name)
+          ELSE '[]'::json
+        END AS location,  
+        a.link_to,
+        a.select_users,
+        a.notes,
+        a.send_appointment_customer,
+        a.is_deleted,
+        a.created_by,
+        a.updated_by,
+        a.created_at,
+        a.updated_at
+      FROM appointment a
+      LEFT JOIN location l ON a.location_id = l.location_id
       ${where}
-      ORDER BY date DESC, start_time DESC
+      ORDER BY a.date DESC, a.start_time DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
     const result = await client.query(dataQuery, values);
 
+    // Process results to add user details for select_users
+    const processedResults = await Promise.all(
+      result.rows.map(async (appointment) => {
+        let selectUsersData = [];
+        if (appointment.select_users && appointment.select_users.length > 0) {
+          const usersQuery = await client.query(
+            `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+            [appointment.select_users],
+          );
+          if (usersQuery.rowCount > 0) {
+            selectUsersData = usersQuery.rows.map((user) => ({
+              id: user.users_id,
+              name: user.name,
+            }));
+          }
+        }
+
+        return {
+          ...appointment,
+          select_users: selectUsersData,
+        };
+      }),
+    );
+
     return successResponse(res, {
-      appointment: keysToCamelCase(result.rows),
+      appointment: keysToCamelCase(processedResults),
       totalRecords: total,
       currenPage: page,
       limit,
@@ -333,6 +447,7 @@ exports.updateAppointment = async (req, res) => {
       link_to,
       select_users,
       notes,
+      send_appointment_customer,
     } = req.body;
 
     if (!builderId && !companyId) {
@@ -501,6 +616,11 @@ exports.updateAppointment = async (req, res) => {
       values.push(notes);
       index++;
     }
+    if (send_appointment_customer !== undefined) {
+      fields.push(`send_appointment_customer = $${index}`);
+      values.push(send_appointment_customer);
+      index++;
+    }
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -517,20 +637,100 @@ exports.updateAppointment = async (req, res) => {
       SET ${fields.join(", ")}
       WHERE appointment_id = $1 
       AND (builder_id = $2 OR company_id = $3)
-      RETURNING *;
+      RETURNING 
+        appointment_id,
+        company_id,
+        builder_id,
+        title,
+        date,
+        start_time,
+        end_time,
+        location_id,
+        link_to,
+        select_users,
+        notes,
+        send_appointment_customer,
+        is_deleted,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at;
     `;
 
     const finalValues = [appointment_id, builderId, companyId, ...values];
 
     const updateResult = await client.query(updateQuery, finalValues);
 
+    // Get location details if location_id exists
+    let locationData = [];
+    const updatedAppointment = updateResult.rows[0];
+
+    // Check if location_id was updated in this request
+    let locationIdToLookup = updatedAppointment.location_id;
+    if (location_id !== undefined) {
+      locationIdToLookup = location_id;
+    }
+
+    if (locationIdToLookup) {
+      const locationQuery = await client.query(
+        `SELECT location_id, name FROM location WHERE location_id = $1`,
+        [locationIdToLookup],
+      );
+      if (locationQuery.rowCount > 0) {
+        locationData = [
+          {
+            id: locationQuery.rows[0].location_id,
+            name: locationQuery.rows[0].name,
+          },
+        ];
+      }
+    }
+
+    // Get select_users details if users exist
+    let selectUsersData = [];
+    const selectUsersToLookup =
+      select_users !== undefined
+        ? select_users
+        : updatedAppointment.select_users;
+    if (selectUsersToLookup && selectUsersToLookup.length > 0) {
+      const usersQuery = await client.query(
+        `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+        [selectUsersToLookup],
+      );
+      if (usersQuery.rowCount > 0) {
+        selectUsersData = usersQuery.rows.map((user) => ({
+          id: user.users_id,
+          name: user.name,
+        }));
+      }
+    }
+
     await client.query("COMMIT");
 
-    return successResponse(
-      res,
-      keysToCamelCase(updateResult.rows[0]),
-      "Appointment updated successfully.",
-    );
+    const appointmentData = keysToCamelCase(updatedAppointment);
+
+    // Construct response with proper order and location object
+    const response = {
+      appointmentId: appointmentData.appointmentId,
+      companyId: appointmentData.companyId,
+      builderId: appointmentData.builderId,
+      title: appointmentData.title,
+      date: appointmentData.date,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      location: locationData,
+      linkTo: appointmentData.linkTo,
+      selectUsers: selectUsersData,
+      notes: appointmentData.notes,
+      sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
+      isDeleted: appointmentData.isDeleted,
+      createdBy: appointmentData.createdBy,
+      updatedBy: appointmentData.updatedBy,
+      createdAt: appointmentData.createdAt,
+      updatedAt: appointmentData.updatedAt,
+    };
+
+    return successResponse(res, response, "Appointment updated successfully.");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error updating appointment:", err);

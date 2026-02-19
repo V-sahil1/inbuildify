@@ -22,7 +22,7 @@ async function createAgentReferralPartner(data, client = getPool()) {
       referred_user_id, created_by
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-    ) RETURNING *`,
+    ) RETURNING agent_referral_partner_id, company_id, builder_id, user_id, address_id, account_name, account_bsb, account_number, abn, company_name, referred_user_id, created_by, updated_by, created_at, updated_at`,
     [
       company_id,
       builder_id,
@@ -201,7 +201,7 @@ async function updateAgentReferralPartner(partnerId, data, client = getPool()) {
       updated_by = $9,
       updated_at = NOW()
     WHERE agent_referral_partner_id = $1
-    RETURNING *`,
+    RETURNING agent_referral_partner_id, company_id, builder_id, user_id, address_id, account_name, account_bsb, account_number, abn, company_name, referred_user_id, created_by, updated_by, created_at, updated_at`,
     [
       partnerId,
       address_id,

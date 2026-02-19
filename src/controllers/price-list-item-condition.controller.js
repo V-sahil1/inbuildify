@@ -53,6 +53,15 @@ exports.createPriceListItemCondition = async (req, res) => {
         "Price list item not found or unauthorized",
       );
     }
+    if (condition_name !== "corner_block") {
+      if (status !== undefined) {
+        return errorResponse(
+          res,
+          400,
+          "status is not allow when the condition name is land_fill, land_size, site_fall. ",
+        );
+      }
+    }
 
     if (condition_name === "corner_block") {
       if (range_start !== undefined || range_end !== undefined) {
@@ -461,7 +470,6 @@ exports.deletePriceListItemCondition = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
       "Price list item condition deleted successfully",
     );
   } catch (error) {

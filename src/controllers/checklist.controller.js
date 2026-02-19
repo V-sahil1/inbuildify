@@ -15,7 +15,7 @@ exports.createChecklist = async (req, res) => {
 
     const screenRes = await client.query(
       `SELECT screen_id FROM screen WHERE screen_id = $1`,
-      [screen_id]
+      [screen_id],
     );
     if (screenRes.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -24,7 +24,7 @@ exports.createChecklist = async (req, res) => {
 
     const funcRes = await client.query(
       `SELECT functionality_id FROM functionality WHERE functionality_id = $1`,
-      [functionality_id]
+      [functionality_id],
     );
     if (funcRes.rowCount === 0) {
       await client.query("ROLLBACK");
@@ -52,7 +52,7 @@ exports.createChecklist = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Functionality with this name already exists for this screen."
+        "Functionality with this name already exists for this screen.",
       );
     }
 
@@ -95,7 +95,7 @@ exports.createChecklist = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertRes.rows[0]),
-      "Checklist created successfully."
+      "Checklist created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -168,7 +168,7 @@ exports.getAllChecklist = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Checklist fetched successfully."
+      "Checklist fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching checklist:", error);
@@ -234,7 +234,7 @@ exports.deleteChecklist = async (req, res) => {
     return errorResponse(
       res,
       500,
-      err.message || "Failed to delete checklist."
+      err.message || "Failed to delete checklist.",
     );
   } finally {
     client.release();
@@ -276,7 +276,7 @@ exports.updateChecklist = async (req, res) => {
     AND is_active = TRUE
     AND is_deleted = FALSE
   `,
-      [checklist_id, builderId]
+      [checklist_id, builderId],
     );
 
     if (checklistCheck.rowCount === 0) {
@@ -286,7 +286,7 @@ exports.updateChecklist = async (req, res) => {
     if (screen_id) {
       const screenCheck = await client.query(
         `SELECT screen_id FROM screen WHERE screen_id = $1;`,
-        [screen_id]
+        [screen_id],
       );
       if (screenCheck.rowCount === 0) {
         await client.query("ROLLBACK");
@@ -297,14 +297,14 @@ exports.updateChecklist = async (req, res) => {
     if (functionality_id) {
       const funcCheck = await client.query(
         `SELECT functionality_id FROM functionality WHERE functionality_id = $1;`,
-        [functionality_id]
+        [functionality_id],
       );
       if (funcCheck.rowCount === 0) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          "Invalid functionalityId or functionality not found."
+          "Invalid functionalityId or functionality not found.",
         );
       }
     }
@@ -333,7 +333,7 @@ exports.updateChecklist = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "checklist with this name already exists for this functionality."
+          "checklist with this name already exists for this functionality.",
         );
       }
     }
@@ -410,7 +410,7 @@ exports.updateChecklist = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(finalResult.rows[0]),
-      "Checklist updated successfully."
+      "Checklist updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -418,7 +418,7 @@ exports.updateChecklist = async (req, res) => {
     return errorResponse(
       res,
       500,
-      err.message || "Failed to update checklist."
+      err.message || "Failed to update checklist.",
     );
   } finally {
     client.release();
@@ -447,7 +447,7 @@ exports.updateChecklistIsActive = async (req, res) => {
         AND builder_id = $2
         AND is_deleted = FALSE
       `,
-      [checklist_id, builderId]
+      [checklist_id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -477,7 +477,7 @@ exports.updateChecklistIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Checklist status updated successfully."
+      "Checklist status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating checklist is_active:", error);

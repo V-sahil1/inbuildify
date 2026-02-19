@@ -219,7 +219,8 @@ const updateAgentReferralPartnerSchema = Joi.object({
           "Email login credentials cannot be provided when create_login is false.",
       }),
     }),
-  }).required(),
+    is_active: Joi.boolean().optional(),
+  }).optional(),
   account_name: Joi.string()
     .min(2)
     .max(150)
@@ -233,10 +234,8 @@ const updateAgentReferralPartnerSchema = Joi.object({
     .max(150)
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .allow(null, ""),
-  referred_user_id: Joi.string().uuid().required().messages({
-    "string.empty": "Referred user ID is required.",
+  referred_user_id: Joi.string().uuid().allow(null).optional().messages({
     "string.uuid": "Referred user ID must be a valid UUID.",
-    "any.required": "Referred user ID is required.",
   }),
 });
 
