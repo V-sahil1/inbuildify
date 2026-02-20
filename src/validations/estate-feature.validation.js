@@ -39,9 +39,34 @@ const deleteEstateFeatureSchema = Joi.object({
     "any.required": "estate feature ID is required",
   }),
 });
+
+const updateEstateFeatureSchema = Joi.object({
+  feature_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "string.empty": "Feature name cannot be empty",
+      "string.min": "Feature name must be at least 2 characters",
+      "string.max": "Feature name must not exceed 255 characters",
+      "any.required": "Feature name is required",
+    }),
+});
+
+const updateEstateFeatureParamsSchema = Joi.object({
+  estate_feature_id: Joi.string().uuid().required().messages({
+    "string.guid": "estate feature ID must be a valid UUID",
+    "any.required": "estate feature ID is required",
+  }),
+});
+
 module.exports = {
   createEstateFeatureSchema,
   getAllEstateFeatureSchema,
   getEstateFeatureByEstateIdSchema,
   deleteEstateFeatureSchema,
+  updateEstateFeatureSchema,
+  updateEstateFeatureParamsSchema,
 };

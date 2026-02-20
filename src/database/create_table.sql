@@ -2470,6 +2470,7 @@ CREATE TABLE estate_stages (
     estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     release_date DATE,
+    attach_file VARCHAR(500),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (estate_id, name)
@@ -3179,31 +3180,39 @@ CREATE TABLE house_feature(
 
 CREATE TABLE house_land_package(
   house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   title VARCHAR(255),
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   template_id UUID REFERENCES template(template_id) ON DELETE SET NULL,                    -- need to decide which template is used
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  contact_show_pdf BOOLEAN,
+  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
   price_type VARCHAR(100),                 -- valid esimate, fixed DEFAULT estimate
   price_total NUMERIC(12,2) DEFAULT 0,
   commission_total NUMERIC(12,2) DEFAULT 0,
-  house_total NUMERIC(12,2) DEFAULT 0;
+  house_total NUMERIC(12,2) DEFAULT 0,
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   floor_plan_description VARCHAR(1000),            -- if the floor plan select then user can input description if not then can not input it is optional
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
-  package_group_id UUID[] '{}',                -- which package group is used?
+  --package_group_id UUID[] '{}',                -- which package group is used?
   package_description VARCHAR(3000),
   house_feature_id UUID REFERENCES house_feature(house_feature_id) ON DELETE SET NULL,
   disclaimer_type VARCHAR(255),              -- standard and other type to decide
   disclaimer_description VARCHAR(3000),
   attach_files VARCHAR(500),                   -- attach pdf
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_house_land_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE lot(
   lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  house_land_package_id UUID REFERENCES house_land_package(house_land_pa  ckage_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
   estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
   estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
   lot_number VARCHAR(255) NOT NULL,
@@ -3221,8 +3230,12 @@ CREATE TABLE lot(
   price NUMERIC(10,2),
   site_fall_mm NUMERIC(10,2),
   land_fill_mm NUMERIC(10,2),
+  total_size_m2 NUMERIC(10,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_lot_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE h_l_package_pricelist_item_map(

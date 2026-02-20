@@ -11,9 +11,15 @@ const createEstateStageSchema = Joi.object({
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .required(),
   release_date: Joi.date().optional().allow(null),
+  attach_file: Joi.string().uri().optional().allow(null, "").messages({
+    "string.uri": "attach_file must be a valid URL",
+  }),
 });
 
 const getALLEstateStageSchema = Joi.object({
+  estate_id: Joi.string().uuid().optional().messages({
+    "string.guid": "estate ID must be a valid UUID",
+  }),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -50,6 +56,9 @@ const updsteEstateStageSchema = Joi.object({
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .optional(),
   release_date: Joi.date().optional().allow(null),
+  attach_file: Joi.string().uri().optional().allow(null, "").messages({
+    "string.uri": "attach_file must be a valid URL",
+  }),
 });
 module.exports = {
   createEstateStageSchema,

@@ -1,6 +1,7 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
+const { deleteFromS3 } = require("../utils/s3Upload");
 
 exports.createEstateStage = async (req, res) => {
   const pool = getPool();
@@ -10,6 +11,7 @@ exports.createEstateStage = async (req, res) => {
     await client.query("BEGIN");
 
     const { estate_id, name, release_date } = req.body;
+    const attach_file = req.files?.attachFile?.[0]?.location || req.body.attach_file;
     const builderId = req.user?.builder_id;
 
     const estateCheck = await client.query(
@@ -69,10 +71,10 @@ exports.createEstateStage = async (req, res) => {
 
     const result = await client.query(
       `INSERT INTO estate_stages 
-        (estate_id, name, release_date)
-       VALUES ($1, $2, $3)
+        (estate_id, name, release_date, attach_file)
+       VALUES ($1, $2, $3, $4)
        RETURNING *;`,
-      [estate_id, name, release_date || null],
+      [estate_id, name, release_date || null, attach_file || null],
     );
 
     await client.query("COMMIT");
@@ -98,18 +100,28 @@ exports.getAllEstateStages = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
 
-    const { page = 1, limit = 25 } = req.query;
+    const { page = 1, limit = 25, estate_id } = req.query;
 
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
     const offset = (pageNumber - 1) * limitNumber;
 
+    let whereClause = `WHERE e.builder_id = $1`;
+    let values = [builderId];
+    let paramIndex = 2;
+
+    if (estate_id) {
+      whereClause += ` AND e.estate_id = $${paramIndex}`;
+      values.push(estate_id);
+      paramIndex++;
+    }
+
     const countResult = await client.query(
       `SELECT COUNT(es.estate_stage_id) AS total
        FROM estate_stages es
        JOIN estate e ON e.estate_id = es.estate_id
-       WHERE e.builder_id = $1`,
-      [builderId],
+       ${whereClause}`,
+      values,
     );
 
     const total = parseInt(countResult.rows[0].total, 10);
@@ -119,10 +131,10 @@ exports.getAllEstateStages = async (req, res) => {
       `SELECT es.*
        FROM estate_stages es
        JOIN estate e ON e.estate_id = es.estate_id
-       WHERE e.builder_id = $1
+       ${whereClause}
        ORDER BY es.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [builderId, limitNumber, offset],
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...values, limitNumber, offset],
     );
 
     return successResponse(res, {
@@ -207,12 +219,13 @@ exports.updateEstateStage = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const { estate_stage_id } = req.params;
-    const { name, release_date } = req.body;
+    const { name, release_date, attach_file } = req.body;
+    const uploadedFile = req.files?.attachFile?.[0]?.location;
 
     await client.query("BEGIN");
 
     const existing = await client.query(
-      `SELECT estate_id, name FROM estate_stages WHERE estate_stage_id = $1`,
+      `SELECT estate_id, name, attach_file FROM estate_stages WHERE estate_stage_id = $1`,
       [estate_stage_id],
     );
 
@@ -223,6 +236,7 @@ exports.updateEstateStage = async (req, res) => {
 
     const estateId = existing.rows[0].estate_id;
     const oldName = existing.rows[0].name;
+    const existingFile = existing.rows[0].attach_file;
 
     const estateCheck = await client.query(
       `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2`,
@@ -286,6 +300,33 @@ exports.updateEstateStage = async (req, res) => {
       values.push(release_date);
     }
 
+    if (attach_file !== undefined) {
+      fields.push(`attach_file = $${idx++}`);
+      values.push(attach_file || null);
+    }
+
+    // Handle file upload and deletion
+    let updatedFileUrl = existingFile;
+    if (uploadedFile !== undefined) {
+      if (!uploadedFile) {
+        // Remove file if null is provided
+        if (existingFile) {
+          await deleteFromS3(existingFile);
+        }
+        fields.push(`attach_file = $${idx++}`);
+        values.push(null);
+        updatedFileUrl = null;
+      } else {
+        // Update with new file and delete old one
+        if (existingFile && existingFile !== uploadedFile) {
+          await deleteFromS3(existingFile);
+        }
+        fields.push(`attach_file = $${idx++}`);
+        values.push(uploadedFile);
+        updatedFileUrl = uploadedFile;
+      }
+    }
+
     if (fields.length === 0) {
       await client.query("ROLLBACK");
       return errorResponse(res, 400, "Nothing to update");
@@ -305,9 +346,14 @@ exports.updateEstateStage = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const finalData = {
+      ...updated.rows[0],
+      attach_file: updatedFileUrl,
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(updated.rows[0]),
+      keysToCamelCase(finalData),
       "Estate stage updated successfully.",
     );
   } catch (error) {

@@ -20,7 +20,6 @@ exports.createLot = async (req, res) => {
     }
 
     const {
-      house_land_package_id,
       estate_id,
       estate_stage_id,
       lot_number,
@@ -38,25 +37,11 @@ exports.createLot = async (req, res) => {
       price,
       site_fall_mm,
       land_fill_mm,
+      total_size_m2,
     } = req.body;
 
     await client.query("BEGIN");
 
-    if (house_land_package_id) {
-      const houseLandPackageCheck = await client.query(
-        "SELECT house_land_package_id FROM house_land_package WHERE house_land_package_id = $1 LIMIT 1",
-        [house_land_package_id],
-      );
-
-      if (houseLandPackageCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid house_land_package_id or house land package not found.",
-        );
-      }
-    }
 
     if (estate_id) {
       const estateCheck = await client.query(
@@ -76,8 +61,11 @@ exports.createLot = async (req, res) => {
 
     if (estate_stage_id) {
       const estateStageCheck = await client.query(
-        "SELECT estate_stage_id, estate_id FROM estate_stages WHERE estate_stage_id = $1 LIMIT 1",
-        [estate_stage_id],
+        `SELECT es.estate_stage_id, es.estate_id, e.builder_id, e.company_id 
+         FROM estate_stages es
+         JOIN estate e ON e.estate_id = es.estate_id
+         WHERE es.estate_stage_id = $1 AND e.builder_id = $2 LIMIT 1`,
+        [estate_stage_id, builderId],
       );
 
       if (estateStageCheck.rowCount === 0) {
@@ -102,7 +90,8 @@ exports.createLot = async (req, res) => {
 
     const sql = `
       INSERT INTO lot (
-        house_land_package_id,
+        company_id,
+        builder_id,
         estate_id,
         estate_stage_id,
         lot_number,
@@ -120,15 +109,19 @@ exports.createLot = async (req, res) => {
         price,
         site_fall_mm,
         land_fill_mm,
+        total_size_m2,
+        created_by,
+        updated_by,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,$18,$19,$20,$21,$22, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *
     `;
 
     const values = [
-      house_land_package_id || null,
+      companyId,
+      builderId,
       estate_id || null,
       estate_stage_id || null,
       lot_number,
@@ -146,6 +139,9 @@ exports.createLot = async (req, res) => {
       price || null,
       site_fall_mm || null,
       land_fill_mm || null,
+      total_size_m2 || null,
+      userId,
+      userId
     ];
 
     const result = await client.query(sql, values);
@@ -171,9 +167,10 @@ exports.getAllLots = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
     const {
@@ -195,6 +192,15 @@ exports.getAllLots = async (req, res) => {
     let whereConditions = [];
     let queryParams = [];
     let paramIndex = 1;
+
+    // Add scope condition based on user type
+    if (builderId) {
+      whereConditions.push(`builder_id = $${paramIndex++}`);
+      queryParams.push(builderId);
+    } else if (companyId) {
+      whereConditions.push(`company_id = $${paramIndex++}`);
+      queryParams.push(companyId);
+    }
 
     // Build WHERE conditions
     if (estate_id) {
@@ -302,16 +308,20 @@ exports.getLotById = async (req, res) => {
   try {
     const { lot_id } = req.params;
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
-    const sql = "SELECT * FROM lot WHERE lot_id = $1";
-    const result = await client.query(sql, [lot_id]);
+    const sql = `SELECT * FROM lot WHERE lot_id = $1 AND (
+      (company_id = $2 AND $2 IS NOT NULL)
+      OR (builder_id = $3 AND $3 IS NOT NULL)
+    )`;
+    const result = await client.query(sql, [lot_id, companyId, builderId]);
 
     if (result.rows.length === 0) {
-      return errorResponse(res, 404, "Lot not found");
+      return successResponse(res, "Lot retrieved successfully.");
     }
 
     return successResponse(
@@ -337,16 +347,19 @@ exports.updateLot = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    if (!userId || !builderId) {
+    if (!userId || (!builderId && !companyId)) {
       return errorResponse(
         res,
         401,
-        "Unauthorized: User or builder ID missing",
+        "Unauthorized: User must belong to either a builder or company",
       );
     }
 
-    const checkSql = "SELECT * FROM lot WHERE lot_id = $1";
-    const checkResult = await client.query(checkSql, [lot_id]);
+    const checkSql = `SELECT * FROM lot WHERE lot_id = $1 AND (
+      (company_id = $2 AND $2 IS NOT NULL)
+      OR (builder_id = $3 AND $3 IS NOT NULL)
+    )`;
+    const checkResult = await client.query(checkSql, [lot_id, companyId, builderId]);
 
     if (checkResult.rows.length === 0) {
       return errorResponse(res, 404, "Lot not found");
@@ -374,10 +387,10 @@ exports.updateLot = async (req, res) => {
       "price",
       "site_fall_mm",
       "land_fill_mm",
+      "total_size_m2",
     ];
 
     const restrictedFields = [
-      "house_land_package_id",
       "estate_id",
       "estate_stage_id",
     ];
@@ -442,13 +455,17 @@ exports.deleteLot = async (req, res) => {
   try {
     const { lot_id } = req.params;
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
-    const checkSql = "SELECT * FROM lot WHERE lot_id = $1";
-    const checkResult = await client.query(checkSql, [lot_id]);
+    const checkSql = `SELECT * FROM lot WHERE lot_id = $1 AND (
+      (company_id = $2 AND $2 IS NOT NULL)
+      OR (builder_id = $3 AND $3 IS NOT NULL)
+    )`;
+    const checkResult = await client.query(checkSql, [lot_id, companyId, builderId]);
 
     if (checkResult.rows.length === 0) {
       return errorResponse(res, 404, "Lot not found");
@@ -462,7 +479,6 @@ exports.deleteLot = async (req, res) => {
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
       "Lot deleted successfully",
     );
   } catch (error) {

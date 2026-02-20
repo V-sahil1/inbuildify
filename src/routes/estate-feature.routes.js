@@ -5,12 +5,15 @@ const {
   createEstateFeature,
   getAllEstateFeatures,
   getEstateFeaturesByEstateId,
+  updateEstateFeature,
   deleteEstateFeature,
 } = require("../controllers/estate-feature.controller");
 const {
   createEstateFeatureSchema,
   getAllEstateFeatureSchema,
   getEstateFeatureByEstateIdSchema,
+  updateEstateFeatureSchema,
+  updateEstateFeatureParamsSchema,
   deleteEstateFeatureSchema,
 } = require("../validations/estate-feature.validation");
 
@@ -41,6 +44,13 @@ router.get(
   "/:estate_id",
   validateRequest(getEstateFeatureByEstateIdSchema, REQUEST_SOURCE.PARAMS),
   getEstateFeaturesByEstateId
+);
+
+router.put(
+  "/:estate_feature_id",
+  validateRequest(updateEstateFeatureParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateEstateFeatureSchema, REQUEST_SOURCE.BODY),
+  updateEstateFeature
 );
 
 router.delete(

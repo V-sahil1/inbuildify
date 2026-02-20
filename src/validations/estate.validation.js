@@ -48,6 +48,10 @@ const createEstateSchema = Joi.object({
 const getAllEstateSchema = Joi.object({
   name: Joi.string().max(150).optional(),
   status: Joi.boolean().optional(),
+  location: Joi.string().max(150).optional().messages({
+    "string.base": "Location must be a string",
+    "string.max": "Location must not exceed 150 characters",
+  }),
 
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",

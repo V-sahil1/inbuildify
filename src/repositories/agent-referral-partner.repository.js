@@ -64,33 +64,44 @@ async function getAgentReferralPartnersByBuilder(
   query,
   client = getPool(),
 ) {
-  const { page = 1, limit = 25, search = "" } = query;
+  const { page = 1, limit = 25, search = "", is_active } = query;
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE arp.builder_id = $1";
   let countWhereClause = "WHERE arp.builder_id = $1";
   let values = [builderId];
   let countValues = [builderId];
+  let paramIndex = 2;
 
   if (search) {
     whereClause += ` AND (
-      arp.name ILIKE $2 OR 
-      arp.email ILIKE $2 OR 
-      arp.phone ILIKE $2 OR 
-      arp.company_name ILIKE $2
+      u.name ILIKE $${paramIndex} OR 
+      u.email ILIKE $${paramIndex} OR 
+      u.phone ILIKE $${paramIndex}
     )`;
     countWhereClause += ` AND (
-      arp.name ILIKE $2 OR 
-      arp.email ILIKE $2 OR 
-      arp.phone ILIKE $2 OR 
-      arp.company_name ILIKE $2
+      u.name ILIKE $${paramIndex} OR 
+      u.email ILIKE $${paramIndex} OR 
+      u.phone ILIKE $${paramIndex}
     )`;
     values.push(`%${search}%`);
     countValues.push(`%${search}%`);
+    paramIndex++;
+  }
+
+  if (is_active !== undefined) {
+    whereClause += ` AND u.is_active = $${paramIndex}`;
+    countWhereClause += ` AND u.is_active = $${paramIndex}`;
+    values.push(is_active);
+    countValues.push(is_active);
+    paramIndex++;
   }
 
   const countResult = await client.query(
-    `SELECT COUNT(*) as total FROM agent_referral_partner arp ${countWhereClause}`,
+    `SELECT COUNT(*) as total 
+     FROM agent_referral_partner arp 
+     LEFT JOIN users u ON arp.user_id = u.users_id 
+     ${countWhereClause}`,
     countValues,
   );
 
@@ -102,7 +113,7 @@ async function getAgentReferralPartnersByBuilder(
       creator.name as created_by_name
     FROM agent_referral_partner arp
     LEFT JOIN address a ON arp.address_id = a.address_id
-    LEFT JOIN users u ON arp.referred_user_id = u.users_id
+    LEFT JOIN users u ON arp.user_id = u.users_id
     LEFT JOIN users creator ON arp.created_by = creator.users_id
     ${whereClause}
     ORDER BY arp.created_at DESC
@@ -123,33 +134,44 @@ async function getAgentReferralPartnersByCompany(
   query,
   client = getPool(),
 ) {
-  const { page = 1, limit = 25, search = "" } = query;
+  const { page = 1, limit = 25, search = "", is_active } = query;
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE arp.company_id = $1";
   let countWhereClause = "WHERE arp.company_id = $1";
   let values = [companyId];
   let countValues = [companyId];
+  let paramIndex = 2;
 
   if (search) {
     whereClause += ` AND (
-      arp.name ILIKE $2 OR 
-      arp.email ILIKE $2 OR 
-      arp.phone ILIKE $2 OR 
-      arp.company_name ILIKE $2
+      u.name ILIKE $${paramIndex} OR 
+      u.email ILIKE $${paramIndex} OR 
+      u.phone ILIKE $${paramIndex}
     )`;
     countWhereClause += ` AND (
-      arp.name ILIKE $2 OR 
-      arp.email ILIKE $2 OR 
-      arp.phone ILIKE $2 OR 
-      arp.company_name ILIKE $2
+      u.name ILIKE $${paramIndex} OR 
+      u.email ILIKE $${paramIndex} OR 
+      u.phone ILIKE $${paramIndex}
     )`;
     values.push(`%${search}%`);
     countValues.push(`%${search}%`);
+    paramIndex++;
+  }
+
+  if (is_active !== undefined) {
+    whereClause += ` AND u.is_active = $${paramIndex}`;
+    countWhereClause += ` AND u.is_active = $${paramIndex}`;
+    values.push(is_active);
+    countValues.push(is_active);
+    paramIndex++;
   }
 
   const countResult = await client.query(
-    `SELECT COUNT(*) as total FROM agent_referral_partner arp ${countWhereClause}`,
+    `SELECT COUNT(*) as total 
+     FROM agent_referral_partner arp 
+     LEFT JOIN users u ON arp.user_id = u.users_id 
+     ${countWhereClause}`,
     countValues,
   );
 
@@ -161,7 +183,7 @@ async function getAgentReferralPartnersByCompany(
       creator.name as created_by_name
     FROM agent_referral_partner arp
     LEFT JOIN address a ON arp.address_id = a.address_id
-    LEFT JOIN users u ON arp.referred_user_id = u.users_id
+    LEFT JOIN users u ON arp.user_id = u.users_id
     LEFT JOIN users creator ON arp.created_by = creator.users_id
     ${whereClause}
     ORDER BY arp.created_at DESC

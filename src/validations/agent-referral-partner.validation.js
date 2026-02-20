@@ -252,6 +252,16 @@ const getAgentReferralPartnerSchema = Joi.object({
     "number.min": "Limit must be at least 1",
     "number.max": "Limit must not exceed 100",
   }),
+
+  search: Joi.string().min(1).max(255).optional().allow(null, "").messages({
+    "string.base": "Search must be a string",
+    "string.min": "Search must be at least 1 character",
+    "string.max": "Search must not exceed 255 characters",
+  }),
+
+  is_active: Joi.boolean().optional().messages({
+    "boolean.base": "is_active must be a boolean",
+  }),
 });
 
 const paramsIdSchema = Joi.object({

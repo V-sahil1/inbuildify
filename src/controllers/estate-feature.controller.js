@@ -239,3 +239,83 @@ exports.deleteEstateFeature = async (req, res) => {
     client.release();
   }
 };
+
+exports.updateEstateFeature = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const { estate_feature_id } = req.params;
+    const { feature_name } = req.body;
+    const builderId = req.user?.builder_id;
+
+    // Check if feature exists and belongs to builder's estate
+    const featureCheck = await client.query(
+      `SELECT ef.estate_feature_id, ef.estate_id, ef.feature_name
+       FROM estate_features ef
+       JOIN estate e ON ef.estate_id = e.estate_id
+       WHERE ef.estate_feature_id = $1 AND e.builder_id = $2`,
+      [estate_feature_id, builderId],
+    );
+
+    if (featureCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Estate feature not found or does not belong to this builder.");
+    }
+
+    // Check if estate is active
+    const estateId = featureCheck.rows[0].estate_id;
+    const estateActiveCheck = await client.query(
+      `SELECT estate_id FROM estate 
+       WHERE estate_id = $1 AND builder_id = $2 AND status = 'true'`,
+      [estateId, builderId],
+    );
+
+    if (estateActiveCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Inactive estate.");
+    }
+
+    // Check for duplicate feature name (excluding current feature)
+    const dupCheck = await client.query(
+      `SELECT estate_feature_id FROM estate_features 
+       WHERE estate_id = $1 AND LOWER(feature_name) = LOWER($2) AND estate_feature_id != $3`,
+      [estateId, feature_name, estate_feature_id],
+    );
+
+    if (dupCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        409,
+        "Feature name already exists for this estate.",
+      );
+    }
+
+    // Update the feature
+    const updateQuery = `
+      UPDATE estate_features 
+      SET feature_name = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE estate_feature_id = $2
+      RETURNING *;
+    `;
+
+    const result = await client.query(updateQuery, [feature_name, estate_feature_id]);
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Estate feature updated successfully.",
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating estate feature:", err);
+    return errorResponse(res, 500, "Internal server error");
+  } finally {
+    client.release();
+  }
+};

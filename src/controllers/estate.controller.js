@@ -123,7 +123,7 @@ exports.getAllEstate = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    const { page = 1, limit = 25, name, status } = req.query;
+    const { page = 1, limit = 25, name, status, location } = req.query;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -145,9 +145,20 @@ exports.getAllEstate = async (req, res) => {
       paramIndex++;
     }
 
+    if (location) {
+      whereClause += ` AND (
+        LOWER(s.name) LIKE LOWER($${paramIndex}) OR 
+        LOWER(c.name) LIKE LOWER($${paramIndex})
+      )`;
+      values.push(`%${location}%`);
+      paramIndex++;
+    }
+
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM estate e
+      LEFT JOIN state s ON e.state_id = s.state_id
+      LEFT JOIN country c ON e.country_id = c.country_id
       ${whereClause};
     `;
     const countResult = await client.query(countQuery, values);
@@ -155,8 +166,12 @@ exports.getAllEstate = async (req, res) => {
 
     const query = `
       SELECT 
-        *
+        e.*,
+        s.name as state_name,
+        c.name as country_name
       FROM estate e
+      LEFT JOIN state s ON e.state_id = s.state_id
+      LEFT JOIN country c ON e.country_id = c.country_id
       ${whereClause}
       ORDER BY e.created_at DESC
       LIMIT ${limitNum} OFFSET ${offset};

@@ -26,7 +26,6 @@ const booleanRule = Joi.boolean().optional().messages({
 
 // Schemas
 const createLotSchema = Joi.object({
-  house_land_package_id: optionalUuidRule,
   estate_id: optionalUuidRule,
   estate_stage_id: optionalUuidRule,
   lot_number: stringRule.max(255).required().messages({
@@ -41,8 +40,8 @@ const createLotSchema = Joi.object({
     "any.required": "City is required",
     "string.max": "City must not exceed 255 characters",
   }),
-  state_id: optionalUuidRule,
-  zip_code: stringRule.max(10).required().messages({
+  state_id: optionalUuidRule.required(),
+  zip_code: stringRule.min(4).max(4).required().messages({
     "any.required": "Zip code is required",
     "string.max": "Zip code must not exceed 10 characters",
   }),
@@ -81,10 +80,10 @@ const createLotSchema = Joi.object({
   price: numericRule.min(0).optional().allow(null),
   site_fall_mm: numericRule.min(0).optional().allow(null),
   land_fill_mm: numericRule.min(0).optional().allow(null),
+  total_size_m2: numericRule.min(0).optional().allow(null),
 });
 
 const updateLotSchema = Joi.object({
-  house_land_package_id: optionalUuidRule,
   estate_id: optionalUuidRule,
   estate_stage_id: optionalUuidRule,
   lot_number: stringRule.max(255).optional().messages({
@@ -97,7 +96,7 @@ const updateLotSchema = Joi.object({
     "string.max": "City must not exceed 255 characters",
   }),
   state_id: optionalUuidRule,
-  zip_code: stringRule.max(10).optional().messages({
+  zip_code: stringRule.min(4).max(4).optional().messages({
     "string.max": "Zip code must not exceed 10 characters",
   }),
   title_status: stringRule
@@ -134,6 +133,7 @@ const updateLotSchema = Joi.object({
   price: numericRule.min(0).optional().allow(null),
   site_fall_mm: numericRule.min(0).optional().allow(null),
   land_fill_mm: numericRule.min(0).optional().allow(null),
+  total_size_m2: numericRule.min(0).optional().allow(null),
 });
 
 const getLotByIdSchema = Joi.object({
