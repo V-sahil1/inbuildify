@@ -15,6 +15,7 @@ const {
 const {
   createColorItemSchema,
   getAllColorItemsSchema,
+  getColorItemsWithoutCategorySchema,
   getColorItemByIdSchema,
   updateColorItemSchema,
   deleteColorItemSchema,
@@ -65,6 +66,7 @@ router.get(
   "/without-category",
   authMiddleware,
   roleMiddleware,
+  validateRequest(getColorItemsWithoutCategorySchema, REQUEST_SOURCE.QUERY),
   getColorItemsWithoutCategory,
 );
 

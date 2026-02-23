@@ -136,6 +136,8 @@ const quotationFormatMasterSectionRoutes = require("./quotation-format-master-se
 const contactRoutes = require("./contact.routes");
 const lotRoutes = require("./lot.routes");
 const houseFeatureRoutes = require("./house-feature.routes");
+const houseLandPackageRoutes = require("./house-land-package.routes");
+const hLPackagePricelistItemCommissionRoutes = require("./h-l-package-pricelist-item-commission.routes");
 const jobFormRoutes = require("./job-form.routes");
 const businessContactRoutes = require("./business-contact.routes");
 
@@ -296,6 +298,8 @@ module.exports = function (app) {
   app.use("/contact", contactRoutes);
   app.use("/lot", lotRoutes);
   app.use("/house-feature", houseFeatureRoutes);
+  app.use("/house-land-package", houseLandPackageRoutes);
+  app.use("/hl-package-pricelist-item-commission", hLPackagePricelistItemCommissionRoutes);
   app.use("/job-form", jobFormRoutes);
   app.use("/business-contact", businessContactRoutes);
 };

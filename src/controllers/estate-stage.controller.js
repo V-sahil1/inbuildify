@@ -11,7 +11,9 @@ exports.createEstateStage = async (req, res) => {
     await client.query("BEGIN");
 
     const { estate_id, name, release_date } = req.body;
-    const attach_file = req.files?.attachFile?.[0]?.location || req.body.attach_file;
+    const attach_files = req.files?.attachFile?.map(file => file.location) || 
+                      (req.body.attach_file ? [req.body.attach_file] : []);
+    
     const builderId = req.user?.builder_id;
 
     const estateCheck = await client.query(
@@ -74,7 +76,7 @@ exports.createEstateStage = async (req, res) => {
         (estate_id, name, release_date, attach_file)
        VALUES ($1, $2, $3, $4)
        RETURNING *;`,
-      [estate_id, name, release_date || null, attach_file || null],
+      [estate_id, name, release_date || null, attach_files.length > 0 ? attach_files : null],
     );
 
     await client.query("COMMIT");
@@ -220,7 +222,7 @@ exports.updateEstateStage = async (req, res) => {
     const builderId = req.user?.builder_id;
     const { estate_stage_id } = req.params;
     const { name, release_date, attach_file } = req.body;
-    const uploadedFile = req.files?.attachFile?.[0]?.location;
+    const uploadedFiles = req.files?.attachFile?.map(file => file.location) || [];
 
     await client.query("BEGIN");
 
@@ -236,27 +238,27 @@ exports.updateEstateStage = async (req, res) => {
 
     const estateId = existing.rows[0].estate_id;
     const oldName = existing.rows[0].name;
-    const existingFile = existing.rows[0].attach_file;
+    const existingFiles = existing.rows[0].attach_file || [];
 
-    const estateCheck = await client.query(
-      `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2`,
-      [estateId, builderId],
-    );
+    // const estateCheck = await client.query(
+    //   `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2`,
+    //   [estateId, builderId],
+    // );
 
-    if (estateCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Estate not found");
-    }
+    // if (estateCheck.rowCount === 0) {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(res, 404, "Estate not found");
+    // }
 
-    const estateActiveCheck = await client.query(
-      `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2 ANd status = 'true'`,
-      [estateId, builderId],
-    );
+    // const estateActiveCheck = await client.query(
+    //   `SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2 ANd status = 'true'`,
+    //   [estateId, builderId],
+    // );
 
-    if (estateActiveCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Inactive estate");
-    }
+    // if (estateActiveCheck.rowCount === 0) {
+    //   await client.query("ROLLBACK");
+    //   return errorResponse(res, 404, "Inactive estate");
+    // }
 
     if (name && name !== oldName) {
       const dupCheck = await client.query(
@@ -300,31 +302,66 @@ exports.updateEstateStage = async (req, res) => {
       values.push(release_date);
     }
 
+    
+    // Handle file updates for multiple files
+    let updatedFiles = existingFiles;
+    
     if (attach_file !== undefined) {
-      fields.push(`attach_file = $${idx++}`);
-      values.push(attach_file || null);
-    }
-
-    // Handle file upload and deletion
-    let updatedFileUrl = existingFile;
-    if (uploadedFile !== undefined) {
-      if (!uploadedFile) {
-        // Remove file if null is provided
-        if (existingFile) {
-          await deleteFromS3(existingFile);
+      // If attach_file is provided in body (string or JSON array), use it
+      if (attach_file === null || attach_file === '') {
+        // Remove all files if null is provided
+        if (existingFiles.length > 0) {
+          for (const fileUrl of existingFiles) {
+            await deleteFromS3(fileUrl);
+          }
         }
         fields.push(`attach_file = $${idx++}`);
         values.push(null);
-        updatedFileUrl = null;
-      } else {
-        // Update with new file and delete old one
-        if (existingFile && existingFile !== uploadedFile) {
-          await deleteFromS3(existingFile);
+        updatedFiles = [];
+      } else if (typeof attach_file === 'string') {
+        // Handle single string or JSON array string
+        try {
+          const parsedFiles = JSON.parse(attach_file);
+          const newFiles = Array.isArray(parsedFiles) ? parsedFiles : [attach_file];
+          
+          // Delete old files that are not in the new list
+          for (const oldFile of existingFiles) {
+            if (!newFiles.includes(oldFile)) {
+              await deleteFromS3(oldFile);
+            }
+          }
+          
+          fields.push(`attach_file = $${idx++}`);
+          values.push(newFiles);
+          updatedFiles = newFiles;
+        } catch {
+          // If parsing fails, treat as single file
+          const newFiles = [attach_file];
+          
+          // Delete old files that are not the new file
+          for (const oldFile of existingFiles) {
+            if (oldFile !== attach_file) {
+              await deleteFromS3(oldFile);
+            }
+          }
+          
+          fields.push(`attach_file = $${idx++}`);
+          values.push(newFiles);
+          updatedFiles = newFiles;
         }
-        fields.push(`attach_file = $${idx++}`);
-        values.push(uploadedFile);
-        updatedFileUrl = uploadedFile;
       }
+    } else if (uploadedFiles.length > 0) {
+      // Handle new file uploads
+      // Delete old files
+      if (existingFiles.length > 0) {
+        for (const fileUrl of existingFiles) {
+          await deleteFromS3(fileUrl);
+        }
+      }
+      
+      fields.push(`attach_file = $${idx++}`);
+      values.push(uploadedFiles);
+      updatedFiles = uploadedFiles;
     }
 
     if (fields.length === 0) {
@@ -348,7 +385,7 @@ exports.updateEstateStage = async (req, res) => {
 
     const finalData = {
       ...updated.rows[0],
-      attach_file: updatedFileUrl,
+      attach_file: updatedFiles,
     };
 
     return successResponse(

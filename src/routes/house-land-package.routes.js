@@ -17,15 +17,19 @@ const {
   getAllHouseLandPackagesSchema,
 } = require("../validations/house-land-package.validation");
 
-const { authMiddleware } = require("../middleware/auth");
-const { roleMiddleware } = require("../middleware/role");
-const { camelToSnakeMiddleware } = require("../middleware/camelToSnake");
-const { validateRequest } = require("../middleware/validateRequest");
-const { REQUEST_SOURCE } = require("../constants");
+const { validateRequest } = require("../middleware/validateRequestMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
+const { REQUEST_SOURCE } = require("../config/constants");
+const { createImageOrPdfUpload, handleMulterError } = require("../utils/s3Upload");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
+
+// File upload middleware for house land package attachments
+const upload = createImageOrPdfUpload("house-land-package-attachments");
 
 router.post(
   "/",
@@ -47,8 +51,13 @@ router.get(
 
 router.put(
   "/:house_land_package_id",
+  upload.fields([
+    { name: "attachFiles", maxCount: 10 },
+  ]),
+  handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(getHouseLandPackageByIdSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateHouseLandPackageSchema, REQUEST_SOURCE.BODY),
+  validateRequest(updateHouseLandPackageSchema, REQUEST_SOURCE.FORM_DATA),
   updateHouseLandPackage,
 );
 

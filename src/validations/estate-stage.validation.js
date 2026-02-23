@@ -11,8 +11,13 @@ const createEstateStageSchema = Joi.object({
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .required(),
   release_date: Joi.date().optional().allow(null),
-  attach_file: Joi.string().uri().optional().allow(null, "").messages({
+  attach_file: Joi.alternatives().try(
+    Joi.array().items(Joi.string().uri()),
+    Joi.string().uri().allow(null, "")
+  ).optional().messages({
+    "array.base": "attach_file must be an array of URLs",
     "string.uri": "attach_file must be a valid URL",
+    "alternatives.match": "attach_file must be an array of URLs or a single URL",
   }),
 });
 
@@ -56,7 +61,11 @@ const updsteEstateStageSchema = Joi.object({
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .optional(),
   release_date: Joi.date().optional().allow(null),
-  attach_file: Joi.string().uri().optional().allow(null, "").messages({
+  attach_file: Joi.alternatives().try(
+    Joi.array().items(Joi.string().uri()),
+    Joi.string().uri()
+  ).optional().allow(null, "").messages({
+    "array.base": "attach_file must be an array of URLs or a single URL",
     "string.uri": "attach_file must be a valid URL",
   }),
 });

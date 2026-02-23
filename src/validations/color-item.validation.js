@@ -368,8 +368,16 @@ const copyColorItemSchema = Joi.object({
   }),
 });
 
+const getColorItemsWithoutCategorySchema = Joi.object({
+  color_group_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "color group ID must be a valid UUID",
+    "string.guid": "color group ID must be a valid UUID",
+  }),
+});
+
 module.exports = {
   getAllColorItemsSchema,
+  getColorItemsWithoutCategorySchema,
   getColorItemByIdSchema,
   createColorItemSchema,
   updateColorItemSchema,

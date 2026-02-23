@@ -39,7 +39,7 @@ router.get(
 router.post(
   "/",
   upload.fields([
-    { name: "attachFile", maxCount: 1 },
+    { name: "attachFile", maxCount: 10},
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
@@ -57,7 +57,7 @@ router.delete(
 router.put(
   "/:estate_stage_id",
   upload.fields([
-    { name: "attachFile", maxCount: 1 },
+    { name: "attachFile", maxCount: 10 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,

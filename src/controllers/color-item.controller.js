@@ -9,9 +9,26 @@ exports.getColorItemsWithoutCategory = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
+    const { color_group_id } = req.query;
 
     if (!builderId || !companyId) {
       return errorResponse(res, 401, "Unauthorized.");
+    }
+
+    let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
+        AND ci.color_category_id IS NULL`;
+    let queryParams = [companyId, builderId];
+    let paramIndex = 3;
+
+    // Add color_group_id filter if provided
+    if (color_group_id) {
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM color_group_item_map cgim 
+        WHERE cgim.color_item_id = ci.color_item_id 
+        AND cgim.color_group_id = $${paramIndex}
+      )`;
+      queryParams.push(color_group_id);
+      paramIndex++;
     }
 
     const sql = `
@@ -53,12 +70,11 @@ exports.getColorItemsWithoutCategory = async (req, res) => {
           '[]'::json
         ) AS color_groups
       FROM color_item ci
-      WHERE (ci.company_id = $1 OR ci.builder_id = $2)
-        AND ci.color_category_id IS NULL
+      ${whereClause}
       ORDER BY ci.created_at DESC
     `;
 
-    const result = await client.query(sql, [companyId, builderId]);
+    const result = await client.query(sql, queryParams);
 
     return successResponse(
       res,

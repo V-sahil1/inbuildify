@@ -2470,7 +2470,7 @@ CREATE TABLE estate_stages (
     estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
     release_date DATE,
-    attach_file VARCHAR(500),
+    attach_file TEXT[],
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (estate_id, name)
@@ -3185,12 +3185,11 @@ CREATE TABLE house_land_package(
   title VARCHAR(255),
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
-  template_id UUID REFERENCES template(template_id) ON DELETE SET NULL,                    -- need to decide which template is used
+  template_id UUID REFERENCES template_email(template_email_id) ON DELETE SET NULL,                    -- need to decide which template is used
   contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   contact_show_pdf BOOLEAN,
   lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
   price_type VARCHAR(100),                 -- valid esimate, fixed DEFAULT estimate
-  price_total NUMERIC(12,2) DEFAULT 0,
   commission_total NUMERIC(12,2) DEFAULT 0,
   house_total NUMERIC(12,2) DEFAULT 0,
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
@@ -3243,6 +3242,7 @@ CREATE TABLE h_l_package_pricelist_item_map(
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
   price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
   quantity INTEGER,
+  total_price NUMERIC(12,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -3250,7 +3250,10 @@ CREATE TABLE h_l_package_pricelist_item_map(
 CREATE TABLE h_l_package_commission_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
-  job_commission_id UUID REFERENCES job_commission(job_commission_id) ON DELETE CASCADE
+  total_commission NUMERIC(12,2),
+  job_commission_id UUID REFERENCES job_commission(job_commission_id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE business_contact (

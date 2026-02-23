@@ -97,9 +97,14 @@ exports.getEstateImages = async (req, res) => {
       [targetEstateId, companyId, builderId],
     );
 
+    const responseData = keysToCamelCase(result.rows);
+    
+    // Return single object if only one record, array if multiple
+    const data = responseData.length === 1 ? responseData[0] : responseData;
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      data,
       "Estate images fetched successfully",
     );
   } catch (error) {
