@@ -11,11 +11,11 @@ exports.createLot = async (req, res) => {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    if (!userId || !builderId) {
+    if (!userId || (!builderId && !companyId)) {
       return errorResponse(
         res,
         401,
-        "Unauthorized: User or builder ID missing",
+        "Unauthorized: User must belong to either a builder or company",
       );
     }
 
@@ -42,11 +42,35 @@ exports.createLot = async (req, res) => {
 
     await client.query("BEGIN");
 
+    if (state_id) {
+      const stateCheck = await client.query(
+        "SELECT state_id FROM state WHERE state_id = $1 LIMIT 1",
+        [state_id],
+      );
+
+      if (stateCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid state_id.");
+      }
+    }
+
+    if (estate_stage_id && !estate_id) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "estate_id is required when estate_stage_id is provided.",
+      );
+    }
 
     if (estate_id) {
       const estateCheck = await client.query(
-        "SELECT estate_id FROM estate WHERE estate_id = $1 AND builder_id = $2 LIMIT 1",
-        [estate_id, builderId],
+        `SELECT estate_id FROM estate 
+         WHERE estate_id = $1 AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) AND status = true LIMIT 1`,
+        [estate_id, companyId, builderId],
       );
 
       if (estateCheck.rowCount === 0) {
@@ -54,18 +78,21 @@ exports.createLot = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid estate_id or estate not found for this builder.`,
+          "Invalid estate_id or estate not found for this builder.",
         );
       }
     }
 
     if (estate_stage_id) {
       const estateStageCheck = await client.query(
-        `SELECT es.estate_stage_id, es.estate_id, e.builder_id, e.company_id 
+        `SELECT es.estate_stage_id, es.estate_id 
          FROM estate_stages es
          JOIN estate e ON e.estate_id = es.estate_id
-         WHERE es.estate_stage_id = $1 AND e.builder_id = $2 LIMIT 1`,
-        [estate_stage_id, builderId],
+         WHERE es.estate_stage_id = $1 AND (
+           (e.company_id = $2 AND $2 IS NOT NULL)
+           OR (e.builder_id = $3 AND $3 IS NOT NULL)
+         ) AND e.status = true LIMIT 1`,
+        [estate_stage_id, companyId, builderId],
       );
 
       if (estateStageCheck.rowCount === 0) {
@@ -73,19 +100,37 @@ exports.createLot = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid estate_stage_id or estate stage not found.`,
+          "Invalid estate_stage_id or estate stage not found.",
         );
       }
 
       const stageEstateId = estateStageCheck.rows[0].estate_id;
-      if (estate_id && stageEstateId !== estate_id) {
+      if (stageEstateId !== estate_id) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Estate stage does not belong to the provided estate.`,
+          "Estate stage does not belong to the provided estate.",
         );
       }
+    }
+
+    const duplicateCheck = await client.query(
+      `SELECT lot_id FROM lot 
+       WHERE lot_number = $1 AND (
+         (company_id = $2 AND $2 IS NOT NULL)
+         OR (builder_id = $3 AND $3 IS NOT NULL)
+       ) LIMIT 1`,
+      [lot_number, companyId, builderId],
+    );
+
+    if (duplicateCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        `Lot number ${lot_number} already exists in this organization.`,
+      );
     }
 
     const sql = `
@@ -193,16 +238,12 @@ exports.getAllLots = async (req, res) => {
     let queryParams = [];
     let paramIndex = 1;
 
-    // Add scope condition based on user type
-    if (builderId) {
-      whereConditions.push(`builder_id = $${paramIndex++}`);
-      queryParams.push(builderId);
-    } else if (companyId) {
-      whereConditions.push(`company_id = $${paramIndex++}`);
-      queryParams.push(companyId);
-    }
+    whereConditions.push(`(
+      (company_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
+      OR (builder_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
+    )`);
+    queryParams.push(companyId, builderId);
 
-    // Build WHERE conditions
     if (estate_id) {
       whereConditions.push(`estate_id = $${paramIndex++}`);
       queryParams.push(estate_id);
@@ -264,12 +305,10 @@ exports.getAllLots = async (req, res) => {
         ? `WHERE ${whereConditions.join(" AND ")}`
         : "";
 
-    // Get total count
     const countSql = `SELECT COUNT(*) as total FROM lot ${whereClause}`;
     const countResult = await client.query(countSql, queryParams);
     const total = parseInt(countResult.rows[0].total);
 
-    // Get paginated results
     const dataSql = `
       SELECT * FROM lot 
       ${whereClause}
@@ -367,6 +406,18 @@ exports.updateLot = async (req, res) => {
 
     await client.query("BEGIN");
 
+    if (req.body.state_id) {
+      const stateCheck = await client.query(
+        "SELECT state_id FROM state WHERE state_id = $1 LIMIT 1",
+        [req.body.state_id],
+      );
+
+      if (stateCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid state_id.");
+      }
+    }
+
     const updateFields = [];
     const updateValues = [];
     let paramIndex = 1;
@@ -388,11 +439,11 @@ exports.updateLot = async (req, res) => {
       "site_fall_mm",
       "land_fill_mm",
       "total_size_m2",
+      "estate_id",
+      "estate_stage_id",
     ];
 
     const restrictedFields = [
-      "estate_id",
-      "estate_stage_id",
     ];
     const attemptedRestrictedUpdates = restrictedFields.filter(
       (field) => req.body[field] !== undefined,
@@ -407,6 +458,100 @@ exports.updateLot = async (req, res) => {
           ", ",
         )}. These fields are restricted.`,
       );
+    }
+
+    if (req.body.estate_id) {
+      if (!req.body.estate_stage_id) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "estate_stage_id is required when updating estate_id.",
+        );
+      }
+
+      const estateCheck = await client.query(
+        `SELECT estate_id FROM estate 
+         WHERE estate_id = $1 AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) AND status = true LIMIT 1`,
+        [req.body.estate_id, companyId, builderId],
+      );
+
+      if (estateCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid estate_id or estate not found for this builder.",
+        );
+      }
+    }
+
+    if (req.body.estate_stage_id) {
+      const estateStageCheck = await client.query(
+        `SELECT es.estate_stage_id, es.estate_id 
+         FROM estate_stages es
+         JOIN estate e ON e.estate_id = es.estate_id
+         WHERE es.estate_stage_id = $1 AND (
+           (e.company_id = $2 AND $2 IS NOT NULL)
+           OR (e.builder_id = $3 AND $3 IS NOT NULL)
+         ) AND e.status = true LIMIT 1`,
+        [req.body.estate_stage_id, companyId, builderId],
+      );
+
+      if (estateStageCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid estate_stage_id or estate stage not found.",
+        );
+      }
+
+      const stageEstateId = estateStageCheck.rows[0].estate_id;
+      const finalEstateId = req.body.estate_id || checkResult.rows[0].estate_id;
+
+      if (!finalEstateId) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "estate_id is required (either provided or already existing) when estate_stage_id is set.",
+        );
+      }
+
+      if (stageEstateId !== finalEstateId) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Estate stage does not belong to the provided/existing estate.",
+        );
+      }
+    }
+
+    if (req.body.lot_number !== undefined) {
+      const finalLotNumber = req.body.lot_number;
+
+      const duplicateCheck = await client.query(
+        `SELECT lot_id FROM lot 
+         WHERE lot_number = $1 AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) AND lot_id != $4 LIMIT 1`,
+        [finalLotNumber, companyId, builderId, lot_id],
+      );
+
+      if (duplicateCheck.rowCount > 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          `Lot number ${finalLotNumber} already exists in this organization.`,
+        );
+      }
     }
 
     for (const field of allowedFields) {

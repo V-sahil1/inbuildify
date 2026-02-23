@@ -2974,6 +2974,131 @@ CREATE TABLE master_section_item(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE lot(
+  lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
+  estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
+  lot_number VARCHAR(255) NOT NULL,
+  street VARCHAR(255) NOT NULL,
+  city VARCHAR(255) NOT NULL,
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  zip_code VARCHAR(10) NOT NULL,
+  title_status VARCHAR(255),                  -- in this desicdde which status is 
+  title_date DATE,
+  lost_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
+  corner_block BOOLEAN,
+  width_m NUMERIC(10,2),
+  depth_m NUMERIC(10,2),
+  size_m2 NUMERIC(10,2),
+  price NUMERIC(10,2),
+  site_fall_mm NUMERIC(10,2),
+  land_fill_mm NUMERIC(10,2),
+  total_size_m2 NUMERIC(10,2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_lot_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE lot_package_group(
+  lot_package_group_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  group_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_lot_package_group_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE lot_package(
+  lot_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lot_id UUID REFERENCES lot(lot_id) ON DELETE CASCADE,
+  package_name VARCHAR(255) NOT NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+  lot_package_group_id UUID REFERENCES lot_package_group(lot_package_group_id) ON DELETE SET NULL,
+  disclaimer VARCHAR(100),                              -- valid validity or standard
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
+  facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+CREATE TABLE house_feature(
+  house_feature_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description VARCHAR(3000),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_house_feature_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE house_land_package(
+  house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  template_id UUID REFERENCES template_email(template_email_id) ON DELETE SET NULL,                    -- need to decide which template is used
+  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  contact_show_pdf BOOLEAN,
+  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
+  price_type VARCHAR(100),                 -- valid esimate, fixed DEFAULT estimate
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
+  floor_plan_description VARCHAR(1000),            -- if the floor plan select then user can input description if not then can not input it is optional
+  facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
+  package_group_id UUID REFERENCES lot_package_group(lot_package_group_id) ON DELETE SET NULL,
+  package_description VARCHAR(3000),
+  house_feature_id UUID REFERENCES house_feature(house_feature_id) ON DELETE SET NULL,
+  disclaimer_type VARCHAR(255),              -- standard and other type to decide
+  disclaimer_description VARCHAR(3000),
+  attach_files VARCHAR(500),                   -- attach pdf
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_house_land_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
+CREATE TABLE h_l_package_lot_package_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  lot_package_id UUID REFERENCES lot_package(lot_package_id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE h_l_package_pricelist_item_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+  quantity INTEGER,
+  total_price NUMERIC(12,2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE h_l_package_commission_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
+  job_commission_id UUID REFERENCES job_commission(job_commission_id) ON DELETE CASCADE,
+  total_commission NUMERIC(12,2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 --  make one api for the transfer, on hold , blocklist, convert to opportunity, send welcome letter
 -- make one api for the delete
 CREATE TABLE leads (
@@ -3015,6 +3140,32 @@ CREATE TABLE leads (
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE business_contact (
+    business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+
+    contact_type VARCHAR(50) NOT NULL,
+    -- 'company'
+    -- 'conveyancer'
+    -- 'mortgage_broker'
+    -- 'financer'
+
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    address1 VARCHAR(255),
+    address2 VARCHAR(255),
+    city VARCHAR(255),
+    zip_code VARCHAR(10),
+    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    abn_number VARCHAR(20),
+    acn_number VARCHAR(20),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE quotation(
@@ -3163,121 +3314,4 @@ CREATE TABLE job_form(
   special_job_notes VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE house_feature(
-  house_feature_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  description VARCHAR(3000),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  CONSTRAINT chk_house_feature_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-);
-
-CREATE TABLE house_land_package(
-  house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  title VARCHAR(255),
-  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
-  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
-  template_id UUID REFERENCES template_email(template_email_id) ON DELETE SET NULL,                    -- need to decide which template is used
-  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  contact_show_pdf BOOLEAN,
-  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
-  price_type VARCHAR(100),                 -- valid esimate, fixed DEFAULT estimate
-  commission_total NUMERIC(12,2) DEFAULT 0,
-  house_total NUMERIC(12,2) DEFAULT 0,
-  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
-  floor_plan_description VARCHAR(1000),            -- if the floor plan select then user can input description if not then can not input it is optional
-  facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
-  --package_group_id UUID[] '{}',                -- which package group is used?
-  package_description VARCHAR(3000),
-  house_feature_id UUID REFERENCES house_feature(house_feature_id) ON DELETE SET NULL,
-  disclaimer_type VARCHAR(255),              -- standard and other type to decide
-  disclaimer_description VARCHAR(3000),
-  attach_files VARCHAR(500),                   -- attach pdf
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  CONSTRAINT chk_house_land_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-);
-
-CREATE TABLE lot(
-  lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
-  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,
-  estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
-  lot_number VARCHAR(255) NOT NULL,
-  street VARCHAR(255) NOT NULL,
-  city VARCHAR(255) NOT NULL,
-  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
-  zip_code VARCHAR(10) NOT NULL,
-  title_status VARCHAR(255),                  -- in this desicdde which status is 
-  title_date DATE,
-  lost_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
-  corner_block BOOLEAN,
-  width_m NUMERIC(10,2),
-  depth_m NUMERIC(10,2),
-  size_m2 NUMERIC(10,2),
-  price NUMERIC(10,2),
-  site_fall_mm NUMERIC(10,2),
-  land_fill_mm NUMERIC(10,2),
-  total_size_m2 NUMERIC(10,2),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  CONSTRAINT chk_lot_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-);
-
-CREATE TABLE h_l_package_pricelist_item_map(
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
-  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
-  quantity INTEGER,
-  total_price NUMERIC(12,2),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE h_l_package_commission_map(
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
-  total_commission NUMERIC(12,2),
-  job_commission_id UUID REFERENCES job_commission(job_commission_id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE business_contact (
-    business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
-
-    contact_type VARCHAR(50) NOT NULL,
-    -- 'company'
-    -- 'conveyancer'
-    -- 'mortgage_broker'
-    -- 'financer'
-
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
-    phone VARCHAR(20),
-    address1 VARCHAR(255),
-    address2 VARCHAR(255),
-    city VARCHAR(255),
-    zip_code VARCHAR(10),
-    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
-    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
-    abn_number VARCHAR(20),
-    acn_number VARCHAR(20),
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

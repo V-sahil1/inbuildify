@@ -135,11 +135,14 @@ const contractSectionRoutes = require("./contract-section.routes");
 const quotationFormatMasterSectionRoutes = require("./quotation-format-master-section.routes");
 const contactRoutes = require("./contact.routes");
 const lotRoutes = require("./lot.routes");
+const lotPackageGroupRoutes = require("./lot-package-group.routes");
+const lotPackageRoutes = require("./lot-package.routes");
 const houseFeatureRoutes = require("./house-feature.routes");
 const houseLandPackageRoutes = require("./house-land-package.routes");
 const hLPackagePricelistItemCommissionRoutes = require("./h-l-package-pricelist-item-commission.routes");
 const jobFormRoutes = require("./job-form.routes");
 const businessContactRoutes = require("./business-contact.routes");
+const hlPackageLotPackageMapRoutes = require("./hl-package-lot-package-map.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -297,9 +300,12 @@ module.exports = function (app) {
   app.use("/quotation-format", quotationFormatMasterSectionRoutes);
   app.use("/contact", contactRoutes);
   app.use("/lot", lotRoutes);
+  app.use("/lot-package-group", lotPackageGroupRoutes);
+  app.use("/lot-package", lotPackageRoutes);
   app.use("/house-feature", houseFeatureRoutes);
   app.use("/house-land-package", houseLandPackageRoutes);
   app.use("/hl-package-pricelist-item-commission", hLPackagePricelistItemCommissionRoutes);
   app.use("/job-form", jobFormRoutes);
   app.use("/business-contact", businessContactRoutes);
+  app.use("/hl-package-lot-package-map", hlPackageLotPackageMapRoutes);
 };

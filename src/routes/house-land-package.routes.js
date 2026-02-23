@@ -7,6 +7,7 @@ const {
   getHouseLandPackageById,
   updateHouseLandPackage,
   deleteHouseLandPackage,
+  getHouseLandPackageDetailedInfo,
 } = require("../controllers/house-land-package.controller");
 
 const {
@@ -15,6 +16,7 @@ const {
   getHouseLandPackageByIdSchema,
   deleteHouseLandPackageSchema,
   getAllHouseLandPackagesSchema,
+  getHouseLandPackageDetailedInfoSchema,
 } = require("../validations/house-land-package.validation");
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
@@ -28,7 +30,6 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-// File upload middleware for house land package attachments
 const upload = createImageOrPdfUpload("house-land-package-attachments");
 
 router.post(
@@ -41,6 +42,12 @@ router.get(
   "/",
   validateRequest(getAllHouseLandPackagesSchema, REQUEST_SOURCE.QUERY),
   getAllHouseLandPackages,
+);
+
+router.get(
+  "/details/:house_land_package_id",
+  validateRequest(getHouseLandPackageDetailedInfoSchema, REQUEST_SOURCE.PARAMS),
+  getHouseLandPackageDetailedInfo,
 );
 
 router.get(

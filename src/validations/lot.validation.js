@@ -1,6 +1,5 @@
 const Joi = require("joi");
 
-// Reusable rules
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
   "any.required": "ID is required",
@@ -24,7 +23,6 @@ const booleanRule = Joi.boolean().optional().messages({
   "boolean.base": "Must be a boolean value",
 });
 
-// Schemas
 const createLotSchema = Joi.object({
   estate_id: optionalUuidRule,
   estate_stage_id: optionalUuidRule,

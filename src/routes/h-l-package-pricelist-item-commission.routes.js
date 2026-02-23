@@ -32,27 +32,23 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-// Create price list item mapping
 router.post(
   "/",
   validateRequest(createPriceListItemMapSchema, REQUEST_SOURCE.BODY),
   createPriceListItemMap
 );
 
-// Get all price list item mappings for the organization
 router.get(
   "/",
   getAllPriceListItemMaps
 );
 
-// Get all price list item mappings for a package
 router.get(
   "/:house_land_package_id",
   validateRequest(getPriceListItemMapsSchema, REQUEST_SOURCE.PARAMS),
   getPriceListItemMaps
 );
 
-// Update price list item mapping
 router.put(
   "/:id",
   validateRequest(updatePriceListItemMapSchema, REQUEST_SOURCE.BODY),
@@ -60,7 +56,6 @@ router.put(
   updatePriceListItemMap
 );
 
-// Delete price list item mapping
 router.delete(
   "/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
@@ -69,27 +64,23 @@ router.delete(
 
 // --- Package Commission Map Routes ---
 
-// Create package commission mapping
 router.post(
   "/package-commission",
   validateRequest(createPackageCommissionMapSchema, REQUEST_SOURCE.BODY),
   createPackageCommissionMap
 );
 
-// Get all package commission mappings for the organization
 router.get(
-  "/package-commission/all/data",
+  "/package-commission/all",
   getAllPackageCommissionMaps
 );
 
-// Get mappings for a specific package
 router.get(
   "/package-commission/:house_land_package_id",
   validateRequest(getPriceListItemMapsSchema, REQUEST_SOURCE.PARAMS),
   getPackageCommissionMaps
 );
 
-// Update package commission mapping
 router.put(
   "/package-commission/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
@@ -97,7 +88,6 @@ router.put(
   updatePackageCommissionMap
 );
 
-// Delete package commission mapping
 router.delete(
   "/package-commission/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),

@@ -174,6 +174,18 @@ exports.createJobCommissionSubStage = async (req, res) => {
 
     const result = await client.query(insertQuery, values);
 
+    // Sync h_l_package_commission_map totals
+    await client.query(
+      `UPDATE h_l_package_commission_map
+       SET total_commission = (
+         SELECT COALESCE(SUM(commission_value), 0)
+         FROM job_commission_sub_stage
+         WHERE job_commission_id = $1
+       ), updated_at = CURRENT_TIMESTAMP
+       WHERE job_commission_id = $1`,
+      [job_commission_id],
+    );
+
     await client.query("COMMIT");
 
     return successResponse(
@@ -379,6 +391,18 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
     await client.query(
       `UPDATE job_commission_sub_stage SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_id = $2`,
       [deletedSortOrder, jobCommissionId],
+    );
+
+    // Sync h_l_package_commission_map totals
+    await client.query(
+      `UPDATE h_l_package_commission_map
+       SET total_commission = (
+         SELECT COALESCE(SUM(commission_value), 0)
+         FROM job_commission_sub_stage
+         WHERE job_commission_id = $1
+       ), updated_at = CURRENT_TIMESTAMP
+       WHERE job_commission_id = $1`,
+      [jobCommissionId],
     );
 
     return successResponse(
@@ -606,15 +630,30 @@ exports.updateJobCommissionSubStage = async (req, res) => {
     const updateResult = await client.query(updateQuery, values);
 
     if (updateResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Job commission sub stage not found.");
     }
 
+    // Sync h_l_package_commission_map totals
+    await client.query(
+      `UPDATE h_l_package_commission_map
+       SET total_commission = (
+         SELECT COALESCE(SUM(commission_value), 0)
+         FROM job_commission_sub_stage
+         WHERE job_commission_id = $1
+       ), updated_at = CURRENT_TIMESTAMP
+       WHERE job_commission_id = $1`,
+      [jobCommissionId],
+    );
+
+    await client.query("COMMIT");
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
       "Job commission sub stage updated successfully.",
     );
   } catch (error) {
+    await client.query("ROLLBACK"); // Rollback on any unexpected error
     console.error("Error updating job commission sub stage:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {
