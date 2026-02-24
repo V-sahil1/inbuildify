@@ -8,7 +8,16 @@ exports.createHouseLandPackage = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { title } = req.body;
+    const {
+      title,
+      lot_id,
+      dwelling_type_id,
+      package_group_id,
+      range_id,
+      disclaimer_type,
+      floor_plan_id,
+      facade_id
+    } = req.body;
 
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
@@ -30,6 +39,130 @@ exports.createHouseLandPackage = async (req, res) => {
       );
     }
 
+    const titleCheck = await client.query(
+      `SELECT house_land_package_id FROM house_land_package 
+       WHERE title = $1 AND (
+         (company_id = $2 AND $2 IS NOT NULL)
+         OR (builder_id = $3 AND $3 IS NOT NULL)
+       ) LIMIT 1`,
+      [title, companyId, builderId],
+    );
+
+    if (titleCheck.rowCount > 0) {
+      return errorResponse(
+        res,
+        400,
+        "A house land package with this title already exists",
+      );
+    }
+
+    if (lot_id && !dwelling_type_id) {
+      return errorResponse(
+        res,
+        400,
+        "Dwelling type ID is required when a Lot ID is provided",
+      );
+    }
+
+    if (lot_id) {
+    const lotCheck = await client.query(
+      `SELECT lot_id FROM lot 
+       WHERE lot_id = $1 AND (
+         (company_id = $2 AND $2 IS NOT NULL)
+         OR (builder_id = $3 AND $3 IS NOT NULL)
+       ) LIMIT 1`,
+      [lot_id, companyId, builderId],
+    );
+
+    if (lotCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Lot not found or unauthorized access.");
+    }
+  }
+
+    if (dwelling_type_id) {
+      const dtCheck = await client.query(
+        `SELECT dwelling_type_id FROM dwelling_type 
+         WHERE dwelling_type_id = $1 AND is_active = true AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [dwelling_type_id, companyId, builderId],
+      );
+      if (dtCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid or inactive dwelling type.");
+      }
+    }
+
+    if (range_id) {
+      const rCheck = await client.query(
+        `SELECT range_id FROM range 
+         WHERE range_id = $1 AND is_active = true AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [range_id, companyId, builderId],
+      );
+      if (rCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid or inactive range.");
+      }
+    }
+
+    if (package_group_id) {
+      const lpgCheck = await client.query(
+        `SELECT lot_package_group_id FROM lot_package_group 
+         WHERE lot_package_group_id = $1 AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [package_group_id, companyId, builderId],
+      );
+      if (lpgCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid lot package group.");
+      }
+    }
+
+    if (facade_id) {
+      const fCheck = await client.query(
+        `SELECT facade_id, dwelling_type_id FROM facade 
+         WHERE facade_id = $1 AND status = true AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [facade_id, companyId, builderId],
+      );
+      if (fCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid or inactive facade.");
+      }
+      if (fCheck.rows[0].dwelling_type_id !== dwelling_type_id) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Facade does not match the provided dwelling type.");
+      }
+    }
+
+    if (floor_plan_id) {
+      const fpCheck = await client.query(
+        `SELECT floor_plan_id, dwelling_type_id FROM floor_plan 
+         WHERE floor_plan_id = $1 AND status = true AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [floor_plan_id, companyId, builderId],
+      );
+      if (fpCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid or inactive floor plan.");
+      }
+      if (fpCheck.rows[0].dwelling_type_id !== dwelling_type_id) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Floor plan does not match the provided dwelling type.");
+      }
+    }
+
     await client.query("BEGIN");
 
     const sql = `
@@ -37,12 +170,19 @@ exports.createHouseLandPackage = async (req, res) => {
         company_id,
         builder_id,
         title,
+        lot_id,
+        dwelling_type_id,
+        package_group_id,
+        range_id,
+        disclaimer_type,
+        floor_plan_id,
+        facade_id,
         created_by,
         updated_by,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *
     `;
 
@@ -50,6 +190,13 @@ exports.createHouseLandPackage = async (req, res) => {
       companyId,
       builderId,
       title,
+      lot_id || null,
+      dwelling_type_id || null,
+      package_group_id || null,
+      range_id || null,
+      disclaimer_type || null,
+      floor_plan_id || null,
+      facade_id || null,
       userId,
       userId,
     ];
@@ -293,7 +440,7 @@ exports.getHouseLandPackageDetailedInfo = async (req, res) => {
       SELECT hlp.*, 
        -- Lot Details
        l.lot_number, l.street as lot_street, l.city as lot_city, l.zip_code as lot_zip, 
-       l.lost_type as lot_type, l.width_m as lot_width, l.depth_m as lot_depth, 
+       l.lot_type as lot_type, l.width_m as lot_width, l.depth_m as lot_depth, 
        l.size_m2 as lot_size, l.total_size_m2 as lot_total_size, l.price as land_price,
        -- Estate & Stage
        e.name as estate_name, es.name as stage_name,

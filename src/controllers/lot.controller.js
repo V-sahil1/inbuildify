@@ -29,11 +29,10 @@ exports.createLot = async (req, res) => {
       zip_code,
       title_status,
       title_date,
-      lost_type,
+      lot_type,
       corner_block,
       width_m,
       depth_m,
-      size_m2,
       price,
       site_fall_mm,
       land_fill_mm,
@@ -146,11 +145,10 @@ exports.createLot = async (req, res) => {
         zip_code,
         title_status,
         title_date,
-        lost_type,
+        lot_type,
         corner_block,
         width_m,
         depth_m,
-        size_m2,
         price,
         site_fall_mm,
         land_fill_mm,
@@ -160,8 +158,12 @@ exports.createLot = async (req, res) => {
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,$18,$19,$20,$21,$22, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      ) RETURNING *
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ) RETURNING 
+        lot.*,
+        (SELECT jsonb_build_object('id', e.estate_id, 'name', e.name) FROM estate e WHERE e.estate_id = lot.estate_id) AS estate,
+        (SELECT jsonb_build_object('id', es.estate_stage_id, 'name', es.name) FROM estate_stages es WHERE es.estate_stage_id = lot.estate_stage_id) AS estate_stage,
+        (SELECT u.name FROM users u WHERE u.users_id = lot.created_by) AS created_by_name
     `;
 
     const values = [
@@ -176,11 +178,10 @@ exports.createLot = async (req, res) => {
       zip_code,
       title_status || null,
       title_date || null,
-      lost_type || "regular",
+      lot_type || "regular",
       corner_block || false,
       width_m || null,
       depth_m || null,
-      size_m2 || null,
       price || null,
       site_fall_mm || null,
       land_fill_mm || null,
@@ -192,15 +193,19 @@ exports.createLot = async (req, res) => {
     const result = await client.query(sql, values);
     await client.query("COMMIT");
 
+    const formatted = keysToCamelCase(result.rows[0]);
+    delete formatted.estateId;
+    delete formatted.estateStageId;
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      formatted,
       "Lot created successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create lot error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -219,12 +224,10 @@ exports.getAllLots = async (req, res) => {
     }
 
     const {
-      page = 1,
-      limit = 25,
       estate_id,
       estate_stage_id,
       title_status,
-      lost_type,
+      lot_type,
       corner_block,
       min_price,
       max_price,
@@ -232,69 +235,67 @@ exports.getAllLots = async (req, res) => {
       max_size,
       search,
     } = req.query;
-
-    const offset = (page - 1) * limit;
     let whereConditions = [];
     let queryParams = [];
     let paramIndex = 1;
 
     whereConditions.push(`(
-      (company_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
-      OR (builder_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
+      (l.company_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
+      OR (l.builder_id = $${paramIndex++} AND $${paramIndex - 1} IS NOT NULL)
     )`);
     queryParams.push(companyId, builderId);
 
     if (estate_id) {
-      whereConditions.push(`estate_id = $${paramIndex++}`);
+      whereConditions.push(`l.estate_id = $${paramIndex++}`);
       queryParams.push(estate_id);
     }
 
     if (estate_stage_id) {
-      whereConditions.push(`estate_stage_id = $${paramIndex++}`);
+      whereConditions.push(`l.estate_stage_id = $${paramIndex++}`);
       queryParams.push(estate_stage_id);
     }
 
     if (title_status) {
-      whereConditions.push(`title_status = $${paramIndex++}`);
+      whereConditions.push(`l.title_status = $${paramIndex++}`);
       queryParams.push(title_status);
     }
 
-    if (lost_type) {
-      whereConditions.push(`lost_type = $${paramIndex++}`);
-      queryParams.push(lost_type);
+    if (lot_type) {
+      whereConditions.push(`l.lot_type = $${paramIndex++}`);
+      queryParams.push(lot_type);
     }
 
     if (corner_block !== undefined) {
-      whereConditions.push(`corner_block = $${paramIndex++}`);
+      whereConditions.push(`l.corner_block = $${paramIndex++}`);
       queryParams.push(corner_block === "true");
     }
 
     if (min_price) {
-      whereConditions.push(`price >= $${paramIndex++}`);
+      whereConditions.push(`l.price >= $${paramIndex++}`);
       queryParams.push(parseFloat(min_price));
     }
 
     if (max_price) {
-      whereConditions.push(`price <= $${paramIndex++}`);
+      whereConditions.push(`l.price <= $${paramIndex++}`);
       queryParams.push(parseFloat(max_price));
     }
 
     if (min_size) {
-      whereConditions.push(`size_m2 >= $${paramIndex++}`);
+      whereConditions.push(`l.total_size_m2 >= $${paramIndex++}`);
       queryParams.push(parseFloat(min_size));
     }
 
     if (max_size) {
-      whereConditions.push(`size_m2 <= $${paramIndex++}`);
+      whereConditions.push(`l.total_size_m2 <= $${paramIndex++}`);
       queryParams.push(parseFloat(max_size));
     }
 
     if (search) {
       whereConditions.push(`(
-        lot_number ILIKE $${paramIndex++} OR
-        street ILIKE $${paramIndex++} OR
-        city ILIKE $${paramIndex++} OR
-        zip_code ILIKE $${paramIndex++}
+        l.lot_number ILIKE $${paramIndex++} OR
+        l.street ILIKE $${paramIndex++} OR
+        l.city ILIKE $${paramIndex++} OR
+        l.zip_code ILIKE $${paramIndex++}
       )`);
       const searchTerm = `%${search}%`;
       queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
@@ -305,31 +306,41 @@ exports.getAllLots = async (req, res) => {
         ? `WHERE ${whereConditions.join(" AND ")}`
         : "";
 
-    const countSql = `SELECT COUNT(*) as total FROM lot ${whereClause}`;
+    const countSql = `
+      SELECT COUNT(*) as total 
+      FROM lot l
+      LEFT JOIN estate e ON e.estate_id = l.estate_id
+      LEFT JOIN estate_stages es ON es.estate_stage_id = l.estate_stage_id
+      LEFT JOIN users u ON u.users_id = l.created_by
+      ${whereClause}
+    `;
     const countResult = await client.query(countSql, queryParams);
     const total = parseInt(countResult.rows[0].total);
 
     const dataSql = `
-      SELECT * FROM lot 
+      SELECT 
+        l.*,
+        jsonb_build_object('id', e.estate_id, 'name', e.name) AS estate,
+        jsonb_build_object('id', es.estate_stage_id, 'name', es.name) AS estate_stage,
+        u.name AS created_by_name
+      FROM lot l
+      LEFT JOIN estate e ON e.estate_id = l.estate_id
+      LEFT JOIN estate_stages es ON es.estate_stage_id = l.estate_stage_id
+      LEFT JOIN users u ON u.users_id = l.created_by
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
-    queryParams.push(parseInt(limit), offset);
 
     const dataResult = await client.query(dataSql, queryParams);
 
     return successResponse(
       res,
-      {
-        lots: dataResult.rows.map(keysToCamelCase),
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
+      dataResult.rows.map(row => {
+        const formatted = keysToCamelCase(row);
+        delete formatted.estateId;
+        delete formatted.estateStageId;
+        return formatted;
+      }),
       "Lots retrieved successfully",
     );
   } catch (error) {
@@ -353,19 +364,31 @@ exports.getLotById = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
-    const sql = `SELECT * FROM lot WHERE lot_id = $1 AND (
-      (company_id = $2 AND $2 IS NOT NULL)
-      OR (builder_id = $3 AND $3 IS NOT NULL)
-    )`;
+    const sql = `
+      SELECT 
+        l.*,
+        (SELECT jsonb_build_object('id', e.estate_id, 'name', e.name) FROM estate e WHERE e.estate_id = l.estate_id) AS estate,
+        (SELECT jsonb_build_object('id', es.estate_stage_id, 'name', es.name) FROM estate_stages es WHERE es.estate_stage_id = l.estate_stage_id) AS estate_stage,
+        (SELECT u.name FROM users u WHERE u.users_id = l.created_by) AS created_by_name
+      FROM lot l
+      WHERE l.lot_id = $1 AND (
+        (l.company_id = $2 AND $2 IS NOT NULL)
+        OR (l.builder_id = $3 AND $3 IS NOT NULL)
+      )
+    `;
     const result = await client.query(sql, [lot_id, companyId, builderId]);
 
     if (result.rows.length === 0) {
       return successResponse(res, "Lot retrieved successfully.");
     }
 
+    const formatted = keysToCamelCase(result.rows[0]);
+    delete formatted.estateId;
+    delete formatted.estateStageId;
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      formatted,
       "Lot retrieved successfully",
     );
   } catch (error) {
@@ -430,11 +453,10 @@ exports.updateLot = async (req, res) => {
       "zip_code",
       "title_status",
       "title_date",
-      "lost_type",
+      "lot_type",
       "corner_block",
       "width_m",
       "depth_m",
-      "size_m2",
       "price",
       "site_fall_mm",
       "land_fill_mm",
@@ -573,15 +595,23 @@ exports.updateLot = async (req, res) => {
       UPDATE lot 
       SET ${updateFields.join(", ")}
       WHERE lot_id = $${paramIndex}
-      RETURNING *
+      RETURNING 
+        lot.*,
+        (SELECT jsonb_build_object('id', e.estate_id, 'name', e.name) FROM estate e WHERE e.estate_id = lot.estate_id) AS estate,
+        (SELECT jsonb_build_object('id', es.estate_stage_id, 'name', es.name) FROM estate_stages es WHERE es.estate_stage_id = lot.estate_stage_id) AS estate_stage,
+        (SELECT u.name FROM users u WHERE u.users_id = lot.created_by) AS created_by_name
     `;
 
     const result = await client.query(sql, updateValues);
     await client.query("COMMIT");
 
+    const formatted = keysToCamelCase(result.rows[0]);
+    delete formatted.estateId;
+    delete formatted.estateStageId;
+
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      formatted,
       "Lot updated successfully",
     );
   } catch (error) {

@@ -4,6 +4,9 @@ const createBusinessContactSchema = Joi.object({
   leads_id: Joi.string().uuid().allow(null).optional(),
   contact_type: Joi.string()
     .valid("company", "conveyancer", "mortgage_broker", "financer")
+    .messages({
+      "any.only": "Invalid contact type. Must be one of: company, conveyancer, mortgage_broker, financer"
+    })
     .required(),
   name: Joi.string().min(2).max(255).required(),
   email: Joi.string().email().allow(null, "").optional(),
@@ -21,13 +24,6 @@ const createBusinessContactSchema = Joi.object({
 const getAllBusinessContactsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
-  name: Joi.string().allow(null, "").optional(),
-  email: Joi.string().allow(null, "").optional(),
-  phone: Joi.string().allow(null, "").optional(),
-  contact_type: Joi.string().allow(null, "").optional(),
-  city: Joi.string().allow(null, "").optional(),
-  country_id: Joi.string().uuid().allow(null, "").optional(),
-  state_id: Joi.string().uuid().allow(null, "").optional(),
 });
 
 const getBusinessContactByIdSchema = Joi.object({
@@ -35,9 +31,6 @@ const getBusinessContactByIdSchema = Joi.object({
 });
 
 const updateBusinessContactSchema = Joi.object({
-  contact_type: Joi.string()
-    .valid("company", "conveyancer", "mortgage_broker", "financer")
-    .optional(),
   name: Joi.string().min(2).max(255).optional(),
   email: Joi.string().email().allow(null, "").optional(),
   phone: Joi.string().max(20).allow(null, "").optional(),

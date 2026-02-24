@@ -24,8 +24,12 @@ const booleanRule = Joi.boolean().optional().messages({
 });
 
 const createLotSchema = Joi.object({
-  estate_id: optionalUuidRule,
-  estate_stage_id: optionalUuidRule,
+  estate_id: optionalUuidRule.messages({
+    "string.guid": "Estate ID must be a valid UUID",
+  }),
+  estate_stage_id: optionalUuidRule.messages({
+    "string.guid": "Estate stage ID must be a valid UUID",
+  }),
   lot_number: stringRule.max(255).required().messages({
     "any.required": "Lot number is required",
     "string.max": "Lot number must not exceed 255 characters",
@@ -38,7 +42,10 @@ const createLotSchema = Joi.object({
     "any.required": "City is required",
     "string.max": "City must not exceed 255 characters",
   }),
-  state_id: optionalUuidRule.required(),
+  state_id: optionalUuidRule.required().messages({
+    "string.guid": "State ID must be a valid UUID",
+    "any.required": "State ID is required",
+  }),
   zip_code: stringRule.min(4).max(4).required().messages({
     "any.required": "Zip code is required",
     "string.max": "Zip code must not exceed 10 characters",
@@ -62,19 +69,18 @@ const createLotSchema = Joi.object({
   title_date: Joi.date().optional().allow(null).messages({
     "date.base": "Title date must be a valid date",
   }),
-  lost_type: stringRule
+  lot_type: stringRule
     .max(100)
     .optional()
     .allow("")
     .valid("regular", "irregular")
     .default("regular")
     .messages({
-      "any.only": "Lost type must be either regular or irregular",
+      "any.only": "Lot type must be either regular or irregular",
     }),
   corner_block: booleanRule.default(false),
   width_m: numericRule.min(0).optional().allow(null),
   depth_m: numericRule.min(0).optional().allow(null),
-  size_m2: numericRule.min(0).optional().allow(null),
   price: numericRule.min(0).optional().allow(null),
   site_fall_mm: numericRule.min(0).optional().allow(null),
   land_fill_mm: numericRule.min(0).optional().allow(null),
@@ -82,8 +88,12 @@ const createLotSchema = Joi.object({
 });
 
 const updateLotSchema = Joi.object({
-  estate_id: optionalUuidRule,
-  estate_stage_id: optionalUuidRule,
+  estate_id: optionalUuidRule.messages({
+    "string.guid": "Estate ID must be a valid UUID",
+  }),
+  estate_stage_id: optionalUuidRule.messages({
+    "string.guid": "Estate stage ID must be a valid UUID",
+  }),
   lot_number: stringRule.max(255).optional().messages({
     "string.max": "Lot number must not exceed 255 characters",
   }),
@@ -93,7 +103,9 @@ const updateLotSchema = Joi.object({
   city: stringRule.max(255).optional().messages({
     "string.max": "City must not exceed 255 characters",
   }),
-  state_id: optionalUuidRule,
+  state_id: optionalUuidRule.messages({
+    "string.guid": "State ID must be a valid UUID",
+  }),
   zip_code: stringRule.min(4).max(4).optional().messages({
     "string.max": "Zip code must not exceed 10 characters",
   }),
@@ -116,18 +128,17 @@ const updateLotSchema = Joi.object({
   title_date: Joi.date().optional().allow(null).messages({
     "date.base": "Title date must be a valid date",
   }),
-  lost_type: stringRule
+  lot_type: stringRule
     .max(100)
     .optional()
     .allow("")
     .valid("regular", "irregular")
     .messages({
-      "any.only": "Lost type must be either regular or irregular",
+      "any.only": "Lot type must be either regular or irregular",
     }),
   corner_block: booleanRule,
   width_m: numericRule.min(0).optional().allow(null),
   depth_m: numericRule.min(0).optional().allow(null),
-  size_m2: numericRule.min(0).optional().allow(null),
   price: numericRule.min(0).optional().allow(null),
   site_fall_mm: numericRule.min(0).optional().allow(null),
   land_fill_mm: numericRule.min(0).optional().allow(null),
@@ -143,21 +154,10 @@ const deleteLotSchema = Joi.object({
 });
 
 const getAllLotsSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    "number.base": "Page must be a number",
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be greater than 0",
-  }),
-  limit: Joi.number().integer().min(1).max(100).default(25).messages({
-    "number.base": "Limit must be a number",
-    "number.integer": "Limit must be an integer",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit must not exceed 100",
-  }),
   estate_id: optionalUuidRule,
   estate_stage_id: optionalUuidRule,
   title_status: stringRule.max(255).optional().allow(""),
-  lost_type: stringRule
+  lot_type: stringRule
     .max(100)
     .optional()
     .allow("")

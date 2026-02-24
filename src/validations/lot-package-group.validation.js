@@ -29,7 +29,10 @@ const getLotPackageGroupByIdSchema = Joi.object({
 });
 
 const deleteLotPackageGroupSchema = Joi.object({
-  lot_package_group_id: uuidRule,
+  lot_package_group_id: uuidRule.messages({
+    "string.guid": "Lot package group ID must be a valid UUID",
+    "any.required": "Lot package group ID is required",
+  }),
 });
 
 const getAllLotPackageGroupsSchema = Joi.object({

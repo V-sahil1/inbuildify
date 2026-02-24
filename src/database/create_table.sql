@@ -2987,7 +2987,7 @@ CREATE TABLE lot(
   zip_code VARCHAR(10) NOT NULL,
   title_status VARCHAR(255),                  -- in this desicdde which status is 
   title_date DATE,
-  lost_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
+  lot_type VARCHAR(100),                  --  reguler or irregular DEFAULT reguler
   corner_block BOOLEAN,
   width_m NUMERIC(10,2),
   depth_m NUMERIC(10,2),
@@ -3021,7 +3021,7 @@ CREATE TABLE lot_package(
   package_name VARCHAR(255) NOT NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
-  lot_package_group_id UUID REFERENCES lot_package_group(lot_package_group_id) ON DELETE SET NULL,
+  lot_package_group_id UUID REFERENCES lot_package_group(lot_package_group_id) ON DELETE SET NULL,   -- this table is not use for now
   disclaimer VARCHAR(100),                              -- valid validity or standard
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
@@ -3076,7 +3076,7 @@ CREATE TABLE h_l_package_lot_package_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
   lot_package_id UUID REFERENCES lot_package(lot_package_id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                -- this table is not use for now
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -3140,82 +3140,6 @@ CREATE TABLE leads (
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE business_contact (
-    business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
-
-    contact_type VARCHAR(50) NOT NULL,
-    -- 'company'
-    -- 'conveyancer'
-    -- 'mortgage_broker'
-    -- 'financer'
-
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
-    phone VARCHAR(20),
-    address1 VARCHAR(255),
-    address2 VARCHAR(255),
-    city VARCHAR(255),
-    zip_code VARCHAR(10),
-    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
-    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
-    abn_number VARCHAR(20),
-    acn_number VARCHAR(20),
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE quotation(
-  quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
-  refrence_id VARCHAR(50),                            --- need to decide contat update un quotatio  or not
-  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,        
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
-);
-
--- when the user not select dwellingype then user can not select foorplan, facade, pricelist, pricelist item in create time
--- when the user update range  that time delete the facade, floorplan, package, pricelist item , template which ar selected
-CREATE TABLE quotation_version(
-  quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
-  refrence_id VARCHAR(50),
-  version_no VARCHAR(50) NOT NULL,
-  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
-  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
-  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
-  package_id UUID[] DEFAULT '{}',
-  floor_plan_id UUID[] DEFAULT '{}',
-  facade_id UUID[] DEFAULT '{}',
-  is_approve BOOLEAN DEFAULT FALSE,
-  sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- when the location and dwelling type select then user can select priclist item
-CREATE TABLE quotation_version_pricelist_item_map(
-  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
-  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
-  quantity INTEGER,
-  note VARCHAR(500),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT quotation_version_pricelist_item_map_pkey PRIMARY KEY (quotation_version_id, price_list_item_id)
-);
-
-CREATE TABLE quotation_version_custom_section(
-  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
-  custom_section_id UUID REFERENCES custom_section(custom_section_id) ON DELETE CASCADE,
-  file_url VARCHAR(500),
-  sort_order INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE property(  
@@ -3312,6 +3236,90 @@ CREATE TABLE job_form(
   contact_for_sale BOOLEAN,
   variational_list BOOLEAN,
   special_job_notes VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE business_contact (
+    business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+
+    contact_type VARCHAR(50) NOT NULL,
+    -- this are valid types
+    -- 'company'
+    -- 'conveyancer'
+    -- 'mortgage_broker'
+    -- 'financer'
+
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    address1 VARCHAR(255),
+    address2 VARCHAR(255),
+    city VARCHAR(255),
+    zip_code VARCHAR(10),
+    country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+    state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+    abn_number VARCHAR(20),
+    acn_number VARCHAR(20),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quotation(
+  quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  refrence_id VARCHAR(50),                            --- need to decide contat update un quotatio  or not
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL,        
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
+);
+
+-- when the user not select dwellingype then user can not select foorplan, facade, pricelist, pricelist item in create time
+-- when the user update range  that time delete the facade, floorplan, package, pricelist item , template which ar selected
+CREATE TABLE quotation_version(
+  quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
+  version_no VARCHAR(50) NOT NULL,
+  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
+  range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
+  dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
+  facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
+  is_approve BOOLEAN DEFAULT FALSE,
+  sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quotation_version_package_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  package_id UUID REFERENCES package(package_id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- when the location and dwelling type select then user can select priclist item
+CREATE TABLE quotation_version_pricelist_item_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
+  quantity INTEGER,
+  note VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quotation_version_custom_section(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+  custom_section_id UUID REFERENCES custom_section(custom_section_id) ON DELETE CASCADE,
+  file_url VARCHAR(500),
+  sort_order INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

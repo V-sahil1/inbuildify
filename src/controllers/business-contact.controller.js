@@ -1,7 +1,5 @@
 const getPool = require("../config/database");
-
 const { successResponse, errorResponse } = require("../helper/response");
-
 const { keysToCamelCase } = require("../utils/common");
 
 exports.createBusinessContact = async (req, res) => {
@@ -31,7 +29,79 @@ exports.createBusinessContact = async (req, res) => {
       acn_number,
     } = req.body;
 
-    // No authorization check needed as business_contact doesn't have builder_id/company_id
+    // Validate lead ownership
+    const leadCheck = await client.query(
+      `SELECT leads_id FROM leads WHERE leads_id = $1 AND (
+        (company_id = $2 AND $2 IS NOT NULL)
+        OR (builder_id = $3 AND $3 IS NOT NULL)
+      ) LIMIT 1`,
+      [leads_id, companyId, builderId]
+    );
+
+    if (leadCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Lead not found or does not belong to your organization");
+    }
+
+    // Check existing contacts for this lead and contact type
+    const existingContactsCheck = await client.query(
+      `SELECT COUNT(*) as count FROM business_contact 
+       WHERE leads_id = $1 AND contact_type = $2`,
+      [leads_id, contact_type]
+    );
+
+    const existingCount = parseInt(existingContactsCheck.rows[0].count);
+
+    // Check contacts per type for this lead
+    const contactsByTypeCheck = await client.query(
+      `SELECT contact_type, COUNT(*) as count FROM business_contact 
+       WHERE leads_id = $1 
+       GROUP BY contact_type`,
+      [leads_id]
+    );
+
+    const parsedCountryId = country_id === "" ? null : country_id;
+    const parsedStateId = state_id === "" ? null : state_id;
+
+    if (parsedStateId) {
+      if (!parsedCountryId) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Country is required when state is provided.");
+      }
+
+      const stateCheckRes = await client.query(
+        "SELECT 1 FROM state WHERE state_id = $1 AND country_id = $2",
+        [parsedStateId, parsedCountryId]
+      );
+
+      if (stateCheckRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid state for the selected country.");
+      }
+    }
+
+    const typeCounts = {};
+    contactsByTypeCheck.rows.forEach(row => {
+      typeCounts[row.contact_type] = parseInt(row.count);
+    });
+
+    // Validation rules
+    if (typeCounts[contact_type] >= 1) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, `Only one contact allowed per type. Type '${contact_type}' already has ${typeCounts[contact_type]} contact(s)`);
+    }
+
+    // Check total contacts for this lead (max 4)
+    const totalContactsCheck = await client.query(
+      `SELECT COUNT(*) as total FROM business_contact WHERE leads_id = $1`,
+      [leads_id]
+    );
+
+    const totalContacts = parseInt(totalContactsCheck.rows[0].total);
+    if (totalContacts >= 4) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Maximum 4 contacts allowed per lead. This lead already has " + totalContacts + " contacts");
+    }
 
     const insertQuery = `
       INSERT INTO business_contact (
@@ -110,9 +180,6 @@ exports.getAllBusinessContacts = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const { name, email, phone, contact_type, city, country_id, state_id } =
-      req.query;
-
     let whereClauses = [];
     let values = [];
     let idx = 1;
@@ -125,48 +192,6 @@ exports.getAllBusinessContacts = async (req, res) => {
     } else {
       whereClauses.push(`l.company_id = $${idx}`);
       values.push(companyId);
-      idx++;
-    }
-
-    if (name) {
-      whereClauses.push(`LOWER(bc.name) LIKE LOWER($${idx})`);
-      values.push(`%${name}%`);
-      idx++;
-    }
-
-    if (email) {
-      whereClauses.push(`LOWER(bc.email) LIKE LOWER($${idx})`);
-      values.push(`%${email}%`);
-      idx++;
-    }
-
-    if (phone) {
-      whereClauses.push(`bc.phone = $${idx}`);
-      values.push(phone);
-      idx++;
-    }
-
-    if (contact_type) {
-      whereClauses.push(`bc.contact_type = $${idx}`);
-      values.push(contact_type);
-      idx++;
-    }
-
-    if (city) {
-      whereClauses.push(`LOWER(bc.city) LIKE LOWER($${idx})`);
-      values.push(`%${city}%`);
-      idx++;
-    }
-
-    if (country_id) {
-      whereClauses.push(`bc.country_id = $${idx}`);
-      values.push(country_id);
-      idx++;
-    }
-
-    if (state_id) {
-      whereClauses.push(`bc.state_id = $${idx}`);
-      values.push(state_id);
       idx++;
     }
 
@@ -299,7 +324,6 @@ exports.updateBusinessContact = async (req, res) => {
     }
 
     const {
-      contact_type,
       name,
       email,
       phone,
@@ -332,15 +356,29 @@ exports.updateBusinessContact = async (req, res) => {
       return errorResponse(res, 404, "Business contact not found.");
     }
 
+    const finalCountryId = country_id !== undefined ? (country_id === "" ? null : country_id) : checkResult.rows[0].country_id;
+    const finalStateId = state_id !== undefined ? (state_id === "" ? null : state_id) : checkResult.rows[0].state_id;
+
+    if (finalStateId) {
+      if (!finalCountryId) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Country is required when state is provided.");
+      }
+
+      const stateCheckRes = await client.query(
+        "SELECT 1 FROM state WHERE state_id = $1 AND country_id = $2",
+        [finalStateId, finalCountryId]
+      );
+
+      if (stateCheckRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 400, "Invalid state for the selected country.");
+      }
+    }
+
     const fields = [];
     const values = [];
     let index = 1;
-
-    if (contact_type !== undefined) {
-      fields.push(`contact_type = $${index}`);
-      values.push(contact_type);
-      index++;
-    }
 
     if (name !== undefined) {
       fields.push(`name = $${index}`);
@@ -414,9 +452,6 @@ exports.updateBusinessContact = async (req, res) => {
     }
 
     fields.push(`updated_at = NOW()`);
-    fields.push(`updated_by = $${index}`);
-    values.push(userId);
-    index++;
 
     const updateQuery = `
       UPDATE business_contact
@@ -425,7 +460,7 @@ exports.updateBusinessContact = async (req, res) => {
       RETURNING *
     `;
 
-    const finalValues = [business_contact_id, ...values];
+    const finalValues = [...values, business_contact_id];
     const updateResult = await client.query(updateQuery, finalValues);
 
     await client.query("COMMIT");

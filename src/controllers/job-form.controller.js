@@ -108,6 +108,31 @@ exports.createJobForm = async (req, res) => {
       }
     }
 
+    // Validate lead ownership
+    const leadCheck = await client.query(
+      `SELECT leads_id FROM leads WHERE leads_id = $1 AND (
+        (company_id = $2 AND $2 IS NOT NULL)
+        OR (builder_id = $3 AND $3 IS NOT NULL)
+      ) LIMIT 1`,
+      [leads_id, req.user?.company_id, builderId]
+    );
+
+    if (leadCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Lead not found or does not belong to your organization");
+    }
+
+    // Check if job form already exists for this lead
+    const existingJobFormCheck = await client.query(
+      `SELECT job_form_id FROM job_form WHERE leads_id = $1 LIMIT 1`,
+      [leads_id]
+    );
+
+    if (existingJobFormCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Job form already exists for this lead. Only one job form is allowed per lead.");
+    }
+
     const sql = `
       INSERT INTO job_form (
         leads_id,
@@ -381,13 +406,16 @@ exports.getJobFormById = async (req, res) => {
         ld.phone
       FROM job_form jf
       LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
-      WHERE jf.job_form_id = $1
+      WHERE jf.job_form_id = $1 AND (
+        (ld.company_id = $2 AND $2 IS NOT NULL)
+        OR (ld.builder_id = $3 AND $3 IS NOT NULL)
+      )
     `;
 
-    const result = await client.query(sql, [job_form_id]);
+    const result = await client.query(sql, [job_form_id, companyId, builderId]);
 
     if (result.rows.length === 0) {
-      return errorResponse(res, 404, "Job form not found");
+      return successResponse(res, [], "Job form retrieved successfully.");
     }
 
     return successResponse(
@@ -415,17 +443,21 @@ exports.updateJobForm = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    // Check if job form exists
+    // Check if job form exists and belongs to user's organization
     const checkSql = `
-      SELECT job_form_id 
-      FROM job_form 
-      WHERE job_form_id = $1
+      SELECT jf.job_form_id 
+      FROM job_form jf 
+      LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
+      WHERE jf.job_form_id = $1 AND (
+        (ld.company_id = $2 AND $2 IS NOT NULL)
+        OR (ld.builder_id = $3 AND $3 IS NOT NULL)
+      )
     `;
 
-    const checkResult = await client.query(checkSql, [job_form_id]);
+    const checkResult = await client.query(checkSql, [job_form_id, req.user?.company_id, builderId]);
 
     if (checkResult.rows.length === 0) {
-      return errorResponse(res, 404, "Job form not found");
+      return errorResponse(res, 404, "Job form not found or does not belong to your organization");
     }
 
     await client.query("BEGIN");
@@ -689,17 +721,21 @@ exports.deleteJobForm = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    // Check if job form exists
+    // Check if job form exists and belongs to user's organization
     const checkSql = `
-      SELECT job_form_id 
-      FROM job_form 
-      WHERE job_form_id = $1
+      SELECT jf.job_form_id 
+      FROM job_form jf 
+      LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
+      WHERE jf.job_form_id = $1 AND (
+        (ld.company_id = $2 AND $2 IS NOT NULL)
+        OR (ld.builder_id = $3 AND $3 IS NOT NULL)
+      )
     `;
 
-    const checkResult = await client.query(checkSql, [job_form_id]);
+    const checkResult = await client.query(checkSql, [job_form_id, companyId, builderId]);
 
     if (checkResult.rows.length === 0) {
-      return errorResponse(res, 404, "Job form not found");
+      return errorResponse(res, 404, "Job form not found or does not belong to your organization");
     }
 
     await client.query("BEGIN");
