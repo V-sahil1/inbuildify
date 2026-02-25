@@ -36,6 +36,11 @@ exports.createLead = async (req, res) => {
         emailExists: true,
         existingLead: result.existingLead,
       });
+    } else if (result.nameExists) {
+      return errorResponse(res, 409, result.message, {
+        nameExists: true,
+        existingLead: result.existingLead,
+      });
     } else {
       return errorResponse(res, 400, result.message);
     }
@@ -81,9 +86,10 @@ exports.forceCreateLead = async (req, res) => {
 exports.getAllLeads = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
     const filters = {
@@ -99,7 +105,7 @@ exports.getAllLeads = async (req, res) => {
       search: req.query.search,
     };
 
-    const result = await leadsService.getAllLeads(builderId, filters);
+    const result = await leadsService.getAllLeads(builderId, companyId, filters);
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
@@ -116,12 +122,13 @@ exports.getLeadById = async (req, res) => {
   try {
     const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
-    const result = await leadsService.getLeadById(leads_id, builderId);
+    const result = await leadsService.getLeadById(leads_id, builderId, companyId);
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
@@ -172,12 +179,13 @@ exports.deleteLead = async (req, res) => {
   try {
     const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
-    const result = await leadsService.deleteLead(leads_id, builderId);
+    const result = await leadsService.deleteLead(leads_id, builderId, companyId);
 
     if (result.success) {
       return successResponse(res, null, "Lead deleted successfully");
@@ -193,12 +201,13 @@ exports.deleteLead = async (req, res) => {
 exports.getLeadStats = async (req, res) => {
   try {
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
-    const result = await leadsService.getLeadStats(builderId);
+    const result = await leadsService.getLeadStats(builderId, companyId);
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
@@ -235,6 +244,7 @@ exports.updateLeadStatus = async (req, res) => {
       status,
       userId,
       builderId,
+      companyId
     );
 
     if (result.success) {

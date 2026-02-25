@@ -31,7 +31,7 @@ module.exports.validateRequest =
       });
     }
 
-    const { error } = schema.validate(dataToValidate, {
+  const { error } = schema.validate(dataToValidate, {
       abortEarly: false,
     });
 

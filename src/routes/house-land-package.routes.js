@@ -24,13 +24,13 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 const { REQUEST_SOURCE } = require("../config/constants");
-const { createImageOrPdfUpload, handleMulterError } = require("../utils/s3Upload");
+const { createImageOrPdfUpload, handleMulterError, createPdfUpload } = require("../utils/s3Upload");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-const upload = createImageOrPdfUpload("house-land-package-attachments");
+const upload = createPdfUpload("house-land-package-attachments");
 
 router.post(
   "/",
@@ -59,7 +59,7 @@ router.get(
 router.put(
   "/:house_land_package_id",
   upload.fields([
-    { name: "attachFiles", maxCount: 10 },
+    { name: "attachFiles", maxCount: 1},
   ]),
   handleMulterError,
   camelToSnakeMiddleware,

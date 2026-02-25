@@ -88,7 +88,6 @@ exports.createJobForm = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Validate story_id if provided
     if (story_id) {
       const storyCheckSql = `
         SELECT dwelling_type_id, is_active
@@ -314,14 +313,15 @@ exports.getAllJobForms = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    if (!builderId) {
-      return errorResponse(res, 401, "Unauthorized.");
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
     const { page = 1, limit = 25, search } = req.query;
     const offset = (page - 1) * limit;
-    const searchFilter = `%${search?.toLowerCase() || ""}%`;
+    const searchFilter = search ? `%${search.toLowerCase()}%` : null;
 
     const sql = `
       SELECT 
@@ -332,17 +332,22 @@ exports.getAllJobForms = async (req, res) => {
         ld.phone
       FROM job_form jf
       LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
-      WHERE $1::text IS NULL OR 
-        jf.street_name ILIKE $1::text OR 
-        ld.name ILIKE $1::text OR 
-        ld.email ILIKE $1::text OR 
-        ld.phone ILIKE $1::text
+      WHERE (ld.company_id = $1 OR (ld.builder_id = $2 AND $2 IS NOT NULL))
+      AND (
+        $3::text IS NULL OR 
+        jf.street_name ILIKE $3::text OR 
+        ld.name ILIKE $3::text OR 
+        ld.email ILIKE $3::text OR 
+        ld.phone ILIKE $3::text
+      )
       ORDER BY jf.created_at DESC
-      LIMIT $2 OFFSET $3
+      LIMIT $4 OFFSET $5
     `;
 
     const result = await client.query(sql, [
-      searchFilter || null,
+      companyId,
+      builderId,
+      searchFilter,
       parseInt(limit),
       offset,
     ]);
@@ -351,14 +356,17 @@ exports.getAllJobForms = async (req, res) => {
       SELECT COUNT(*)::int
       FROM job_form jf
       LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
-      WHERE $1::text IS NULL OR 
-        jf.street_name ILIKE $1::text OR 
-        ld.name ILIKE $1::text OR 
-        ld.email ILIKE $1::text OR 
-        ld.phone ILIKE $1::text
+      WHERE (ld.company_id = $1 OR (ld.builder_id = $2 AND $2 IS NOT NULL))
+      AND (
+        $3::text IS NULL OR 
+        jf.street_name ILIKE $3::text OR 
+        ld.name ILIKE $3::text OR 
+        ld.email ILIKE $3::text OR 
+        ld.phone ILIKE $3::text
+      )
     `;
 
-    const countResult = await client.query(countSql, [searchFilter || null]);
+    const countResult = await client.query(countSql, [companyId, builderId, searchFilter]);
 
     const total = countResult.rows[0].count;
     const totalPages = Math.ceil(total / limit);
@@ -443,7 +451,6 @@ exports.updateJobForm = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    // Check if job form exists and belongs to user's organization
     const checkSql = `
       SELECT jf.job_form_id 
       FROM job_form jf 
@@ -462,7 +469,6 @@ exports.updateJobForm = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Validate story_id if provided in update
     if (req.body.story_id) {
       const storyCheckSql = `
         SELECT dwelling_type_id, is_active
@@ -556,7 +562,6 @@ exports.updateJobForm = async (req, res) => {
       special_job_notes,
     } = req.body;
 
-    // Build dynamic update query
     const updateFields = [];
     const updateValues = [];
     let paramIndex = 1;
@@ -637,7 +642,6 @@ exports.updateJobForm = async (req, res) => {
       if (req.body[field] !== undefined) {
         updateFields.push(`${field} = $${paramIndex++}`);
 
-        // Special handling for facade_material_requirement JSON field
         if (field === "facade_material_requirement") {
           updateValues.push(
             req.body[field] ? JSON.stringify(req.body[field]) : null,
@@ -688,7 +692,6 @@ exports.updateJobForm = async (req, res) => {
     await client.query(updateSql, updateValues);
     await client.query("COMMIT");
 
-    // Fetch updated record
     const selectSql = `
       SELECT * FROM job_form WHERE job_form_id = $1
     `;
@@ -721,7 +724,6 @@ exports.deleteJobForm = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    // Check if job form exists and belongs to user's organization
     const checkSql = `
       SELECT jf.job_form_id 
       FROM job_form jf 

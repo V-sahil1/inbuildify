@@ -3,6 +3,44 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
+const formatHouseLandPackageData = (row) => {
+  const priceSum = parseFloat(row.price_sum || 0);
+  const commissionSum = parseFloat(row.commission_sum || 0);
+  const data = keysToCamelCase(row);
+  delete data.priceSum;
+  delete data.commissionSum;
+
+  const ordered = {};
+  for (const key of Object.keys(data)) {
+    if (['floorPlanName', 'facadeName', 'createdByName'].includes(key)) continue;
+    ordered[key] = data[key];
+    if (key === 'floorPlanId' && data.floorPlanName !== undefined) {
+      ordered['floorPlanName'] = data.floorPlanName;
+    }
+    if (key === 'facadeId' && data.facadeName !== undefined) {
+      ordered['facadeName'] = data.facadeName;
+    }
+    if (key === 'createdBy' && data.createdByName !== undefined) {
+      ordered['createdByName'] = data.createdByName;
+    }
+  }
+
+  let landPrice = 0;
+  if (row.lot_details && row.lot_details.price) {
+    landPrice = parseFloat(row.lot_details.price);
+  }
+
+  const houseTotal = priceSum + commissionSum;
+
+  return {
+    ...ordered,
+    landPrice,
+    houseTotal,
+    commissionTotal: commissionSum,
+    totalPrice: houseTotal + landPrice
+  };
+};
+
 exports.createHouseLandPackage = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
@@ -166,24 +204,56 @@ exports.createHouseLandPackage = async (req, res) => {
     await client.query("BEGIN");
 
     const sql = `
-      INSERT INTO house_land_package (
-        company_id,
-        builder_id,
-        title,
-        lot_id,
-        dwelling_type_id,
-        package_group_id,
-        range_id,
-        disclaimer_type,
-        floor_plan_id,
-        facade_id,
-        created_by,
-        updated_by,
-        created_at,
-        updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      ) RETURNING *
+      WITH new_pkg AS (
+        INSERT INTO house_land_package (
+          company_id,
+          builder_id,
+          title,
+          lot_id,
+          dwelling_type_id,
+          package_group_id,
+          range_id,
+          disclaimer_type,
+          floor_plan_id,
+          facade_id,
+          created_by,
+          updated_by,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        ) RETURNING *
+      )
+      SELECT np.*,
+      (SELECT name FROM floor_plan WHERE floor_plan_id = np.floor_plan_id LIMIT 1) AS floor_plan_name,
+      (SELECT name FROM facade WHERE facade_id = np.facade_id LIMIT 1) AS facade_name,
+      (SELECT name FROM users WHERE users_id = np.created_by LIMIT 1) AS created_by_name,
+      (
+         SELECT json_build_object(
+           'lot_id', l.lot_id,
+           'estate_id', l.estate_id,
+           'estate_name', (SELECT name FROM estate WHERE estate_id = l.estate_id LIMIT 1),
+           'estate_stage_id', l.estate_stage_id,
+           'estate_stage_name', (SELECT name FROM estate_stages WHERE estate_stage_id = l.estate_stage_id LIMIT 1),
+           'lot_number', l.lot_number,
+           'street', l.street,
+           'city', l.city,
+           'zip_code', l.zip_code,
+           'title_status', l.title_status,
+           'title_date', l.title_date,
+           'lot_type', l.lot_type,
+           'corner_block', l.corner_block,
+           'width_m', l.width_m,
+           'depth_m', l.depth_m,
+           'size_m2', l.size_m2,
+           'price', l.price,
+           'site_fall_mm', l.site_fall_mm,
+           'land_fill_mm', l.land_fill_mm,
+           'total_size_m2', l.total_size_m2
+         )
+         FROM lot l WHERE l.lot_id = np.lot_id LIMIT 1
+      ) AS lot_details
+      FROM new_pkg np
     `;
 
     const values = [
@@ -226,197 +296,22 @@ exports.createHouseLandPackage = async (req, res) => {
 
     await client.query("COMMIT");
 
+    const finalData = {
+      ...result.rows[0],
+      price_sum: 0,
+      commission_sum: initialCommissionTotal
+    };
+
+    const formattedData = formatHouseLandPackageData(finalData);
+
     return successResponse(
       res,
-      {
-        ...keysToCamelCase(result.rows[0]),
-        houseTotal: initialCommissionTotal,
-        commissionTotal: initialCommissionTotal,
-      },
+      formattedData,
       "House land package created successfully and default commissions mapped",
     );
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create house land package error:", error);
-    return errorResponse(res, 500, "Internal server error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getAllHouseLandPackages = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
-    }
-
-    const {
-      page = 1,
-      limit = 25,
-      lot_id,
-      range_id,
-      dwelling_type_id,
-      template_id,
-      contact_id,
-      price_type,
-      search,
-    } = req.query;
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const offset = (pageNum - 1) * limitNum;
-
-    let whereConditions = [];
-    let queryParams = [];
-    let paramIndex = 1;
-
-    if (builderId) {
-      whereConditions.push(`builder_id = $${paramIndex++}`);
-      queryParams.push(builderId);
-    } else if (companyId) {
-      whereConditions.push(`company_id = $${paramIndex++}`);
-      queryParams.push(companyId);
-    }
-
-    // Build WHERE conditions
-    if (lot_id) {
-      whereConditions.push(`lot_id = $${paramIndex++}`);
-      queryParams.push(lot_id);
-    }
-
-    if (range_id) {
-      whereConditions.push(`range_id = $${paramIndex++}`);
-      queryParams.push(range_id);
-    }
-
-    if (dwelling_type_id) {
-      whereConditions.push(`dwelling_type_id = $${paramIndex++}`);
-      queryParams.push(dwelling_type_id);
-    }
-
-    if (template_id) {
-      whereConditions.push(`template_id = $${paramIndex++}`);
-      queryParams.push(template_id);
-    }
-
-    if (contact_id) {
-      whereConditions.push(`contact_id = $${paramIndex++}`);
-      queryParams.push(contact_id);
-    }
-
-    if (price_type) {
-      whereConditions.push(`price_type = $${paramIndex++}`);
-      queryParams.push(price_type);
-    }
-
-    if (search) {
-      whereConditions.push(`(title ILIKE $${paramIndex++} OR package_description ILIKE $${paramIndex++})`);
-      queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    const countResult = await client.query(
-      `SELECT COUNT(*) AS total FROM house_land_package ${whereClause}`,
-      queryParams,
-    );
-
-    const total = parseInt(countResult.rows[0].total, 10);
-    const totalPages = Math.ceil(total / limitNum);
-
-    const result = await client.query(
-      `SELECT hlp.*, 
-       COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
-       COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum
-       FROM house_land_package hlp
-       ${whereClause}
-       ORDER BY hlp.created_at DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...queryParams, limitNum, offset],
-    );
-
-    const packages = result.rows.map(row => {
-      const priceSum = parseFloat(row.price_sum);
-      const commissionSum = parseFloat(row.commission_sum);
-      const data = keysToCamelCase(row);
-      delete data.priceSum;
-      delete data.commissionSum;
-      return {
-        ...data,
-        houseTotal: priceSum + commissionSum,
-        commissionTotal: commissionSum
-      };
-    });
-
-    return successResponse(res, {
-      houseLandPackages: packages,
-      pagination: {
-        totalRecords: total,
-        currentPage: pageNum,
-        limit: limitNum,
-        totalPages: totalPages,
-      },
-    });
-  } catch (error) {
-    console.error("Get all house land packages error:", error);
-    return errorResponse(res, 500, "Internal server error");
-  } finally {
-    client.release();
-  }
-};
-
-exports.getHouseLandPackageById = async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { house_land_package_id } = req.params;
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
-    }
-
-    const sql = `
-      SELECT hlp.*,
-      COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
-      COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum
-      FROM house_land_package hlp 
-      WHERE hlp.house_land_package_id = $1 AND (
-        (hlp.company_id = $2 AND $2 IS NOT NULL)
-        OR (hlp.builder_id = $3 AND $3 IS NOT NULL)
-      )`;
-    const result = await client.query(sql, [house_land_package_id, companyId, builderId]);
-
-    if (result.rows.length === 0) {
-      return errorResponse(res, 404, "House land package not found");
-    }
-
-    const row = result.rows[0];
-    const priceSum = parseFloat(row.price_sum);
-    const commissionSum = parseFloat(row.commission_sum);
-    const data = keysToCamelCase(row);
-    delete data.priceSum;
-    delete data.commissionSum;
-
-    return successResponse(
-      res,
-      {
-        ...data,
-        houseTotal: priceSum + commissionSum,
-        commissionTotal: commissionSum
-      },
-      "House land package retrieved successfully",
-    );
-  } catch (error) {
-    console.error("Get house land package by ID error:", error);
     return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
@@ -563,6 +458,221 @@ exports.getHouseLandPackageDetailedInfo = async (req, res) => {
     );
   } catch (error) {
     console.error("Get house land package detailed info error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getAllHouseLandPackages = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
+    }
+
+    const {
+      page = 1,
+      limit = 25,
+      lot_id,
+      range_id,
+      dwelling_type_id,
+      template_id,
+      contact_id,
+      price_type,
+      search,
+    } = req.query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+
+    if (builderId) {
+      whereConditions.push(`builder_id = $${paramIndex++}`);
+      queryParams.push(builderId);
+    } else if (companyId) {
+      whereConditions.push(`company_id = $${paramIndex++}`);
+      queryParams.push(companyId);
+    }
+
+    // Build WHERE conditions
+    if (lot_id) {
+      whereConditions.push(`lot_id = $${paramIndex++}`);
+      queryParams.push(lot_id);
+    }
+
+    if (range_id) {
+      whereConditions.push(`range_id = $${paramIndex++}`);
+      queryParams.push(range_id);
+    }
+
+    if (dwelling_type_id) {
+      whereConditions.push(`dwelling_type_id = $${paramIndex++}`);
+      queryParams.push(dwelling_type_id);
+    }
+
+    if (template_id) {
+      whereConditions.push(`template_id = $${paramIndex++}`);
+      queryParams.push(template_id);
+    }
+
+    if (contact_id) {
+      whereConditions.push(`contact_id = $${paramIndex++}`);
+      queryParams.push(contact_id);
+    }
+
+    if (price_type) {
+      whereConditions.push(`price_type = $${paramIndex++}`);
+      queryParams.push(price_type);
+    }
+
+    if (search) {
+      whereConditions.push(`(title ILIKE $${paramIndex++} OR package_description ILIKE $${paramIndex++})`);
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const countResult = await client.query(
+      `SELECT COUNT(*) AS total FROM house_land_package ${whereClause}`,
+      queryParams,
+    );
+
+    const total = parseInt(countResult.rows[0].total, 10);
+    const totalPages = Math.ceil(total / limitNum);
+
+    const result = await client.query(
+      `SELECT hlp.*, 
+       COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
+       COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
+       (SELECT name FROM floor_plan WHERE floor_plan_id = hlp.floor_plan_id LIMIT 1) AS floor_plan_name,
+       (SELECT name FROM facade WHERE facade_id = hlp.facade_id LIMIT 1) AS facade_name,
+       (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
+       (
+          SELECT json_build_object(
+            'lot_id', l.lot_id,
+            'estate_id', l.estate_id,
+            'estate_name', (SELECT name FROM estate WHERE estate_id = l.estate_id LIMIT 1),
+            'estate_stage_id', l.estate_stage_id,
+            'estate_stage_name', (SELECT name FROM estate_stages WHERE estate_stage_id = l.estate_stage_id LIMIT 1),
+            'lot_number', l.lot_number,
+            'street', l.street,
+            'city', l.city,
+            'zip_code', l.zip_code,
+            'title_status', l.title_status,
+            'title_date', l.title_date,
+            'lot_type', l.lot_type,
+            'corner_block', l.corner_block,
+            'width_m', l.width_m,
+            'depth_m', l.depth_m,
+            'size_m2', l.size_m2,
+            'price', l.price,
+            'site_fall_mm', l.site_fall_mm,
+            'land_fill_mm', l.land_fill_mm,
+            'total_size_m2', l.total_size_m2
+          )
+          FROM lot l WHERE l.lot_id = hlp.lot_id LIMIT 1
+       ) AS lot_details
+       FROM house_land_package hlp
+       ${whereClause}
+       ORDER BY hlp.created_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...queryParams, limitNum, offset],
+    );
+
+    const packages = result.rows.map(row => formatHouseLandPackageData(row));
+
+    return successResponse(res, {
+      houseLandPackages: packages,
+      pagination: {
+        totalRecords: total,
+        currentPage: pageNum,
+        limit: limitNum,
+        totalPages: totalPages,
+      },
+    });
+  } catch (error) {
+    console.error("Get all house land packages error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  } finally {
+    client.release();
+  }
+};
+
+exports.getHouseLandPackageById = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { house_land_package_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
+    }
+
+    const sql = `
+      SELECT hlp.*,
+      COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
+      COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
+      (SELECT name FROM floor_plan WHERE floor_plan_id = hlp.floor_plan_id LIMIT 1) AS floor_plan_name,
+      (SELECT name FROM facade WHERE facade_id = hlp.facade_id LIMIT 1) AS facade_name,
+      (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
+      (
+         SELECT json_build_object(
+           'lot_id', l.lot_id,
+           'estate_id', l.estate_id,
+           'estate_name', (SELECT name FROM estate WHERE estate_id = l.estate_id LIMIT 1),
+           'estate_stage_id', l.estate_stage_id,
+           'estate_stage_name', (SELECT name FROM estate_stages WHERE estate_stage_id = l.estate_stage_id LIMIT 1),
+           'lot_number', l.lot_number,
+           'street', l.street,
+           'city', l.city,
+           'zip_code', l.zip_code,
+           'title_status', l.title_status,
+           'title_date', l.title_date,
+           'lot_type', l.lot_type,
+           'corner_block', l.corner_block,
+           'width_m', l.width_m,
+           'depth_m', l.depth_m,
+           'size_m2', l.size_m2,
+           'price', l.price,
+           'site_fall_mm', l.site_fall_mm,
+           'land_fill_mm', l.land_fill_mm,
+           'total_size_m2', l.total_size_m2
+         )
+         FROM lot l WHERE l.lot_id = hlp.lot_id LIMIT 1
+      ) AS lot_details
+      FROM house_land_package hlp 
+      WHERE hlp.house_land_package_id = $1 AND (
+        (hlp.company_id = $2 AND $2 IS NOT NULL)
+        OR (hlp.builder_id = $3 AND $3 IS NOT NULL)
+      )`;
+    const result = await client.query(sql, [house_land_package_id, companyId, builderId]);
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, "House land package not found");
+    }
+
+    const formattedData = formatHouseLandPackageData(result.rows[0]);
+
+    return successResponse(
+      res,
+      formattedData,
+      "House land package retrieved successfully",
+    );
+  } catch (error) {
+    console.error("Get house land package by ID error:", error);
     return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
@@ -814,39 +924,28 @@ exports.updateHouseLandPackage = async (req, res) => {
     }
 
     let updatedFiles = existingPackage.attach_files || [];
-    if (attachFiles !== undefined) {
-      if (!attachFiles || attachFiles.length === 0) {
-        if (existingPackage.attach_files && existingPackage.attach_files.length > 0) {
-          for (const fileUrl of existingPackage.attach_files) {
-            if (fileUrl && fileUrl.trim() && fileUrl.startsWith('http')) {
-              try {
-                await deleteFromS3(fileUrl);
-              } catch (error) {
-                console.error(`Error deleting file from S3: ${fileUrl}`, error.message);
-              }
+
+    // If the user uploaded a new PDF, replace the old one
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      // Delete any existing PDFs from S3
+      if (existingPackage.attach_files && existingPackage.attach_files.length > 0) {
+        for (const fileUrl of existingPackage.attach_files) {
+          if (fileUrl && fileUrl.trim() && fileUrl.startsWith('http')) {
+            try {
+              await deleteFromS3(fileUrl);
+            } catch (error) {
+              console.error(`Error deleting file from S3: ${fileUrl}`, error.message);
             }
           }
         }
-        updateFields.push(`attach_files = $${paramIndex++}`);
-        updateValues.push([]);
-        updatedFiles = [];
-      } else {
-        if (existingPackage.attach_files && existingPackage.attach_files.length > 0) {
-          for (const fileUrl of existingPackage.attach_files) {
-            if (fileUrl && fileUrl.trim() && fileUrl.startsWith('http') && !attachFiles.includes(fileUrl)) {
-              try {
-                await deleteFromS3(fileUrl);
-              } catch (error) {
-                console.error(`Error deleting file from S3: ${fileUrl}`, error.message);
-              }
-            }
-          }
-        }
-        updateFields.push(`attach_files = $${paramIndex++}`);
-        updateValues.push(attachFiles);
-        updatedFiles = attachFiles;
       }
+      
+      // Store only the new uploaded PDF
+      updatedFiles = [uploadedFiles[0]];
+      updateFields.push(`attach_files = $${paramIndex++}`);
+      updateValues.push(updatedFiles);
     }
+    // If no new PDF is uploaded, `updatedFiles` retains the old PDF.
 
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
@@ -857,10 +956,42 @@ exports.updateHouseLandPackage = async (req, res) => {
     updateValues.push(userId);
 
     const sql = `
-      UPDATE house_land_package 
-      SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP
-      WHERE house_land_package_id = $${paramIndex++}
-      RETURNING *
+      WITH updated_pkg AS (
+        UPDATE house_land_package 
+        SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP
+        WHERE house_land_package_id = $${paramIndex++}
+        RETURNING *
+      )
+      SELECT up.*, 
+      (SELECT name FROM floor_plan WHERE floor_plan_id = up.floor_plan_id LIMIT 1) AS floor_plan_name,
+      (SELECT name FROM facade WHERE facade_id = up.facade_id LIMIT 1) AS facade_name,
+      (SELECT name FROM users WHERE users_id = up.created_by LIMIT 1) AS created_by_name,
+      (
+         SELECT json_build_object(
+           'lot_id', l.lot_id,
+           'estate_id', l.estate_id,
+           'estate_name', (SELECT name FROM estate WHERE estate_id = l.estate_id LIMIT 1),
+           'estate_stage_id', l.estate_stage_id,
+           'estate_stage_name', (SELECT name FROM estate_stages WHERE estate_stage_id = l.estate_stage_id LIMIT 1),
+           'lot_number', l.lot_number,
+           'street', l.street,
+           'city', l.city,
+           'zip_code', l.zip_code,
+           'title_status', l.title_status,
+           'title_date', l.title_date,
+           'lot_type', l.lot_type,
+           'corner_block', l.corner_block,
+           'width_m', l.width_m,
+           'depth_m', l.depth_m,
+           'size_m2', l.size_m2,
+           'price', l.price,
+           'site_fall_mm', l.site_fall_mm,
+           'land_fill_mm', l.land_fill_mm,
+           'total_size_m2', l.total_size_m2
+         )
+         FROM lot l WHERE l.lot_id = up.lot_id LIMIT 1
+      ) AS lot_details
+      FROM updated_pkg up
     `;
 
     updateValues.push(house_land_package_id);
@@ -880,14 +1011,16 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     const finalData = {
       ...result.rows[0],
-      attach_files: updatedFiles,
-      houseTotal: priceSum + commissionSum,
-      commissionTotal: commissionSum
+      price_sum: priceSum,
+      commission_sum: commissionSum,
+      attach_files: updatedFiles
     };
+
+    const formattedData = formatHouseLandPackageData(finalData);
 
     return successResponse(
       res,
-      keysToCamelCase(finalData),
+      formattedData,
       "House land package updated successfully",
     );
 

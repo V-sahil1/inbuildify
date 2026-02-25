@@ -3044,6 +3044,18 @@ CREATE TABLE house_feature(
   CONSTRAINT chk_house_feature_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
+CREATE TABLE inclusion_package(
+  inclusion_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  CONSTRAINT chk_inclusion_package_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
+);
+
 CREATE TABLE house_land_package(
   house_land_package_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
@@ -3120,6 +3132,7 @@ CREATE TABLE leads (
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
   status VARCHAR(20) DEFAULT 'new',                -- valid new, working, convert
+  opportunity_notes VARCHAR(1000),
   outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
   
   rating VARCHAR(150),              -- none, hot, cold, warm
@@ -3283,10 +3296,12 @@ CREATE TABLE quotation(
 CREATE TABLE quotation_version(
   quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
-  version_no VARCHAR(50) NOT NULL,
+  quotation_version_no INT,
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL, 
   range_id UUID REFERENCES range(range_id) ON DELETE SET NULL,
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+  contact_id UUID REFERENCES business_contact(business_contact_id) ON DELETE SET NULL,
+  property_id UUID REFERENCES property(property_id) ON DELETE SET NULL, 
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
   is_approve BOOLEAN DEFAULT FALSE,
@@ -3299,8 +3314,7 @@ CREATE TABLE quotation_version_package_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
   package_id UUID REFERENCES package(package_id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- when the location and dwelling type select then user can select priclist item
@@ -3320,6 +3334,24 @@ CREATE TABLE quotation_version_custom_section(
   custom_section_id UUID REFERENCES custom_section(custom_section_id) ON DELETE CASCADE,
   file_url VARCHAR(500),
   sort_order INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE invoice(
+  invoice_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  reference_number VARCHAR(30),
+  generate_invoice BOOLEAN DEFAULT FALSE, 
+  invoice_date DATE,                         
+  due_date DATE,
+  invoice_amount NUMERIC(12,2),
+  deposite_date DATE,
+  deposite_amount NUMERIC(12,2),
+  payment_method VARCHAR(50),                   -- valid cash, cheque, personal_online_transfer, loan_online_transfer, EFTPOS
+  transaction_no VARCHAR(20),
+  description VARCHAR(500),
+  status VARCHAR(100),                         -- valid paid, draft, unsent, sent, ready
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

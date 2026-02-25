@@ -1,7 +1,6 @@
 const Joi = require("joi");
 
 const createLeadSchema = Joi.object({
-  // company_id is optional since it will be automatically provided from authenticated user
   force_create: Joi.boolean().optional().default(false),
   name: Joi.string().min(2).max(255).required().messages({
     "string.min": "Name must be at least 2 characters long",
@@ -56,10 +55,10 @@ const updateLeadSchema = Joi.object({
     "string.guid": "Lead source ID must be a valid UUID",
   }),
   status: Joi.string()
-    .valid("New", "Working", "Qualified", "Closed")
+    .valid("New", "Working", "Convert")
     .optional()
     .messages({
-      "any.only": "Status must be one of: New, Working, Qualified, Closed",
+      "any.only": "Status must be one of: New, Working, Convert",
     }),
   outcome: Joi.string().valid("Won", "Lost").optional().allow(null).messages({
     "any.only": "Outcome must be either Won or Lost",

@@ -30,6 +30,10 @@ const getBusinessContactByIdSchema = Joi.object({
   business_contact_id: Joi.string().uuid().required(),
 });
 
+const getBusinessContactsByLeadsIdSchema = Joi.object({
+  leads_id: Joi.string().uuid().required(),
+});
+
 const updateBusinessContactSchema = Joi.object({
   name: Joi.string().min(2).max(255).optional(),
   email: Joi.string().email().allow(null, "").optional(),
@@ -52,6 +56,7 @@ module.exports = {
   createBusinessContactSchema,
   getAllBusinessContactsSchema,
   getBusinessContactByIdSchema,
+  getBusinessContactsByLeadsIdSchema,
   updateBusinessContactSchema,
   deleteBusinessContactSchema,
 };

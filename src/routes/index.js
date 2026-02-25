@@ -21,6 +21,7 @@ const masterFacadeRoutes = require("./master-facade.routes");
 const masterPriceListCategoryItemRoutes = require("./master-price-list-category-item.routes");
 const conditionRoutes = require("./condition.routes");
 const packageRoutes = require("./package.routes");
+const inclusionPackageRoutes = require("./inclusion-package.routes");
 const propertyRoutes = require("./property.routes");
 const dashboardRoutes = require("./dashboard.routes");
 const quotationRoutes = require("./quotation.routes");
@@ -168,6 +169,7 @@ module.exports = function (app) {
   app.use("/condition", conditionRoutes);
   app.use("/category-item", masterPriceListCategoryItemRoutes);
   app.use("/package", packageRoutes);
+  app.use("/inclusion-package", inclusionPackageRoutes);
   app.use("/property", propertyRoutes);
   app.use("/dashboard", dashboardRoutes);
   app.use("/quotation", quotationRoutes);

@@ -5,6 +5,7 @@ const {
   createBusinessContact,
   getAllBusinessContacts,
   getBusinessContactById,
+  getBusinessContactsByLeadsId,
   updateBusinessContact,
   deleteBusinessContact,
 } = require("../controllers/business-contact.controller");
@@ -13,6 +14,7 @@ const {
   createBusinessContactSchema,
   getAllBusinessContactsSchema,
   getBusinessContactByIdSchema,
+  getBusinessContactsByLeadsIdSchema,
   updateBusinessContactSchema,
   deleteBusinessContactSchema,
 } = require("../validations/business-contact.validation");
@@ -43,6 +45,12 @@ router.get(
   "/:business_contact_id",
   validateRequest(getBusinessContactByIdSchema, REQUEST_SOURCE.PARAMS),
   getBusinessContactById,
+);
+
+router.get(
+  "/lead/:leads_id",
+  validateRequest(getBusinessContactsByLeadsIdSchema, REQUEST_SOURCE.PARAMS),
+  getBusinessContactsByLeadsId,
 );
 
 router.put(

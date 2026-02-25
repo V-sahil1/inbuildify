@@ -539,3 +539,51 @@ exports.deleteBusinessContact = async (req, res) => {
     client.release();
   }
 };
+
+exports.getBusinessContactsByLeadsId = async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const { leads_id } = req.params;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
+    }
+
+    // Validate lead ownership
+    const leadCheck = await client.query(
+      `SELECT leads_id FROM leads WHERE leads_id = $1 AND (
+        (company_id = $2 AND $2 IS NOT NULL)
+        OR (builder_id = $3 AND $3 IS NOT NULL)
+      ) LIMIT 1`,
+      [leads_id, companyId, builderId]
+    );
+
+    if (leadCheck.rowCount === 0) {
+      return errorResponse(res, 404, "Lead not found or does not belong to your organization");
+    }
+
+    const sql = `
+      SELECT bc.*
+      FROM business_contact bc
+      WHERE bc.leads_id = $1
+      ORDER BY bc.created_at DESC
+    `;
+
+    const result = await client.query(sql, [leads_id]);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows),
+      "Business contacts retrieved successfully"
+    );
+  } catch (error) {
+    console.error("Get business contacts by leads ID error:", error);
+    return errorResponse(res, 500, error?.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+};

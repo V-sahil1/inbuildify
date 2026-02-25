@@ -271,7 +271,6 @@ async function login({ email, login_id, password }) {
     try {
       decryptedPassword = decrypt(user.password);
     } catch (decryptError) {
-      console.error("Decryption error:", decryptError.message);
       // Try fallback for old Base64 encryption
       try {
         const { decrypt: base64Decrypt } = require("../utils/common");

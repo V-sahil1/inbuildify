@@ -67,7 +67,34 @@ class LeadsRepository {
     }
   }
 
-  async getAllLeads(builderId, filters = {}) {
+  async checkDuplicateName(name, builderId, createdBy, excludeLeadId = null) {
+    const client = await this.pool.connect();
+    try {
+      let query = `
+        SELECT * 
+        FROM leads 
+        WHERE builder_id = $1 AND created_by = $2 AND LOWER(name) = LOWER($3)
+      `;
+      const values = [builderId, createdBy, name];
+
+      if (excludeLeadId) {
+        query += ` AND leads_id != $4`;
+        values.push(excludeLeadId);
+      }
+
+      query += ` LIMIT 1`;
+
+      console.log("Checking duplicate with name:", name, "builderId:", builderId, "createdBy:", createdBy);
+      
+      const result = await client.query(query, values);
+      console.log("Duplicate check result:", result.rowCount);
+      return result.rowCount > 0 ? keysToCamelCase(result.rows[0]) : null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getAllLeads(builderId, companyId, filters = {}) {
     const client = await this.pool.connect();
     try {
       const {
@@ -85,9 +112,9 @@ class LeadsRepository {
       } = filters;
 
       const offset = (page - 1) * limit;
-      let whereConditions = ["(l.builder_id = $1 OR l.company_id IS NOT NULL)"];
-      let queryParams = [builderId];
-      let paramIndex = 2;
+      let whereConditions = ["(l.builder_id = $1 OR (l.company_id = $2 AND $2 IS NOT NULL))"];
+      let queryParams = [builderId, companyId];
+      let paramIndex = 3;
 
       if (status) {
         whereConditions.push(`l.status = $${paramIndex++}`);
@@ -194,7 +221,7 @@ class LeadsRepository {
     }
   }
 
-  async getLeadById(leadId, builderId) {
+  async getLeadById(leadId, builderId, companyId) {
     const client = await this.pool.connect();
     try {
       const query = `
@@ -213,10 +240,10 @@ class LeadsRepository {
         LEFT JOIN users assignee ON l.assignee_id = assignee.users_id
         LEFT JOIN users created_by_user ON l.created_by = created_by_user.users_id
         LEFT JOIN users updated_by_user ON l.updated_by = updated_by_user.users_id
-        WHERE l.leads_id = $1 AND (l.builder_id = $2 OR l.company_id IS NOT NULL)
+        WHERE l.leads_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
       `;
 
-      const result = await client.query(query, [leadId, builderId]);
+      const result = await client.query(query, [leadId, builderId, companyId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();
@@ -384,23 +411,23 @@ class LeadsRepository {
     }
   }
 
-  async deleteLead(leadId, builderId) {
+  async deleteLead(leadId, builderId, companyId) {
     const client = await this.pool.connect();
     try {
       const query = `
         DELETE FROM leads 
-        WHERE leads_id = $1 AND (builder_id = $2 OR company_id IS NOT NULL)
+        WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL))
         RETURNING *
       `;
 
-      const result = await client.query(query, [leadId, builderId]);
+      const result = await client.query(query, [leadId, builderId, companyId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();
     }
   }
 
-  async getLeadStats(builderId) {
+  async getLeadStats(builderId, companyId) {
     const client = await this.pool.connect();
     try {
       const query = `
@@ -415,10 +442,10 @@ class LeadsRepository {
           COUNT(CASE WHEN rating = 'Warm' THEN 1 END) as warm_leads,
           COUNT(CASE WHEN rating = 'Cold' THEN 1 END) as cold_leads
         FROM leads 
-        WHERE builder_id = $1 OR company_id IS NOT NULL
+        WHERE builder_id = $1 OR (company_id = $2 AND $2 IS NOT NULL)
       `;
 
-      const result = await client.query(query, [builderId]);
+      const result = await client.query(query, [builderId, companyId]);
       return keysToCamelCase(result.rows[0]);
     } finally {
       client.release();

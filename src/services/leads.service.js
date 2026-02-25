@@ -12,12 +12,10 @@ class LeadsService {
     forceCreate = false,
   ) {
     try {
-      // Validate required fields
       if (!leadData.name || !leadData.email) {
         throw new Error("Name and email are required");
       }
 
-      // Check if email already exists for same builder
       const existingLeads = await leadsRepository.getAllLeads(builderId, {
         email: leadData.email,
         limit: 1,
@@ -29,6 +27,21 @@ class LeadsService {
           emailExists: true,
           message: "A lead with this email already exists",
           existingLead: existingLeads.leads[0],
+        };
+      }
+
+      const existingLeadByName = await leadsRepository.checkDuplicateName(
+        leadData.name,
+        builderId,
+        userId
+      );
+
+      if (existingLeadByName) {
+        return {
+          success: false,
+          nameExists: true,
+          message: "A lead with this name already exists",
+          existingLead: existingLeadByName,
         };
       }
 
@@ -48,7 +61,6 @@ class LeadsService {
         }
       }
 
-      // Generate reference number if not provided
       const refrence_number =
         leadData.refrence_number ||
         (await generateDynamicReferenceNumber({
@@ -63,10 +75,10 @@ class LeadsService {
         ...leadData,
         refrence_number,
         builder_id: builderId,
-        company_id: companyId, // Use company from user
+        company_id: companyId,
         created_by: userId,
         updated_by: userId,
-        assignee_id: leadData.assignee_id || userId, // Auto-assign to logged-in user if not provided
+        assignee_id: leadData.assignee_id || userId,
         status: leadData.status || "New",
         rating: leadData.rating || "None",
         land: leadData.land || "None",
@@ -89,9 +101,9 @@ class LeadsService {
     }
   }
 
-  async getAllLeads(builderId, filters = {}) {
+  async getAllLeads(builderId, companyId, filters = {}) {
     try {
-      const result = await leadsRepository.getAllLeads(builderId, filters);
+      const result = await leadsRepository.getAllLeads(builderId, companyId, filters);
       return {
         success: true,
         data: result,
@@ -105,9 +117,9 @@ class LeadsService {
     }
   }
 
-  async getLeadById(leadId, builderId) {
+  async getLeadById(leadId, builderId, companyId) {
     try {
-      const lead = await leadsRepository.getLeadById(leadId, builderId);
+      const lead = await leadsRepository.getLeadById(leadId, builderId, companyId);
 
       if (!lead) {
         return {
@@ -131,8 +143,7 @@ class LeadsService {
 
   async updateLead(leadId, leadData, userId, builderId, companyId) {
     try {
-      // Check if lead exists
-      const existingLead = await leadsRepository.getLeadById(leadId, builderId);
+      const existingLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
       if (!existingLead) {
         return {
           success: false,
@@ -140,9 +151,8 @@ class LeadsService {
         };
       }
 
-      // Check if email is being updated and if it conflicts with existing leads
       if (leadData.email && leadData.email !== existingLead.email) {
-        const existingLeads = await leadsRepository.getAllLeads(builderId, {
+        const existingLeads = await leadsRepository.getAllLeads(builderId, companyId, {
           email: leadData.email,
           limit: 1,
         });
@@ -152,7 +162,20 @@ class LeadsService {
         }
       }
 
-      // Validate region_id if provided
+      // Check if name is being updated and if it conflicts with existing leads
+      if (leadData.name && leadData.name.toLowerCase() !== existingLead.name.toLowerCase()) {
+        const existingLeadByName = await leadsRepository.checkDuplicateName(
+          leadData.name,
+          builderId,
+          userId,
+          leadId
+        );
+
+        if (existingLeadByName) {
+          throw new Error("A lead with this name already exists");
+        }
+      }
+
       if (leadData.region_id) {
         const regionValidation = await this.validateRegion(leadData.region_id);
         if (!regionValidation.valid) {
@@ -163,7 +186,6 @@ class LeadsService {
         }
       }
 
-      // Validate client_type_id if provided
       if (leadData.client_type_id) {
         const clientTypeValidation = await this.validateClientType(
           leadData.client_type_id,
@@ -201,10 +223,9 @@ class LeadsService {
     }
   }
 
-  async deleteLead(leadId, builderId) {
+  async deleteLead(leadId, builderId, companyId) {
     try {
-      // Check if lead exists
-      const existingLead = await leadsRepository.getLeadById(leadId, builderId);
+      const existingLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
       if (!existingLead) {
         return {
           success: false,
@@ -212,7 +233,7 @@ class LeadsService {
         };
       }
 
-      const deletedLead = await leadsRepository.deleteLead(leadId, builderId);
+      const deletedLead = await leadsRepository.deleteLead(leadId, builderId, companyId);
       return {
         success: true,
         data: deletedLead,
@@ -226,9 +247,9 @@ class LeadsService {
     }
   }
 
-  async getLeadStats(builderId) {
+  async getLeadStats(builderId, companyId) {
     try {
-      const stats = await leadsRepository.getLeadStats(builderId);
+      const stats = await leadsRepository.getLeadStats(builderId, companyId);
       return {
         success: true,
         data: stats,
@@ -242,9 +263,9 @@ class LeadsService {
     }
   }
 
-  async updateLeadStatus(leadId, status, userId, builderId) {
+  async updateLeadStatus(leadId, status, userId, builderId, companyId) {
     try {
-      const existingLead = await leadsRepository.getLeadById(leadId, builderId);
+      const existingLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
       if (!existingLead) {
         return {
           success: false,
@@ -380,7 +401,6 @@ class LeadsService {
     try {
       const client = getPool();
 
-      // First check if lead source exists and belongs to the same company/builder
       const checkQuery = `
         SELECT lead_source_id, is_active 
         FROM lead_source
@@ -402,7 +422,6 @@ class LeadsService {
         };
       }
 
-      // Then check if lead source is active
       const checkActiveQuery = `
         SELECT lead_source_id, is_active 
         FROM lead_source
