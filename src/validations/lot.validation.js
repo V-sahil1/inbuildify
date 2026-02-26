@@ -24,6 +24,9 @@ const booleanRule = Joi.boolean().optional().messages({
 });
 
 const createLotSchema = Joi.object({
+  leads_id: optionalUuidRule.messages({
+    "string.guid": "Leads ID must be a valid UUID",
+  }),
   estate_id: optionalUuidRule.messages({
     "string.guid": "Estate ID must be a valid UUID",
   }),

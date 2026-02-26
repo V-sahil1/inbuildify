@@ -26,14 +26,14 @@ class LeadsRepository {
         purpose,
         assignee_id,
         created_by,
-        refrence_number,
+        reference_number,
       } = leadData;
 
       const query = `
         INSERT INTO leads (
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
-          face_to_face, purpose, assignee_id, created_by, updated_by, refrence_number
+          face_to_face, purpose, assignee_id, created_by, updated_by, reference_number
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
         ) RETURNING *
@@ -57,7 +57,7 @@ class LeadsRepository {
         assignee_id,
         created_by,
         created_by,
-        refrence_number,
+        reference_number,
       ];
 
       const result = await client.query(query, values);
@@ -156,7 +156,7 @@ class LeadsRepository {
           l.name ILIKE $${paramIndex++} OR 
           l.email ILIKE $${paramIndex++} OR 
           l.phone ILIKE $${paramIndex++} OR 
-          l.refrence_number ILIKE $${paramIndex++}
+          l.reference_number ILIKE $${paramIndex++}
         )`);
         queryParams.push(
           `%${search}%`,
@@ -276,6 +276,9 @@ class LeadsRepository {
         h_l_budget,
         assignee_id,
         updated_by,
+        contact_id,
+        house_land_package_id,
+        opportunity_notes,
       } = leadData;
 
       const updateFields = [];
@@ -385,6 +388,21 @@ class LeadsRepository {
       if (assignee_id !== undefined) {
         updateFields.push(`assignee_id = $${paramIndex++}`);
         values.push(assignee_id);
+      }
+
+      if (contact_id !== undefined) {
+        updateFields.push(`contact_id = $${paramIndex++}`);
+        values.push(contact_id);
+      }
+
+      if (house_land_package_id !== undefined) {
+        updateFields.push(`house_land_package_id = $${paramIndex++}`);
+        values.push(house_land_package_id);
+      }
+
+      if (opportunity_notes !== undefined) {
+        updateFields.push(`opportunity_notes = $${paramIndex++}`);
+        values.push(opportunity_notes);
       }
 
       if (updateFields.length === 0) {

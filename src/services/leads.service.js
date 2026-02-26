@@ -61,19 +61,19 @@ class LeadsService {
         }
       }
 
-      const refrence_number =
-        leadData.refrence_number ||
+      const reference_number =
+        leadData.reference_number ||
         (await generateDynamicReferenceNumber({
           prefix: "LD",
           tableName: "leads",
-          column: "refrence_number",
+          column: "reference_number",
           user: { company_id: companyId, builder_id: builderId },
           client: getPool(),
         }));
 
       const leadDataWithDefaults = {
         ...leadData,
-        refrence_number,
+        reference_number,
         builder_id: builderId,
         company_id: companyId,
         created_by: userId,
@@ -196,6 +196,34 @@ class LeadsService {
           return {
             success: false,
             message: clientTypeValidation.message,
+          };
+        }
+      }
+
+      if (leadData.contact_id) {
+        const contactValidation = await this.validateContact(
+          leadData.contact_id,
+          builderId,
+          companyId
+        );
+        if (!contactValidation.valid) {
+          return {
+            success: false,
+            message: contactValidation.message,
+          };
+        }
+      }
+
+      if (leadData.house_land_package_id) {
+        const hlpValidation = await this.validateHouseLandPackage(
+          leadData.house_land_package_id,
+          builderId,
+          companyId
+        );
+        if (!hlpValidation.valid) {
+          return {
+            success: false,
+            message: hlpValidation.message,
           };
         }
       }
@@ -452,6 +480,87 @@ class LeadsService {
       return {
         valid: false,
         message: "Error validating lead source",
+      };
+    }
+  }
+
+  async validateContact(contactId, builderId, companyId) {
+    try {
+      const client = getPool();
+
+      const query = `
+        SELECT u.users_id, r.name as role_name 
+        FROM users u
+        JOIN role r ON u.role_id = r.role_id
+        WHERE u.users_id = $1
+          AND u.builder_id = $2
+          AND u.is_active = true
+      `;
+
+      const result = await client.query(query, [
+        contactId,
+        builderId,
+      ]);
+
+      if (result.rowCount === 0) {
+        return {
+          valid: false,
+          message: "Contact not found or does not belong to this organization",
+        };
+      }
+
+      if (result.rows[0].role_name !== "Contact") {
+        return {
+          valid: false,
+          message: "The provided user is not a Contact",
+        };
+      }
+
+      return {
+        valid: true,
+        message: "Contact is valid",
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        message: "Error validating contact",
+      };
+    }
+  }
+
+  async validateHouseLandPackage(houseLandPackageId, builderId, companyId) {
+    try {
+      const client = getPool();
+
+      const query = `
+        SELECT house_land_package_id 
+        FROM house_land_package
+        WHERE house_land_package_id = $1
+          AND (company_id = $2 OR company_id IS NULL)
+          AND (builder_id = $3 OR builder_id IS NULL)
+      `;
+
+      const result = await client.query(query, [
+        houseLandPackageId,
+        companyId,
+        builderId,
+      ]);
+
+      if (result.rowCount === 0) {
+        return {
+          valid: false,
+          message: "House Land Package not found or does not belong to this organization",
+        };
+      }
+
+      return {
+        valid: true,
+        message: "House Land Package is valid",
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        message: "Error validating House Land Package",
       };
     }
   }

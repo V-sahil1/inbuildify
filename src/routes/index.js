@@ -144,6 +144,7 @@ const hLPackagePricelistItemCommissionRoutes = require("./h-l-package-pricelist-
 const jobFormRoutes = require("./job-form.routes");
 const businessContactRoutes = require("./business-contact.routes");
 const hlPackageLotPackageMapRoutes = require("./hl-package-lot-package-map.routes");
+const quotationVersionCustomSectionRoutes = require("./quotation-version-custom-section.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -310,4 +311,5 @@ module.exports = function (app) {
   app.use("/job-form", jobFormRoutes);
   app.use("/business-contact", businessContactRoutes);
   app.use("/hl-package-lot-package-map", hlPackageLotPackageMapRoutes);
+  app.use("/quotation-version-custom-section", quotationVersionCustomSectionRoutes);
 };

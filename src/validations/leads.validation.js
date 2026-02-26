@@ -34,7 +34,7 @@ const getLeadByIdSchema = Joi.object({
 });
 
 const updateLeadSchema = Joi.object({
-  refrence_number: Joi.string().max(30).optional(),
+  reference_number: Joi.string().max(30).optional(),
 
   name: Joi.string().min(2).max(255).optional().messages({
     "string.min": "Name must be at least 2 characters long",
@@ -53,6 +53,15 @@ const updateLeadSchema = Joi.object({
   send_letter: Joi.boolean().optional(),
   lead_source_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Lead source ID must be a valid UUID",
+  }),
+  contact_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Contact ID must be a valid UUID",
+  }),
+  house_land_package_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "House Land Package ID must be a valid UUID",
+  }),
+  opportunity_notes: Joi.string().max(1000).optional().allow(null, "").messages({
+    "string.max": "Opportunity notes must not exceed 1000 characters",
   }),
   status: Joi.string()
     .valid("New", "Working", "Convert")

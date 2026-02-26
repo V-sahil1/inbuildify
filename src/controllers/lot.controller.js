@@ -20,6 +20,7 @@ exports.createLot = async (req, res) => {
     }
 
     const {
+      leads_id,
       estate_id,
       estate_stage_id,
       lot_number,
@@ -40,6 +41,33 @@ exports.createLot = async (req, res) => {
     } = req.body;
 
     await client.query("BEGIN");
+
+    if (leads_id) {
+      const leadCheck = await client.query(
+        `SELECT leads_id, lot_id FROM leads 
+         WHERE leads_id = $1 AND (
+           (company_id = $2 AND $2 IS NOT NULL)
+           OR (builder_id = $3 AND $3 IS NOT NULL)
+         ) LIMIT 1`,
+        [leads_id, companyId, builderId],
+      );
+
+      if (leadCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid leads_id or lead not found for this organization.",
+        );
+      }
+
+      // If lead exists and user is trying to create a new lot for it, 
+      // delete the previous lot(s) associated with this lead
+      await client.query(
+        "DELETE FROM lot WHERE leads_id = $1",
+        [leads_id]
+      );
+    }
 
     if (state_id) {
       const stateCheck = await client.query(
@@ -136,6 +164,7 @@ exports.createLot = async (req, res) => {
       INSERT INTO lot (
         company_id,
         builder_id,
+        leads_id,
         estate_id,
         estate_stage_id,
         lot_number,
@@ -158,7 +187,7 @@ exports.createLot = async (req, res) => {
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING 
         lot.*,
         (SELECT jsonb_build_object('id', e.estate_id, 'name', e.name) FROM estate e WHERE e.estate_id = lot.estate_id) AS estate,
@@ -169,6 +198,7 @@ exports.createLot = async (req, res) => {
     const values = [
       companyId,
       builderId,
+      leads_id || null,
       estate_id || null,
       estate_stage_id || null,
       lot_number,
@@ -191,6 +221,14 @@ exports.createLot = async (req, res) => {
     ];
 
     const result = await client.query(sql, values);
+
+    if (leads_id) {
+      await client.query(
+        "UPDATE leads SET lot_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2",
+        [result.rows[0].lot_id, leads_id]
+      );
+    }
+
     await client.query("COMMIT");
 
     const formatted = keysToCamelCase(result.rows[0]);
@@ -466,6 +504,7 @@ exports.updateLot = async (req, res) => {
     ];
 
     const restrictedFields = [
+      "leads_id"
     ];
     const attemptedRestrictedUpdates = restrictedFields.filter(
       (field) => req.body[field] !== undefined,
