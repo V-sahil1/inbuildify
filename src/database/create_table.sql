@@ -3128,7 +3128,6 @@ CREATE TABLE leads (
   notes VARCHAR(1000),
   send_letter BOOLEAN DEFAULT FALSE,
 
-  contact_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
   lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
 
@@ -3154,6 +3153,14 @@ CREATE TABLE leads (
   assignee_id UUID REFERENCES users(users_id),
   created_by UUID REFERENCES users(users_id),
   updated_by UUID REFERENCES users(users_id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE leads_contact_map(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES users(users_id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -3293,8 +3300,8 @@ CREATE TABLE quotation(
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
 );
 
--- when the user not select dwellingype then user can not select foorplan, facade, pricelist, pricelist item in create time
--- when the user update range  that time delete the facade, floorplan, package, pricelist item , template which ar selected
+-- when the user not select dwellingype then user can not select foorplan, facade, in quotation version
+-- when the user update range or dwelling type that time remove the facade, floorplan, package, pricelist item , template which ar selected
 CREATE TABLE quotation_version(
   quotation_version_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_id UUID REFERENCES quotation(quotation_id) ON DELETE CASCADE,
@@ -3317,7 +3324,7 @@ CREATE TABLE quotation_version_package_map(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- when the location and dwelling type select then user can select priclist item
+-- when the location and dwelling type select then user can select priclist item in quotation version
 CREATE TABLE quotation_version_pricelist_item_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,

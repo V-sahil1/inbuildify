@@ -16,7 +16,7 @@ class LeadsService {
         throw new Error("Name and email are required");
       }
 
-      const existingLeads = await leadsRepository.getAllLeads(builderId, {
+      const existingLeads = await leadsRepository.getAllLeads(builderId, companyId, {
         email: leadData.email,
         limit: 1,
       });
@@ -196,20 +196,6 @@ class LeadsService {
           return {
             success: false,
             message: clientTypeValidation.message,
-          };
-        }
-      }
-
-      if (leadData.contact_id) {
-        const contactValidation = await this.validateContact(
-          leadData.contact_id,
-          builderId,
-          companyId
-        );
-        if (!contactValidation.valid) {
-          return {
-            success: false,
-            message: contactValidation.message,
           };
         }
       }

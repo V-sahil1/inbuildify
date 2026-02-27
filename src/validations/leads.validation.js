@@ -19,7 +19,7 @@ const createLeadSchema = Joi.object({
     "string.max": "Notes must not exceed 1000 characters",
   }),
   send_letter: Joi.boolean().optional().default(false),
-  lead_source_id: Joi.string().uuid().optional().allow(null).messages({
+  lead_source_id: Joi.string().uuid().required().allow(null).messages({
     "string.guid": "Lead source ID must be a valid UUID",
   }),
 }).messages({
@@ -53,9 +53,6 @@ const updateLeadSchema = Joi.object({
   send_letter: Joi.boolean().optional(),
   lead_source_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Lead source ID must be a valid UUID",
-  }),
-  contact_id: Joi.string().uuid().optional().allow(null).messages({
-    "string.guid": "Contact ID must be a valid UUID",
   }),
   house_land_package_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "House Land Package ID must be a valid UUID",

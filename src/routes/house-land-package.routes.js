@@ -59,7 +59,7 @@ router.get(
 router.put(
   "/:house_land_package_id",
   upload.fields([
-    { name: "attachFiles", maxCount: 1},
+    { name: "attachFiles", maxCount: 10},
   ]),
   handleMulterError,
   camelToSnakeMiddleware,

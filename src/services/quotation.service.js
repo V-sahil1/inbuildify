@@ -153,6 +153,18 @@ class QuotationService {
         };
       }
 
+      // Check dwelling_type_id prerequisite for floor_plan and facade
+      const effectiveDwellingTypeId = updateData.dwelling_type_id !== undefined
+        ? updateData.dwelling_type_id
+        : existingVersion.dwelling_type_id;
+
+      if ((updateData.floor_plan_id || updateData.facade_id) && !effectiveDwellingTypeId) {
+        return {
+          success: false,
+          message: "Dwelling type must be selected before setting floor plan or facade",
+        };
+      }
+
       // Validate foreign key references (with ownership + active status check)
       const validations = [
         { field: "location_id", table: "location", pk: "location_id", label: "Location", statusField: "status" },

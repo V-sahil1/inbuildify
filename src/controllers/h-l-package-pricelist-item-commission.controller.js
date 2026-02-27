@@ -526,11 +526,11 @@ exports.createPackageCommissionMap = async (req, res) => {
     return successResponse(
       res,
       {
-        mappings: formattedMappings,
+        mapping: formattedMappings[0],
         houseTotal: housePriceTotal + currentCommissionTotal,
         commissionTotal: currentCommissionTotal
       },
-      "Package commission mapping(s) created successfully"
+      "Package commission mapping created successfully"
     );
   } catch (error) {
     await client.query("ROLLBACK");

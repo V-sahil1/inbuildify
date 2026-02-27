@@ -3,27 +3,26 @@ const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
 
+// Reusable subquery columns for related entity details
+const RELATED_ENTITY_SUBQUERIES = `
+  (SELECT name FROM dwelling_type WHERE dwelling_type_id = __alias__.dwelling_type_id LIMIT 1) AS dwelling_type_name,
+  (SELECT name FROM range WHERE range_id = __alias__.range_id LIMIT 1) AS range_name,
+  (SELECT name FROM template_email WHERE template_email_id = __alias__.template_id LIMIT 1) AS template_name,
+  (SELECT name FROM facade WHERE facade_id = __alias__.facade_id LIMIT 1) AS facade_name,
+  (SELECT image FROM facade WHERE facade_id = __alias__.facade_id LIMIT 1) AS facade_image,
+  (SELECT name FROM floor_plan WHERE floor_plan_id = __alias__.floor_plan_id LIMIT 1) AS floor_plan_name,
+  (SELECT simple_image FROM floor_plan WHERE floor_plan_id = __alias__.floor_plan_id LIMIT 1) AS floor_plan_simple_image,
+  (SELECT name FROM users WHERE users_id = __alias__.contact_id LIMIT 1) AS contact_name,
+  (SELECT email FROM users WHERE users_id = __alias__.contact_id LIMIT 1) AS contact_email,
+  (SELECT phone FROM users WHERE users_id = __alias__.contact_id LIMIT 1) AS contact_phone
+`;
+
+const getEntitySubqueries = (alias) => RELATED_ENTITY_SUBQUERIES.replace(/__alias__/g, alias);
+
 const formatHouseLandPackageData = (row) => {
   const priceSum = parseFloat(row.price_sum || 0);
   const commissionSum = parseFloat(row.commission_sum || 0);
   const data = keysToCamelCase(row);
-  delete data.priceSum;
-  delete data.commissionSum;
-
-  const ordered = {};
-  for (const key of Object.keys(data)) {
-    if (['floorPlanName', 'facadeName', 'createdByName'].includes(key)) continue;
-    ordered[key] = data[key];
-    if (key === 'floorPlanId' && data.floorPlanName !== undefined) {
-      ordered['floorPlanName'] = data.floorPlanName;
-    }
-    if (key === 'facadeId' && data.facadeName !== undefined) {
-      ordered['facadeName'] = data.facadeName;
-    }
-    if (key === 'createdBy' && data.createdByName !== undefined) {
-      ordered['createdByName'] = data.createdByName;
-    }
-  }
 
   let landPrice = 0;
   if (row.lot_details && row.lot_details.price) {
@@ -33,11 +32,78 @@ const formatHouseLandPackageData = (row) => {
   const houseTotal = priceSum + commissionSum;
 
   return {
-    ...ordered,
+    // Identity
+    houseLandPackageId: data.houseLandPackageId,
+    companyId: data.companyId,
+    builderId: data.builderId,
+    title: data.title,
+
+    // Related entities (nested)
+    dwellingType: data.dwellingTypeId ? {
+      id: data.dwellingTypeId,
+      name: data.dwellingTypeName || null,
+    } : null,
+
+    range: data.rangeId ? {
+      id: data.rangeId,
+      name: data.rangeName || null,
+    } : null,
+
+    template: data.templateId ? {
+      id: data.templateId,
+      name: data.templateName || null,
+    } : null,
+
+    facade: data.facadeId ? {
+      id: data.facadeId,
+      name: data.facadeName || null,
+      image: data.facadeImage || null,
+    } : null,
+
+    floorPlan: data.floorPlanId ? {
+      id: data.floorPlanId,
+      name: data.floorPlanName || null,
+      simpleImage: data.floorPlanSimpleImage || null,
+    } : null,
+
+    contact: data.contactId ? {
+      id: data.contactId,
+      name: data.contactName || null,
+      email: data.contactEmail || null,
+      phone: data.contactPhone || null,
+    } : null,
+
+    contactShowPdf: data.contactShowPdf || null,
+
+    // Lot & Package Group
+    lotDetails: data.lotDetails || null,
+    packageGroupId: data.packageGroupId || null,
+
+    // Floor plan description
+    floorPlanDescription: data.floorPlanDescription || null,
+
+    // Pricing
+    priceType: data.priceType || null,
     landPrice,
     houseTotal,
     commissionTotal: commissionSum,
-    totalPrice: houseTotal + landPrice
+    totalPrice: houseTotal + landPrice,
+
+    // Description & Disclaimer
+    packageDescription: data.packageDescription || null,
+    houseFeatureId: data.houseFeatureId || null,
+    disclaimerType: data.disclaimerType || null,
+    disclaimerDescription: data.disclaimerDescription || null,
+
+    // Attachments
+    attachFiles: data.attachFiles || [],
+
+    // Audit
+    createdByName: data.createdByName || null,
+    createdBy: data.createdBy || null,
+    updatedBy: data.updatedBy || null,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
   };
 };
 
@@ -225,8 +291,7 @@ exports.createHouseLandPackage = async (req, res) => {
         ) RETURNING *
       )
       SELECT np.*,
-      (SELECT name FROM floor_plan WHERE floor_plan_id = np.floor_plan_id LIMIT 1) AS floor_plan_name,
-      (SELECT name FROM facade WHERE facade_id = np.facade_id LIMIT 1) AS facade_name,
+      ${getEntitySubqueries('np')},
       (SELECT name FROM users WHERE users_id = np.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(
@@ -479,13 +544,15 @@ exports.getAllHouseLandPackages = async (req, res) => {
     const {
       page = 1,
       limit = 25,
+      title,
+      lot_address,
+      estate_name,
+      facade_name,
+      floor_plan_name,
+      total_price,
+      created_date,
+      assignee_id,
       lot_id,
-      range_id,
-      dwelling_type_id,
-      template_id,
-      contact_id,
-      price_type,
-      search,
     } = req.query;
 
     const pageNum = parseInt(page, 10);
@@ -493,57 +560,103 @@ exports.getAllHouseLandPackages = async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     let whereConditions = [];
+    let havingConditions = [];
     let queryParams = [];
     let paramIndex = 1;
 
+    // Scope filter
     if (builderId) {
-      whereConditions.push(`builder_id = $${paramIndex++}`);
+      whereConditions.push(`hlp.builder_id = $${paramIndex++}`);
       queryParams.push(builderId);
     } else if (companyId) {
-      whereConditions.push(`company_id = $${paramIndex++}`);
+      whereConditions.push(`hlp.company_id = $${paramIndex++}`);
       queryParams.push(companyId);
     }
 
-    // Build WHERE conditions
+    // Title filter (ILIKE)
+    if (title) {
+      whereConditions.push(`hlp.title ILIKE $${paramIndex++}`);
+      queryParams.push(`%${title}%`);
+    }
+
+    // Lot ID filter (exact match)
     if (lot_id) {
-      whereConditions.push(`lot_id = $${paramIndex++}`);
+      whereConditions.push(`hlp.lot_id = $${paramIndex++}`);
       queryParams.push(lot_id);
     }
 
-    if (range_id) {
-      whereConditions.push(`range_id = $${paramIndex++}`);
-      queryParams.push(range_id);
+    // Lot address filter (street or city)
+    if (lot_address) {
+      whereConditions.push(`(l.street ILIKE $${paramIndex} OR l.city ILIKE $${paramIndex})`);
+      queryParams.push(`%${lot_address}%`);
+      paramIndex++;
     }
 
-    if (dwelling_type_id) {
-      whereConditions.push(`dwelling_type_id = $${paramIndex++}`);
-      queryParams.push(dwelling_type_id);
+    // Estate name filter
+    if (estate_name) {
+      whereConditions.push(`e.name ILIKE $${paramIndex++}`);
+      queryParams.push(`%${estate_name}%`);
     }
 
-    if (template_id) {
-      whereConditions.push(`template_id = $${paramIndex++}`);
-      queryParams.push(template_id);
+    // Facade name filter
+    if (facade_name) {
+      whereConditions.push(`f.name ILIKE $${paramIndex++}`);
+      queryParams.push(`%${facade_name}%`);
     }
 
-    if (contact_id) {
-      whereConditions.push(`contact_id = $${paramIndex++}`);
-      queryParams.push(contact_id);
+    // Floor plan name filter
+    if (floor_plan_name) {
+      whereConditions.push(`fp.name ILIKE $${paramIndex++}`);
+      queryParams.push(`%${floor_plan_name}%`);
     }
 
-    if (price_type) {
-      whereConditions.push(`price_type = $${paramIndex++}`);
-      queryParams.push(price_type);
+    // Assignee filter (matches created_by)
+    if (assignee_id) {
+      whereConditions.push(`hlp.created_by = $${paramIndex++}`);
+      queryParams.push(assignee_id);
     }
 
-    if (search) {
-      whereConditions.push(`(title ILIKE $${paramIndex++} OR package_description ILIKE $${paramIndex++})`);
-      queryParams.push(`%${search}%`, `%${search}%`);
+    // Created date filter (enum: past_7_days, past_14_days, past_30_days)
+    if (created_date) {
+      const dateIntervals = {
+        past_7_days: "7 days",
+        past_14_days: "14 days",
+        past_30_days: "30 days",
+      };
+      const interval = dateIntervals[created_date];
+      if (interval) {
+        whereConditions.push(`hlp.created_at >= NOW() - INTERVAL '${interval}'`);
+      }
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
+    // Total price filter (exact match on computed total)
+    if (total_price) {
+      havingConditions.push(`CAST(TRUNC(
+        COALESCE(SUM(pim.total_price), 0) +
+        COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) +
+        COALESCE(l.price, 0)
+      ) AS TEXT) LIKE $${paramIndex++}`);
+      queryParams.push(`%${total_price}%`);
+    }
+
+    const havingClause = havingConditions.length > 0 ? `HAVING ${havingConditions.join(' AND ')}` : '';
+
+    // Count query with JOINs for filters
     const countResult = await client.query(
-      `SELECT COUNT(*) AS total FROM house_land_package ${whereClause}`,
+      `SELECT COUNT(*) AS total FROM (
+        SELECT hlp.house_land_package_id
+        FROM house_land_package hlp
+        LEFT JOIN lot l ON hlp.lot_id = l.lot_id
+        LEFT JOIN estate e ON l.estate_id = e.estate_id
+        LEFT JOIN facade f ON hlp.facade_id = f.facade_id
+        LEFT JOIN floor_plan fp ON hlp.floor_plan_id = fp.floor_plan_id
+        LEFT JOIN h_l_package_pricelist_item_map pim ON pim.house_land_package_id = hlp.house_land_package_id
+        ${whereClause}
+        GROUP BY hlp.house_land_package_id, l.price
+        ${havingClause}
+      ) AS filtered`,
       queryParams,
     );
 
@@ -551,11 +664,10 @@ exports.getAllHouseLandPackages = async (req, res) => {
     const totalPages = Math.ceil(total / limitNum);
 
     const result = await client.query(
-      `SELECT hlp.*, 
+      `SELECT hlp.*,
        COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
        COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
-       (SELECT name FROM floor_plan WHERE floor_plan_id = hlp.floor_plan_id LIMIT 1) AS floor_plan_name,
-       (SELECT name FROM facade WHERE facade_id = hlp.facade_id LIMIT 1) AS facade_name,
+       ${getEntitySubqueries('hlp')},
        (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
        (
           SELECT json_build_object(
@@ -583,7 +695,14 @@ exports.getAllHouseLandPackages = async (req, res) => {
           FROM lot l WHERE l.lot_id = hlp.lot_id LIMIT 1
        ) AS lot_details
        FROM house_land_package hlp
+       LEFT JOIN lot l ON hlp.lot_id = l.lot_id
+       LEFT JOIN estate e ON l.estate_id = e.estate_id
+       LEFT JOIN facade f ON hlp.facade_id = f.facade_id
+       LEFT JOIN floor_plan fp ON hlp.floor_plan_id = fp.floor_plan_id
+       LEFT JOIN h_l_package_pricelist_item_map pim ON pim.house_land_package_id = hlp.house_land_package_id
        ${whereClause}
+       GROUP BY hlp.house_land_package_id, l.price
+       ${havingClause}
        ORDER BY hlp.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...queryParams, limitNum, offset],
@@ -625,8 +744,7 @@ exports.getHouseLandPackageById = async (req, res) => {
       SELECT hlp.*,
       COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
       COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
-      (SELECT name FROM floor_plan WHERE floor_plan_id = hlp.floor_plan_id LIMIT 1) AS floor_plan_name,
-      (SELECT name FROM facade WHERE facade_id = hlp.facade_id LIMIT 1) AS facade_name,
+      ${getEntitySubqueries('hlp')},
       (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(
@@ -925,27 +1043,26 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     let updatedFiles = existingPackage.attach_files || [];
 
-    // If the user uploaded a new PDF, replace the old one
+    // If the user uploaded new files, append them to the existing array
     if (uploadedFiles && uploadedFiles.length > 0) {
-      // Delete any existing PDFs from S3
-      if (existingPackage.attach_files && existingPackage.attach_files.length > 0) {
-        for (const fileUrl of existingPackage.attach_files) {
-          if (fileUrl && fileUrl.trim() && fileUrl.startsWith('http')) {
-            try {
-              await deleteFromS3(fileUrl);
-            } catch (error) {
-              console.error(`Error deleting file from S3: ${fileUrl}`, error.message);
-            }
+      const MAX_ATTACH_FILES = 10;
+      updatedFiles = [...updatedFiles, ...uploadedFiles];
+
+      // If over limit, delete the oldest files from S3
+      while (updatedFiles.length > MAX_ATTACH_FILES) {
+        const removedFile = updatedFiles.shift();
+        if (removedFile && removedFile.startsWith('http')) {
+          try {
+            await deleteFromS3(removedFile);
+          } catch (err) {
+            console.error(`Error deleting old file from S3: ${removedFile}`, err.message);
           }
         }
       }
-      
-      // Store only the new uploaded PDF
-      updatedFiles = [uploadedFiles[0]];
+
       updateFields.push(`attach_files = $${paramIndex++}`);
       updateValues.push(updatedFiles);
     }
-    // If no new PDF is uploaded, `updatedFiles` retains the old PDF.
 
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
@@ -963,8 +1080,7 @@ exports.updateHouseLandPackage = async (req, res) => {
         RETURNING *
       )
       SELECT up.*, 
-      (SELECT name FROM floor_plan WHERE floor_plan_id = up.floor_plan_id LIMIT 1) AS floor_plan_name,
-      (SELECT name FROM facade WHERE facade_id = up.facade_id LIMIT 1) AS facade_name,
+      ${getEntitySubqueries('up')},
       (SELECT name FROM users WHERE users_id = up.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(

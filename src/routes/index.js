@@ -9,7 +9,7 @@ const contractorRoutes = require("./contractor.routes");
 const serviceRoutes = require("./service.routes");
 const leadSourceRoutes = require("./lead-source.routes");
 const leadRoutes = require("./leads.routes");
-const leadsContactRoutes = require("./leads-contact.routes");
+const leadsContactMapRoutes = require("./leads-contact-map.routes");
 const opportunitiesRoutes = require("./opportunities.routes");
 const masterPriceListCategoryRoutes = require("./master-price-list-category.routes");
 const rangeRoutes = require("./range.routes");
@@ -145,6 +145,8 @@ const jobFormRoutes = require("./job-form.routes");
 const businessContactRoutes = require("./business-contact.routes");
 const hlPackageLotPackageMapRoutes = require("./hl-package-lot-package-map.routes");
 const quotationVersionCustomSectionRoutes = require("./quotation-version-custom-section.routes");
+const quotationVersionPackageMapRoutes = require("./quotation-version-package-map.routes");
+const quotationVersionPricelistItemMapRoutes = require("./quotation-version-pricelist-item-map.routes");
 
 module.exports = function (app) {
   app.use("/country", countryRoutes);
@@ -158,7 +160,7 @@ module.exports = function (app) {
   app.use("/service", serviceRoutes);
   app.use("/sales/lead-source", leadSourceRoutes);
   app.use("/leads", leadRoutes);
-  app.use("/leads-contact", leadsContactRoutes);
+  app.use("/leads-contact-map", leadsContactMapRoutes);
   app.use("/opportunities", opportunitiesRoutes);
   app.use("/master-price-category", masterPriceListCategoryRoutes);
   app.use("/range", rangeRoutes);
@@ -312,4 +314,6 @@ module.exports = function (app) {
   app.use("/business-contact", businessContactRoutes);
   app.use("/hl-package-lot-package-map", hlPackageLotPackageMapRoutes);
   app.use("/quotation-version-custom-section", quotationVersionCustomSectionRoutes);
+  app.use("/quotation-version-package-map", quotationVersionPackageMapRoutes);
+  app.use("/quotation-version-pricelist-item-map", quotationVersionPricelistItemMapRoutes);
 };

@@ -276,7 +276,6 @@ class LeadsRepository {
         h_l_budget,
         assignee_id,
         updated_by,
-        contact_id,
         house_land_package_id,
         opportunity_notes,
       } = leadData;
@@ -388,11 +387,6 @@ class LeadsRepository {
       if (assignee_id !== undefined) {
         updateFields.push(`assignee_id = $${paramIndex++}`);
         values.push(assignee_id);
-      }
-
-      if (contact_id !== undefined) {
-        updateFields.push(`contact_id = $${paramIndex++}`);
-        values.push(contact_id);
       }
 
       if (house_land_package_id !== undefined) {

@@ -157,20 +157,18 @@ const deleteLotSchema = Joi.object({
 });
 
 const getAllLotsSchema = Joi.object({
-  estate_id: optionalUuidRule,
-  estate_stage_id: optionalUuidRule,
-  title_status: stringRule.max(255).optional().allow(""),
-  lot_type: stringRule
-    .max(100)
+  lot_number: stringRule.max(255).optional().allow(""),
+  price: Joi.alternatives().try(Joi.number(), Joi.string()).optional().allow(null, ""),
+  size: Joi.alternatives().try(Joi.number(), Joi.string()).optional().allow(null, ""),
+  estate_name: stringRule.max(255).optional().allow(""),
+  stage_name: stringRule.max(255).optional().allow(""),
+  address: stringRule.max(255).optional().allow(""),
+  status: stringRule
+    .valid("available", "sold", "reserved", "pending", "under_contract", "off_market")
     .optional()
-    .allow("")
-    .valid("regular", "irregular"),
-  corner_block: booleanRule.optional(),
-  min_price: numericRule.min(0).optional(),
-  max_price: numericRule.min(0).optional(),
-  min_size: numericRule.min(0).optional(),
-  max_size: numericRule.min(0).optional(),
-  search: stringRule.max(255).optional().allow(""),
+    .allow(""),
+  created_date: stringRule.valid("past_7_days", "past_14_days", "past_30_days").optional(),
+  created_by: optionalUuidRule,
 });
 
 module.exports = {

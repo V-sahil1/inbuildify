@@ -102,13 +102,14 @@ const deleteHouseLandPackageSchema = Joi.object({
 const getAllHouseLandPackagesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
+  title: stringRule.max(255).optional().allow(""),
+  estate_name: stringRule.max(255).optional().allow(""),
+  facade_name: stringRule.max(255).optional().allow(""),
+  floor_plan_name: stringRule.max(255).optional().allow(""),
+  total_price: Joi.number().optional().allow(null, ""),
+  created_date: stringRule.valid("past_7_days", "past_14_days", "past_30_days").optional(),
+  assignee_id: optionalUuidRule,
   lot_id: optionalUuidRule,
-  range_id: optionalUuidRule,
-  dwelling_type_id: optionalUuidRule,
-  template_id: optionalUuidRule,
-  contact_id: optionalUuidRule,
-  price_type: stringRule.valid("estimate", "fixed").optional(),
-  search: stringRule.max(255).optional().allow(""),
 });
 
 const getHouseLandPackageDetailedInfoSchema = Joi.object({

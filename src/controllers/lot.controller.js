@@ -262,16 +262,15 @@ exports.getAllLots = async (req, res) => {
     }
 
     const {
-      estate_id,
-      estate_stage_id,
-      title_status,
-      lot_type,
-      corner_block,
-      min_price,
-      max_price,
-      min_size,
-      max_size,
-      search,
+      lot_number,
+      price,
+      size,
+      estate_name,
+      stage_name,
+      address,
+      status,
+      created_date,
+      created_by,
     } = req.query;
     let whereConditions = [];
     let queryParams = [];
@@ -283,60 +282,73 @@ exports.getAllLots = async (req, res) => {
     )`);
     queryParams.push(companyId, builderId);
 
-    if (estate_id) {
-      whereConditions.push(`l.estate_id = $${paramIndex++}`);
-      queryParams.push(estate_id);
+    // Lot number filter
+    if (lot_number) {
+      whereConditions.push(`l.lot_number ILIKE $${paramIndex++}`);
+      queryParams.push(`%${lot_number}%`);
     }
 
-    if (estate_stage_id) {
-      whereConditions.push(`l.estate_stage_id = $${paramIndex++}`);
-      queryParams.push(estate_stage_id);
+    // Price filter (text LIKE match)
+    if (price) {
+      whereConditions.push(`CAST(TRUNC(COALESCE(l.price, 0)) AS TEXT) LIKE $${paramIndex++}`);
+      queryParams.push(`%${price}%`);
     }
 
-    if (title_status) {
-      whereConditions.push(`l.title_status = $${paramIndex++}`);
-      queryParams.push(title_status);
+    // Size filter (text LIKE match on total_size_m2)
+    if (size) {
+      whereConditions.push(`CAST(TRUNC(COALESCE(l.total_size_m2, 0)) AS TEXT) LIKE $${paramIndex++}`);
+      queryParams.push(`%${size}%`);
     }
 
-    if (lot_type) {
-      whereConditions.push(`l.lot_type = $${paramIndex++}`);
-      queryParams.push(lot_type);
+    // Estate name filter
+    if (estate_name) {
+      whereConditions.push(`e.name ILIKE $${paramIndex++}`);
+      queryParams.push(`%${estate_name}%`);
     }
 
-    if (corner_block !== undefined) {
-      whereConditions.push(`l.corner_block = $${paramIndex++}`);
-      queryParams.push(corner_block === "true");
+    // Stage name filter
+    if (stage_name) {
+      whereConditions.push(`es.name ILIKE $${paramIndex++}`);
+      queryParams.push(`%${stage_name}%`);
     }
 
-    if (min_price) {
-      whereConditions.push(`l.price >= $${paramIndex++}`);
-      queryParams.push(parseFloat(min_price));
-    }
-
-    if (max_price) {
-      whereConditions.push(`l.price <= $${paramIndex++}`);
-      queryParams.push(parseFloat(max_price));
-    }
-
-    if (min_size) {
-      whereConditions.push(`l.total_size_m2 >= $${paramIndex++}`);
-      queryParams.push(parseFloat(min_size));
-    }
-
-    if (max_size) {
-      whereConditions.push(`l.total_size_m2 <= $${paramIndex++}`);
-      queryParams.push(parseFloat(max_size));
-    }
-
-    if (search) {
+    // Address filter (street or city)
+    // Address filter (street, city, or combined "street, city")
+    if (address) {
       whereConditions.push(`(
-        l.lot_number ILIKE $${paramIndex++} OR
-        l.street ILIKE $${paramIndex++} OR
-        l.city ILIKE $${paramIndex++} OR
-        l.zip_code ILIKE $${paramIndex++}
+        l.street ILIKE $${paramIndex}
+        OR l.city ILIKE $${paramIndex}
+        OR (l.street || ', ' || l.city) ILIKE $${paramIndex}
+        OR (l.street || ' ' || l.city) ILIKE $${paramIndex}
+        OR (l.street || ',' || l.city) ILIKE $${paramIndex}
       )`);
-      const searchTerm = `%${search}%`;
-      queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
+      queryParams.push(`%${address}%`);
+      paramIndex++;
+    }
+
+    // Status filter (exact match)
+    if (status) {
+      whereConditions.push(`l.title_status = $${paramIndex++}`);
+      queryParams.push(status);
+    }
+
+    // Created date filter (enum: past_7_days, past_14_days, past_30_days)
+    if (created_date) {
+      const dateIntervals = {
+        past_7_days: "7 days",
+        past_14_days: "14 days",
+        past_30_days: "30 days",
+      };
+      const interval = dateIntervals[created_date];
+      if (interval) {
+        whereConditions.push(`l.created_at >= NOW() - INTERVAL '${interval}'`);
+      }
+    }
+
+    // Created by filter
+    if (created_by) {
+      whereConditions.push(`l.created_by = $${paramIndex++}`);
+      queryParams.push(created_by);
     }
 
     const whereClause =
