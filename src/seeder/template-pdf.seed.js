@@ -29,16 +29,18 @@ async function seedInitialPdfTemplates({
   company_id = null,
   builder_id = null,
   created_by,
+  client: externalClient = null,
 }) {
   if (!company_id && !builder_id) {
     throw new Error("Either company_id or builder_id is required");
   }
 
-  const pool = getPool();
-  const client = await pool.connect();
+  const useExternalClient = !!externalClient;
+  const pool = useExternalClient ? null : getPool();
+  const client = externalClient || (await pool.connect());
 
   try {
-    await client.query("BEGIN");
+    if (!useExternalClient) await client.query("BEGIN");
 
     for (const [key, templateJson] of Object.entries(pdfTemplates)) {
       const name = keyToTitle(key);
@@ -67,12 +69,12 @@ async function seedInitialPdfTemplates({
       );
     }
 
-    await client.query("COMMIT");
+    if (!useExternalClient) await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (!useExternalClient) await client.query("ROLLBACK");
     throw err;
   } finally {
-    client.release();
+    if (!useExternalClient) client.release();
   }
 }
 

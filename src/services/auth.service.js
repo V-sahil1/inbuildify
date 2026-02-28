@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../helper/sendMail");
 const { upsertCompany } = require("./company.service");
+const { seedBuilderDefaults } = require("../seeder/seed-builder-defaults");
 
 // Helper function to send verification email
 async function sendVerificationEmail(
@@ -76,11 +77,12 @@ async function registerRoot({ name, email, password, role_id }) {
     const builder_id = builderRes.rows[0].builder_id;
 
     // Create root user
-    await client.query(
+    const userRes = await client.query(
       `INSERT INTO users (
             builder_id, name, email, role_id,
             password, otp, expires_at, root_user
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING users_id`,
       [
         builder_id,
         name,
@@ -92,6 +94,8 @@ async function registerRoot({ name, email, password, role_id }) {
         true,
       ],
     );
+
+    const users_id = userRes.rows[0].users_id;
 
     // Create default company for the new user
     const defaultCompanyPayload = {
@@ -107,7 +111,16 @@ async function registerRoot({ name, email, password, role_id }) {
       company_logo: null,
     };
 
-    await upsertCompany(builder_id, defaultCompanyPayload, client);
+    const companyResult = await upsertCompany(builder_id, defaultCompanyPayload, client);
+    const company_id = companyResult?.companyId || null;
+
+    // Seed all default settings for the new builder
+    await seedBuilderDefaults({
+      company_id,
+      builder_id,
+      created_by: users_id,
+      client,
+    });
 
     // Send OTP Email using helper function
     await sendVerificationEmail(lowerEmail, otp);

@@ -221,6 +221,7 @@ exports.getFloorPlans = async (req, res) => {
       name,
       dwelling_type_id,
       range_id,
+      location_id,
       status,
     } = req.query;
 
@@ -247,6 +248,12 @@ exports.getFloorPlans = async (req, res) => {
     if (range_id) {
       whereClauses.push(`h.range_id = $${idx}`);
       values.push(range_id);
+      idx++;
+    }
+
+    if (location_id) {
+      whereClauses.push(`h.location_id = $${idx}`);
+      values.push(location_id);
       idx++;
     }
 

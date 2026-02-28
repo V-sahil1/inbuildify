@@ -61,7 +61,21 @@ class LeadsRepository {
       ];
 
       const result = await client.query(query, values);
-      return keysToCamelCase(result.rows[0]);
+      const lead = result.rows[0];
+
+      // Fetch mapped contacts
+      const contactsResult = await client.query(
+        `SELECT lcm.id, lcm.contact_id, u.name, u.email, u.phone
+         FROM leads_contact_map lcm
+         JOIN users u ON lcm.contact_id = u.users_id
+         WHERE lcm.leads_id = $1`,
+        [lead.leads_id]
+      );
+
+      return {
+        ...keysToCamelCase(lead),
+        leadContacts: keysToCamelCase(contactsResult.rows),
+      };
     } finally {
       client.release();
     }
@@ -181,7 +195,19 @@ class LeadsRepository {
           s.name as state_name,
           assignee.name as assignee_name,
           created_by_user.name as created_by_name,
-          updated_by_user.name as updated_by_name
+          updated_by_user.name as updated_by_name,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', lcm.id,
+              'contact_id', lcm.contact_id,
+              'name', u.name,
+              'email', u.email,
+              'phone', u.phone
+            )), '[]'::json)
+            FROM leads_contact_map lcm
+            JOIN users u ON lcm.contact_id = u.users_id
+            WHERE lcm.leads_id = l.leads_id
+          ) as lead_contacts
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id
@@ -232,7 +258,153 @@ class LeadsRepository {
           s.name as state_name,
           assignee.name as assignee_name,
           created_by_user.name as created_by_name,
-          updated_by_user.name as updated_by_name
+          updated_by_user.name as updated_by_name,
+
+          -- Contacts from leads_contact_map
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', lcm.id,
+              'contact_id', lcm.contact_id,
+              'name', cu.name,
+              'email', cu.email,
+              'phone', cu.phone
+            )), '[]'::json)
+            FROM leads_contact_map lcm
+            JOIN users cu ON lcm.contact_id = cu.users_id
+            WHERE lcm.leads_id = l.leads_id
+          ) as lead_contacts,
+
+          -- Lot details
+          (
+            SELECT json_build_object(
+              'lot_id', lot.lot_id,
+              'lot_number', lot.lot_number,
+              'street', lot.street,
+              'city', lot.city,
+              'zip_code', lot.zip_code,
+              'title_status', lot.title_status,
+              'title_date', lot.title_date,
+              'lot_type', lot.lot_type,
+              'corner_block', lot.corner_block,
+              'width_m', lot.width_m,
+              'depth_m', lot.depth_m,
+              'price', lot.price,
+              'total_size_m2', lot.total_size_m2,
+              'estate_id', lot.estate_id,
+              'estate_name', (SELECT e.name FROM estate e WHERE e.estate_id = lot.estate_id LIMIT 1),
+              'estate_stage_id', lot.estate_stage_id,
+              'estate_stage_name', (SELECT es.name FROM estate_stages es WHERE es.estate_stage_id = lot.estate_stage_id LIMIT 1)
+            )
+            FROM lot WHERE lot.lot_id = l.lot_id LIMIT 1
+          ) as lot_details,
+
+          -- House land package details
+          (
+            SELECT json_build_object(
+              'house_land_package_id', hlp.house_land_package_id,
+              'title', hlp.title,
+              'lot_id', hlp.lot_id,
+              'facade_id', hlp.facade_id,
+              'floor_plan_id', hlp.floor_plan_id,
+              'attach_files', hlp.attach_files
+            )
+            FROM house_land_package hlp WHERE hlp.house_land_package_id = l.house_land_package_id LIMIT 1
+          ) as house_land_package_details,
+
+          -- Properties
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'property_id', p.property_id,
+              'lot_no', p.lot_no,
+              'street_no', p.street_no,
+              'estate_name', p.estate_name,
+              'title_status', p.title_status,
+              'title_date', p.title_date,
+              'width_m', p.width_m,
+              'depth_m', p.depth_m,
+              'total_size_m2', p.total_size_m2
+            )), '[]'::json)
+            FROM property p WHERE p.leads_id = l.leads_id
+          ) as properties,
+
+          -- Quotations with versions
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'quotation_id', q.quotation_id,
+              'reference_number', q.reference_number,
+              'created_at', q.created_at,
+              'versions', (
+                SELECT COALESCE(json_agg(json_build_object(
+                  'quotation_version_id', qv.quotation_version_id,
+                  'quotation_version_no', qv.quotation_version_no,
+                  'location_id', qv.location_id,
+                  'range_id', qv.range_id,
+                  'dwelling_type_id', qv.dwelling_type_id,
+                  'floor_plan_id', qv.floor_plan_id,
+                  'facade_id', qv.facade_id,
+                  'is_approve', qv.is_approve,
+                  'sketch_number', qv.sketch_number,
+                  'package_maps', (
+                    SELECT COALESCE(json_agg(json_build_object(
+                      'id', qpm.id,
+                      'package_id', qpm.package_id,
+                      'package_name', (SELECT pk.name FROM package pk WHERE pk.package_id = qpm.package_id LIMIT 1)
+                    )), '[]'::json)
+                    FROM quotation_version_package_map qpm WHERE qpm.quotation_version_id = qv.quotation_version_id
+                  ),
+                  'pricelist_item_maps', (
+                    SELECT COALESCE(json_agg(json_build_object(
+                      'id', qpim.id,
+                      'price_list_item_id', qpim.price_list_item_id,
+                      'item_name', (SELECT pli.item_description FROM price_list_item pli WHERE pli.price_list_item_id = qpim.price_list_item_id LIMIT 1),
+                      'quantity', qpim.quantity,
+                      'note', qpim.note,
+                      'total_price', qpim.total_price
+                    )), '[]'::json)
+                    FROM quotation_version_pricelist_item_map qpim WHERE qpim.quotation_version_id = qv.quotation_version_id
+                  ),
+                  'custom_sections', (
+                    SELECT COALESCE(json_agg(json_build_object(
+                      'custom_section_id', qcs.custom_section_id,
+                      'file_url', qcs.file_url,
+                      'sort_order', qcs.sort_order
+                    ) ORDER BY qcs.sort_order ASC), '[]'::json)
+                    FROM quotation_version_custom_section qcs WHERE qcs.quotation_version_id = qv.quotation_version_id
+                  )
+                ) ORDER BY qv.quotation_version_no DESC), '[]'::json)
+                FROM quotation_version qv WHERE qv.quotation_id = q.quotation_id
+              )
+            ) ORDER BY q.created_at DESC), '[]'::json)
+            FROM quotation q WHERE q.leads_id = l.leads_id
+          ) as quotations,
+
+          -- Business contacts
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'business_contact_id', bc.business_contact_id,
+              'contact_type', bc.contact_type,
+              'name', bc.name,
+              'email', bc.email,
+              'phone', bc.phone,
+              'address1', bc.address1,
+              'city', bc.city
+            )), '[]'::json)
+            FROM business_contact bc WHERE bc.leads_id = l.leads_id
+          ) as business_contacts,
+
+          -- Invoices
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'invoice_id', inv.invoice_id,
+              'reference_number', inv.reference_number,
+              'invoice_date', inv.invoice_date,
+              'due_date', inv.due_date,
+              'invoice_amount', inv.invoice_amount,
+              'status', inv.status
+            ) ORDER BY inv.created_at DESC), '[]'::json)
+            FROM invoice inv WHERE inv.leads_id = l.leads_id
+          ) as invoices
+
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id

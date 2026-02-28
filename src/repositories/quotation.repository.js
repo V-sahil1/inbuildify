@@ -127,13 +127,29 @@ class QuotationRepository {
           r.name as range_name,
           dt.name as dwelling_type_name,
           fp.name as floor_plan_name,
-          f.name as facade_name
+          f.name as facade_name,
+          leads.leads_id as lead_id,
+          leads.lot_id as lead_lot_id,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', lcm.id,
+              'contact_id', lcm.contact_id,
+              'name', u.name,
+              'email', u.email,
+              'phone', u.phone
+            )), '[]'::json)
+            FROM leads_contact_map lcm
+            JOIN users u ON lcm.contact_id = u.users_id
+            WHERE lcm.leads_id = leads.leads_id
+          ) as lead_contacts
         FROM quotation_version qv
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
         LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        LEFT JOIN leads ON q.leads_id = leads.leads_id
         WHERE qv.quotation_id = $1
         ORDER BY qv.quotation_version_no DESC
       `;
@@ -177,7 +193,32 @@ class QuotationRepository {
       `;
 
       const result = await client.query(query, values);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+      if (result.rows.length === 0) return null;
+
+      // Fetch the updated version with lead lot_id and contacts
+      const enrichQuery = `
+        SELECT qv.*,
+          leads.leads_id as lead_id,
+          leads.lot_id as lead_lot_id,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', lcm.id,
+              'contact_id', lcm.contact_id,
+              'name', u.name,
+              'email', u.email,
+              'phone', u.phone
+            )), '[]'::json)
+            FROM leads_contact_map lcm
+            JOIN users u ON lcm.contact_id = u.users_id
+            WHERE lcm.leads_id = leads.leads_id
+          ) as lead_contacts
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        LEFT JOIN leads ON q.leads_id = leads.leads_id
+        WHERE qv.quotation_version_id = $1
+      `;
+      const enrichResult = await client.query(enrichQuery, [versionId]);
+      return enrichResult.rows.length > 0 ? keysToCamelCase(enrichResult.rows[0]) : keysToCamelCase(result.rows[0]);
     } finally {
       client.release();
     }

@@ -103,6 +103,9 @@ const getFloorPlansSchema = Joi.object({
   range_id: Joi.string().uuid().optional().allow("", null).messages({
     "string.guid": "Range ID must be a valid UUID",
   }),
+  location_id: Joi.string().uuid().optional().allow("", null).messages({
+    "string.guid": "Location ID must be a valid UUID",
+  }),
 
   status: Joi.boolean().optional(),
   page: pageRule,

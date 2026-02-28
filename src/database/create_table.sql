@@ -3129,7 +3129,7 @@ CREATE TABLE leads (
   send_letter BOOLEAN DEFAULT FALSE,
 
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
+  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,    -----   in this add logic like if the user select hl and package then that package's lot id automatically store in the lead's table lot id column 
 
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 

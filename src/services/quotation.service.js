@@ -198,6 +198,30 @@ class QuotationService {
         }
       }
 
+      // If range_id or dwelling_type_id is changing, clear related selections
+      const rangeChanged = updateData.range_id !== undefined
+        && updateData.range_id !== existingVersion.range_id;
+      const dwellingTypeChanged = updateData.dwelling_type_id !== undefined
+        && updateData.dwelling_type_id !== existingVersion.dwelling_type_id;
+
+      if (rangeChanged || dwellingTypeChanged) {
+        // Set facade_id and floor_plan_id to NULL
+        updateData.facade_id = null;
+        updateData.floor_plan_id = null;
+
+        // Delete related package mappings
+        await client.query(
+          `DELETE FROM quotation_version_package_map WHERE quotation_version_id = $1`,
+          [versionId]
+        );
+
+        // Delete related pricelist item mappings
+        await client.query(
+          `DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1`,
+          [versionId]
+        );
+      }
+
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       if (!updated) {
