@@ -10,6 +10,7 @@ const {
   updateLeadStatus,
   assignLead,
   forceCreateLead,
+  convertLeadToOpportunity,
 } = require("../controllers/leads.controller");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
@@ -22,6 +23,7 @@ const {
   updateLeadStatusSchema,
   assignLeadSchema,
   getAllLeadsQuerySchema,
+  convertLeadToOpportunitySchema,
 } = require("../validations/leads.validation");
 const { REQUEST_SOURCE } = require("../config/constants");
 
@@ -89,6 +91,14 @@ router.delete(
   "/:leads_id",
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   deleteLead,
+);
+
+// Convert lead to opportunity
+router.post(
+  "/:leads_id/convert",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(convertLeadToOpportunitySchema, REQUEST_SOURCE.BODY),
+  convertLeadToOpportunity,
 );
 
 module.exports = router;

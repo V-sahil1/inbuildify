@@ -3134,8 +3134,8 @@ CREATE TABLE leads (
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
   status VARCHAR(20) DEFAULT 'new',                -- valid new, working, convert
-  opportunity_notes VARCHAR(1000),
-  outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
+  -- opportunity_notes VARCHAR(1000),                 -- remove this
+  -- outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost     // also remove this
   
   rating VARCHAR(150),              -- none, hot, cold, warm
   land VARCHAR(150),                  -- none, no, yes
@@ -3157,6 +3157,16 @@ CREATE TABLE leads (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE opportunity(
+  opportunity_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  opportunity_notes VARCHAR(1000),
+  status VARCHAR(252),                                -- valid  proposel, negotiation, closed
+  outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE leads_contact_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
@@ -3167,7 +3177,7 @@ CREATE TABLE leads_contact_map(
 
 CREATE TABLE property(  
   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  -- leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   lot_no INTEGER,
   street_no INTEGER,
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,

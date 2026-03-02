@@ -57,18 +57,14 @@ const updateLeadSchema = Joi.object({
   house_land_package_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "House Land Package ID must be a valid UUID",
   }),
-  opportunity_notes: Joi.string().max(1000).optional().allow(null, "").messages({
-    "string.max": "Opportunity notes must not exceed 1000 characters",
-  }),
+
   status: Joi.string()
     .valid("New", "Working", "Convert")
     .optional()
     .messages({
       "any.only": "Status must be one of: New, Working, Convert",
     }),
-  outcome: Joi.string().valid("Won", "Lost").optional().allow(null).messages({
-    "any.only": "Outcome must be either Won or Lost",
-  }),
+
   rating: Joi.string()
     .valid("Hot", "Warm", "Cold", "None")
     .optional()
@@ -169,7 +165,7 @@ const getAllLeadsQuerySchema = Joi.object({
   status: Joi.string()
     .valid("New", "Working", "Qualified", "Closed")
     .optional(),
-  outcome: Joi.string().valid("Won", "Lost").optional(),
+
   rating: Joi.string().valid("Hot", "Warm", "Cold", "None").optional(),
   lead_source_id: Joi.string().uuid().optional(),
   client_type_id: Joi.string().uuid().optional(),
@@ -180,6 +176,12 @@ const getAllLeadsQuerySchema = Joi.object({
   }),
 });
 
+const convertLeadToOpportunitySchema = Joi.object({
+  opportunity_notes: Joi.string().max(1000).optional().allow(null, "").messages({
+    "string.max": "Opportunity notes must not exceed 1000 characters",
+  }),
+});
+
 module.exports = {
   createLeadSchema,
   getLeadByIdSchema,
@@ -187,4 +189,5 @@ module.exports = {
   updateLeadStatusSchema,
   assignLeadSchema,
   getAllLeadsQuerySchema,
+  convertLeadToOpportunitySchema,
 };

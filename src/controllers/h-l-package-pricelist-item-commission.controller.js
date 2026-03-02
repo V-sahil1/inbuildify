@@ -29,7 +29,7 @@ exports.createPriceListItemMap = async (req, res) => {
     }
 
     const priceCheck = await client.query(
-      `SELECT cost FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
+      `SELECT cost, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
@@ -38,6 +38,10 @@ exports.createPriceListItemMap = async (req, res) => {
 
     if (priceCheck.rowCount === 0) {
       return errorResponse(res, 404, "Price list item not found or does not belong to your organization");
+    }
+
+    if (priceCheck.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+      return errorResponse(res, 400, "Quantity cannot be specified for items with cost type 'Included'");
     }
 
     const duplicateCheck = await client.query(
@@ -273,7 +277,7 @@ exports.updatePriceListItemMap = async (req, res) => {
     const companyId = req.user?.company_id;
 
     const checkResult = await client.query(
-      `SELECT plim.*, hlp.company_id, hlp.builder_id, pli.cost
+      `SELECT plim.*, hlp.company_id, hlp.builder_id, pli.cost, pli.cost_type
        FROM h_l_package_pricelist_item_map plim
        JOIN house_land_package hlp ON plim.house_land_package_id = hlp.house_land_package_id
        JOIN price_list_item pli ON plim.price_list_item_id = pli.price_list_item_id
@@ -289,6 +293,10 @@ exports.updatePriceListItemMap = async (req, res) => {
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Price list item mapping not found or price list item does not belong to your organization");
+    }
+
+    if (checkResult.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+      return errorResponse(res, 400, "Quantity cannot be updated for items with cost type 'Included'");
     }
 
     const quantityToUse = quantity || 1;

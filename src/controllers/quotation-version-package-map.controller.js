@@ -18,7 +18,7 @@ exports.createPackageMap = async (req, res) => {
 
     // Validate quotation version ownership
     const versionCheck = await client.query(
-      `SELECT qv.quotation_version_id
+      `SELECT qv.quotation_version_id, qv.is_approve
        FROM quotation_version qv
        JOIN quotation q ON qv.quotation_id = q.quotation_id
        JOIN leads l ON q.leads_id = l.leads_id
@@ -31,6 +31,10 @@ exports.createPackageMap = async (req, res) => {
 
     if (versionCheck.rowCount === 0) {
       return errorResponse(res, 404, "Quotation version not found or does not belong to your organization");
+    }
+
+    if (versionCheck.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify packages of an approved quotation version");
     }
 
     // Validate package exists and belongs to the user's organization
@@ -154,7 +158,7 @@ exports.deletePackageMap = async (req, res) => {
 
     // Check ownership
     const checkResult = await client.query(
-      `SELECT m.id
+      `SELECT m.id, qv.is_approve
        FROM quotation_version_package_map m
        JOIN quotation_version qv ON m.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -168,6 +172,10 @@ exports.deletePackageMap = async (req, res) => {
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Package map not found or does not belong to your organization");
+    }
+
+    if (checkResult.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify packages of an approved quotation version");
     }
 
     await client.query(

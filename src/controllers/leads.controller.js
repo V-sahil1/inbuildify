@@ -96,7 +96,6 @@ exports.getAllLeads = async (req, res) => {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 25,
       status: req.query.status,
-      outcome: req.query.outcome,
       rating: req.query.rating,
       leadSourceId: req.query.leadSourceId,
       clientTypeId: req.query.clientTypeId,
@@ -194,6 +193,35 @@ exports.deleteLead = async (req, res) => {
     }
   } catch (error) {
     console.error("Delete lead error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+};
+
+exports.convertLeadToOpportunity = async (req, res) => {
+  try {
+    const { leads_id } = req.params;
+    const { opportunity_notes } = req.body;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+    }
+
+    const result = await leadsService.convertLeadToOpportunity(
+      leads_id,
+      opportunity_notes,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, 201, result.message);
+    } else {
+      return errorResponse(res, 400, result.message);
+    }
+  } catch (error) {
+    console.error("Convert lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
 };

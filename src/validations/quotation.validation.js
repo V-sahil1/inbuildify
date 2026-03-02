@@ -21,6 +21,13 @@ const updateQuotationVersionParamsSchema = Joi.object({
   }),
 });
 
+const duplicateQuotationVersionSchema = Joi.object({
+  quotation_version_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation Version ID must be a valid UUID",
+    "any.required": "Quotation Version ID is required",
+  }),
+});
+
 const updateQuotationVersionBodySchema = Joi.object({
   location_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Location ID must be a valid UUID",
@@ -50,4 +57,5 @@ module.exports = {
   deleteQuotationSchema,
   updateQuotationVersionParamsSchema,
   updateQuotationVersionBodySchema,
+  duplicateQuotationVersionSchema,
 };

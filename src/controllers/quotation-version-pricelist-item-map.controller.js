@@ -5,7 +5,7 @@ const { keysToCamelCase } = require("../utils/common");
 // Ownership check helper - returns version row or null
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
   const result = await client.query(
-    `SELECT qv.quotation_version_id, qv.location_id, qv.dwelling_type_id
+    `SELECT qv.quotation_version_id, qv.location_id, qv.dwelling_type_id, qv.is_approve
      FROM quotation_version qv
      JOIN quotation q ON qv.quotation_id = q.quotation_id
      JOIN leads l ON q.leads_id = l.leads_id
@@ -38,6 +38,10 @@ exports.createPricelistItemMap = async (req, res) => {
       return errorResponse(res, 404, "Quotation version not found or does not belong to your organization");
     }
 
+    if (version.is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify pricelist items of an approved quotation version");
+    }
+
     // Check that location_id and dwelling_type_id are set on the version
     if (!version.location_id || !version.dwelling_type_id) {
       return errorResponse(res, 400, "Quotation version must have both location and dwelling type selected before adding pricelist items");
@@ -45,7 +49,7 @@ exports.createPricelistItemMap = async (req, res) => {
 
     // Validate price list item exists, is active, and belongs to user's org
     const itemCheck = await client.query(
-      `SELECT price_list_item_id, cost FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
+      `SELECT price_list_item_id, cost, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
@@ -54,6 +58,10 @@ exports.createPricelistItemMap = async (req, res) => {
 
     if (itemCheck.rowCount === 0) {
       return errorResponse(res, 404, "Price list item not found, inactive, or does not belong to your organization");
+    }
+
+    if (itemCheck.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+      return errorResponse(res, 400, "Quantity cannot be specified for items with cost type 'Included'");
     }
 
     // Check for duplicate mapping
@@ -152,7 +160,7 @@ exports.updatePricelistItemMap = async (req, res) => {
 
     // Check ownership and get existing data
     const checkResult = await client.query(
-      `SELECT m.*, pli.cost as item_cost, qv.location_id, qv.dwelling_type_id
+      `SELECT m.*, pli.cost as item_cost, pli.cost_type, qv.location_id, qv.dwelling_type_id, qv.is_approve
        FROM quotation_version_pricelist_item_map m
        JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        JOIN quotation_version qv ON m.quotation_version_id = qv.quotation_version_id
@@ -169,9 +177,17 @@ exports.updatePricelistItemMap = async (req, res) => {
       return errorResponse(res, 404, "Pricelist item map not found or does not belong to your organization");
     }
 
+    if (checkResult.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify pricelist items of an approved quotation version");
+    }
+
     // Check that location_id and dwelling_type_id are still set
     if (!checkResult.rows[0].location_id || !checkResult.rows[0].dwelling_type_id) {
       return errorResponse(res, 400, "Quotation version must have both location and dwelling type selected before updating pricelist items");
+    }
+
+    if (checkResult.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+      return errorResponse(res, 400, "Quantity cannot be updated for items with cost type 'Included'");
     }
 
     const existing = checkResult.rows[0];
@@ -242,7 +258,7 @@ exports.deletePricelistItemMap = async (req, res) => {
     }
 
     const checkResult = await client.query(
-      `SELECT m.id
+      `SELECT m.id, qv.is_approve
        FROM quotation_version_pricelist_item_map m
        JOIN quotation_version qv ON m.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -256,6 +272,10 @@ exports.deletePricelistItemMap = async (req, res) => {
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Pricelist item map not found or does not belong to your organization");
+    }
+
+    if (checkResult.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify pricelist items of an approved quotation version");
     }
 
     await client.query(

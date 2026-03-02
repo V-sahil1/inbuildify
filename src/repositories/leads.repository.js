@@ -115,7 +115,6 @@ class LeadsRepository {
         page = 1,
         limit = 25,
         status,
-        outcome,
         rating,
         lead_source_id,
         client_type_id,
@@ -133,11 +132,6 @@ class LeadsRepository {
       if (status) {
         whereConditions.push(`l.status = $${paramIndex++}`);
         queryParams.push(status);
-      }
-
-      if (outcome) {
-        whereConditions.push(`l.outcome = $${paramIndex++}`);
-        queryParams.push(outcome);
       }
 
       if (rating) {
@@ -255,7 +249,8 @@ class LeadsRepository {
           l.*,
           ls.name as lead_source_name,
           ct.client_type as client_type_name,
-          s.name as state_name,
+          s.name as region_name,
+          hlp_main.title as house_land_package_name,
           assignee.name as assignee_name,
           created_by_user.name as created_by_name,
           updated_by_user.name as updated_by_name,
@@ -311,22 +306,6 @@ class LeadsRepository {
             FROM house_land_package hlp WHERE hlp.house_land_package_id = l.house_land_package_id LIMIT 1
           ) as house_land_package_details,
 
-          -- Properties
-          (
-            SELECT COALESCE(json_agg(json_build_object(
-              'property_id', p.property_id,
-              'lot_no', p.lot_no,
-              'street_no', p.street_no,
-              'estate_name', p.estate_name,
-              'title_status', p.title_status,
-              'title_date', p.title_date,
-              'width_m', p.width_m,
-              'depth_m', p.depth_m,
-              'total_size_m2', p.total_size_m2
-            )), '[]'::json)
-            FROM property p WHERE p.leads_id = l.leads_id
-          ) as properties,
-
           -- Quotations with versions
           (
             SELECT COALESCE(json_agg(json_build_object(
@@ -344,6 +323,29 @@ class LeadsRepository {
                   'facade_id', qv.facade_id,
                   'is_approve', qv.is_approve,
                   'sketch_number', qv.sketch_number,
+                  'total_package_cost', COALESCE(
+                    (SELECT SUM(p.cost)
+                     FROM quotation_version_package_map qvpm
+                     JOIN package p ON qvpm.package_id = p.package_id
+                     WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                  ),
+                  'total_pricelist_cost', COALESCE(
+                    (SELECT SUM(total_price)
+                     FROM quotation_version_pricelist_item_map qvpim
+                     WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                  ),
+                  'grand_total_cost', (
+                    COALESCE(
+                      (SELECT SUM(p.cost)
+                       FROM quotation_version_package_map qvpm
+                       JOIN package p ON qvpm.package_id = p.package_id
+                       WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                    ) + COALESCE(
+                      (SELECT SUM(total_price)
+                       FROM quotation_version_pricelist_item_map qvpim
+                       WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                    )
+                  ),
                   'package_maps', (
                     SELECT COALESCE(json_agg(json_build_object(
                       'id', qpm.id,
@@ -409,6 +411,7 @@ class LeadsRepository {
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id
         LEFT JOIN state s ON l.region_id = s.state_id
+        LEFT JOIN house_land_package hlp_main ON l.house_land_package_id = hlp_main.house_land_package_id
         LEFT JOIN users assignee ON l.assignee_id = assignee.users_id
         LEFT JOIN users created_by_user ON l.created_by = created_by_user.users_id
         LEFT JOIN users updated_by_user ON l.updated_by = updated_by_user.users_id
@@ -433,7 +436,6 @@ class LeadsRepository {
         send_letter,
         lead_source_id,
         status,
-        outcome,
         rating,
         land,
         finance,
@@ -449,7 +451,6 @@ class LeadsRepository {
         assignee_id,
         updated_by,
         house_land_package_id,
-        opportunity_notes,
       } = leadData;
 
       const updateFields = [];
@@ -489,11 +490,6 @@ class LeadsRepository {
       if (status !== undefined) {
         updateFields.push(`status = $${paramIndex++}`);
         values.push(status);
-      }
-
-      if (outcome !== undefined) {
-        updateFields.push(`outcome = $${paramIndex++}`);
-        values.push(outcome);
       }
 
       if (rating !== undefined) {
@@ -566,11 +562,6 @@ class LeadsRepository {
         values.push(house_land_package_id);
       }
 
-      if (opportunity_notes !== undefined) {
-        updateFields.push(`opportunity_notes = $${paramIndex++}`);
-        values.push(opportunity_notes);
-      }
-
       if (updateFields.length === 0) {
         throw new Error("No fields provided for update");
       }
@@ -590,6 +581,52 @@ class LeadsRepository {
 
       const result = await client.query(query, values);
       return keysToCamelCase(result.rows[0]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Verify existence and ownership
+      const leadQuery = `SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE`;
+      const leadResult = await client.query(leadQuery, [leadId, builderId, companyId]);
+      
+      if (leadResult.rowCount === 0) {
+        throw new Error("Lead not found or unauthorized");
+      }
+
+      const lead = leadResult.rows[0];
+
+      if (lead.status === 'Convert') {
+        throw new Error("Lead is already converted");
+      }
+
+      // 2. Insert into opportunity table
+      const oppQuery = `
+        INSERT INTO opportunity (leads_id, opportunity_notes, status)
+        VALUES ($1, $2, 'proposel')
+        RETURNING *
+      `;
+      const oppResult = await client.query(oppQuery, [leadId, opportunityNotes || null]);
+
+      // 3. Update lead status to Convert
+      const updateLeadQuery = `
+        UPDATE leads 
+        SET status = 'Convert', updated_at = NOW()
+        WHERE leads_id = $1
+      `;
+      await client.query(updateLeadQuery, [leadId]);
+
+      await client.query('COMMIT');
+
+      return keysToCamelCase(oppResult.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     } finally {
       client.release();
     }
@@ -620,8 +657,8 @@ class LeadsRepository {
           COUNT(CASE WHEN status = 'New' THEN 1 END) as new_leads,
           COUNT(CASE WHEN status = 'Working' THEN 1 END) as working_leads,
           COUNT(CASE WHEN status = 'Qualified' THEN 1 END) as qualified_leads,
-          COUNT(CASE WHEN outcome = 'Won' THEN 1 END) as won_leads,
-          COUNT(CASE WHEN outcome = 'Lost' THEN 1 END) as lost_leads,
+          0 as won_leads,
+          0 as lost_leads,
           COUNT(CASE WHEN rating = 'Hot' THEN 1 END) as hot_leads,
           COUNT(CASE WHEN rating = 'Warm' THEN 1 END) as warm_leads,
           COUNT(CASE WHEN rating = 'Cold' THEN 1 END) as cold_leads

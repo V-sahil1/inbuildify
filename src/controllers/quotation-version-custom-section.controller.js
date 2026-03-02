@@ -17,7 +17,7 @@ exports.createCustomSection = async (req, res) => {
     }
 
     const versionCheck = await client.query(
-      `SELECT qv.quotation_version_id
+      `SELECT qv.quotation_version_id, qv.is_approve
        FROM quotation_version qv
        JOIN quotation q ON qv.quotation_id = q.quotation_id
        JOIN leads l ON q.leads_id = l.leads_id
@@ -30,6 +30,10 @@ exports.createCustomSection = async (req, res) => {
 
     if (versionCheck.rowCount === 0) {
       return errorResponse(res, 404, "Quotation version not found or does not belong to your organization");
+    }
+
+    if (versionCheck.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot add custom sections to an approved quotation version");
     }
 
     let finalSortOrder = sort_order;
@@ -143,7 +147,7 @@ exports.updateCustomSection = async (req, res) => {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*
+      `SELECT cs.*, qv.is_approve
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -157,6 +161,10 @@ exports.updateCustomSection = async (req, res) => {
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Custom section not found or does not belong to your organization");
+    }
+
+    if (checkResult.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot modify custom sections of an approved quotation version");
     }
 
     const existingSection = checkResult.rows[0];
@@ -260,7 +268,7 @@ exports.deleteCustomSection = async (req, res) => {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*
+      `SELECT cs.*, qv.is_approve
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -274,6 +282,10 @@ exports.deleteCustomSection = async (req, res) => {
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Custom section not found or does not belong to your organization");
+    }
+
+    if (checkResult.rows[0].is_approve === true) {
+      return errorResponse(res, 400, "Cannot delete custom sections from an approved quotation version");
     }
 
     const deletedSection = checkResult.rows[0];

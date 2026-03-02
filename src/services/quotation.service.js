@@ -23,29 +23,102 @@ class QuotationService {
         client: getPool(),
       });
 
-      const quotationData = {
-        leads_id: leadsId,
-        reference_number,
-        created_by: userId,
-      };
+      const client = await getPool().connect();
+      try {
+        await client.query('BEGIN');
 
-      const quotation = await quotationRepository.createQuotation(quotationData);
+        // Check for latest quotation version of this lead
+        const latestVersionQuery = `
+          SELECT qv.* 
+          FROM quotation_version qv
+          JOIN quotation q ON qv.quotation_id = q.quotation_id
+          WHERE q.leads_id = $1
+          ORDER BY q.created_at DESC, qv.quotation_version_no DESC
+          LIMIT 1
+        `;
+        const latestVersionResult = await client.query(latestVersionQuery, [leadsId]);
+        const latestVersion = latestVersionResult.rowCount > 0 ? latestVersionResult.rows[0] : null;
 
-      const versionData = {
-        quotation_id: quotation.quotationId,
-        quotation_version_no: 1,
-      };
+        // Insert new Quotation
+        const insertQuotationQuery = `
+          INSERT INTO quotation (leads_id, reference_number, created_by)
+          VALUES ($1, $2, $3)
+          RETURNING *
+        `;
+        const quotationResult = await client.query(insertQuotationQuery, [leadsId, reference_number, userId]);
+        const quotation = quotationResult.rows[0];
 
-      const quotationVersion = await quotationRepository.createQuotationVersion(versionData);
-      
-      return {
-        success: true,
-        data: {
-          quotation,
-          quotationVersion,
-        },
-        message: "Quotation created successfully",
-      };
+        // Insert new Quotation Version
+        const insertVersionQuery = `
+          INSERT INTO quotation_version (
+            quotation_id, 
+            quotation_version_no,
+            location_id,
+            range_id,
+            dwelling_type_id,
+            floor_plan_id,
+            facade_id,
+            is_approve,
+            sketch_number
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL)
+          RETURNING *
+        `;
+        const versionResult = await client.query(insertVersionQuery, [
+          quotation.quotation_id,
+          1,
+          latestVersion ? latestVersion.location_id : null,
+          latestVersion ? latestVersion.range_id : null,
+          latestVersion ? latestVersion.dwelling_type_id : null,
+          latestVersion ? latestVersion.floor_plan_id : null,
+          latestVersion ? latestVersion.facade_id : null,
+        ]);
+        const quotationVersion = versionResult.rows[0];
+
+        if (latestVersion) {
+          // Copy Package Maps
+          await client.query(`
+            INSERT INTO quotation_version_package_map (quotation_version_id, package_id)
+            SELECT $1, package_id
+            FROM quotation_version_package_map
+            WHERE quotation_version_id = $2
+          `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
+
+          // Copy Pricelist Item Maps
+          await client.query(`
+            INSERT INTO quotation_version_pricelist_item_map (quotation_version_id, price_list_item_id, quantity, note, total_price)
+            SELECT $1, price_list_item_id, quantity, note, total_price
+            FROM quotation_version_pricelist_item_map
+            WHERE quotation_version_id = $2
+          `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
+          
+          // Note: we can copy custom sections similarly if they apply to the new quotation's version
+          await client.query(`
+            INSERT INTO quotation_version_custom_section (quotation_version_id, file_url, sort_order)
+            SELECT $1, file_url, sort_order
+            FROM quotation_version_custom_section
+            WHERE quotation_version_id = $2
+          `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
+        }
+
+        await client.query('COMMIT');
+
+        // Format result like original response
+        const { keysToCamelCase } = require("../utils/common");
+        
+        return {
+          success: true,
+          data: {
+            quotation: keysToCamelCase(quotation),
+            quotationVersion: keysToCamelCase(quotationVersion),
+          },
+          message: "Quotation created successfully",
+        };
+      } catch (innerError) {
+        await client.query('ROLLBACK');
+        throw innerError;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error("DEBUG: Error in createQuotation service:", error);
       return {
@@ -136,6 +209,15 @@ class QuotationService {
       }
 
       const existingVersion = checkResult.rows[0];
+
+      // Block updates to older versions (only the latest version can be updated)
+      const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
+      if (existingVersion.quotation_version_no !== currentMaxVersion) {
+        return {
+          success: false,
+          message: "Only the latest quotation version can be updated",
+        };
+      }
 
       // If already approved, block all updates
       if (existingVersion.is_approve === true) {
@@ -242,6 +324,113 @@ class QuotationService {
         success: false,
         message: error.message,
       };
+    }
+  }
+
+  async duplicateQuotationVersion(versionId, builderId, companyId) {
+    const client = await getPool().connect();
+    try {
+      // 1. Fetch the source version + verify ownership
+      const checkQuery = `
+        SELECT qv.*, q.leads_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const sourceVersion = checkResult.rows[0];
+      const quotationId = sourceVersion.quotation_id;
+
+      await client.query('BEGIN');
+
+      // 2. Get the next version number
+      const maxVersion = await quotationRepository.getLatestQuotationVersionNo(quotationId);
+      const newVersionNo = maxVersion + 1;
+
+      // 3. Create the new quotation version (resetting approval and sketch number)
+      const insertVersionQuery = `
+        INSERT INTO quotation_version (
+          quotation_id, 
+          quotation_version_no,
+          location_id,
+          range_id,
+          dwelling_type_id,
+          floor_plan_id,
+          facade_id,
+          is_approve,
+          sketch_number
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL)
+        RETURNING quotation_version_id
+      `;
+      const insertVersionValues = [
+        quotationId,
+        newVersionNo,
+        sourceVersion.location_id,
+        sourceVersion.range_id,
+        sourceVersion.dwelling_type_id,
+        sourceVersion.floor_plan_id,
+        sourceVersion.facade_id
+      ];
+      
+      const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
+      const newVersionId = newVersionResult.rows[0].quotation_version_id;
+
+      // 4. Copy package maps
+      await client.query(`
+        INSERT INTO quotation_version_package_map (quotation_version_id, package_id)
+        SELECT $1, package_id 
+        FROM quotation_version_package_map 
+        WHERE quotation_version_id = $2
+      `, [newVersionId, versionId]);
+
+      // 5. Copy pricelist item maps
+      await client.query(`
+        INSERT INTO quotation_version_pricelist_item_map (
+          quotation_version_id, price_list_item_id, quantity, note, total_price
+        )
+        SELECT $1, price_list_item_id, quantity, note, total_price
+        FROM quotation_version_pricelist_item_map
+        WHERE quotation_version_id = $2
+      `, [newVersionId, versionId]);
+
+      // 6. Copy custom sections
+      await client.query(`
+        INSERT INTO quotation_version_custom_section (
+          quotation_version_id, file_url, sort_order
+        )
+        SELECT $1, file_url, sort_order
+        FROM quotation_version_custom_section
+        WHERE quotation_version_id = $2
+      `, [newVersionId, versionId]);
+
+      await client.query('COMMIT');
+
+      // Fetch the full newly created version using repository to return all enriched fields
+      const enrichedNewVersion = await quotationRepository.getQuotationVersionDetailsById(newVersionId);
+
+      return {
+        success: true,
+        data: enrichedNewVersion,
+        message: "Quotation version duplicated successfully",
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error("DEBUG: Error in duplicateQuotationVersion service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
+    } finally {
+      client.release();
     }
   }
 

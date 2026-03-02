@@ -35,6 +35,29 @@ class QuotationRepository {
                 'facade_id', qv.facade_id,
                 'is_approve', qv.is_approve,
                 'sketch_number', qv.sketch_number,
+                'total_package_cost', COALESCE(
+                  (SELECT SUM(p.cost)
+                   FROM quotation_version_package_map qvpm
+                   JOIN package p ON qvpm.package_id = p.package_id
+                   WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                ),
+                'total_pricelist_cost', COALESCE(
+                  (SELECT SUM(total_price)
+                   FROM quotation_version_pricelist_item_map qvpim
+                   WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                ),
+                'grand_total_cost', (
+                  COALESCE(
+                    (SELECT SUM(p.cost)
+                     FROM quotation_version_package_map qvpm
+                     JOIN package p ON qvpm.package_id = p.package_id
+                     WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                  ) + COALESCE(
+                    (SELECT SUM(total_price)
+                     FROM quotation_version_pricelist_item_map qvpim
+                     WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                  )
+                ),
                 'created_at', qv.created_at,
                 'updated_at', qv.updated_at
               ) ORDER BY qv.quotation_version_no DESC
@@ -63,6 +86,24 @@ class QuotationRepository {
       const query = `SELECT MAX(quotation_version_no) as max_version FROM quotation_version WHERE quotation_id = $1`;
       const result = await client.query(query, [quotationId]);
       return parseInt(result.rows[0].max_version || 0, 10);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getLatestQuotationVersionByLeadId(leadsId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        SELECT qv.* 
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        WHERE q.leads_id = $1
+        ORDER BY q.created_at DESC, qv.quotation_version_no DESC
+        LIMIT 1
+      `;
+      const result = await client.query(query, [leadsId]);
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();
     }
@@ -118,6 +159,105 @@ class QuotationRepository {
     }
   }
 
+  async duplicateVersion(sourceVersionId, newVersionNo) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1. Get original version data
+      const getVersionQuery = `SELECT * FROM quotation_version WHERE quotation_version_id = $1`;
+      const versionResult = await client.query(getVersionQuery, [
+        sourceVersionId,
+      ]);
+
+      if (versionResult.rowCount === 0) {
+        throw new Error("Source quotation version not found");
+      }
+
+      const sourceVersion = versionResult.rows[0];
+
+      // 2. Insert new version
+      const insertVersionQuery = `
+          INSERT INTO quotation_version (
+              quotation_id, 
+              quotation_version_no,
+              location_id,
+              range_id,
+              dwelling_type_id,
+              floor_plan_id,
+              facade_id,
+              is_approve
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
+          RETURNING *
+      `;
+
+      const newVersionValues = [
+        sourceVersion.quotation_id,
+        newVersionNo,
+        sourceVersion.location_id,
+        sourceVersion.range_id,
+        sourceVersion.dwelling_type_id,
+        sourceVersion.floor_plan_id,
+        sourceVersion.facade_id,
+      ];
+
+      const newVersionResult = await client.query(
+        insertVersionQuery,
+        newVersionValues
+      );
+      const newVersion = newVersionResult.rows[0];
+
+      // 3. Copy Custom Sections
+      const copyCustomSectionsQuery = `
+          INSERT INTO quotation_version_custom_section (
+              quotation_version_id, file_url, sort_order
+          )
+          SELECT $1, file_url, sort_order
+          FROM quotation_version_custom_section
+          WHERE quotation_version_id = $2
+      `;
+      await client.query(copyCustomSectionsQuery, [
+        newVersion.quotation_version_id,
+        sourceVersionId,
+      ]);
+
+      // 4. Copy Package Map
+      const copyPackageMapQuery = `
+          INSERT INTO quotation_version_package_map (
+              quotation_version_id, package_id
+          )
+          SELECT $1, package_id
+          FROM quotation_version_package_map
+          WHERE quotation_version_id = $2
+      `;
+      await client.query(copyPackageMapQuery, [
+        newVersion.quotation_version_id,
+        sourceVersionId,
+      ]);
+
+      // 5. Copy Pricelist Item Map (removed custom fields as discussed)
+      const copyPricelistItemMapQuery = `
+          INSERT INTO quotation_version_pricelist_item_map (
+              quotation_version_id, price_list_item_id, quantity, note, total_price
+          )
+          SELECT $1, price_list_item_id, quantity, note, total_price
+          FROM quotation_version_pricelist_item_map
+          WHERE quotation_version_id = $2
+      `;
+      await client.query(copyPricelistItemMapQuery, [
+        newVersion.quotation_version_id,
+        sourceVersionId,
+      ]);
+
+      await client.query("COMMIT");
+      return keysToCamelCase(newVersion);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   async getVersionsByQuotationId(quotationId) {
     const client = await this.pool.connect();
     try {
@@ -128,6 +268,29 @@ class QuotationRepository {
           dt.name as dwelling_type_name,
           fp.name as floor_plan_name,
           f.name as facade_name,
+          COALESCE(
+            (SELECT SUM(p.cost)
+             FROM quotation_version_package_map qvpm
+             JOIN package p ON qvpm.package_id = p.package_id
+             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_package_cost,
+          COALESCE(
+            (SELECT SUM(total_price)
+             FROM quotation_version_pricelist_item_map qvpim
+             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_pricelist_cost,
+          (
+            COALESCE(
+              (SELECT SUM(p.cost)
+               FROM quotation_version_package_map qvpm
+               JOIN package p ON qvpm.package_id = p.package_id
+               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+            ) + COALESCE(
+              (SELECT SUM(total_price)
+               FROM quotation_version_pricelist_item_map qvpim
+               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+            )
+          ) as grand_total_cost,
           leads.leads_id as lead_id,
           leads.lot_id as lead_lot_id,
           (
@@ -219,6 +382,60 @@ class QuotationRepository {
       `;
       const enrichResult = await client.query(enrichQuery, [versionId]);
       return enrichResult.rows.length > 0 ? keysToCamelCase(enrichResult.rows[0]) : keysToCamelCase(result.rows[0]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getQuotationVersionDetailsById(versionId) {
+    const client = await this.pool.connect();
+    try {
+      const enrichQuery = `
+        SELECT qv.*,
+          COALESCE(
+            (SELECT SUM(p.cost)
+             FROM quotation_version_package_map qvpm
+             JOIN package p ON qvpm.package_id = p.package_id
+             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_package_cost,
+          COALESCE(
+            (SELECT SUM(total_price)
+             FROM quotation_version_pricelist_item_map qvpim
+             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_pricelist_cost,
+          (
+            COALESCE(
+              (SELECT SUM(p.cost)
+               FROM quotation_version_package_map qvpm
+               JOIN package p ON qvpm.package_id = p.package_id
+               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+            ) + COALESCE(
+              (SELECT SUM(total_price)
+               FROM quotation_version_pricelist_item_map qvpim
+               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+            )
+          ) as grand_total_cost,
+          leads.leads_id as lead_id,
+          leads.lot_id as lead_lot_id,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', lcm.id,
+              'contact_id', lcm.contact_id,
+              'name', u.name,
+              'email', u.email,
+              'phone', u.phone
+            )), '[]'::json)
+            FROM leads_contact_map lcm
+            JOIN users u ON lcm.contact_id = u.users_id
+            WHERE lcm.leads_id = leads.leads_id
+          ) as lead_contacts
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        LEFT JOIN leads ON q.leads_id = leads.leads_id
+        WHERE qv.quotation_version_id = $1
+      `;
+      const result = await client.query(enrichQuery, [versionId]);
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();
     }

@@ -146,3 +146,30 @@ exports.deleteQuotation = async (req, res) => {
     return errorResponse(res, 500, "Internal server error");
   }
 };
+
+exports.duplicateQuotationVersion = async (req, res) => {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.duplicateQuotationVersion(
+      quotation_version_id,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    } else {
+      return errorResponse(res, 400, result.message);
+    }
+  } catch (error) {
+    console.error("Duplicate quotation version error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+};

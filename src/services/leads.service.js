@@ -219,15 +219,40 @@ class LeadsService {
         updated_by: userId,
       };
 
-      const updatedLead = await leadsRepository.updateLead(
+      await leadsRepository.updateLead(
         leadId,
         leadDataWithUpdatedBy,
         builderId,
       );
+      
+      const fullyPopulatedLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
+
       return {
         success: true,
-        data: updatedLead,
+        data: fullyPopulatedLead,
         message: "Lead updated successfully",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId) {
+    try {
+      const result = await leadsRepository.convertLeadToOpportunity(
+        leadId,
+        opportunityNotes,
+        builderId,
+        companyId
+      );
+
+      return {
+        success: true,
+        data: result,
+        message: "Lead converted to opportunity successfully",
       };
     } catch (error) {
       return {
