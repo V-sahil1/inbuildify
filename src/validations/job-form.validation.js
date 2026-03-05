@@ -74,7 +74,7 @@ const maxFillLocationValidValues = [
   "rear_left",
   "rear_right",
 ];
-const failTypeValidValues = [
+const fallTypeValidValues = [
   "front_to_rear",
   "rear_to_front",
   "diagonal_front_to_rear",
@@ -100,6 +100,7 @@ const roofCoveringValidValues = [
   "with_blanket",
   "with_sarking",
 ];
+const extraRequirementValidValues = ["rainwater_tank", "solar_hot_water_system", "heat_pump"];
 const roofPitchValidValues = ["15", "18", "20", "22.5", "25"];
 const flatRoofPitchValidValues = ["5"];
 const parapetWallValidValues = ["front_only", "all_around", "n_a"];
@@ -139,16 +140,16 @@ const createJobFormSchema = Joi.object({
   story_id: optionalUuidRule,
   finished_surface_m: numericRule.optional(),
   existing_surface_m: numericRule.optional(),
-  filled_area_fail_m: numericRule.optional(),
+  filled_area_fill_m: numericRule.optional(),
   max_fill_location: Joi.string()
     .valid(...maxFillLocationValidValues)
     .optional()
     .allow(""),
   max_finished_surface_m: numericRule.optional(),
   min_finished_surface_m: numericRule.optional(),
-  engineering_fail_m: numericRule.optional(),
-  fail_type: Joi.string()
-    .valid(...failTypeValidValues)
+  engineering_fall_m: numericRule.optional(),
+  fall_type: Joi.string()
+    .valid(...fallTypeValidValues)
     .optional()
     .allow(""),
   ceiling_height: numericRule.optional(),
@@ -165,14 +166,14 @@ const createJobFormSchema = Joi.object({
     .valid(...eavesSizeValidValues)
     .optional()
     .allow(""),
-  eaves_return: Joi.string()
-    .valid(...eavesReturnValidValues)
+  eaves_return: Joi.array()
+    .items(Joi.string().valid(...eavesReturnValidValues))
     .optional()
-    .allow(""),
-  roof_covering: Joi.string()
-    .valid(...roofCoveringValidValues)
+    .allow(null),
+  roof_covering: Joi.array()
+    .items(Joi.string().valid(...roofCoveringValidValues))
     .optional()
-    .allow(""),
+    .allow(null),
   roof_pitch: Joi.string()
     .valid(...roofPitchValidValues)
     .optional()
@@ -213,7 +214,10 @@ const createJobFormSchema = Joi.object({
     .optional()
     .allow(""),
   recycled_water: booleanRule,
-  extra_requirement: stringRule.max(255).optional().allow(""),
+  extra_requirement: Joi.array()
+    .items(Joi.string().valid(...extraRequirementValidValues))
+    .optional()
+    .allow(null),
   three_phase: booleanRule,
   driveway: Joi.string()
     .valid(...drivewayValidValues)
@@ -271,16 +275,16 @@ const updateJobFormSchema = Joi.object({
   story_id: optionalUuidRule,
   finished_surface_m: numericRule.optional(),
   existing_surface_m: numericRule.optional(),
-  filled_area_fail_m: numericRule.optional(),
+  filled_area_fill_m: numericRule.optional(),
   max_fill_location: Joi.string()
     .valid(...maxFillLocationValidValues)
     .optional()
     .allow(""),
   max_finished_surface_m: numericRule.optional(),
   min_finished_surface_m: numericRule.optional(),
-  engineering_fail_m: numericRule.optional(),
-  fail_type: Joi.string()
-    .valid(...failTypeValidValues)
+  engineering_fall_m: numericRule.optional(),
+  fall_type: Joi.string()
+    .valid(...fallTypeValidValues)
     .optional()
     .allow(""),
   ceiling_height: numericRule.optional(),
@@ -297,14 +301,14 @@ const updateJobFormSchema = Joi.object({
     .valid(...eavesSizeValidValues)
     .optional()
     .allow(""),
-  eaves_return: Joi.string()
-    .valid(...eavesReturnValidValues)
+  eaves_return: Joi.array()
+    .items(Joi.string().valid(...eavesReturnValidValues))
     .optional()
-    .allow(""),
-  roof_covering: Joi.string()
-    .valid(...roofCoveringValidValues)
+    .allow(null),
+  roof_covering: Joi.array()
+    .items(Joi.string().valid(...roofCoveringValidValues))
     .optional()
-    .allow(""),
+    .allow(null),
   roof_pitch: Joi.string()
     .valid(...roofPitchValidValues)
     .optional()
@@ -345,7 +349,10 @@ const updateJobFormSchema = Joi.object({
     .optional()
     .allow(""),
   recycled_water: booleanRule,
-  extra_requirement: stringRule.max(255).optional().allow(""),
+  extra_requirement: Joi.array()
+    .items(Joi.string().valid(...extraRequirementValidValues))
+    .optional()
+    .allow(null),
   three_phase: booleanRule,
   driveway: Joi.string()
     .valid(...drivewayValidValues)
@@ -378,10 +385,14 @@ const updateJobFormSchema = Joi.object({
 });
 
 const getJobFormByIdSchema = Joi.object({
-  job_form_id: uuidRule,
+  leads_id: uuidRule,
 });
 
 const deleteJobFormSchema = Joi.object({
+  job_form_id: uuidRule,
+});
+
+const updateJobFormParamsSchema = Joi.object({
   job_form_id: uuidRule,
 });
 
@@ -408,4 +419,5 @@ module.exports = {
   getJobFormByIdSchema,
   deleteJobFormSchema,
   getAllJobFormsSchema,
+  updateJobFormParamsSchema
 };

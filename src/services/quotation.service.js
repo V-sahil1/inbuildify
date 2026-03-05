@@ -467,6 +467,174 @@ class QuotationService {
       };
     }
   }
+
+  async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, builderId, companyId) {
+    try {
+      const client = getPool();
+
+      // 1. Ownership check — verify quotation belongs to builder/company via lead
+      const checkQuery = `
+        SELECT q.quotation_id, q.reference_number, l.leads_id, l.lot_id
+        FROM quotation q
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE q.quotation_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [quotationId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return { success: false, message: "Quotation not found or unauthorized" };
+      }
+
+      const quotationRow = checkResult.rows[0];
+      const lotId = quotationRow.lot_id;
+
+      // 2. Validate both versions belong to this quotation
+      const versionsCheck = await client.query(
+        `SELECT quotation_version_id, quotation_id FROM quotation_version 
+         WHERE quotation_version_id IN ($1, $2)`,
+        [versionId1, versionId2]
+      );
+
+      if (versionsCheck.rowCount < 2) {
+        return { success: false, message: "One or both quotation versions not found" };
+      }
+
+      const allBelongToQuotation = versionsCheck.rows.every(
+        r => r.quotation_id === quotationId
+      );
+      if (!allBelongToQuotation) {
+        return { success: false, message: "Both versions must belong to the same quotation" };
+      }
+
+      // 3. Fetch property address from lot
+      let propertyAddress = null;
+      if (lotId) {
+        const lotResult = await client.query(
+          `SELECT lot.lot_number, lot.street, lot.city, lot.zip_code,
+                  s.name as state_name
+           FROM lot
+           LEFT JOIN state s ON lot.state_id = s.state_id
+           WHERE lot.lot_id = $1`,
+          [lotId]
+        );
+        if (lotResult.rowCount > 0) {
+          const lot = lotResult.rows[0];
+          propertyAddress = {
+            lotNumber: lot.lot_number,
+            street: lot.street,
+            city: lot.city,
+            state: lot.state_name,
+            zipCode: lot.zip_code,
+          };
+        }
+      }
+
+      // 4. Fetch comparison data for both versions
+      const [data1, data2] = await Promise.all([
+        quotationRepository.getVersionComparisonData(versionId1),
+        quotationRepository.getVersionComparisonData(versionId2),
+      ]);
+
+      if (!data1 || !data2) {
+        return { success: false, message: "Could not fetch version comparison data" };
+      }
+
+      // 5. Build items array
+      const items = [];
+
+      // 5a. Packages — union by package_id
+      const allPackageIds = new Set([
+        ...data1.packages.map(p => p.packageId),
+        ...data2.packages.map(p => p.packageId),
+      ]);
+
+      for (const pkgId of allPackageIds) {
+        const v1Pkg = data1.packages.find(p => p.packageId === pkgId);
+        const v2Pkg = data2.packages.find(p => p.packageId === pkgId);
+
+        const row = {
+          type: "package",
+          name: (v1Pkg || v2Pkg).packageName,
+          packageId: pkgId,
+          version1Value: v1Pkg ? v1Pkg.packageCost : null,
+          version2Value: v2Pkg ? v2Pkg.packageCost : null,
+        };
+
+        if (showAll || row.version1Value !== row.version2Value) {
+          items.push(row);
+        }
+      }
+
+      // 5b. Facade
+      const facadeRow = {
+        type: "facade",
+        name: data1.version.facadeName || data2.version.facadeName || "-",
+        version1Value: data1.version.facadeName || "-",
+        version2Value: data2.version.facadeName || "-",
+      };
+      if (showAll || facadeRow.version1Value !== facadeRow.version2Value) {
+        items.push(facadeRow);
+      }
+
+      // 5c. Pricelist items — union by price_list_item_id
+      const allPricelistItemIds = new Set([
+        ...data1.pricelistItems.map(p => p.priceListItemId),
+        ...data2.pricelistItems.map(p => p.priceListItemId),
+      ]);
+
+      for (const pliId of allPricelistItemIds) {
+        const v1Item = data1.pricelistItems.find(p => p.priceListItemId === pliId);
+        const v2Item = data2.pricelistItems.find(p => p.priceListItemId === pliId);
+        const refItem = v1Item || v2Item;
+
+        const row = {
+          type: "pricelist_item",
+          name: refItem.itemDescription,
+          priceListItemId: pliId,
+          priceListId: refItem.priceListId,
+          priceListName: refItem.priceListName,
+          version1Quantity: v1Item ? v1Item.quantity : null,
+          version1TotalPrice: v1Item ? v1Item.totalPrice : null,
+          version1Note: v1Item ? v1Item.note : null,
+          version2Quantity: v2Item ? v2Item.quantity : null,
+          version2TotalPrice: v2Item ? v2Item.totalPrice : null,
+          version2Note: v2Item ? v2Item.note : null,
+        };
+
+        const isDifferent =
+          row.version1Quantity !== row.version2Quantity ||
+          row.version1TotalPrice !== row.version2TotalPrice ||
+          row.version1Note !== row.version2Note;
+
+        if (showAll || isDifferent) {
+          items.push(row);
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          referenceNumber: quotationRow.reference_number,
+          propertyAddress,
+          version1: {
+            quotationVersionId: data1.version.quotationVersionId,
+            quotationVersionNo: data1.version.quotationVersionNo,
+            grandTotalCost: data1.version.grandTotalCost,
+          },
+          version2: {
+            quotationVersionId: data2.version.quotationVersionId,
+            quotationVersionNo: data2.version.quotationVersionNo,
+            grandTotalCost: data2.version.grandTotalCost,
+          },
+          items,
+        },
+        message: "Quotation versions compared successfully",
+      };
+    } catch (error) {
+      console.error("DEBUG: Error in compareQuotationVersions service:", error);
+      return { success: false, message: error.message };
+    }
+  }
 }
 
 module.exports = new QuotationService();

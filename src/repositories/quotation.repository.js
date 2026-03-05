@@ -441,6 +441,81 @@ class QuotationRepository {
     }
   }
 
+  async getVersionComparisonData(versionId) {
+    const client = await this.pool.connect();
+    try {
+      // 1. Version header with grand total
+      const versionQuery = `
+        SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id,
+          f.name as facade_name,
+          COALESCE(
+            (SELECT SUM(p.cost)
+             FROM quotation_version_package_map qvpm
+             JOIN package p ON qvpm.package_id = p.package_id
+             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_package_cost,
+          COALESCE(
+            (SELECT SUM(total_price)
+             FROM quotation_version_pricelist_item_map qvpim
+             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+          ) as total_pricelist_cost,
+          (
+            COALESCE(
+              (SELECT SUM(p.cost)
+               FROM quotation_version_package_map qvpm
+               JOIN package p ON qvpm.package_id = p.package_id
+               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+            ) + COALESCE(
+              (SELECT SUM(total_price)
+               FROM quotation_version_pricelist_item_map qvpim
+               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+            )
+          ) as grand_total_cost
+        FROM quotation_version qv
+        LEFT JOIN facade f ON qv.facade_id = f.facade_id
+        WHERE qv.quotation_version_id = $1
+      `;
+      const versionResult = await client.query(versionQuery, [versionId]);
+      if (versionResult.rowCount === 0) return null;
+
+      const version = keysToCamelCase(versionResult.rows[0]);
+
+      // 2. Packages
+      const packagesQuery = `
+        SELECT qvpm.id, qvpm.package_id, p.name as package_name, p.cost as package_cost
+        FROM quotation_version_package_map qvpm
+        JOIN package p ON qvpm.package_id = p.package_id
+        WHERE qvpm.quotation_version_id = $1
+        ORDER BY p.name ASC
+      `;
+      const packagesResult = await client.query(packagesQuery, [versionId]);
+      const packages = packagesResult.rows.map(r => keysToCamelCase(r));
+
+      // 3. Pricelist items with price_list name
+      const pricelistItemsQuery = `
+        SELECT qvpim.id, qvpim.price_list_item_id, 
+          pli.item_description, pli.price_list_id,
+          pl.name as price_list_name,
+          qvpim.quantity, qvpim.total_price, qvpim.note
+        FROM quotation_version_pricelist_item_map qvpim
+        JOIN price_list_item pli ON qvpim.price_list_item_id = pli.price_list_item_id
+        JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+        WHERE qvpim.quotation_version_id = $1
+        ORDER BY pl.sort_order ASC, pli.sort_order ASC
+      `;
+      const pricelistItemsResult = await client.query(pricelistItemsQuery, [versionId]);
+      const pricelistItems = pricelistItemsResult.rows.map(r => keysToCamelCase(r));
+
+      return {
+        version,
+        packages,
+        pricelistItems,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async deleteQuotation(quotationId) {
     const client = await this.pool.connect();
     try {

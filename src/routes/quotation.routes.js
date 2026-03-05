@@ -7,7 +7,7 @@ const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js
 
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const { REQUEST_SOURCE } = require("../config/constants");
-const { createQuotationSchema, deleteQuotationSchema, updateQuotationVersionParamsSchema, updateQuotationVersionBodySchema, duplicateQuotationVersionSchema } = require("../validations/quotation.validation");
+const { createQuotationSchema, deleteQuotationSchema, updateQuotationVersionParamsSchema, updateQuotationVersionBodySchema, duplicateQuotationVersionSchema, compareQuotationVersionsParamsSchema, compareQuotationVersionsQuerySchema } = require("../validations/quotation.validation");
 const quotationController = require("../controllers/quotation.controller");
 
 router.use(authMiddleware);
@@ -51,6 +51,13 @@ router.post(
   validateRequest(duplicateQuotationVersionSchema, REQUEST_SOURCE.PARAMS),
   camelToSnakeMiddleware,
   quotationController.duplicateQuotationVersion
+);
+
+router.get(
+  "/compare/:quotation_id",
+  validateRequest(compareQuotationVersionsParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(compareQuotationVersionsQuerySchema, REQUEST_SOURCE.QUERY),
+  quotationController.compareQuotationVersions
 );
 
 module.exports = router;

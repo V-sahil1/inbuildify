@@ -52,10 +52,33 @@ const updateQuotationVersionBodySchema = Joi.object({
   }),
 });
 
+const compareQuotationVersionsParamsSchema = Joi.object({
+  quotation_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation ID must be a valid UUID",
+    "any.required": "Quotation ID is required",
+  }),
+});
+
+const compareQuotationVersionsQuerySchema = Joi.object({
+  version_1: Joi.string().uuid().required().messages({
+    "string.guid": "Version 1 ID must be a valid UUID",
+    "any.required": "Version 1 ID is required",
+  }),
+  version_2: Joi.string().uuid().required().messages({
+    "string.guid": "Version 2 ID must be a valid UUID",
+    "any.required": "Version 2 ID is required",
+  }),
+  show_all: Joi.boolean().optional().default(true).messages({
+    "boolean.base": "show_all must be a boolean",
+  }),
+});
+
 module.exports = {
   createQuotationSchema,
   deleteQuotationSchema,
   updateQuotationVersionParamsSchema,
   updateQuotationVersionBodySchema,
   duplicateQuotationVersionSchema,
+  compareQuotationVersionsParamsSchema,
+  compareQuotationVersionsQuerySchema,
 };

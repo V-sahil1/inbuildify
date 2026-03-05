@@ -9,10 +9,9 @@ const createPriceListItemMapSchema = Joi.object({
     "string.uuid": "price_list_item_id must be a valid UUID",
     "any.required": "price_list_item_id is required",
   }),
-  quantity: Joi.number().integer().min(1).optional().messages({
+  quantity: Joi.number().min(0.01).optional().messages({
     "number.base": "quantity must be a number",
-    "number.integer": "quantity must be an integer",
-    "number.min": "quantity must be at least 1",
+    "number.min": "quantity must be greater than 0",
   }),
   note: Joi.string().max(500).optional().allow(null, "").messages({
     "string.max": "Note must not exceed 500 characters",
@@ -20,10 +19,9 @@ const createPriceListItemMapSchema = Joi.object({
 });
 
 const updatePriceListItemMapSchema = Joi.object({
-  quantity: Joi.number().integer().min(1).optional().messages({
+  quantity: Joi.number().min(0.01).optional().messages({
     "number.base": "quantity must be a number",
-    "number.integer": "quantity must be an integer",
-    "number.min": "quantity must be at least 1",
+    "number.min": "quantity must be greater than 0",
   }),
   note: Joi.string().max(500).optional().allow(null, "").messages({
     "string.max": "Note must not exceed 500 characters",

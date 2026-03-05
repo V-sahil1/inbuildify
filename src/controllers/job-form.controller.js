@@ -31,12 +31,12 @@ exports.createJobForm = async (req, res) => {
       story_id,
       finished_surface_m,
       existing_surface_m,
-      filled_area_fail_m,
+      filled_area_fill_m,
       max_fill_location,
       max_finished_surface_m,
       min_finished_surface_m,
-      engineering_fail_m,
-      fail_type,
+      engineering_fall_m,
+      fall_type,
       ceiling_height,
       eaves_location,
       lot_type,
@@ -151,12 +151,12 @@ exports.createJobForm = async (req, res) => {
         story_id,
         finished_surface_m,
         existing_surface_m,
-        filled_area_fail_m,
+        filled_area_fill_m,
         max_fill_location,
         max_finished_surface_m,
         min_finished_surface_m,
-        engineering_fail_m,
-        fail_type,
+        engineering_fall_m,
+        fall_type,
         ceiling_height,
         eaves_location,
         lot_type,
@@ -227,12 +227,12 @@ exports.createJobForm = async (req, res) => {
       story_id || null,
       finished_surface_m || null,
       existing_surface_m || null,
-      filled_area_fail_m || null,
+      filled_area_fill_m || null,
       max_fill_location || null,
       max_finished_surface_m || null,
       min_finished_surface_m || null,
-      engineering_fail_m || null,
-      fail_type || null,
+      engineering_fall_m || null,
+      fall_type || null,
       ceiling_height || null,
       eaves_location || null,
       lot_type || null,
@@ -397,7 +397,7 @@ exports.getJobFormById = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { job_form_id } = req.params;
+    const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -414,16 +414,16 @@ exports.getJobFormById = async (req, res) => {
         ld.phone
       FROM job_form jf
       LEFT JOIN leads ld ON jf.leads_id = ld.leads_id
-      WHERE jf.job_form_id = $1 AND (
+      WHERE jf.leads_id = $1 AND (
         (ld.company_id = $2 AND $2 IS NOT NULL)
         OR (ld.builder_id = $3 AND $3 IS NOT NULL)
       )
     `;
 
-    const result = await client.query(sql, [job_form_id, companyId, builderId]);
+    const result = await client.query(sql, [leads_id, companyId, builderId]);
 
     if (result.rows.length === 0) {
-      return successResponse(res, [], "Job form retrieved successfully.");
+      return successResponse(res, null, "Job form retrieved successfully.");
     }
 
     return successResponse(
@@ -507,12 +507,12 @@ exports.updateJobForm = async (req, res) => {
       story_id,
       finished_surface_m,
       existing_surface_m,
-      filled_area_fail_m,
+      filled_area_fill_m,
       max_fill_location,
       max_finished_surface_m,
       min_finished_surface_m,
-      engineering_fail_m,
-      fail_type,
+      engineering_fall_m,
+      fall_type,
       ceiling_height,
       eaves_location,
       lot_type,
@@ -583,12 +583,12 @@ exports.updateJobForm = async (req, res) => {
       "story_id",
       "finished_surface_m",
       "existing_surface_m",
-      "filled_area_fail_m",
+      "filled_area_fill_m",
       "max_fill_location",
       "max_finished_surface_m",
       "min_finished_surface_m",
-      "engineering_fail_m",
-      "fail_type",
+      "engineering_fall_m",
+      "fall_type",
       "ceiling_height",
       "eaves_location",
       "lot_type",

@@ -54,7 +54,7 @@ exports.createPriceListItemMap = async (req, res) => {
       return errorResponse(res, 400, "This price list item is already mapped to this house land package");
     }
 
-    const quantityToUse = quantity || 1;
+    const quantityToUse = parseFloat(quantity) || 1;
     const price = parseFloat(priceCheck.rows[0].cost) || 0;
     const totalPrice = price * quantityToUse;
 
@@ -94,7 +94,7 @@ exports.createPriceListItemMap = async (req, res) => {
       priceListItemId: row.price_list_item_id,
       priceListItemDescription: row.price_list_item_description,
       packageTitle: row.package_title,
-      quantity: parseInt(row.quantity),
+      quantity: parseFloat(row.quantity),
       totalPrice: parseFloat(row.total_price),
       cost: parseFloat(row.cost),
       note: row.note,
@@ -168,7 +168,7 @@ exports.getPriceListItemMaps = async (req, res) => {
       priceListItemId: row.price_list_item_id,
       priceListItemDescription: row.price_list_item_description,
       packageTitle: row.package_title,
-      quantity: parseInt(row.quantity),
+      quantity: parseFloat(row.quantity),
       totalPrice: parseFloat(row.total_price),
       cost: parseFloat(row.cost),
       note: row.note,
@@ -240,7 +240,7 @@ exports.getAllPriceListItemMaps = async (req, res) => {
       priceListItemId: row.price_list_item_id,
       priceListItemDescription: row.item_description,
       packageTitle: row.package_title,
-      quantity: parseInt(row.quantity),
+      quantity: parseFloat(row.quantity),
       totalPrice: parseFloat(row.total_price),
       cost: parseFloat(row.cost),
       note: row.note,
@@ -299,7 +299,7 @@ exports.updatePriceListItemMap = async (req, res) => {
       return errorResponse(res, 400, "Quantity cannot be updated for items with cost type 'Included'");
     }
 
-    const quantityToUse = quantity || 1;
+    const quantityToUse = parseFloat(quantity) || 1;
     const price = parseFloat(checkResult.rows[0].cost) || 0;
     const totalPrice = price * quantityToUse;
 
@@ -344,7 +344,7 @@ exports.updatePriceListItemMap = async (req, res) => {
       priceListItemId: row.price_list_item_id,
       priceListItemDescription: row.price_list_item_description,
       packageTitle: row.package_title,
-      quantity: parseInt(row.quantity),
+      quantity: parseFloat(row.quantity),
       totalPrice: parseFloat(row.total_price),
       cost: parseFloat(row.cost),
       note: row.note,

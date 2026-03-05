@@ -28,9 +28,18 @@ exports.createLeadContactMap = async (req, res) => {
     }
 
     const contactCheck = await client.query(
-      `SELECT u.users_id, u.name, u.email, u.phone, u.is_active, r.name as role_name
+      `SELECT u.users_id, u.name, u.email, u.phone, u.secondary_phone, u.remark, u.role_id, u.address_id, u.has_login, u.is_active, u.created_at, u.updated_at, r.name as role_name,
+              jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ) AS address
        FROM users u
        JOIN role r ON u.role_id = r.role_id
+       LEFT JOIN address a ON a.address_id = u.address_id
        WHERE u.users_id = $1 AND u.is_deleted = false LIMIT 1`,
       [contact_id]
     );
@@ -63,12 +72,27 @@ exports.createLeadContactMap = async (req, res) => {
     );
 
     const contact = contactCheck.rows[0];
-    const responseData = {
-      ...keysToCamelCase(result.rows[0]),
-      contactName: contact.name,
-      contactEmail: contact.email,
-      contactPhone: contact.phone,
-    };
+    const rawResult = result.rows[0];
+    const { created_at, updated_at, ...restResult } = rawResult;
+    
+    const responseData = keysToCamelCase({
+      ...restResult,
+      users_id: contact.users_id,
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+      secondary_phone: contact.secondary_phone,
+      remark: contact.remark,
+      role_id: contact.role_id,
+      address_id: contact.address_id,
+      has_login: contact.has_login,
+      is_active: contact.is_active,
+      address: contact.address,
+      contact_created_at: contact.created_at,
+      contact_updated_at: contact.updated_at,
+      created_at: created_at,
+      updated_at: updated_at
+    });
 
     return successResponse(res, responseData, 201, "Contact mapped to lead successfully");
   } catch (error) {
@@ -106,17 +130,59 @@ exports.getContactsByLeadId = async (req, res) => {
 
     const result = await client.query(
       `SELECT m.id, m.leads_id, m.contact_id, m.created_at, m.updated_at,
-              u.name as contact_name, u.email as contact_email, u.phone as contact_phone
+              u.users_id as contact_users_id, u.name as contact_name, u.email as contact_email, u.phone as contact_phone,
+              u.secondary_phone as contact_secondary_phone, u.remark as contact_remark,
+              u.role_id as contact_role_id, u.address_id as contact_address_id,
+              u.has_login as contact_has_login, u.is_active as contact_is_active,
+              u.created_at as contact_created_at, u.updated_at as contact_updated_at,
+              jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ) AS contact_address
        FROM leads_contact_map m
        JOIN users u ON m.contact_id = u.users_id
+       LEFT JOIN address a ON a.address_id = u.address_id
        WHERE m.leads_id = $1
        ORDER BY m.created_at ASC`,
       [leads_id]
     );
 
+    const formattedData = result.rows.map(row => {
+      const {
+        id, leads_id, contact_id, created_at, updated_at,
+        contact_users_id, contact_name, contact_email, contact_phone,
+        contact_secondary_phone, contact_remark, contact_role_id,
+        contact_address_id, contact_has_login, contact_is_active,
+        contact_created_at, contact_updated_at, contact_address
+      } = row;
+      
+      return keysToCamelCase({
+        id, leads_id, contact_id,
+        users_id: contact_users_id,
+        name: contact_name,
+        email: contact_email,
+        phone: contact_phone,
+        secondary_phone: contact_secondary_phone,
+        remark: contact_remark,
+        role_id: contact_role_id,
+        address_id: contact_address_id,
+        has_login: contact_has_login,
+        is_active: contact_is_active,
+        address: contact_address,
+        contact_created_at: contact_created_at,
+        contact_updated_at: contact_updated_at,
+        created_at: created_at,
+        updated_at: updated_at
+      });
+    });
+
     return successResponse(
       res,
-      result.rows.map(row => keysToCamelCase(row)),
+      formattedData.length > 0 ? formattedData[0] : {},
       "Lead contacts fetched successfully"
     );
   } catch (error) {

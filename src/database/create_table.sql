@@ -3097,7 +3097,7 @@ CREATE TABLE h_l_package_pricelist_item_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE CASCADE,
   price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
-  quantity INTEGER,
+  quantity NUMERIC(12,2),
   total_price NUMERIC(12,2),
   note VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -3216,19 +3216,19 @@ CREATE TABLE job_form(
   story_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   finished_surface_m NUMERIC(10,2),
   existing_surface_m NUMERIC(10,2),
-  filled_area_fail_m NUMERIC(10,2),
+  filled_area_fill_m NUMERIC(10,2),
   max_fill_location VARCHAR(255),               -- valid front_left, front_right, rear_left, rear_right
   max_finished_surface_m NUMERIC(10,2),
   min_finished_surface_m NUMERIC(10,2),
-  engineering_fail_m NUMERIC(10,2),
-  fail_type VARCHAR(255),                       -- valid front_to_rear, rear_to_front, diagonal_front_to_rear, diagonal_rear_to_front
+  engineering_fall_m NUMERIC(10,2),  
+  fall_type VARCHAR(255),                       -- valid front_to_rear, rear_to_front, diagonal_front_to_rear, diagonal_rear_to_front
   ceiling_height NUMERIC(10,2),
   eaves_location VARCHAR(255),
   lot_type VARCHAR(255),                   -- valid under_300_m2 or over_300_m2
   site_coverage_allowed VARCHAR(255),          -- vlid less_then_60 or 60 or 70 or 80 or 90
   eaves_size VARCHAR(255),                   -- valid 450 mm or 600 mm
-  eaves_return VARCHAR(255),                -- valid 2_m, 3_m, 4_m, all_around, side_only, n_a
-  roof_covering VARCHAR(255),          -- valid concrete_tiles, standard, simline, flat, colorbond_roof, with_blanket, with_sarking
+  eaves_return VARCHAR(255)[],                -- valid 2_m, 3_m, 4_m, all_around, side_only, n_a 
+  roof_covering VARCHAR(255)[],          -- valid concrete_tiles, standard, simline, flat, colorbond_roof, with_blanket, with_sarking 
   roof_pitch VARCHAR(255),               -- valid 15, 18, 20, 22.5, 25
   flat_roof_pitch VARCHAR(255),            -- valid 5
   parapet_wall VARCHAR(255),              -- valid front_only, all_around, n_a
@@ -3242,7 +3242,7 @@ CREATE TABLE job_form(
   garage_door_type VARCHAR(255),
   connection VARCHAR(255),                -- nbn, opticom
   recycled_water BOOLEAN,
-  extra_requirement VARCHAR(255),            -- valid rainwater_tank, solar_hot_water, heat_pump
+  extra_requirement VARCHAR(255)[],            -- valid rainwater_tank, solar_hot_water, heat_pump
   three_phase BOOLEAN,
   driveway VARCHAR(255),                   -- valid by_client, by_builder
   front_wall VARCHAR(255),
@@ -3277,13 +3277,7 @@ CREATE TABLE business_contact (
     business_contact_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
 
-    contact_type VARCHAR(50) NOT NULL,
-    -- this are valid types
-    -- 'company'
-    -- 'conveyancer'
-    -- 'mortgage_broker'
-    -- 'financer'
-
+    contact_type VARCHAR(50) CHECK(contact_type IN ('company', 'conveyancer', 'mortgage_broker', 'financer')) NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     phone VARCHAR(20),
@@ -3339,7 +3333,7 @@ CREATE TABLE quotation_version_pricelist_item_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
   price_list_item_id UUID REFERENCES price_list_item(price_list_item_id) ON DELETE CASCADE,
-  quantity INTEGER,
+  quantity NUMERIC(12,2),
   note VARCHAR(500),
   total_price NUMERIC(12,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

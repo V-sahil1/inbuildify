@@ -77,7 +77,7 @@ exports.createPricelistItemMap = async (req, res) => {
 
     // Calculate total_price = quantity * cost
     const itemCost = parseFloat(itemCheck.rows[0].cost || 0);
-    const qty = parseInt(quantity) || 1;
+    const qty = parseFloat(quantity) || 1;
     const totalPrice = parseFloat((qty * itemCost).toFixed(2));
 
     const result = await client.query(
@@ -195,7 +195,7 @@ exports.updatePricelistItemMap = async (req, res) => {
     const values = [];
     let paramIndex = 1;
 
-    const finalQuantity = quantity !== undefined ? parseInt(quantity) : existing.quantity;
+    const finalQuantity = quantity !== undefined ? parseFloat(quantity) : parseFloat(existing.quantity);
 
     if (quantity !== undefined) {
       updateFields.push(`quantity = $${paramIndex++}`);

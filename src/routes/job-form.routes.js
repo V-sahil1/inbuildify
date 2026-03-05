@@ -14,6 +14,7 @@ const {
   getJobFormByIdSchema,
   deleteJobFormSchema,
   getAllJobFormsSchema,
+  updateJobFormParamsSchema,
 } = require("../validations/job-form.validation");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -21,9 +22,6 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 const camelToSnakeMiddleware = require("../middleware/caseConverterMiddleware.js");
 const { REQUEST_SOURCE } = require("../config/constants");
 
-// JOB FORM ROUTES
-
-// Create a new job form
 router.post(
   "/",
   authMiddleware,
@@ -33,7 +31,6 @@ router.post(
   createJobForm,
 );
 
-// Get all job forms with pagination and search
 router.get(
   "/",
   authMiddleware,
@@ -42,27 +39,24 @@ router.get(
   getAllJobForms,
 );
 
-// Get a specific job form by ID
 router.get(
-  "/:job_form_id",
+  "/:leads_id",
   authMiddleware,
   roleMiddleware,
   validateRequest(getJobFormByIdSchema, REQUEST_SOURCE.PARAMS),
   getJobFormById,
 );
 
-// Update a job form
 router.put(
   "/:job_form_id",
   authMiddleware,
   roleMiddleware,
   camelToSnakeMiddleware,
-  validateRequest(getJobFormByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateJobFormParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateJobFormSchema, REQUEST_SOURCE.BODY),
   updateJobForm,
 );
 
-// Delete a job form
 router.delete(
   "/:job_form_id",
   authMiddleware,
