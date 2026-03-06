@@ -29,10 +29,15 @@ class QuotationRepository {
                 'quotation_version_id', qv.quotation_version_id,
                 'quotation_version_no', qv.quotation_version_no,
                 'location_id', qv.location_id,
+                'location_name', l.name,
                 'range_id', qv.range_id,
+                'range_name', r.name,
                 'dwelling_type_id', qv.dwelling_type_id,
+                'dwelling_type_name', dt.name,
                 'floor_plan_id', qv.floor_plan_id,
+                'floor_plan_name', fp.name,
                 'facade_id', qv.facade_id,
+                'facade_name', f.name,
                 'is_approve', qv.is_approve,
                 'sketch_number', qv.sketch_number,
                 'total_package_cost', COALESCE(
@@ -66,6 +71,11 @@ class QuotationRepository {
           ) AS versions
         FROM quotation q
         LEFT JOIN quotation_version qv ON q.quotation_id = qv.quotation_id
+        LEFT JOIN location l ON qv.location_id = l.location_id
+        LEFT JOIN range r ON qv.range_id = r.range_id
+        LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
+        LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE q.leads_id = $1
         GROUP BY q.quotation_id
         ORDER BY q.created_at DESC
@@ -361,6 +371,11 @@ class QuotationRepository {
       // Fetch the updated version with lead lot_id and contacts
       const enrichQuery = `
         SELECT qv.*,
+          l.name as location_name,
+          r.name as range_name,
+          dt.name as dwelling_type_name,
+          fp.name as floor_plan_name,
+          f.name as facade_name,
           leads.leads_id as lead_id,
           leads.lot_id as lead_lot_id,
           (
@@ -378,6 +393,11 @@ class QuotationRepository {
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
+        LEFT JOIN location l ON qv.location_id = l.location_id
+        LEFT JOIN range r ON qv.range_id = r.range_id
+        LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
+        LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE qv.quotation_version_id = $1
       `;
       const enrichResult = await client.query(enrichQuery, [versionId]);
@@ -392,6 +412,11 @@ class QuotationRepository {
     try {
       const enrichQuery = `
         SELECT qv.*,
+          l.name as location_name,
+          r.name as range_name,
+          dt.name as dwelling_type_name,
+          fp.name as floor_plan_name,
+          f.name as facade_name,
           COALESCE(
             (SELECT SUM(p.cost)
              FROM quotation_version_package_map qvpm
@@ -432,6 +457,11 @@ class QuotationRepository {
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
+        LEFT JOIN location l ON qv.location_id = l.location_id
+        LEFT JOIN range r ON qv.range_id = r.range_id
+        LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
+        LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE qv.quotation_version_id = $1
       `;
       const result = await client.query(enrichQuery, [versionId]);

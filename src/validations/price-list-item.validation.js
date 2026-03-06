@@ -121,6 +121,8 @@ const createPriceListItemSchema = Joi.object({
   dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.includes": "Each dwelling type ID must be a valid UUID",
   }),
+
+  additional_item: Joi.boolean().default(false).optional(),
 });
 
 const getAllPriceListItemSchema = Joi.object({

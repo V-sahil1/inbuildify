@@ -14,19 +14,17 @@ const s3Client = new S3Client({
 });
 
 const fileData = allowedFileData();
-const allowedTypes = new RegExp(fileData.types.replace(/^\/|\/$/g, ""), "i");
 const fileFilter = (req, file, cb) => {
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase(),
-  );
-  const mimetype = allowedTypes.test(file.mimetype);
+  const types = (fileData?.types || "").toLowerCase().split("|");
+  const extension = path.extname(file.originalname).toLowerCase().replace(".", "");
+  
+  const isMimeAllowed = types.includes(file.mimetype.toLowerCase());
+  const isExtAllowed = types.some(t => t.includes(extension) || t === extension);
 
-  if (mimetype && extname) {
+  if (isMimeAllowed || isExtAllowed) {
     return cb(null, true);
   } else {
-    const allowedList = fileData.types
-      .replace(/^\/|\/$/g, "")
-      .split("|")
+    const allowedList = types
       .map((t) => t.replace("image/", "").toUpperCase())
       .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
       .filter((v, i, arr) => arr.indexOf(v) === i)
@@ -53,8 +51,36 @@ const pdfFileFilter = (req, file, cb) => {
   }
 };
 
+// Helper to attach file field metadata to Multer middleware for Swagger gen
+const wrapMulter = (upload) => {
+  const methodsToWrap = ["single", "array", "fields", "any"];
+  
+  methodsToWrap.forEach((method) => {
+    const original = upload[method];
+    if (original) {
+      upload[method] = function (...args) {
+        const mw = original.apply(this, args);
+        
+        if (method === "single") {
+          mw.fileFields = [{ name: args[0], maxCount: 1 }];
+        } else if (method === "array") {
+          mw.fileFields = [{ name: args[0], maxCount: args[1] || undefined }];
+        } else if (method === "fields") {
+          mw.fileFields = args[0] || [];
+        } else if (method === "any") {
+           mw.fileFields = "any";
+        }
+        
+        return mw;
+      };
+    }
+  });
+
+  return upload;
+};
+
 const createUpload = (folderName = "uploads") =>
-  multer({
+  wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
       bucket: process.env.S3_BUCKET_NAME,
@@ -78,7 +104,7 @@ const createUpload = (folderName = "uploads") =>
     limits: {
       fileSize: fileData.size * 1024 * 1024,
     },
-  });
+  }));
 
 const deleteFromS3 = async (fileUrl) => {
   if (!fileUrl) return;
@@ -101,7 +127,7 @@ const deleteFromS3 = async (fileUrl) => {
 };
 
 const createPdfUpload = (folderName = "pdfs") =>
-  multer({
+  wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
       bucket: process.env.S3_BUCKET_NAME,
@@ -125,10 +151,10 @@ const createPdfUpload = (folderName = "pdfs") =>
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB limit for PDFs
     },
-  });
+  }));
 
 const createImageOrPdfUpload = (folderName = "uploads") =>
-  multer({
+  wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
       bucket: process.env.S3_BUCKET_NAME,
@@ -193,7 +219,7 @@ const createImageOrPdfUpload = (folderName = "uploads") =>
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB limit for both images and PDFs
     },
-  });
+  }));
 
 const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {

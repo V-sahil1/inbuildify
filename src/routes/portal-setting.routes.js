@@ -41,7 +41,7 @@ router.put(
   upload.single("defaultFacadeImage"),
   handleMulterError,
   camelToSnakeMiddleware,
-  validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.BODY),
+  validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.FORM_DATA),
   updatePortalSettings,
 );
 module.exports = router;

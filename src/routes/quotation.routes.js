@@ -27,7 +27,7 @@ router.get(
 );
 
 router.get(
-  "/versions/:quotation_id",
+  "/version/:quotation_id",
   validateRequest(deleteQuotationSchema, REQUEST_SOURCE.PARAMS),
   quotationController.getQuotationVersions
 );

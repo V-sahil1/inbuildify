@@ -31,7 +31,8 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-// Create a new lead
+
+
 router.post(
   "/",
   validateRequest(createLeadSchema, REQUEST_SOURCE.BODY),

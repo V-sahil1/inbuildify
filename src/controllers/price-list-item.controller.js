@@ -29,6 +29,7 @@ exports.createPriceListItem = async (req, res) => {
       show_only_in_package,
       range_id,
       dwelling_type_id,
+      additional_item
     } = req.body;
 
     if (range_id) {
@@ -146,7 +147,7 @@ exports.createPriceListItem = async (req, res) => {
       }
 
       if (
-        cost_option === undefined ||
+        // cost_option === undefined ||
         cost === undefined ||
         builder_cost === undefined
       ) {
@@ -154,7 +155,7 @@ exports.createPriceListItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "cost_option, cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'.",
+          " cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'.",
         );
       }
     }
@@ -205,12 +206,13 @@ exports.createPriceListItem = async (req, res) => {
         show_only_in_package,
         range_id,
         dwelling_type_id,
+        additional_item,
         created_by,
         updated_by
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21
+        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22
       )
       RETURNING *;
     `;
@@ -235,6 +237,7 @@ exports.createPriceListItem = async (req, res) => {
       show_only_in_package || false,
       range_id || null,
       dwelling_type_id || null,
+      additional_item || false,
       userId || null,
       userId || null,
     ];
@@ -362,6 +365,7 @@ exports.createPriceListItem = async (req, res) => {
       range: createdItem.rangeData || [],
       dwellingType: createdItem.dwellingTypeData || [],
       conditions: conditionsData,
+      additionalItem: createdItem.additionalItem,
       createdBy: createdItem.createdBy,
       updatedBy: createdItem.updatedBy,
       createdAt: createdItem.createdAt,
@@ -555,6 +559,7 @@ exports.getAllPriceListItems = async (req, res) => {
         showOnlyInPackage: item.showOnlyInPackage,
         range: item.rangeData || [],
         dwellingType: item.dwellingTypeData || [],
+        additionalItem: item.additionalItem,
         createdBy: item.createdBy,
         updatedBy: item.updatedBy,
         createdAt: item.createdAt,

@@ -24,8 +24,8 @@ const REQUEST_SOURCE = {
   FORM_DATA: "formData",
 };
 
-const ALLOWED_FILE_TYPES = process.env.FILE_TYPES;
-const ALLOWED_FILE_SIZE = process.env.FILE_SIZE;
+const ALLOWED_FILE_TYPES = process.env.FILE_TYPES || "image/jpeg|image/png|image/jpg|application/pdf";
+const ALLOWED_FILE_SIZE = process.env.FILE_SIZE || 5;
 
 module.exports = {
   isValidRole,

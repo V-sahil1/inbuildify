@@ -520,18 +520,50 @@ exports.getConstructionChecklistById = async (req, res) => {
         ct.types_name AS construction_type_name,
         cs.stage_name AS construction_stage_name,
         st.name AS supplier_type_name,
-        b.builder_name AS builder_name,
-        cc_name.name AS cost_center_name,
-        co.option_name AS construction_option_name,
+        b.name AS builder_name,
         cpt.name AS compliance_type_name,
-        u.name AS created_by_name
+        u.name AS created_by_name,
+        (
+          SELECT array_to_string(array_agg(name), ', ')
+          FROM cost_center
+          WHERE cost_center_id = ANY(cc.cost_center_id)
+        ) AS cost_center_name,
+        (
+          SELECT array_to_string(array_agg(option_name), ', ')
+          FROM construction_option
+          WHERE construction_option_id = ANY(cc.construction_option_id)
+        ) AS construction_option_name,
+        (
+          SELECT COALESCE(
+            json_agg(
+              jsonb_build_object(
+                'id', cc_name.cost_center_id,
+                'name', cc_name.name
+              )
+            ),
+            '[]'
+          )
+          FROM cost_center cc_name
+          WHERE cc_name.cost_center_id = ANY(cc.cost_center_id)
+        ) AS cost_center,
+        (
+          SELECT COALESCE(
+            json_agg(
+              jsonb_build_object(
+                'id', co.construction_option_id,
+                'name', co.option_name
+              )
+            ),
+            '[]'
+          )
+          FROM construction_option co
+          WHERE co.construction_option_id = ANY(cc.construction_option_id)
+        ) AS construction_option
       FROM construction_checklist cc
       LEFT JOIN construction_type ct ON ct.construction_type_id = cc.construction_type_id
       LEFT JOIN construction_stage cs ON cs.construction_stage = cc.construction_stage_id
       LEFT JOIN supplier_type st ON st.supplier_type_id = cc.supplier_type_id
       LEFT JOIN builder b ON b.builder_id = cc.builder
-      LEFT JOIN cost_center cc_name ON cc_name.cost_center_id = cc.cost_center_id
-      LEFT JOIN construction_option co ON co.construction_option_id = cc.construction_option_id
       LEFT JOIN compliance_type cpt ON cpt.compliance_type_id = cc.compliance_type_id
       LEFT JOIN users u ON u.users_id = cc.created_by
       WHERE cc.construction_checklist_id = $1;

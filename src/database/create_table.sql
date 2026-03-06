@@ -2095,6 +2095,7 @@ CREATE TABLE price_list_item (
     show_only_in_package BOOLEAN DEFAULT FALSE,
     range_id UUID[] DEFAULT '{}',                    -- REFERENCES range(range_id) ON DELETE SET NULL,
     dwelling_type_id UUID[] DEFAULT '{}',            -- REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
+    additional_item BOOLEAN DEFAULT FALSE,
     created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),

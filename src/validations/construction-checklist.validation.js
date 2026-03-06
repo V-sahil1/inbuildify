@@ -162,15 +162,6 @@ const getConstructionChecklistByIdValidation = Joi.object({
 });
 
 const queryValidation = Joi.object({
-  page: Joi.number().integer().min(1).optional().messages({
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be at least 1",
-  }),
-  limit: Joi.number().integer().min(1).max(100).optional().messages({
-    "number.integer": "Limit must be an integer",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit must be at most 100",
-  }),
 
   name: Joi.string().max(255).optional().messages({
     "string.base": "Name must be a string",
@@ -181,41 +172,9 @@ const queryValidation = Joi.object({
   construction_stage_id: Joi.string().uuid().optional().messages({
     "string.uuid": "Construction stage ID must be a valid UUID",
   }),
-  supplier_type_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Supplier type ID must be a valid UUID",
-  }),
+
   builder: Joi.string().uuid().optional().messages({
     "string.uuid": "Builder ID must be a valid UUID",
-  }),
-  data_required: Joi.boolean().optional().messages({
-    "boolean.base": "Data required must be a boolean",
-  }),
-  supplier: Joi.boolean().optional().messages({
-    "boolean.base": "Supplier must be a boolean",
-  }),
-  claim: Joi.boolean().optional().messages({
-    "boolean.base": "Claim must be a boolean",
-  }),
-  dependent: Joi.boolean().optional().messages({
-    "boolean.base": "Dependent must be a boolean",
-  }),
-  notify: Joi.boolean().optional().messages({
-    "boolean.base": "Notify must be a boolean",
-  }),
-  milestone: Joi.boolean().optional().messages({
-    "boolean.base": "Milestone must be a boolean",
-  }),
-  attachment_mandatory: Joi.boolean().optional().messages({
-    "boolean.base": "Attachment mandatory must be a boolean",
-  }),
-  cost_center_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Cost center ID must be a valid UUID",
-  }),
-  construction_option_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Construction option ID must be a valid UUID",
-  }),
-  compliance_type_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Compliance type ID must be a valid UUID",
   }),
 });
 
