@@ -12,8 +12,9 @@ const createLeadSchema = Joi.object({
     "string.max": "Email must not exceed 255 characters",
     "any.required": "Email is required",
   }),
-  phone: Joi.string().max(20).optional().allow(null, "").messages({
-    "string.max": "Phone must not exceed 20 characters",
+  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
+    "string.min": "Phone must be at least 10 characters long",
+    "string.max": "Phone must not exceed 14 characters",
   }),
   notes: Joi.string().max(1000).optional().allow(null, "").messages({
     "string.max": "Notes must not exceed 1000 characters",
@@ -44,8 +45,9 @@ const updateLeadSchema = Joi.object({
     "string.email": "Please provide a valid email address",
     "string.max": "Email must not exceed 255 characters",
   }),
-  phone: Joi.string().max(20).optional().allow(null, "").messages({
-    "string.max": "Phone must not exceed 20 characters",
+  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
+    "string.min": "Phone must be at least 10 characters long",
+    "string.max": "Phone must not exceed 14 characters",
   }),
   notes: Joi.string().max(1000).optional().allow(null, "").messages({
     "string.max": "Notes must not exceed 1000 characters",

@@ -2,10 +2,9 @@ const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 
-exports.createJob = async (req, res) => {
-  const { lead_id } = req.params;
-  const builderId = req.user.builder_id;
-  const { message, status, quotation_version_id } = req.body;
+exports.convertOpportunityToJob = async (req, res) => {
+  const { opportunity_id } = req.params;
+  const { out_come, quotation_version_id, job_note, send_email } = req.body;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -13,102 +12,109 @@ exports.createJob = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const quotationResult = await client.query(
-      `SELECT quotation_id FROM quotation WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [lead_id, builderId]
-    );
+    // 1. Check if opportunity exists and get the lead's reference number
+    const oppQuery = `
+      SELECT o.opportunity_id, o.status, o.outcome, l.reference_number
+      FROM opportunity o
+      JOIN leads l ON o.leads_id = l.leads_id
+      WHERE o.opportunity_id = $1
+    `;
+    const oppResult = await client.query(oppQuery, [opportunity_id]);
 
-    if (quotationResult.rows.length === 0) {
+    if (oppResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Quotation not found.");
+      return errorResponse(res, 404, "Opportunity not found");
     }
 
-    const leadStatus = status === "WON" ? "JOB" : "CANCELLED";
+    const opportunity = oppResult.rows[0];
 
-    const checkLeadExists = await client.query(
-      `SELECT 1 FROM leads WHERE lead_id = $1 AND builder_id = $2 AND decision is not null AND quotation_version_id is not null`,
-      [lead_id, builderId]
-    );
-    if (checkLeadExists.rows.length > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        404,
-        "Lead already converted to job or lost status."
+    // 2. Logic for out_come = "lost"
+    if (out_come === "lost") {
+      await client.query(
+        `UPDATE opportunity SET status = 'closed', outcome = $1, opportunity_notes = COALESCE($2, opportunity_notes), updated_at = NOW() WHERE opportunity_id = $3`,
+        ["lost", job_note || null, opportunity_id]
       );
+      await client.query("COMMIT");
+      return successResponse(res, {}, "Opportunity marked as lost and closed.");
     }
 
-    if (status === "WON") {
-      if (!quotation_version_id) {
-        throw new Error("quotation_version_id is required when status is WON");
-      }
-
-      const quotationVersionExists = await client.query(
-        `
-        SELECT quotation_id, version_number FROM quotation_versions WHERE quotation_version_id = $1 AND quotation_id = ANY($2)
-      `,
-        [
-          quotation_version_id,
-          quotationResult.rows.map((row) => row.quotation_id),
-        ]
+    // 3. Logic for out_come = "won"
+    if (out_come === "won") {
+      // Check if job already exists for this opportunity
+      const jobCheck = await client.query(
+        `SELECT job_id FROM job WHERE opportunity_id = $1`,
+        [opportunity_id]
       );
 
-      if (quotationVersionExists.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          404,
-          "Quotation version not found for that quotation."
-        );
-      }
-
-      const { quotation_id, version_number } = quotationVersionExists.rows[0];
-
-      const latestVersionRes = await client.query(
-        `
-        SELECT MAX(version_number) AS max_version FROM quotation_versions WHERE quotation_id = $1
-      `,
-        [quotation_id]
-      );
-      const latestVersion = latestVersionRes.rows[0].max_version;
-
-      if (version_number !== latestVersion) {
+      if (jobCheck.rowCount > 0) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
           400,
-          `Only the latest quotation version (v${latestVersion}) can be used when status is WON`
+          "A job already exists for this opportunity."
         );
       }
 
-      await client.query(
-        `
-        UPDATE leads SET status = $1, message = $2, decision = $3, quotation_version_id = $4, updated_at = NOW() WHERE lead_id = $5 AND builder_id = $6
-      `,
-        [leadStatus, message, status, quotation_version_id, lead_id, builderId]
+      // Check if quotation version exists
+      if (!quotation_version_id) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Quotation version ID is required when status is WON"
+        );
+      }
+
+      const qvCheck = await client.query(
+        `SELECT quotation_version_id, is_approve FROM quotation_version WHERE quotation_version_id = $1 AND is_approve = true`,
+        [quotation_version_id]
       );
-    } else {
+
+      if (qvCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Quotation version not found or not approved");
+      }
+
+      // Update opportunity attributes
       await client.query(
-        `
-        UPDATE leads SET status = $1, message = $2, decision = $3, updated_at = NOW() WHERE lead_id = $4 AND builder_id = $5
-      `,
-        [leadStatus, message, status, lead_id, builderId]
+        `UPDATE opportunity SET status = 'closed', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2`,
+        ["won", opportunity_id]
+      );
+
+      // Create new job with opportunity's associated lead reference number
+      const insertJobQuery = `
+        INSERT INTO job (
+          reference_number, 
+          opportunity_id, 
+          quotation_version_id, 
+          job_note, 
+          send_email
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `;
+
+      const insertValues = [
+        opportunity.reference_number,
+        opportunity_id,
+        quotation_version_id,
+        job_note || null,
+        send_email || false,
+      ];
+
+      const jobResult = await client.query(insertJobQuery, insertValues);
+
+      await client.query("COMMIT");
+
+      return successResponse(
+        res,
+        keysToCamelCase(jobResult.rows[0]),
+        "Opportunity converted to job successfully."
       );
     }
-
-    await client.query("COMMIT");
-
-    return successResponse(
-      res,
-      keysToCamelCase(
-        quotationResult?.rows?.length > 0 ? quotationResult.rows[0] : {}
-      ),
-      "Job created successfully."
-    );
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Create job error:", error);
-    return errorResponse(res, 500, "Failed to create job.");
+    console.error("Convert opportunity to job error:", error);
+    return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
   }

@@ -182,7 +182,7 @@ exports.getContactsByLeadId = async (req, res) => {
 
     return successResponse(
       res,
-      formattedData.length > 0 ? formattedData[0] : {},
+      formattedData.length > 0 ? formattedData[0] : null,
       "Lead contacts fetched successfully"
     );
   } catch (error) {

@@ -102,15 +102,18 @@ class QuotationService {
 
         await client.query('COMMIT');
 
+        // Fetch fully enriched version to include lead and contact details mapping
+        const enrichedVersion = await quotationRepository.getQuotationVersionDetailsById(quotationVersion.quotation_version_id);
+
         // Format result like original response
         const { keysToCamelCase } = require("../utils/common");
         
+        const formattedQuotation = keysToCamelCase(quotation);
+        formattedQuotation.versions = enrichedVersion ? [enrichedVersion] : [keysToCamelCase(quotationVersion)];
+
         return {
           success: true,
-          data: {
-            quotation: keysToCamelCase(quotation),
-            quotationVersion: keysToCamelCase(quotationVersion),
-          },
+          data: formattedQuotation,
           message: "Quotation created successfully",
         };
       } catch (innerError) {
@@ -287,9 +290,9 @@ class QuotationService {
         && updateData.dwelling_type_id !== existingVersion.dwelling_type_id;
 
       if (rangeChanged || dwellingTypeChanged) {
-        // Set facade_id and floor_plan_id to NULL
-        updateData.facade_id = null;
-        updateData.floor_plan_id = null;
+        // Set facade_id and floor_plan_id to NULL only if not explicitly updating them right now
+        if (updateData.facade_id === undefined) updateData.facade_id = null;
+        if (updateData.floor_plan_id === undefined) updateData.floor_plan_id = null;
 
         // Delete related package mappings
         await client.query(

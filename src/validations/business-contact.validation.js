@@ -11,14 +11,14 @@ const createBusinessContactSchema = Joi.object({
   name: Joi.string().min(2).max(255).required(),
   email: Joi.string().email().allow(null, "").optional(),
   phone: Joi.string().max(20).allow(null, "").optional(),
-  address1: Joi.string().max(255).allow(null, "").optional(),
-  address2: Joi.string().max(255).allow(null, "").optional(),
-  city: Joi.string().max(255).allow(null, "").optional(),
-  zip_code: Joi.string().max(10).allow(null, "").optional(),
+  address1: Joi.string().min(2).max(255).allow(null, "").optional(),
+  address2: Joi.string().min(2).max(255).allow(null, "").optional(),
+  city: Joi.string().min(2).max(100).allow(null, "").optional(),
+  zip_code: Joi.string().min(4).max(4).allow(null, "").optional(),
   country_id: Joi.string().uuid().allow(null).optional(),
   state_id: Joi.string().uuid().allow(null).optional(),
-  abn_number: Joi.string().max(20).allow(null, "").optional(),
-  acn_number: Joi.string().max(20).allow(null, "").optional(),
+  abn_number: Joi.string().min(11).max(11).allow(null, "").optional(),
+  acn_number: Joi.string().min(9).max(9).allow(null, "").optional(),
 });
 
 const getAllBusinessContactsSchema = Joi.object({
@@ -38,14 +38,14 @@ const updateBusinessContactSchema = Joi.object({
   name: Joi.string().min(2).max(255).optional(),
   email: Joi.string().email().allow(null, "").optional(),
   phone: Joi.string().max(20).allow(null, "").optional(),
-  address1: Joi.string().max(255).allow(null, "").optional(),
-  address2: Joi.string().max(255).allow(null, "").optional(),
-  city: Joi.string().max(255).allow(null, "").optional(),
-  zip_code: Joi.string().max(10).allow(null, "").optional(),
+  address1: Joi.string().min(2).max(255).allow(null, "").optional(),
+  address2: Joi.string().min(2).max(255).allow(null, "").optional(),
+  city: Joi.string().min(2).max(100).allow(null, "").optional(),
+  zip_code: Joi.string().min(4).max(4).allow(null, "").optional(),
   country_id: Joi.string().uuid().allow(null, "").optional(),
   state_id: Joi.string().uuid().allow(null, "").optional(),
-  abn_number: Joi.string().max(20).allow(null, "").optional(),
-  acn_number: Joi.string().max(20).allow(null, "").optional(),
+  abn_number: Joi.string().min(11).max(11).allow(null, "").optional(),
+  acn_number: Joi.string().min(9).max(9).allow(null, "").optional(),
 });
 
 const deleteBusinessContactSchema = Joi.object({

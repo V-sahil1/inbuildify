@@ -3168,6 +3168,17 @@ CREATE TABLE opportunity(
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE job(
+  job_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  reference_number VARCHAR(30) NOT NULL,
+  opportunity_id UUID REFERENCES opportunity(opportunity_id) ON DELETE CASCADE,
+  quotation_version_id UUID REFERENCES quotation_versions(quotation_version_id) ON DELETE SET NULL,
+  job_note VARCHAR(1000),
+  send_email BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE leads_contact_map(
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,

@@ -33,16 +33,19 @@ const createLotSchema = Joi.object({
   estate_stage_id: optionalUuidRule.messages({
     "string.guid": "Estate stage ID must be a valid UUID",
   }),
-  lot_number: stringRule.max(255).required().messages({
+  lot_number: stringRule.min(2).max(255).required().messages({
     "any.required": "Lot number is required",
+    "string.min": "Lot number must be at least 2 characters long",
     "string.max": "Lot number must not exceed 255 characters",
   }),
-  street: stringRule.max(255).required().messages({
+  street: stringRule.min(2).max(255).required().messages({
     "any.required": "Street is required",
+    "string.min": "Street must be at least 2 characters long",
     "string.max": "Street must not exceed 255 characters",
   }),
-  city: stringRule.max(255).required().messages({
+  city: stringRule.min(2).max(255).required().messages({
     "any.required": "City is required",
+    "string.min": "City must be at least 2 characters long",
     "string.max": "City must not exceed 255 characters",
   }),
   state_id: optionalUuidRule.required().messages({
@@ -97,20 +100,24 @@ const updateLotSchema = Joi.object({
   estate_stage_id: optionalUuidRule.messages({
     "string.guid": "Estate stage ID must be a valid UUID",
   }),
-  lot_number: stringRule.max(255).optional().messages({
+  lot_number: stringRule.min(2).max(255).optional().messages({
+    "string.min": "Lot number must be at least 2 characters long",
     "string.max": "Lot number must not exceed 255 characters",
   }),
-  street: stringRule.max(255).optional().messages({
+  street: stringRule.min(2).max(255).optional().messages({
+    "string.min": "Street must be at least 2 characters long",
     "string.max": "Street must not exceed 255 characters",
   }),
-  city: stringRule.max(255).optional().messages({
+  city: stringRule.min(2).max(255).optional().messages({
+    "string.min": "City must be at least 2 characters long",
     "string.max": "City must not exceed 255 characters",
   }),
   state_id: optionalUuidRule.messages({
     "string.guid": "State ID must be a valid UUID",
   }),
   zip_code: stringRule.min(4).max(4).optional().messages({
-    "string.max": "Zip code must not exceed 10 characters",
+    "string.min": "Zip code must be at least 4 characters long",
+    "string.max": "Zip code must not exceed 4 characters",
   }),
   title_status: stringRule
     .max(255)

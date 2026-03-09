@@ -272,12 +272,50 @@ class QuotationRepository {
     const client = await this.pool.connect();
     try {
       const query = `
-        SELECT qv.*,
+        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
+          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
+          qv.sketch_number, qv.created_at, qv.updated_at,
           l.name as location_name,
           r.name as range_name,
           dt.name as dwelling_type_name,
-          fp.name as floor_plan_name,
-          f.name as facade_name,
+          (
+            SELECT json_build_object(
+              'name', fp.name,
+              'floor_plan_id', fp.floor_plan_id,
+              'min_land_width', fp.min_land_width,
+              'min_land_depth', fp.min_land_depth,
+              'dwelling_area', fp.dwelling_area,
+              'dwelling_type_id', fp.dwelling_type_id,
+              'beds', fp.beds,
+              'baths', fp.baths,
+              'carpark', fp.carpark,
+              'living', fp.living,
+              'range_id', fp.range_id,
+              'location_id', fp.location_id,
+              'garage_area', fp.garage_area,
+              'porch_area', fp.porch_area,
+              'alfresco_area', fp.alfresco_area,
+              'total_area', fp.total_area,
+              'detailed_image', fp.detailed_image,
+              'simple_image', fp.simple_image,
+              'description', fp.description
+            )
+            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
+          ) as floor_plan,
+          (
+            SELECT json_build_object(
+              'name', f.name,
+              'facade_id', f.facade_id,
+              'location_id', f.location_id,
+              'dwelling_type_id', f.dwelling_type_id,
+              'range_id', f.range_id,
+              'cost_type', f.cost_type,
+              'cost', f.cost,
+              'builder_cost', f.builder_cost,
+              'image', f.image
+            )
+            FROM facade f WHERE f.facade_id = qv.facade_id
+          ) as facade,
           COALESCE(
             (SELECT SUM(p.cost)
              FROM quotation_version_package_map qvpm
@@ -370,12 +408,50 @@ class QuotationRepository {
 
       // Fetch the updated version with lead lot_id and contacts
       const enrichQuery = `
-        SELECT qv.*,
+        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
+          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
+          qv.sketch_number, qv.created_at, qv.updated_at,
           l.name as location_name,
           r.name as range_name,
           dt.name as dwelling_type_name,
-          fp.name as floor_plan_name,
-          f.name as facade_name,
+          (
+            SELECT json_build_object(
+              'name', fp.name,
+              'floor_plan_id', fp.floor_plan_id,
+              'min_land_width', fp.min_land_width,
+              'min_land_depth', fp.min_land_depth,
+              'dwelling_area', fp.dwelling_area,
+              'dwelling_type_id', fp.dwelling_type_id,
+              'beds', fp.beds,
+              'baths', fp.baths,
+              'carpark', fp.carpark,
+              'living', fp.living,
+              'range_id', fp.range_id,
+              'location_id', fp.location_id,
+              'garage_area', fp.garage_area,
+              'porch_area', fp.porch_area,
+              'alfresco_area', fp.alfresco_area,
+              'total_area', fp.total_area,
+              'detailed_image', fp.detailed_image,
+              'simple_image', fp.simple_image,
+              'description', fp.description
+            )
+            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
+          ) as floor_plan,
+          (
+            SELECT json_build_object(
+              'name', f.name,
+              'facade_id', f.facade_id,
+              'location_id', f.location_id,
+              'dwelling_type_id', f.dwelling_type_id,
+              'range_id', f.range_id,
+              'cost_type', f.cost_type,
+              'cost', f.cost,
+              'builder_cost', f.builder_cost,
+              'image', f.image
+            )
+            FROM facade f WHERE f.facade_id = qv.facade_id
+          ) as facade,
           leads.leads_id as lead_id,
           leads.lot_id as lead_lot_id,
           (
@@ -411,12 +487,50 @@ class QuotationRepository {
     const client = await this.pool.connect();
     try {
       const enrichQuery = `
-        SELECT qv.*,
+        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
+          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
+          qv.sketch_number, qv.created_at, qv.updated_at,
           l.name as location_name,
           r.name as range_name,
           dt.name as dwelling_type_name,
-          fp.name as floor_plan_name,
-          f.name as facade_name,
+          (
+            SELECT json_build_object(
+              'name', fp.name,
+              'floor_plan_id', fp.floor_plan_id,
+              'min_land_width', fp.min_land_width,
+              'min_land_depth', fp.min_land_depth,
+              'dwelling_area', fp.dwelling_area,
+              'dwelling_type_id', fp.dwelling_type_id,
+              'beds', fp.beds,
+              'baths', fp.baths,
+              'carpark', fp.carpark,
+              'living', fp.living,
+              'range_id', fp.range_id,
+              'location_id', fp.location_id,
+              'garage_area', fp.garage_area,
+              'porch_area', fp.porch_area,
+              'alfresco_area', fp.alfresco_area,
+              'total_area', fp.total_area,
+              'detailed_image', fp.detailed_image,
+              'simple_image', fp.simple_image,
+              'description', fp.description
+            )
+            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
+          ) as floor_plan,
+          (
+            SELECT json_build_object(
+              'name', f.name,
+              'facade_id', f.facade_id,
+              'location_id', f.location_id,
+              'dwelling_type_id', f.dwelling_type_id,
+              'range_id', f.range_id,
+              'cost_type', f.cost_type,
+              'cost', f.cost,
+              'builder_cost', f.builder_cost,
+              'image', f.image
+            )
+            FROM facade f WHERE f.facade_id = qv.facade_id
+          ) as facade,
           COALESCE(
             (SELECT SUM(p.cost)
              FROM quotation_version_package_map qvpm

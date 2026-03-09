@@ -22,7 +22,7 @@ const swaggerSpec = generateSwaggerSpec(app);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use("*path", (req, res) => {
+app.use("*", (req, res) => {
   return errorResponse(
     res,
     404,
