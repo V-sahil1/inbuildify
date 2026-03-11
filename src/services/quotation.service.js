@@ -307,6 +307,43 @@ class QuotationService {
         );
       }
 
+      // Handle package_id array specifically if provided
+      if (updateData.package_id && Array.isArray(updateData.package_id)) {
+        if (updateData.package_id.length > 0) {
+          // Validate that all packages provided exist and are active
+          const packageCheckQuery = `
+            SELECT package_id FROM package 
+            WHERE package_id = ANY($1::uuid[]) 
+            AND status = true 
+            AND (
+              (company_id = $2 AND $2 IS NOT NULL)
+              OR (builder_id = $3 AND $3 IS NOT NULL)
+            )
+          `;
+          const packageCheckResult = await client.query(packageCheckQuery, [updateData.package_id, companyId, builderId]);
+
+          // Compare expected vs found packages by length (or id inclusion if wanted)
+          if (packageCheckResult.rowCount !== updateData.package_id.length) {
+            return {
+              success: false,
+              message: "One or more provided package IDs are invalid, inactive, or do not belong to your organization",
+            };
+          }
+        }
+
+        // Build the unique set of package IDs safely.
+        // We will combine any existing packages with the new ones.
+        // If the user wants to remove, they use the new specific remove endpoint
+        
+        let mergedPackageIds = new Set(existingVersion.package_id || []);
+        
+        for (const pid of updateData.package_id) {
+          mergedPackageIds.add(pid);
+        }
+
+        updateData.package_id = Array.from(mergedPackageIds);
+      }
+
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       if (!updated) {
@@ -636,6 +673,66 @@ class QuotationService {
     } catch (error) {
       console.error("DEBUG: Error in compareQuotationVersions service:", error);
       return { success: false, message: error.message };
+    }
+  }
+  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
+    try {
+      const client = getPool();
+
+      // Verify the version belongs to a lead the user can access
+      const checkQuery = `
+        SELECT qv.*, q.leads_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const existingVersion = checkResult.rows[0];
+
+      if (!existingVersion.package_id || !existingVersion.package_id.includes(packageId)) {
+        return {
+          success: false,
+          message: "Package ID does not exist in this quotation version",
+        };
+      }
+
+      if (existingVersion.is_approve === true) {
+        return {
+          success: false,
+          message: "This quotation version is already approved and cannot be modified",
+        };
+      }
+
+      const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
+      if (existingVersion.quotation_version_no !== currentMaxVersion) {
+        return {
+          success: false,
+          message: "Only the latest quotation version can be modified",
+        };
+      }
+
+      const updated = await quotationRepository.removePackageFromVersion(versionId, packageId, builderId, companyId);
+
+      return {
+        success: true,
+        data: updated,
+        message: "Package removed from quotation version successfully",
+      };
+    } catch (error) {
+      console.error("DEBUG: Error in removePackageFromVersion service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 }

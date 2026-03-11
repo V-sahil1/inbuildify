@@ -2979,7 +2979,6 @@ CREATE TABLE lot(
   lot_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,       -- need to decide that leads id of the lot can select in the house land and package
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
-  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,  
   estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,                  -- in lot table add lead id for the create property/lot in the lead and quotation
   estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
   lot_number VARCHAR(255) NOT NULL,
@@ -3327,18 +3326,19 @@ CREATE TABLE quotation_version(
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
+  package_id UUID[] DEFAULT '{}'
   is_approve BOOLEAN DEFAULT FALSE,
   sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE quotation_version_package_map(
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
-  package_id UUID REFERENCES package(package_id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- CREATE TABLE quotation_version_package_map(
+--   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE,
+--   package_id UUID REFERENCES package(package_id) ON DELETE CASCADE,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
 
 -- when the location and dwelling type select then user can select priclist item in quotation version
 CREATE TABLE quotation_version_pricelist_item_map(

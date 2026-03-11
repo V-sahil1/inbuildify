@@ -49,7 +49,7 @@ exports.createPricelistItemMap = async (req, res) => {
 
     // Validate price list item exists, is active, and belongs to user's org
     const itemCheck = await client.query(
-      `SELECT price_list_item_id, cost, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
+      `SELECT price_list_item_id, item_description, short_description, cost, cost_type, uom FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
@@ -88,9 +88,24 @@ exports.createPricelistItemMap = async (req, res) => {
       [quotation_version_id, price_list_item_id, qty, note || null, totalPrice]
     );
 
+    // Format response immediately using explicitly ordered object
+    const createdRow = result.rows[0];
+    const itemCheckRow = itemCheck.rows[0];
+    
     const responseData = {
-      ...keysToCamelCase(result.rows[0]),
-      itemCost,
+      id: createdRow.id,
+      quotationVersionId: createdRow.quotation_version_id,
+      priceListItemId: createdRow.price_list_item_id,
+      itemDescription: itemCheckRow.item_description,
+      shortDescription: itemCheckRow.short_description,
+      itemCost: itemCost,
+      costType: itemCheckRow.cost_type,
+      uom: itemCheckRow.uom,
+      quantity: createdRow.quantity,
+      totalPrice: createdRow.total_price,
+      note: createdRow.note,
+      createdAt: createdRow.created_at,
+      updatedAt: createdRow.updated_at
     };
 
     return successResponse(res, responseData, 201, "Pricelist item mapped successfully");
@@ -122,7 +137,20 @@ exports.getPricelistItemsByVersionId = async (req, res) => {
     }
 
     const result = await client.query(
-      `SELECT m.*, pli.item_description, pli.short_description, pli.cost as item_cost, pli.cost_type, pli.uom
+      `SELECT 
+         m.id, 
+         m.quotation_version_id, 
+         m.price_list_item_id, 
+         pli.item_description, 
+         pli.short_description, 
+         pli.cost as item_cost, 
+         pli.cost_type, 
+         pli.uom,
+         m.quantity, 
+         m.total_price, 
+         m.note, 
+         m.created_at, 
+         m.updated_at
        FROM quotation_version_pricelist_item_map m
        LEFT JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        WHERE m.quotation_version_id = $1
@@ -160,7 +188,7 @@ exports.updatePricelistItemMap = async (req, res) => {
 
     // Check ownership and get existing data
     const checkResult = await client.query(
-      `SELECT m.*, pli.cost as item_cost, pli.cost_type, qv.location_id, qv.dwelling_type_id, qv.is_approve
+      `SELECT m.*, pli.item_description, pli.short_description, pli.cost as item_cost, pli.cost_type, pli.uom, qv.location_id, qv.dwelling_type_id, qv.is_approve
        FROM quotation_version_pricelist_item_map m
        JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        JOIN quotation_version qv ON m.quotation_version_id = qv.quotation_version_id
@@ -229,9 +257,24 @@ exports.updatePricelistItemMap = async (req, res) => {
       values
     );
 
+    // Format response immediately using explicitly ordered object
+    const updatedRow = result.rows[0];
+    const existingRow = existing; // from the join earlier
+    
     const responseData = {
-      ...keysToCamelCase(result.rows[0]),
-      itemCost,
+      id: updatedRow.id,
+      quotationVersionId: updatedRow.quotation_version_id,
+      priceListItemId: updatedRow.price_list_item_id,
+      itemDescription: existingRow.item_description,
+      shortDescription: existingRow.short_description,
+      itemCost: itemCost,
+      costType: existingRow.cost_type,
+      uom: existingRow.uom,
+      quantity: updatedRow.quantity,
+      totalPrice: updatedRow.total_price,
+      note: updatedRow.note,
+      createdAt: updatedRow.created_at,
+      updatedAt: updatedRow.updated_at
     };
 
     return successResponse(res, responseData, "Pricelist item map updated successfully");

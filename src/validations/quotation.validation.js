@@ -50,6 +50,21 @@ const updateQuotationVersionBodySchema = Joi.object({
   sketch_number: Joi.number().precision(2).optional().allow(null).messages({
     "number.base": "Sketch number must be a number",
   }),
+  package_id: Joi.array().items(Joi.string().uuid()).optional().messages({
+    "array.base": "Package ID must be an array of UUIDs",
+    "string.guid": "Each Package ID must be a valid UUID",
+  }),
+});
+
+const removePackageFromVersionSchema = Joi.object({
+  quotation_version_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation Version ID must be a valid UUID",
+    "any.required": "Quotation Version ID is required",
+  }),
+  package_id: Joi.string().uuid().required().messages({
+    "string.guid": "Package ID must be a valid UUID",
+    "any.required": "Package ID is required",
+  }),
 });
 
 const compareQuotationVersionsParamsSchema = Joi.object({
@@ -81,4 +96,5 @@ module.exports = {
   duplicateQuotationVersionSchema,
   compareQuotationVersionsParamsSchema,
   compareQuotationVersionsQuerySchema,
+  removePackageFromVersionSchema,
 };

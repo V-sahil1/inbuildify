@@ -190,6 +190,8 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
         LOWER(u.name) LIKE LOWER($2)
         OR LOWER(u.email) LIKE LOWER($2)
         OR LOWER(u.login_id) LIKE LOWER($2)
+        OR LOWER(u.phone) LIKE LOWER($2)
+        
       )
   `;
 
