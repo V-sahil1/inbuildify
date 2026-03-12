@@ -269,7 +269,7 @@ class LeadsRepository {
             WHERE lcm.leads_id = l.leads_id
           ) as lead_contacts,
 
-          -- Lot details
+          -- Lot details (via property_detail)
           (
             SELECT json_build_object(
               'lot_id', lot.lot_id,
@@ -285,12 +285,18 @@ class LeadsRepository {
               'depth_m', lot.depth_m,
               'price', lot.price,
               'total_size_m2', lot.total_size_m2,
+              'site_fall_mm', lot.site_fall_mm,
+              'land_fill_mm', lot.land_fill_mm,
+              'state_id', lot.state_id,
+              'state_name', (SELECT s.name FROM state s WHERE s.state_id = lot.state_id LIMIT 1),
               'estate_id', lot.estate_id,
               'estate_name', (SELECT e.name FROM estate e WHERE e.estate_id = lot.estate_id LIMIT 1),
               'estate_stage_id', lot.estate_stage_id,
               'estate_stage_name', (SELECT es.name FROM estate_stages es WHERE es.estate_stage_id = lot.estate_stage_id LIMIT 1)
             )
-            FROM lot WHERE lot.lot_id = l.lot_id LIMIT 1
+            FROM lot
+            JOIN property_detail pd ON pd.lot_id = lot.lot_id
+            WHERE pd.property_detail_id = l.property_detail_id LIMIT 1
           ) as lot_details,
 
           -- House land package details

@@ -15,6 +15,13 @@ class QuotationService {
         };
       }
 
+      if (!existingLead.propertyDetailId) {
+        return {
+          success: false,
+          message: "Cannot create quotation: Lead must have an associated property.",
+        };
+      }
+
       const reference_number = await generateDynamicReferenceNumber({
         prefix: "QT",
         tableName: "quotation",
@@ -514,7 +521,7 @@ class QuotationService {
 
       // 1. Ownership check — verify quotation belongs to builder/company via lead
       const checkQuery = `
-        SELECT q.quotation_id, q.reference_number, l.leads_id, l.lot_id
+        SELECT q.quotation_id, q.reference_number, l.leads_id, l.property_detail_id
         FROM quotation q
         JOIN leads l ON q.leads_id = l.leads_id
         WHERE q.quotation_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
@@ -526,7 +533,7 @@ class QuotationService {
       }
 
       const quotationRow = checkResult.rows[0];
-      const lotId = quotationRow.lot_id;
+      const propertyDetailId = quotationRow.property_detail_id;
 
       // 2. Validate both versions belong to this quotation
       const versionsCheck = await client.query(
@@ -546,25 +553,26 @@ class QuotationService {
         return { success: false, message: "Both versions must belong to the same quotation" };
       }
 
-      // 3. Fetch property address from lot
+      // 3. Fetch property address from property_detail
       let propertyAddress = null;
-      if (lotId) {
-        const lotResult = await client.query(
-          `SELECT lot.lot_number, lot.street, lot.city, lot.zip_code,
+      if (propertyDetailId) {
+        const pdResult = await client.query(
+          `SELECT pd.lot_number, pd.street, pd.address_line1, pd.city, pd.zip_code,
                   s.name as state_name
-           FROM lot
-           LEFT JOIN state s ON lot.state_id = s.state_id
-           WHERE lot.lot_id = $1`,
-          [lotId]
+           FROM property_detail pd
+           LEFT JOIN state s ON pd.state_id = s.state_id
+           WHERE pd.property_detail_id = $1`,
+          [propertyDetailId]
         );
-        if (lotResult.rowCount > 0) {
-          const lot = lotResult.rows[0];
+        if (pdResult.rowCount > 0) {
+          const pd = pdResult.rows[0];
           propertyAddress = {
-            lotNumber: lot.lot_number,
-            street: lot.street,
-            city: lot.city,
-            state: lot.state_name,
-            zipCode: lot.zip_code,
+            lotNumber: pd.lot_number,
+            street: pd.street,
+            addressLine1: pd.address_line1,
+            city: pd.city,
+            state: pd.state_name,
+            zipCode: pd.zip_code,
           };
         }
       }

@@ -1,25 +1,51 @@
 const getPool = require("../config/database");
 const { successResponse, errorResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
-const addressRepo = require("../repositories/address.repository");
 
 exports.createProperty = async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
+    await client.query("BEGIN");
+
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
     if (!builderId && !companyId) {
+      await client.query("ROLLBACK");
       return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
+    const { leads_id } = req.params;
+
+    const leadCheck = await client.query(
+      `SELECT leads_id, property_detail_id FROM leads WHERE leads_id = $1 AND (
+        (company_id = $2 AND $2 IS NOT NULL)
+        OR (builder_id = $3 AND $3 IS NOT NULL)
+      )`,
+      [leads_id, companyId, builderId]
+    );
+
+    if (leadCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Invalid lead id.");
+    }
+
+    if (leadCheck.rows[0].property_detail_id) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Property already exists for this lead. Only one property is allowed per lead.");
+    }
+
     const {
-      leads_id,
-      address,
-      lot_no,
-      street_no,
+      lot_number,
+      street,
+      address_line1,
+      address_line2,
+      city,
+      state_id,
+      country_id,
+      zip_code,
       estate_name,
       title_status,
       title_date,
@@ -34,85 +60,67 @@ exports.createProperty = async (req, res) => {
       corner_block,
     } = req.body;
 
-    const leadCheck = await client.query(
-      `SELECT 1 FROM leads WHERE leads_id = $1 AND (
-        (company_id = $2 AND $2 IS NOT NULL)
-        OR (builder_id = $3 AND $3 IS NOT NULL)
-      )`,
-      [leads_id, companyId, builderId]
+    const result = await client.query(
+      `INSERT INTO property_detail (
+        lot_number, street, address_line1, address_line2, city,
+        state_id, country_id, zip_code, estate_name, title_status,
+        title_date, compaction_report, land_type, width_m, depth_m,
+        total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
+        is_hl_package_lot,
+        created_at, updated_at
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        false,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )
+      RETURNING *`,
+      [
+        lot_number || null,
+        street || null,
+        address_line1 || null,
+        address_line2 || null,
+        city || null,
+        state_id || null,
+        country_id || null,
+        zip_code || null,
+        estate_name || null,
+        title_status || null,
+        title_date || null,
+        compaction_report || null,
+        land_type || "REGULAR",
+        width_m ?? null,
+        depth_m ?? null,
+        total_size_m2 ?? null,
+        site_fall_mm ?? null,
+        land_fill_mm ?? null,
+        bush_fire ?? false,
+        corner_block ?? false,
+      ]
     );
 
-    if (leadCheck.rowCount === 0) {
-      return errorResponse(res, 400, "Invalid lead id.");
-    }
+    const propertyDetailId = result.rows[0].property_detail_id;
 
-    const existing = await client.query(
-      `SELECT property_id, address_id FROM property WHERE leads_id = $1`,
-      [leads_id]
+    // Link property_detail to the lead
+    await client.query(
+      `UPDATE leads SET property_detail_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2`,
+      [propertyDetailId, leads_id]
     );
-    
-    let addressId = null;
-    if (address) {
-      const existingAddressId = existing.rowCount > 0 ? existing.rows[0].address_id : null;
-      addressId = await addressRepo.createOrUpdateAddress(existingAddressId, address, client);
-    }
 
-    let result;
-    if (existing.rowCount > 0) {
-      return errorResponse(res, 400, "Property already exists for this lead. Only one property is allowed per lead.");
-    } else {
-      result = await client.query(
-        `INSERT INTO property (
-          leads_id, address_id, lot_no, street_no, estate_name, title_status,
-          title_date, compaction_report, land_type, width_m, depth_m,
-          total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
-          created_at, updated_at
-        ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-          CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
-        )
-        RETURNING *`,
-        [
-          leads_id,
-          addressId,
-          lot_no,
-          street_no,
-          estate_name,
-          title_status,
-          title_date,
-          compaction_report,
-          land_type || "REGULAR",
-          width_m,
-          depth_m,
-          total_size_m2,
-          site_fall_mm,
-          land_fill_mm,
-          bush_fire,
-          corner_block
-        ]
-      );
-    }    
+    await client.query("COMMIT");
 
-    // Fetch the updated property object with its nested address schema
-    const selectQuery = await client.query(`
-      SELECT 
-        p.*,
-        (
-          SELECT jsonb_build_object(
-            'addressId', a.address_id,
-            'addressLine1', a.address_line1,
-            'addressLine2', a.address_line2,
-            'city', a.city,
-            'stateId', a.state_id,
-            'countryId', a.country_id,
-            'zipCode', a.zip_code
-          ) FROM address a WHERE a.address_id = p.address_id
-        ) AS address
-      FROM property p WHERE p.property_id = $1
-    `, [result.rows[0].property_id]);
+    // Re-fetch with state/country/estate names
+    const enriched = await client.query(
+      `SELECT pd.*, s.name AS state_name, c.name AS country_name,
+              es.name AS estate_stage_name
+       FROM property_detail pd
+       LEFT JOIN state s ON s.state_id = pd.state_id
+       LEFT JOIN country c ON c.country_id = pd.country_id
+       LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
+       WHERE pd.property_detail_id = $1`,
+      [propertyDetailId]
+    );
 
-    const formatted = keysToCamelCase(selectQuery.rows[0]);
-    delete formatted.addressId;
+    const formatted = keysToCamelCase(enriched.rows[0]);
 
     return successResponse(
       res,
@@ -120,6 +128,7 @@ exports.createProperty = async (req, res) => {
       "Property created successfully"
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error creating property:", error);
     return errorResponse(res, error?.status || 500, error?.message || "Internal Server Error");
   } finally {
@@ -142,22 +151,14 @@ exports.getPropertyByLeadId = async (req, res) => {
     const { leads_id } = req.params;
 
     const query = `
-      SELECT 
-        p.*,
-        (
-          SELECT jsonb_build_object(
-            'addressId', a.address_id,
-            'addressLine1', a.address_line1,
-            'addressLine2', a.address_line2,
-            'city', a.city,
-            'stateId', a.state_id,
-            'countryId', a.country_id,
-            'zipCode', a.zip_code
-          ) FROM address a WHERE a.address_id = p.address_id
-        ) AS address
-      FROM property p
-      JOIN leads l ON l.leads_id = p.leads_id
-      WHERE p.leads_id = $1 AND (
+      SELECT pd.*, s.name AS state_name, c.name AS country_name,
+             es.name AS estate_stage_name
+      FROM property_detail pd
+      JOIN leads l ON l.property_detail_id = pd.property_detail_id
+      LEFT JOIN state s ON s.state_id = pd.state_id
+      LEFT JOIN country c ON c.country_id = pd.country_id
+      LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
+      WHERE l.leads_id = $1 AND (
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
       )
@@ -165,11 +166,10 @@ exports.getPropertyByLeadId = async (req, res) => {
     const result = await client.query(query, [leads_id, companyId, builderId]);
 
     if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Property not found for this lead");
+      return successResponse(res, null, "Property not found for this lead");
     }
 
     const formatted = keysToCamelCase(result.rows[0]);
-    delete formatted.addressId;
 
     return successResponse(
       res,
@@ -196,44 +196,54 @@ exports.updateProperty = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
-    const { property_id } = req.params;
-    
+    const { property_detail_id } = req.params;
+
     const existing = await client.query(
-      `SELECT p.property_id, p.address_id 
-       FROM property p 
-       JOIN leads l ON l.leads_id = p.leads_id 
-       WHERE p.property_id = $1 AND (
+      `SELECT pd.property_detail_id
+       FROM property_detail pd
+       JOIN leads l ON l.property_detail_id = pd.property_detail_id
+       WHERE pd.property_detail_id = $1 AND (
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
-      )`,
-      [property_id, companyId, builderId]
+       )`,
+      [property_detail_id, companyId, builderId]
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(res, 404, "Property not found or does not belong to your organization.");
     }
 
-    const {
-      address,
-      lot_no,
-      street_no,
-      estate_name,
-      title_status,
-      title_date,
-      compaction_report,
-      land_type,
-      width_m,
-      depth_m,
-      total_size_m2,
-      site_fall_mm,
-      land_fill_mm,
-      bush_fire,
-      corner_block,
-    } = req.body;
+    const estateId = req.body.estate_id;
+    if (estateId) {
+      const estateCheck = await client.query(
+        `SELECT estate_id FROM estate WHERE estate_id = $1 AND (builder_id = $2 OR company_id = $3) AND status = true`,
+        [estateId, builderId, companyId]
+      );
+      if (estateCheck.rowCount === 0) {
+        return errorResponse(res, 400, "Invalid estate id.");
+      }
+    }
 
-    let addressId = existing.rows[0].address_id;
-    if (address) {
-      addressId = await addressRepo.createOrUpdateAddress(addressId, address, client);
+    const estateStageId = req.body.estate_stage_id;
+    if (estateStageId) {
+      const resolvedEstateId = estateId || (
+        await client.query(
+          `SELECT estate_id FROM property_detail WHERE property_detail_id = $1`,
+          [property_detail_id]
+        )
+      ).rows[0]?.estate_id;
+
+      if (!resolvedEstateId) {
+        return errorResponse(res, 400, "Estate must be selected before setting estate stage.");
+      }
+
+      const stageCheck = await client.query(
+        `SELECT estate_stage_id FROM estate_stages WHERE estate_stage_id = $1 AND estate_id = $2`,
+        [estateStageId, resolvedEstateId]
+      );
+      if (stageCheck.rowCount === 0) {
+        return errorResponse(res, 400, "Invalid estate stage id or it does not belong to the selected estate.");
+      }
     }
 
     const updateFields = [];
@@ -241,8 +251,16 @@ exports.updateProperty = async (req, res) => {
     let paramIndex = 1;
 
     const allowedFields = [
-      "lot_no",
-      "street_no",
+      "lot_number",
+      "street",
+      "address_line1",
+      "address_line2",
+      "city",
+      "state_id",
+      "country_id",
+      "zip_code",
+      "estate_id",
+      "estate_stage_id",
       "estate_name",
       "title_status",
       "title_date",
@@ -255,19 +273,21 @@ exports.updateProperty = async (req, res) => {
       "land_fill_mm",
       "bush_fire",
       "corner_block",
+      "price",
     ];
+
+    // Map body keys to DB column names where they differ
+    const fieldMap = {
+      address_line1: "address_line1",
+      address_line2: "address_line2",
+    };
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        updateFields.push(`${field} = $${paramIndex++}`);
+        const dbColumn = fieldMap[field] || field;
+        updateFields.push(`${dbColumn} = $${paramIndex++}`);
         updateValues.push(req.body[field] === null ? null : req.body[field]);
       }
-    }
-
-    // Always update address_id if processing via repo
-    if (addressId) {
-      updateFields.push(`address_id = $${paramIndex++}`);
-      updateValues.push(addressId);
     }
 
     if (updateFields.length === 0) {
@@ -275,36 +295,30 @@ exports.updateProperty = async (req, res) => {
     }
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
-    updateValues.push(property_id);
+    updateValues.push(property_detail_id);
 
     const updateSql = `
-      UPDATE property 
+      UPDATE property_detail
       SET ${updateFields.join(", ")}
-      WHERE property_id = $${paramIndex}
+      WHERE property_detail_id = $${paramIndex}
       RETURNING *
     `;
 
     const result = await client.query(updateSql, updateValues);
 
-    const selectQuery = await client.query(`
-      SELECT 
-        p.*,
-        (
-          SELECT jsonb_build_object(
-            'addressId', a.address_id,
-            'addressLine1', a.address_line1,
-            'addressLine2', a.address_line2,
-            'city', a.city,
-            'stateId', a.state_id,
-            'countryId', a.country_id,
-            'zipCode', a.zip_code
-          ) FROM address a WHERE a.address_id = p.address_id
-        ) AS address
-      FROM property p WHERE p.property_id = $1
-    `, [result.rows[0].property_id]);
+    // Re-fetch with state/country/estate names
+    const enriched = await client.query(
+      `SELECT pd.*, s.name AS state_name, c.name AS country_name,
+              es.name AS estate_stage_name
+       FROM property_detail pd
+       LEFT JOIN state s ON s.state_id = pd.state_id
+       LEFT JOIN country c ON c.country_id = pd.country_id
+       LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
+       WHERE pd.property_detail_id = $1`,
+      [property_detail_id]
+    );
 
-    const formatted = keysToCamelCase(selectQuery.rows[0]);
-    delete formatted.addressId;
+    const formatted = keysToCamelCase(enriched.rows[0]);
 
     return successResponse(
       res,
@@ -345,11 +359,11 @@ exports.getAllProperties = async (req, res) => {
 
     if (search) {
       whereConditions.push(`(
-        p.estate_name ILIKE $${paramIndex++} OR
-        p.title_status ILIKE $${paramIndex++} OR
-        a.address_line1 ILIKE $${paramIndex++} OR
-        a.city ILIKE $${paramIndex++} OR
-        a.zip_code ILIKE $${paramIndex++}
+        pd.estate_name ILIKE $${paramIndex++} OR
+        pd.title_status ILIKE $${paramIndex++} OR
+        pd.address_line1 ILIKE $${paramIndex++} OR
+        pd.city ILIKE $${paramIndex++} OR
+        pd.zip_code ILIKE $${paramIndex++}
       )`);
       const searchTerm = `%${search}%`;
       queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
@@ -361,33 +375,16 @@ exports.getAllProperties = async (req, res) => {
         : "";
 
     const query = `
-      SELECT 
-        p.*,
-        (
-          SELECT jsonb_build_object(
-            'addressId', a.address_id,
-            'addressLine1', a.address_line1,
-            'addressLine2', a.address_line2,
-            'city', a.city,
-            'stateId', a.state_id,
-            'countryId', a.country_id,
-            'zipCode', a.zip_code
-          )
-        ) AS address
-      FROM property p
-      JOIN leads l ON l.leads_id = p.leads_id
-      LEFT JOIN address a ON a.address_id = p.address_id
+      SELECT pd.*
+      FROM property_detail pd
+      JOIN leads l ON l.property_detail_id = pd.property_detail_id
       ${whereClause}
-      ORDER BY p.created_at DESC
+      ORDER BY pd.created_at DESC
     `;
-    
+
     const result = await client.query(query, queryParams);
 
-    const formattedData = result.rows.map(row => {
-      const formatted = keysToCamelCase(row);
-      delete formatted.addressId;
-      return formatted;
-    });
+    const formattedData = result.rows.map(row => keysToCamelCase(row));
 
     return successResponse(
       res,
@@ -408,7 +405,7 @@ exports.deleteProperty = async (req, res) => {
 
   try {
     await client.query("BEGIN");
-    
+
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -417,17 +414,17 @@ exports.deleteProperty = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
     }
 
-    const { property_id } = req.params;
+    const { property_detail_id } = req.params;
 
     const existing = await client.query(
-      `SELECT p.property_id, p.address_id 
-       FROM property p 
-       JOIN leads l ON l.leads_id = p.leads_id 
-       WHERE p.property_id = $1 AND (
+      `SELECT pd.property_detail_id
+       FROM property_detail pd
+       JOIN leads l ON l.property_detail_id = pd.property_detail_id
+       WHERE pd.property_detail_id = $1 AND (
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
-      )`,
-      [property_id, companyId, builderId]
+       )`,
+      [property_detail_id, companyId, builderId]
     );
 
     if (existing.rowCount === 0) {
@@ -435,13 +432,13 @@ exports.deleteProperty = async (req, res) => {
       return errorResponse(res, 404, "Property not found or does not belong to your organization.");
     }
 
-    const addressId = existing.rows[0].address_id;
+    // Unlink from leads first
+    await client.query(
+      `UPDATE leads SET property_detail_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_detail_id = $1`,
+      [property_detail_id]
+    );
 
-    await client.query(`DELETE FROM property WHERE property_id = $1`, [property_id]);
-    
-    if (addressId) {
-      await client.query(`DELETE FROM address WHERE address_id = $1`, [addressId]);
-    }
+    await client.query(`DELETE FROM property_detail WHERE property_detail_id = $1`, [property_detail_id]);
 
     await client.query("COMMIT");
 

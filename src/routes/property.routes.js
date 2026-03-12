@@ -9,6 +9,7 @@ const {
 } = require("../controllers/property.controller");
 const { validateRequest } = require("../middleware/validateRequestMiddleware");
 const {
+  createPropertyParamSchema,
   createPropertySchema,
   getPropertyByLeadSchema,
   updatePropertySchema,
@@ -25,17 +26,22 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post("/", validateRequest(createPropertySchema), createProperty);
+router.post(
+  "/:leads_id",
+  validateRequest(createPropertyParamSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(createPropertySchema),
+  createProperty
+);
 router.get("/", validateRequest(getAllPropertiesSchema, REQUEST_SOURCE.QUERY), getAllProperties);
-router.get("/:lead_id", validateRequest(getPropertyByLeadSchema, REQUEST_SOURCE.PARAMS), getPropertyByLeadId);
+router.get("/:leads_id", validateRequest(getPropertyByLeadSchema, REQUEST_SOURCE.PARAMS), getPropertyByLeadId);
 router.put(
-  "/:property_id",
+  "/:property_detail_id",
   validateRequest(updatePropertyParamSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePropertySchema),
   updateProperty
 );
 router.delete(
-  "/:property_id",
+  "/:property_detail_id",
   validateRequest(deletePropertySchema, REQUEST_SOURCE.PARAMS),
   deleteProperty
 );

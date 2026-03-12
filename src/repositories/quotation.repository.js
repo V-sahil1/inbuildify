@@ -343,7 +343,7 @@ class QuotationRepository {
             )
           ) as grand_total_cost,
           leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
+          leads.property_detail_id as lead_property_detail_id,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
@@ -466,7 +466,7 @@ class QuotationRepository {
             WHERE p.package_id = ANY(qv.package_id)
           ) as packages,
           leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
+          leads.property_detail_id as lead_property_detail_id,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
@@ -577,7 +577,7 @@ class QuotationRepository {
             )
           ) as grand_total_cost,
           leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
+          leads.property_detail_id as lead_property_detail_id,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
@@ -647,7 +647,7 @@ class QuotationRepository {
 
       // 2. Packages
       const packagesQuery = `
-        SELECT unnest(qv.package_id) as package_id, p.name as package_name, p.cost as package_cost
+        SELECT p.package_id, p.name as package_name, p.cost as package_cost
         FROM quotation_version qv
         JOIN package p ON p.package_id = ANY(qv.package_id)
         WHERE qv.quotation_version_id = $1

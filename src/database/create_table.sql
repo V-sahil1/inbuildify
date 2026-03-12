@@ -704,11 +704,9 @@ CREATE TABLE timezones (
 --   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 -- );
 
-BUILDER TABLE
-
 CREATE TABLE builder (
   builder_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  company_id UUID NOT NULL REFERENCES company(company_id) ON DELETE CASCADE,
+  company_id UUID  REFERENCES company(company_id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
   email VARCHAR(150),
   phone_number VARCHAR(50),
@@ -716,7 +714,7 @@ CREATE TABLE builder (
   acn_number VARCHAR(20),
   hia_membership_no VARCHAR(100),
   registration_number VARCHAR(100),
-  registered_building_practitioner BOOLEAN DEFAULT FALSE,
+  registered_building_practitioner VARCHAR(255),
   practitioner_reg_no VARCHAR(100),
   licensed_builder_name VARCHAR(150),
   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
@@ -728,8 +726,6 @@ CREATE TABLE builder (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-BUILDER INSURER TABLE
 
 CREATE TABLE builder_insurer (
   builder_insurer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -3129,7 +3125,7 @@ CREATE TABLE leads (
   send_letter BOOLEAN DEFAULT FALSE,
 
   house_land_package_id UUID REFERENCES house_land_package(house_land_package_id) ON DELETE SET NULL,
-  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,    -----   in this add logic like if the user select hl and package then that package's lot id automatically store in the lead's table lot id column 
+  property_detail_id UUID REFERENCES property_detail(property_detail_id) ON DELETE SET NULL,   
 
   lead_source_id UUID REFERENCES lead_source(lead_source_id) ON DELETE SET NULL,
 
@@ -3375,6 +3371,37 @@ CREATE TABLE invoice(
   transaction_no VARCHAR(20),
   description VARCHAR(500),
   status VARCHAR(100),                         -- valid paid, draft, unsent, sent, ready
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE property_detail(
+  property_detail_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lot_id UUID REFERENCES lot(lot_id) ON DELETE SET NULL,
+  lot_number VARCHAR(255),
+  street VARCHAR(255),
+  address_line_1 VARCHAR(255),
+  address_line_2 VARCHAR(255),
+  city VARCHAR(255),
+  state_id UUID REFERENCES state(state_id) ON DELETE SET NULL,
+  country_id UUID REFERENCES country(country_id) ON DELETE SET NULL,
+  zip_code VARCHAR(10),
+  estate_id UUID REFERENCES estate(estate_id) ON DELETE CASCADE,                  
+  estate_stage_id UUID REFERENCES estate_stages(estate_stage_id) ON DELETE CASCADE,
+  estate_name VARCHAR(255),
+  title_status VARCHAR(255),         --  ('ESTIMATED', 'ACTUAL')
+  title_date DATE,
+  compaction_report VARCHAR(255),     -- ('AVAILABLE', 'NOT_AVAILABLE')
+  land_type VARCHAR(255),                          -- ('REGULAR', 'IRREGULAR')
+  width_m NUMERIC(10,2),
+  depth_m NUMERIC(10,2),           -- video new lead to won lead:  22:41
+  total_size_m2 NUMERIC(10,2),
+  site_fall_mm NUMERIC(10,2),
+  land_fill_mm NUMERIC(10,2),
+  price NUMERIC(10,2),
+  bush_fire BOOLEAN,
+  corner_block BOOLEAN,
+  is_hl_package_lot BOOLEAN,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
