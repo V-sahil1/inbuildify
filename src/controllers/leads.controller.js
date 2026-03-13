@@ -322,3 +322,28 @@ exports.assignLead = async (req, res) => {
     return errorResponse(res, 500, "Internal server error");
   }
 };
+
+exports.removeHLPackage = async (req, res) => {
+  try {
+    const { leads_id } = req.params;
+    const { remove_hl_package_lot_quotation } = req.body;
+    const { users_id, builder_id, company_id } = req.user;
+
+    const result = await leadsService.removeHLPackage(
+      leads_id,
+      { remove_hl_package_lot_quotation },
+      builder_id,
+      company_id
+    );
+
+    if (result.success) {
+      return successResponse(res, null, result.message);
+    } else {
+      return errorResponse(res, 400, result.message);
+    }
+  } catch (error) {
+    console.error("Remove HL Package error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+};
+

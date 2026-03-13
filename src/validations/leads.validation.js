@@ -12,9 +12,10 @@ const createLeadSchema = Joi.object({
     "string.max": "Email must not exceed 255 characters",
     "any.required": "Email is required",
   }),
-  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
+  phone: Joi.string().min(10).max(14).required().allow(null, "").messages({
     "string.min": "Phone must be at least 10 characters long",
     "string.max": "Phone must not exceed 14 characters",
+    "any.required": "Phone is required",
   }),
   notes: Joi.string().max(1000).optional().allow(null, "").messages({
     "string.max": "Notes must not exceed 1000 characters",
@@ -184,6 +185,12 @@ const convertLeadToOpportunitySchema = Joi.object({
   }),
 });
 
+const removeHLPackageSchema = Joi.object({
+  remove_hl_package_lot_quotation: Joi.boolean().optional().default(true).messages({
+    "boolean.base": "remove_hl_package_lot_quotation must be a boolean",
+  }),
+});
+
 module.exports = {
   createLeadSchema,
   getLeadByIdSchema,
@@ -192,4 +199,5 @@ module.exports = {
   assignLeadSchema,
   getAllLeadsQuerySchema,
   convertLeadToOpportunitySchema,
+  removeHLPackageSchema,
 };

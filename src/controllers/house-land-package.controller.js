@@ -994,10 +994,10 @@ exports.updateHouseLandPackage = async (req, res) => {
         [req.body.lot_id, existingPackage.package_group_id],
       );
 
-      if (mappingCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "The existing package group does not contain any packages for the new lot.");
-      }
+      // if (mappingCheck.rowCount === 0) {
+      //   await client.query("ROLLBACK");
+      //   return errorResponse(res, 400, "The existing package group does not contain any packages for the new lot.");
+      // }
     }
 
     // Validate house_feature_id if provided

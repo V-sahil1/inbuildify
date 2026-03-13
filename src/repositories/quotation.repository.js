@@ -660,7 +660,7 @@ class QuotationRepository {
       const pricelistItemsQuery = `
         SELECT qvpim.id, qvpim.price_list_item_id, 
           pli.item_description, pli.price_list_id,
-          pl.name as price_list_name,
+          pl.name as price_list_name, pli.cost as item_cost,
           qvpim.quantity, qvpim.total_price, qvpim.note
         FROM quotation_version_pricelist_item_map qvpim
         JOIN price_list_item pli ON qvpim.price_list_item_id = pli.price_list_item_id

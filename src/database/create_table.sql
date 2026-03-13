@@ -3119,7 +3119,7 @@ CREATE TABLE leads (
   builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
 
   name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL,
+  email VARCHAR(255),
   phone VARCHAR(20),
   notes VARCHAR(1000),
   send_letter BOOLEAN DEFAULT FALSE,
@@ -3182,27 +3182,27 @@ CREATE TABLE leads_contact_map(
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE property(  
-  property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  -- leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
-  lot_no INTEGER,
-  street_no INTEGER,
-  address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
-  estate_name VARCHAR(255),
-  title_status VARCHAR(255),         --  ('ESTIMATED', 'ACTUAL')
-  title_date DATE,
-  compaction_report VARCHAR(255),     -- ('AVAILABLE', 'NOT_AVAILABLE')
-  land_type,                          -- ('REGULAR', 'IRREGULAR')
-  width_m NUMERIC(10,2),
-  depth_m NUMERIC(10,2),           -- video new lead to won lead:  22:41
-  total_size_m2 NUMERIC(10,2),
-  site_fall_mm NUMERIC(10,2),
-  land_fill_mm NUMERIC(10,2),
-  bush_fire BOOLEAN,
-  corner_block BOOLEAN,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- CREATE TABLE property(  
+--   property_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--   -- leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+--   lot_no INTEGER,
+--   street_no INTEGER,
+--   address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
+--   estate_name VARCHAR(255),
+--   title_status VARCHAR(255),         --  ('ESTIMATED', 'ACTUAL')
+--   title_date DATE,
+--   compaction_report VARCHAR(255),     -- ('AVAILABLE', 'NOT_AVAILABLE')
+--   land_type,                          -- ('REGULAR', 'IRREGULAR')
+--   width_m NUMERIC(10,2),
+--   depth_m NUMERIC(10,2),           -- video new lead to won lead:  22:41
+--   total_size_m2 NUMERIC(10,2),
+--   site_fall_mm NUMERIC(10,2),
+--   land_fill_mm NUMERIC(10,2),
+--   bush_fire BOOLEAN,
+--   corner_block BOOLEAN,
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
 
 CREATE TABLE job_form(
   job_form_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -3305,6 +3305,7 @@ CREATE TABLE quotation(
   quotation_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   reference_number VARCHAR(30),                            --- need to decide contat update un quotatio  or not
+  is_hl_package_quotation BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,

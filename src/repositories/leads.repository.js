@@ -27,15 +27,18 @@ class LeadsRepository {
         assignee_id,
         created_by,
         reference_number,
+        house_land_package_id,
+        property_detail_id,
       } = leadData;
 
       const query = `
         INSERT INTO leads (
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
-          face_to_face, purpose, assignee_id, created_by, updated_by, reference_number
+          face_to_face, purpose, assignee_id, created_by, updated_by, reference_number,
+          house_land_package_id, property_detail_id
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
         ) RETURNING *
       `;
 
@@ -58,6 +61,8 @@ class LeadsRepository {
         created_by,
         created_by,
         reference_number,
+        house_land_package_id,
+        property_detail_id,
       ];
 
       const result = await client.query(query, values);
@@ -331,9 +336,8 @@ class LeadsRepository {
                   'sketch_number', qv.sketch_number,
                   'total_package_cost', COALESCE(
                     (SELECT SUM(p.cost)
-                     FROM quotation_version_package_map qvpm
-                     JOIN package p ON qvpm.package_id = p.package_id
-                     WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                     FROM package p
+                     WHERE p.package_id = ANY(qv.package_id)), 0
                   ),
                   'total_pricelist_cost', COALESCE(
                     (SELECT SUM(total_price)
@@ -343,9 +347,8 @@ class LeadsRepository {
                   'grand_total_cost', (
                     COALESCE(
                       (SELECT SUM(p.cost)
-                       FROM quotation_version_package_map qvpm
-                       JOIN package p ON qvpm.package_id = p.package_id
-                       WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                       FROM package p
+                       WHERE p.package_id = ANY(qv.package_id)), 0
                     ) + COALESCE(
                       (SELECT SUM(total_price)
                        FROM quotation_version_pricelist_item_map qvpim
@@ -354,11 +357,10 @@ class LeadsRepository {
                   ),
                   'package_maps', (
                     SELECT COALESCE(json_agg(json_build_object(
-                      'id', qpm.id,
-                      'package_id', qpm.package_id,
-                      'package_name', (SELECT pk.name FROM package pk WHERE pk.package_id = qpm.package_id LIMIT 1)
+                      'package_id', p.package_id,
+                      'package_name', p.name
                     )), '[]'::json)
-                    FROM quotation_version_package_map qpm WHERE qpm.quotation_version_id = qv.quotation_version_id
+                    FROM package p WHERE p.package_id = ANY(qv.package_id)
                   ),
                   'pricelist_item_maps', (
                     SELECT COALESCE(json_agg(json_build_object(
@@ -674,6 +676,64 @@ class LeadsRepository {
 
       const result = await client.query(query, [builderId, companyId]);
       return keysToCamelCase(result.rows[0]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async removeHLPData(leadsId, removeExtras, builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1. Get current lead data to find property_detail_id
+      const leadQuery = `SELECT property_detail_id FROM leads WHERE leads_id = $1 AND builder_id = $2`;
+      const leadRes = await client.query(leadQuery, [leadsId, builderId]);
+      
+      if (leadRes.rowCount === 0) {
+        throw new Error("Lead not found");
+      }
+
+      const { property_detail_id } = leadRes.rows[0];
+
+      // 2. Clear house_land_package_id
+      await client.query(
+        `UPDATE leads SET house_land_package_id = NULL, updated_at = NOW() WHERE leads_id = $1`,
+        [leadsId]
+      );
+
+      if (removeExtras) {
+        // 3. Handle Property Detail removal
+        if (property_detail_id) {
+          const pdQuery = `SELECT is_hl_package_lot FROM property_detail WHERE property_detail_id = $1`;
+          const pdRes = await client.query(pdQuery, [property_detail_id]);
+          
+          if (pdRes.rowCount > 0 && pdRes.rows[0].is_hl_package_lot === true) {
+            // Detach from lead first
+            await client.query(
+              `UPDATE leads SET property_detail_id = NULL WHERE leads_id = $1`,
+              [leadsId]
+            );
+            // Delete the auto-created lot
+            await client.query(
+              `DELETE FROM property_detail WHERE property_detail_id = $1`,
+              [property_detail_id]
+            );
+          }
+        }
+
+        // 4. Delete auto-created quotations
+        await client.query(
+          `DELETE FROM quotation WHERE leads_id = $1 AND is_hl_package_quotation = TRUE`,
+          [leadsId]
+        );
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
     } finally {
       client.release();
     }

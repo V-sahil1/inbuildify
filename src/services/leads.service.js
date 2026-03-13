@@ -1,4 +1,5 @@
 const leadsRepository = require("../repositories/leads.repository");
+const quotationService = require("./quotation.service");
 const { successResponse, errorResponse } = require("../helper/response");
 const { generateDynamicReferenceNumber } = require("../utils/common");
 const getPool = require("../config/database");
@@ -12,8 +13,8 @@ class LeadsService {
     forceCreate = false,
   ) {
     try {
-      if (!leadData.name || !leadData.email) {
-        throw new Error("Name and email are required");
+      if (!leadData.name || !leadData.email || !leadData.phone) {
+        throw new Error("Name, Email and Phone are required");
       }
 
       const existingLeads = await leadsRepository.getAllLeads(builderId, companyId, {
@@ -88,6 +89,20 @@ class LeadsService {
       };
 
       const lead = await leadsRepository.createLead(leadDataWithDefaults);
+
+      // Auto-create property_detail and Quotation from HLP data
+      if (leadData.house_land_package_id) {
+        await this.syncPropertyDetailFromHLP(lead.leads_id, leadData.house_land_package_id);
+        
+        await quotationService.syncQuotationFromHLP(
+          lead.leads_id, 
+          leadData.house_land_package_id, 
+          userId, 
+          builderId, 
+          companyId
+        );
+      }
+
       return {
         success: true,
         data: lead,
@@ -225,9 +240,18 @@ class LeadsService {
         builderId,
       );
 
-      // Auto-create property_detail from HLP lot data
-      if (leadData.house_land_package_id) {
+      // Auto-create property_detail from HLP lot data and Quotation
+      if (leadData.house_land_package_id && leadData.house_land_package_id !== existingLead.houseLandPackageId) {
         await this.syncPropertyDetailFromHLP(leadId, leadData.house_land_package_id);
+        
+        // Auto-create Quotation from HLP data
+        await quotationService.syncQuotationFromHLP(
+          leadId, 
+          leadData.house_land_package_id, 
+          userId, 
+          builderId, 
+          companyId
+        );
       }
       
       const fullyPopulatedLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
@@ -700,6 +724,29 @@ class LeadsService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  async removeHLPackage(leadsId, options, builderId, companyId) {
+    try {
+      const removeExtras = options.remove_hl_package_lot_quotation !== undefined 
+        ? options.remove_hl_package_lot_quotation 
+        : true;
+
+      await leadsRepository.removeHLPData(leadsId, removeExtras, builderId, companyId);
+
+      return {
+        success: true,
+        message: removeExtras 
+          ? "House Land Package and associated lot/quotation removed successfully" 
+          : "House Land Package removed successfully",
+      };
+    } catch (error) {
+      console.error("Error in removeHLPackage service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 }
