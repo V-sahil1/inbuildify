@@ -190,6 +190,8 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
         LOWER(u.name) LIKE LOWER($2)
         OR LOWER(u.email) LIKE LOWER($2)
         OR LOWER(u.login_id) LIKE LOWER($2)
+        OR u.phone LIKE $2
+        
       )
   `;
 
@@ -209,8 +211,9 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
   if (is_active !== undefined) {
     whereClause += ` AND u.is_active = $${paramIndex++}`;
     queryParams.push(is_active);
-  }
+  };
 
+      console.log("🚀 ~ getAllUsers ~ whereClause:", whereClause)
   const res = await pool.query(
     `
       SELECT 
@@ -267,6 +270,7 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
     `,
     queryParams,
   );
+  console.log("🚀 ~ getAllUsers ~ res:", res)
 
   return res.rows.map((user) => keysToCamelCase(user));
 }

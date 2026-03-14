@@ -43,6 +43,7 @@ async function registerRoot({ name, email, password, role_id }) {
       `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id`,
       [name, lowerEmail],
     );
+  
 
     const builder_id = builderRes.rows[0].builder_id;
 
@@ -80,7 +81,7 @@ async function registerRoot({ name, email, password, role_id }) {
       email_signature_logo: null,
       company_logo: null,
     };
-
+    //create and update api 
     const companyResult = await upsertCompany(builder_id, defaultCompanyPayload, client);
     const company_id = companyResult?.companyId || null;
 
@@ -248,7 +249,6 @@ async function login({ email, login_id, password }) {
 
   try {
     let userRes;
-
     if (email) {
       const lowerEmail = email.toLowerCase();
       userRes = await client.query(
@@ -298,13 +298,13 @@ async function login({ email, login_id, password }) {
         throw { statusCode: 500, message: "Invalid password format." };
       }
     }
-
+    //for wrong password incress failed_attempts count
     if (decryptedPassword !== password) {
       await client.query(
         `UPDATE users SET failed_attempts = failed_attempts + 1 WHERE users_id = $1`,
         [user.users_id],
       );
-
+      //set_locked as true for too many attempt 
       if (user.failed_attempts + 1 >= 5) {
         await client.query(
           `UPDATE users SET is_locked = true WHERE users_id = $1`,

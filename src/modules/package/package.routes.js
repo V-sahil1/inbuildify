@@ -1,0 +1,52 @@
+const express = require("express");
+const router = express.Router();
+const {
+  createPackage,
+  getAllPackages,
+  updatePackage,
+  deletePackage,
+} = require("./package.controller.js");
+const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
+const {
+  createPackageSchema,
+  getAllPackagesSchema,
+  updatePackageParamsSchema,
+  updatePackageSchema,
+  deletePackageSchema,
+} = require("./package.validation.js");
+const authMiddleware = require("../../middleware/authMiddleware.js");
+const roleMiddleware = require("../../middleware/roleMiddleware.js");
+const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
+
+const { REQUEST_SOURCE } = require("../../config/constants.js");
+
+router.use(authMiddleware);
+router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
+
+router.post("/", validateRequest(createPackageSchema), createPackage);
+router.post(
+  "/:package_id",
+  validateRequest(updatePackageSchema),
+  updatePackage
+);
+
+router.get(
+  "/",
+  validateRequest(getAllPackagesSchema, REQUEST_SOURCE.QUERY),
+  getAllPackages
+);
+
+router.delete(
+  "/:package_id",
+  validateRequest(deletePackageSchema, REQUEST_SOURCE.PARAMS),
+  deletePackage
+);
+
+router.put(
+  "/:package_id",
+  validateRequest(updatePackageParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updatePackageSchema, REQUEST_SOURCE.BODY),
+  updatePackage
+);
+module.exports = router;

@@ -22,7 +22,12 @@ const { encrypt } = require("../../utils/crypto.util");
   ---------------------------------------- */
 async function getUsers(currentUser, query) {
   const builderId = currentUser.builder_id;
+  console.log(query);
   const { search = "", role = "", role_id = "", is_active } = query;
+  console.log("🚀 ~ getUsers ~ is_active:", is_active)
+  console.log("🚀 ~ getUsers ~ role_id:", role_id)
+  console.log("🚀 ~ getUsers ~ role:", role)
+  console.log("🚀 ~ getUsers ~ search:", search)
 
   return await userRepo.getAllUsers({
     builderId,
@@ -144,7 +149,7 @@ async function createUser(currentUser, body, files) {
   const encryptedPassword = finalPassword ? encrypt(finalPassword) : null;
 
   /* --------------------------
-       ADDRESS CREATE OR USE COMPANY
+       ADDRESS CREATE OR USE COMPANY ADDRESS
     --------------------------- */
 
   let addressId = null;
@@ -279,6 +284,7 @@ async function createUser(currentUser, body, files) {
     throw error;
   }
 }
+
 
 /* ----------------------------------------
             UPDATE USER

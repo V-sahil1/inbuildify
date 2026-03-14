@@ -12,7 +12,7 @@ async function createOrUpdateAddress(addressId, data) {
     data;
 
   if (!addressId) {
-    // CREATE
+    // CREATE COMPANY ADDRESS
     const res = await pool.query(
       `
         INSERT INTO address (

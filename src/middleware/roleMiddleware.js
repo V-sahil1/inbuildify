@@ -2,6 +2,7 @@ const errorResponse = require("../helper/response");
 const { ERROR_MESSAGES, isValidRole } = require("../config/constants.js");
 const isAuthorized = require("../helper/utils.js");
 const getPool = require("../config/database");
+
 const roleMiddleware = async (req, res, next) => {
   try {
     const role_id = req.user?.role_id;
