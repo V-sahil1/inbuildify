@@ -34,7 +34,7 @@ exports.createAddress = async (req, res) => {
     if (state_id) {
       const stateCheck = await client.query(
         `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
-        [state_id]
+        [state_id,]
       );
 
       if (stateCheck.rowCount === 0) {

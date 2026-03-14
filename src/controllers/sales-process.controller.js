@@ -8,6 +8,7 @@ exports.createSalesProcess = async (req, res) => {
 
   try {
     const builderId = req.user?.builder_id;
+    console.log("🚀 ~ builderId:", builderId)
     const companyId = req.user?.company_id;
     const userId = req.user?.user_id;
     const { name, is_default } = req.body;

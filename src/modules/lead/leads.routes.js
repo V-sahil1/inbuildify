@@ -1,0 +1,105 @@
+const express = require("express");
+const router = express.Router();
+const {
+  createLead,
+  getAllLeads,
+  getLeadById,
+  updateLead,
+  deleteLead,
+  getLeadStats,
+  updateLeadStatus,
+  assignLead,
+  forceCreateLead,
+  convertLeadToOpportunity,
+} = require("./leads.controller.js");
+const authMiddleware = require("../../middleware/authMiddleware.js");
+const roleMiddleware = require("../../middleware/roleMiddleware.js");
+const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
+const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
+const {
+  createLeadSchema,
+  getLeadByIdSchema,
+  updateLeadSchema,
+  updateLeadStatusSchema,
+  assignLeadSchema,
+  getAllLeadsQuerySchema,
+  convertLeadToOpportunitySchema,
+} = require("./leads.validation.js");
+const { REQUEST_SOURCE } = require("../../config/constants.js");
+
+router.use(authMiddleware);
+router.use(roleMiddleware);
+router.use(camelToSnakeMiddleware);
+
+
+
+router.post(
+  "/",
+  validateRequest(createLeadSchema, REQUEST_SOURCE.BODY),
+  createLead,
+);
+
+// Force create a new lead (skip email duplicate check)
+router.post(
+  "/force",
+  validateRequest(createLeadSchema, REQUEST_SOURCE.BODY),
+  forceCreateLead,
+);
+
+// Get all leads with filtering and pagination
+router.get(
+  "/",
+  validateRequest(getAllLeadsQuerySchema, REQUEST_SOURCE.QUERY),
+  getAllLeads,
+);
+
+// Get lead statistics
+router.get("/stats", getLeadStats);
+
+// Get lead by ID
+router.get(
+  "/:leads_id",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  getLeadById,
+);
+
+// Update lead
+router.put(
+  "/:leads_id",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateLeadSchema, REQUEST_SOURCE.BODY),
+  updateLead,
+);
+
+// Update lead status
+router.patch(
+  "/:leads_id/status",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateLeadStatusSchema, REQUEST_SOURCE.BODY),
+  updateLeadStatus,
+);
+
+// Assign lead to user
+router.patch(
+  "/:leads_id/assign",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(assignLeadSchema, REQUEST_SOURCE.BODY),
+  assignLead,
+);
+
+// Delete lead
+router.delete(
+  "/:leads_id",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  deleteLead,
+);
+
+// Convert lead to opportunity
+router.post(
+  "/:leads_id/convert",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(convertLeadToOpportunitySchema, REQUEST_SOURCE.BODY),
+  convertLeadToOpportunity,
+);
+
+module.exports = router;

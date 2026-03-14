@@ -40,6 +40,7 @@ async function getCompanyByBuilderId(builderId, client) {
       country_id: company.country_id,
       zip_code: company.zip_code,
     };
+    
     // Remove individual address fields
     delete company.address_line1;
     delete company.address_line2;
