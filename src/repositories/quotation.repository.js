@@ -347,13 +347,21 @@ class QuotationRepository {
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
           ) as lead_contacts,
           qv.created_at, qv.updated_at
@@ -470,13 +478,21 @@ class QuotationRepository {
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
           ) as lead_contacts,
           qv.created_at, qv.updated_at,
@@ -581,13 +597,21 @@ class QuotationRepository {
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
           ) as lead_contacts,
           qv.created_at, qv.updated_at

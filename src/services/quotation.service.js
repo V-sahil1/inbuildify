@@ -376,8 +376,8 @@ class QuotationService {
         if (updateData.facade_id === undefined) updateData.facade_id = null;
         if (updateData.floor_plan_id === undefined) updateData.floor_plan_id = null;
 
-        // Clear related selections
-        updateData.package_id = [];
+        // Clear related selections ONLY if they are not being explicitly updated right now
+        if (updateData.package_id === undefined) updateData.package_id = [];
 
         // Delete related pricelist item mappings
         await client.query(
@@ -411,10 +411,14 @@ class QuotationService {
         }
 
         // Build the unique set of package IDs safely.
-        // We will combine any existing packages with the new ones.
-        // If the user wants to remove, they use the new specific remove endpoint
-        
-        let mergedPackageIds = new Set(existingVersion.package_id || []);
+        // If range or dwelling type changed, we start fresh (packages are cleared).
+        // Otherwise, we combine existing packages with any new ones provided.
+        let mergedPackageIds;
+        if (rangeChanged || dwellingTypeChanged) {
+          mergedPackageIds = new Set();
+        } else {
+          mergedPackageIds = new Set(existingVersion.package_id || []);
+        }
         
         for (const pid of updateData.package_id) {
           mergedPackageIds.add(pid);

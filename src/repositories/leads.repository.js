@@ -31,7 +31,10 @@ class LeadsRepository {
         property_detail_id,
       } = leadData;
 
-      const query = `
+      await client.query("BEGIN");
+
+      // 1. Insert lead
+      const leadQuery = `
         INSERT INTO leads (
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
@@ -42,14 +45,14 @@ class LeadsRepository {
         ) RETURNING *
       `;
 
-      const values = [
+      const leadValues = [
         company_id,
         builder_id,
         name,
         email,
         phone,
         notes,
-        send_letter === true || send_letter === "true" ? true : false, // Ensure proper boolean
+        send_letter === true || send_letter === "true" ? true : false,
         lead_source_id,
         status,
         rating,
@@ -65,14 +68,76 @@ class LeadsRepository {
         property_detail_id,
       ];
 
-      const result = await client.query(query, values);
-      const lead = result.rows[0];
+      const leadResult = await client.query(leadQuery, leadValues);
+      const lead = leadResult.rows[0];
 
-      // Fetch mapped contacts
+      // 2. Auto-create/find contact
+      // Check if a user with this email already exists for this builder
+      const contactCheckQuery = `
+        SELECT users_id FROM users 
+        WHERE email = $1 AND builder_id = $2 AND is_deleted = false 
+        LIMIT 1
+      `;
+      const contactCheckResult = await client.query(contactCheckQuery, [email, builder_id]);
+
+      let contactId;
+      if (contactCheckResult.rowCount === 0) {
+        // Find role_id for "Contact"
+        const roleResult = await client.query(
+          "SELECT role_id FROM role WHERE name = 'Contact' LIMIT 1"
+        );
+        
+        if (roleResult.rowCount === 0) {
+          throw new Error("Contact role not found in database");
+        }
+        
+        const roleId = roleResult.rows[0].role_id;
+
+        // Create new contact
+        const contactInsertQuery = `
+          INSERT INTO users (
+            builder_id, name, email, phone, role_id, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+          RETURNING users_id
+        `;
+        const contactInsertResult = await client.query(contactInsertQuery, [
+          builder_id, name, email, phone, roleId
+        ]);
+        contactId = contactInsertResult.rows[0].users_id;
+      } else {
+        contactId = contactCheckResult.rows[0].users_id;
+      }
+
+      // 3. Map lead to contact
+      // Check if mapping already exists (unlikely for new lead, but safe for force-create)
+      const mapCheckResult = await client.query(
+        "SELECT id FROM leads_contact_map WHERE leads_id = $1 AND contact_id = $2",
+        [lead.leads_id, contactId]
+      );
+
+      if (mapCheckResult.rowCount === 0) {
+        await client.query(
+          "INSERT INTO leads_contact_map (leads_id, contact_id) VALUES ($1, $2)",
+          [lead.leads_id, contactId]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // 4. Fetch mapped contacts for response
       const contactsResult = await client.query(
-        `SELECT lcm.id, lcm.contact_id, u.name, u.email, u.phone
+        `SELECT lcm.id, lcm.contact_id as users_id, u.name, u.email, u.phone,
+                jsonb_build_object(
+                  'address_line1', a.address_line1,
+                  'address_line2', a.address_line2,
+                  'city', a.city,
+                  'zip_code', a.zip_code,
+                  'country_id', a.country_id,
+                  'state_id', a.state_id
+                ) AS address
          FROM leads_contact_map lcm
          JOIN users u ON lcm.contact_id = u.users_id
+         LEFT JOIN address a ON u.address_id = a.address_id
          WHERE lcm.leads_id = $1`,
         [lead.leads_id]
       );
@@ -81,6 +146,9 @@ class LeadsRepository {
         ...keysToCamelCase(lead),
         leadContacts: keysToCamelCase(contactsResult.rows),
       };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
     } finally {
       client.release();
     }

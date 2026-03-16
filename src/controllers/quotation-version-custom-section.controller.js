@@ -2,6 +2,22 @@ const getPool = require("../config/database");
 const { errorResponse, successResponse } = require("../helper/response");
 const { keysToCamelCase } = require("../utils/common");
 const { deleteFromS3 } = require("../utils/s3Upload");
+const path = require("path");
+
+const extractFileNameFromUrl = (url) => {
+  if (!url) return null;
+  try {
+    const parts = url.split("/");
+    const lastPart = parts[parts.length - 1];
+    const nameParts = lastPart.split("-");
+    if (nameParts.length > 2) {
+      return nameParts.slice(2).join("-");
+    }
+    return lastPart;
+  } catch (error) {
+    return null;
+  }
+};
 
 exports.createCustomSection = async (req, res) => {
   const pool = getPool();
@@ -74,7 +90,10 @@ exports.createCustomSection = async (req, res) => {
       [quotation_version_id, file_url || null, finalSortOrder]
     );
 
-    return successResponse(res, keysToCamelCase(result.rows[0]), 201, "Custom section created successfully");
+    const responseData = keysToCamelCase(result.rows[0]);
+    responseData.fileName = extractFileNameFromUrl(responseData.fileUrl);
+
+    return successResponse(res, responseData, 201, "Custom section created successfully");
   } catch (error) {
     console.error("Create custom section error:", error);
     return errorResponse(res, 500, "Internal server error");
@@ -121,7 +140,11 @@ exports.getCustomSectionsByVersionId = async (req, res) => {
 
     return successResponse(
       res,
-      result.rows.map(row => keysToCamelCase(row)),
+      result.rows.map(row => {
+        const item = keysToCamelCase(row);
+        item.fileName = extractFileNameFromUrl(item.fileUrl);
+        return item;
+      }),
       "Custom sections fetched successfully"
     );
   } catch (error) {
@@ -245,7 +268,10 @@ exports.updateCustomSection = async (req, res) => {
       values
     );
 
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Custom section updated successfully");
+    const responseData = keysToCamelCase(result.rows[0]);
+    responseData.fileName = extractFileNameFromUrl(responseData.fileUrl);
+
+    return successResponse(res, responseData, "Custom section updated successfully");
   } catch (error) {
     console.error("Update custom section error:", error);
     return errorResponse(res, 500, "Internal server error");
