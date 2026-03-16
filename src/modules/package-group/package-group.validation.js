@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPackageGroupSchema = Joi.object({
   name: Joi.string()
@@ -49,7 +49,7 @@ const updatePackageGroupSchema = Joi.object({
   no_of_packages: Joi.number().integer().min(0).optional(),
 });
 
-module.exports = {
+export default {
   createPackageGroupSchema,
   getAllPackageGroupSchema,
   deletePackageGroupSchema,

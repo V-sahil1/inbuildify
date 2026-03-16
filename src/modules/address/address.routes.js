@@ -1,12 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const { createAddress } = require("./address.controller");
+import express from "express";
 
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { createAddressSchema } = require("./address.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+const router = express.Router();
+import { createAddress } from "./address.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { createAddressSchema } from "./address.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -14,7 +14,7 @@ router.use(roleMiddleware);
 router.post(
   "/",
   validateRequest(createAddressSchema, REQUEST_SOURCE.BODY),
-  createAddress
+  createAddress,
 );
 
-module.exports = router;
+export default router;

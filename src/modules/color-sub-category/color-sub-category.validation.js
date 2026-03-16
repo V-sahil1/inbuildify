@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllColorSubCategoriesSchema = Joi.object({
   limit: Joi.number().optional().default(25).max(50),
@@ -34,7 +34,7 @@ const colorSubCategoryIdParamSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   getAllColorSubCategoriesSchema,
   getAllColorSubCategoriesParamsSchema,
   createColorSubCategorySchema,

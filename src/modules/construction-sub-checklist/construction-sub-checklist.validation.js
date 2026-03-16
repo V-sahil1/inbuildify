@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionSubChecklistValidation = Joi.object({
   construction_checklist_id: Joi.string().uuid().required().messages({
@@ -73,7 +73,7 @@ const queryValidation = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createConstructionSubChecklistValidation,
   updateConstructionSubChecklistValidation,
   getConstructionSubChecklistByIdValidation,

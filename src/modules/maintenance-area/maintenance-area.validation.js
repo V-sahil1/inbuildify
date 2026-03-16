@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createMaintenanceAreaSchem = Joi.object({
   name: Joi.string()
@@ -47,7 +47,7 @@ const updateMaintenanceAreaSchema = Joi.object({
     .optional(),
 });
 
-module.exports = {
+export default {
   createMaintenanceAreaSchem,
   getAllMaintenanceAreaSchema,
   deleteMaintenanceAreaSchema,

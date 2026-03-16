@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createDocumentFileNamingRuleSchema = Joi.object({
   file_type: Joi.string()
@@ -86,7 +86,7 @@ const updateNamingFormatSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createDocumentFileNamingRuleSchema,
   getAllDocumentFileNamingRulesSchema,
   deleteDocumentFileNamingRuleSchema,

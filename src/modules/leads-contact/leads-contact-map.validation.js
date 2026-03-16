@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createLeadContactMapSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
@@ -25,7 +25,7 @@ const deleteParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createLeadContactMapSchema,
   getByLeadParamsSchema,
   deleteParamsSchema,

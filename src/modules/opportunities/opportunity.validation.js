@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createOpportunitySchema = Joi.object({
   lead_id: Joi.string().uuid().required().messages({
@@ -8,6 +8,6 @@ const createOpportunitySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createOpportunitySchema,
 };

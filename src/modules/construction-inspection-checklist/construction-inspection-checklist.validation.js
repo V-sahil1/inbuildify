@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionInspectionChecklistSchema = Joi.object({
   builder: Joi.string().uuid().allow(null),
@@ -45,7 +45,7 @@ const updateExistingJobsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createConstructionInspectionChecklistSchema,
   getConstructionInspectionChecklistsSchema,
   updateConstructionInspectionChecklistSchema,

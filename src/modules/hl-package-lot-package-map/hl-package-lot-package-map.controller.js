@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createHlPackageLotPackageMap = async (req, res) => {
+export async function createHlPackageLotPackageMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -54,7 +54,7 @@ exports.createHlPackageLotPackageMap = async (req, res) => {
 
     if (mapCheck.rowCount > 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "This mapping already exists."); 
+      return errorResponse(res, 400, "This mapping already exists.");
     }
 
     const sql = `
@@ -80,9 +80,9 @@ exports.createHlPackageLotPackageMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLotPackagesByHlPackageId = async (req, res) => {
+export async function getLotPackagesByHlPackageId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -130,9 +130,9 @@ exports.getLotPackagesByHlPackageId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteHlPackageLotPackageMap = async (req, res) => {
+export async function deleteHlPackageLotPackageMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -173,9 +173,9 @@ exports.deleteHlPackageLotPackageMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllHlPackageLotPackageMaps = async (req, res) => {
+export async function getAllHlPackageLotPackageMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -222,7 +222,7 @@ exports.getAllHlPackageLotPackageMaps = async (req, res) => {
       pagination: {
         totalRecords: total,
         currentPage: pageNum,
-        totalPages: totalPages,
+        totalPages,
         limit: limitNum,
       },
     }, "All mappings retrieved successfully");
@@ -232,4 +232,4 @@ exports.getAllHlPackageLotPackageMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

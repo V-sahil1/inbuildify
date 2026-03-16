@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createJobVariationApproval,
   getJobVariationApprovals,
   deleteJobVariationApproval,
   updateJobVariationApproval,
-} = require("./job-variation-approval.controller.js");
-const {
+} from "./job-variation-approval.controller.js";
+import {
   createJobVariationApprovalSchema,
   getJobVariationApprovalsSchema,
   deleteJobVariationApprovalSchema,
   updateJobVariationApprovalSchema,
   updateJobVariationApprovalParamsSchema,
-} = require("./job-variation-approval.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./job-variation-approval.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -29,29 +28,29 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createJobVariationApprovalSchema, REQUEST_SOURCE.BODY),
-  createJobVariationApproval
+  createJobVariationApproval,
 );
 
 router.get(
   "/",
   validateRequest(getJobVariationApprovalsSchema, REQUEST_SOURCE.QUERY),
-  getJobVariationApprovals
+  getJobVariationApprovals,
 );
 
 router.put(
   "/:id",
   validateRequest(
     updateJobVariationApprovalParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateJobVariationApprovalSchema, REQUEST_SOURCE.BODY),
-  updateJobVariationApproval
+  updateJobVariationApproval,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteJobVariationApprovalSchema, REQUEST_SOURCE.PARAMS),
-  deleteJobVariationApproval
+  deleteJobVariationApproval,
 );
 
-module.exports = router;
+export default router;

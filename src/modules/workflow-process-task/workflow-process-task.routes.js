@@ -1,17 +1,12 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-    getAllWorkFlowProcessTask,
-    deleteWorkFlowProcessTask,
-} = require("./workflow-process-task.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const {
-    getAllWorkFlowProcessTaskSchema,
-    deleteWorkFlowProcessTaskSchema,
-} = require("./workflow-process-task.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+import { getAllWorkFlowProcessTask, deleteWorkFlowProcessTask } from "./workflow-process-task.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { getAllWorkFlowProcessTaskSchema, deleteWorkFlowProcessTaskSchema } from "./workflow-process-task.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -19,4 +14,4 @@ router.use(roleMiddleware);
 router.get("/", validateRequest(getAllWorkFlowProcessTaskSchema, REQUEST_SOURCE.QUERY), getAllWorkFlowProcessTask);
 router.delete("/:action_id", validateRequest(deleteWorkFlowProcessTaskSchema, REQUEST_SOURCE.PARAMS), deleteWorkFlowProcessTask);
 
-module.exports = router;
+export default router;

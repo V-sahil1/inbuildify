@@ -1,28 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const {
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import {
   getOhsSettings,
   upsertOhsSettings,
   getOhsList,
   createOhsListItem,
   updateOhsListItem,
   deleteOhsListItem,
-} = require("./construction-ohs.controller.js");
-
-const {
+} from "./construction-ohs.controller.js";
+import {
   upsertSettingsSchema,
   createListItemSchema,
   updateListItemSchema,
   getListItemChema,
-} = require("./construction-ohs.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-ohs.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 // auth
 router.use(authMiddleware);
@@ -37,7 +35,7 @@ router.get("/settings", getOhsSettings);
 router.post(
   "/settings",
   validateRequest(upsertSettingsSchema, REQUEST_SOURCE.BODY),
-  upsertOhsSettings
+  upsertOhsSettings,
 );
 
 /* -------------------------
@@ -47,21 +45,21 @@ router.post(
 router.get(
   "/list",
   validateRequest(getListItemChema, REQUEST_SOURCE.QUERY),
-  getOhsList
+  getOhsList,
 );
 
 router.post(
   "/list",
   validateRequest(createListItemSchema, REQUEST_SOURCE.BODY),
-  createOhsListItem
+  createOhsListItem,
 );
 
 router.put(
   "/list/:id",
   validateRequest(updateListItemSchema, REQUEST_SOURCE.BODY),
-  updateOhsListItem
+  updateOhsListItem,
 );
 
 router.delete("/list/:id", deleteOhsListItem);
 
-module.exports = router;
+export default router;

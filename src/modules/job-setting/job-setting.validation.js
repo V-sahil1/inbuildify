@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobSettingsSchema = Joi.object({
   auto_move_to_maintenance: Joi.boolean().optional(),
@@ -38,7 +38,7 @@ const updateJobSettingSchema = Joi.object({
   report_include_date: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createJobSettingsSchema,
   updateJobSettingSchema,
 };

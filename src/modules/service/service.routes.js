@@ -1,23 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-  createService,
-  getServices,
-  getServiceById,
-  updateService,
-  deleteService,
-} = require("./service.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+import { createService, getServices, getServiceById, updateService, deleteService } from "./service.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createServiceSchema,
   getServiceByIdSchema,
   updateServiceParamsSchema,
   updateServiceSchema,
   deleteServiceSchema,
-} = require("./service.validation.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./service.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,4 +23,4 @@ router.get("/:service_id", validateRequest(getServiceByIdSchema, REQUEST_SOURCE.
 router.put("/:service_id", validateRequest(updateServiceParamsSchema, REQUEST_SOURCE.PARAMS), validateRequest(updateServiceSchema), updateService);
 router.delete("/:service_id", validateRequest(deleteServiceSchema, REQUEST_SOURCE.PARAMS), deleteService);
 
-module.exports = router;
+export default router;

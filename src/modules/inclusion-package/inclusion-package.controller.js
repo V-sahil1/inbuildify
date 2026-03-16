@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createInclusionPackage = async (req, res) => {
+export async function createInclusionPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -18,8 +18,8 @@ exports.createInclusionPackage = async (req, res) => {
     const { name } = req.body;
 
     const duplicateCheck = await client.query(
-      `SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3)`,
-      [name.toLowerCase().trim(), companyId, builderId]
+      "SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3)",
+      [name.toLowerCase().trim(), companyId, builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -29,7 +29,7 @@ exports.createInclusionPackage = async (req, res) => {
     const result = await client.query(
       `INSERT INTO inclusion_package (company_id, builder_id, name, created_by, updated_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [companyId, builderId, name.trim(), userId, userId]
+      [companyId, builderId, name.trim(), userId, userId],
     );
 
     return successResponse(res, keysToCamelCase(result.rows[0]), "Inclusion package created successfully.");
@@ -39,9 +39,9 @@ exports.createInclusionPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllInclusionPackages = async (req, res) => {
+export async function getAllInclusionPackages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -76,7 +76,7 @@ exports.getAllInclusionPackages = async (req, res) => {
 
     const result = await client.query(
       `SELECT * FROM inclusion_package ${whereClause} ORDER BY created_at DESC`,
-      values
+      values,
     );
 
     return successResponse(res, result.rows.map(keysToCamelCase), "Inclusion packages fetched successfully.");
@@ -86,9 +86,9 @@ exports.getAllInclusionPackages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getInclusionPackageById = async (req, res) => {
+export async function getInclusionPackageById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -98,8 +98,8 @@ exports.getInclusionPackageById = async (req, res) => {
     const { id } = req.params;
 
     const result = await client.query(
-      `SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3)`,
-      [id, companyId, builderId]
+      "SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3)",
+      [id, companyId, builderId],
     );
 
     if (result.rowCount === 0) {
@@ -113,9 +113,9 @@ exports.getInclusionPackageById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateInclusionPackage = async (req, res) => {
+export async function updateInclusionPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -133,8 +133,8 @@ exports.updateInclusionPackage = async (req, res) => {
     await client.query("BEGIN");
 
     const checkRes = await client.query(
-      `SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) FOR UPDATE`,
-      [id, companyId, builderId]
+      "SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) FOR UPDATE",
+      [id, companyId, builderId],
     );
 
     if (checkRes.rowCount === 0) {
@@ -143,8 +143,8 @@ exports.updateInclusionPackage = async (req, res) => {
     }
 
     const duplicateCheck = await client.query(
-      `SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3) AND inclusion_package_id != $4`,
-      [name.toLowerCase().trim(), companyId, builderId, id]
+      "SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3) AND inclusion_package_id != $4",
+      [name.toLowerCase().trim(), companyId, builderId, id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -153,8 +153,8 @@ exports.updateInclusionPackage = async (req, res) => {
     }
 
     const result = await client.query(
-      `UPDATE inclusion_package SET name = $1, updated_by = $2, updated_at = NOW() WHERE inclusion_package_id = $3 RETURNING *`,
-      [name.trim(), userId, id]
+      "UPDATE inclusion_package SET name = $1, updated_by = $2, updated_at = NOW() WHERE inclusion_package_id = $3 RETURNING *",
+      [name.trim(), userId, id],
     );
 
     await client.query("COMMIT");
@@ -166,9 +166,9 @@ exports.updateInclusionPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteInclusionPackage = async (req, res) => {
+export async function deleteInclusionPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -178,8 +178,8 @@ exports.deleteInclusionPackage = async (req, res) => {
     const { id } = req.params;
 
     const result = await client.query(
-      `DELETE FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) RETURNING inclusion_package_id`,
-      [id, companyId, builderId]
+      "DELETE FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) RETURNING inclusion_package_id",
+      [id, companyId, builderId],
     );
 
     if (result.rowCount === 0) {
@@ -193,4 +193,4 @@ exports.deleteInclusionPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

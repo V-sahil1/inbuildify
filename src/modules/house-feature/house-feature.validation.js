@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -62,7 +62,7 @@ const getAllHouseFeaturesSchema = Joi.object({
   search: stringRule.max(255).optional().allow(""),
 });
 
-module.exports = {
+export default {
   createHouseFeatureSchema,
   updateHouseFeatureSchema,
   getHouseFeatureByIdSchema,

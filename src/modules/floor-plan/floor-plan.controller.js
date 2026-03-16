@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
-exports.createFloorPlan = async (req, res) => {
+export async function createFloorPlan(req, res) {
   const {
     name,
     min_land_width,
@@ -206,16 +206,16 @@ exports.createFloorPlan = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFloorPlans = async (req, res) => {
+export async function getFloorPlans(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const builderId = req.user?.builder_id;
 
-    let {
+    const {
       page = 1,
       limit = 25,
       name,
@@ -229,7 +229,7 @@ exports.getFloorPlans = async (req, res) => {
     const limitValue = parseInt(limit, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    const whereClauses = [`h.builder_id = $1`];
+    const whereClauses = ["h.builder_id = $1"];
     const values = [builderId];
     let idx = 2;
 
@@ -318,9 +318,9 @@ exports.getFloorPlans = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateFloorPlan = async (req, res) => {
+export async function updateFloorPlan(req, res) {
   const { floor_plan_id } = req.params;
 
   const body =
@@ -378,8 +378,12 @@ exports.updateFloorPlan = async (req, res) => {
 
     let requestedStatus = status;
     if (statusInBody) {
-      if (status === "true") requestedStatus = true;
-      if (status === "false") requestedStatus = false;
+      if (status === "true") {
+        requestedStatus = true;
+      }
+      if (status === "false") {
+        requestedStatus = false;
+      }
     }
 
     const fieldsToCheck = [
@@ -560,7 +564,9 @@ exports.updateFloorPlan = async (req, res) => {
     addUpdate("total_area", total_area);
     addUpdate("description", description);
 
-    if (statusInBody) addUpdate("status", requestedStatus);
+    if (statusInBody) {
+      addUpdate("status", requestedStatus);
+    }
 
     addUpdate("detailed_image", detailed_image);
     addUpdate("simple_image", simple_image);
@@ -627,9 +633,9 @@ exports.updateFloorPlan = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteFloorPlan = async (req, res) => {
+export async function deleteFloorPlan(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -672,9 +678,9 @@ exports.deleteFloorPlan = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFloorPlanFilters = async (req, res) => {
+export async function getFloorPlanFilters(req, res) {
   const builderId = req.user.builder_id;
 
   const pool = getPool();
@@ -718,4 +724,4 @@ exports.getFloorPlanFilters = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

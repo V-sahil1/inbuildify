@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPriceList = async (req, res) => {
+export async function createPriceList(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -11,7 +11,7 @@ exports.createPriceList = async (req, res) => {
     const companyId = req.user.company_id;
     const userId = req.user.user_id;
 
-    let { name, sort_order = 0, show_in_view_list = true, location } = req.body;
+    const { name, sort_order = 0, show_in_view_list = true, location } = req.body;
 
     if (!name || name.trim() === "") {
       return errorResponse(res, 400, "Name is required.");
@@ -75,7 +75,7 @@ exports.createPriceList = async (req, res) => {
 
     if (location) {
       const locationCheck = await client.query(
-        `SELECT 1 FROM location WHERE location_id = $1 AND status = true`,
+        "SELECT 1 FROM location WHERE location_id = $1 AND status = true",
         [location],
       );
 
@@ -130,9 +130,9 @@ exports.createPriceList = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPriceList = async (req, res) => {
+export async function getAllPriceList(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -236,12 +236,12 @@ exports.getAllPriceList = async (req, res) => {
           updated_by
         ) VALUES
         ${defaultPriceLists
-          .map(
-            (_, i) =>
-              `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4},
+    .map(
+      (_, i) =>
+        `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4},
                 $${i * 9 + 5}, $${i * 9 + 6}, $${i * 9 + 7}, $${i * 9 + 8}, $${i * 9 + 9})`,
-          )
-          .join(", ")}
+    )
+    .join(", ")}
         RETURNING *;
       `;
 
@@ -279,8 +279,8 @@ exports.getAllPriceList = async (req, res) => {
       }
     }
 
-    let conditions = [`company_id = $1`, `builder_id = $2`];
-    let values = [companyId, builderId];
+    const conditions = ["company_id = $1", "builder_id = $2"];
+    const values = [companyId, builderId];
     let index = 3;
 
     if (is_suggested !== undefined) {
@@ -288,7 +288,7 @@ exports.getAllPriceList = async (req, res) => {
       values.push(is_suggested === "true");
       index++;
     } else {
-      conditions.push(`is_suggested = false`);
+      conditions.push("is_suggested = false");
     }
 
     if (is_active !== undefined) {
@@ -347,9 +347,9 @@ exports.getAllPriceList = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePriceList = async (req, res) => {
+export async function deletePriceList(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -415,7 +415,7 @@ exports.deletePriceList = async (req, res) => {
     await client.query(shiftQuery, [deletedSortOrder, companyId, builderId]);
 
     await client.query(
-      `DELETE FROM price_list WHERE price_list_id = $1 AND builder_id = $2`,
+      "DELETE FROM price_list WHERE price_list_id = $1 AND builder_id = $2",
       [priceListId, builderId],
     );
 
@@ -429,9 +429,9 @@ exports.deletePriceList = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePriceList = async (req, res) => {
+export async function updatePriceList(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -446,7 +446,7 @@ exports.updatePriceList = async (req, res) => {
       return errorResponse(res, 400, "priceListId is required.");
     }
 
-    let { name, sort_order, show_in_view_list, is_active, location } = req.body;
+    const { name, sort_order, show_in_view_list, is_active, location } = req.body;
 
     await client.query("BEGIN");
 
@@ -599,7 +599,7 @@ exports.updatePriceList = async (req, res) => {
 
     if (location) {
       const locationCheck = await client.query(
-        `SELECT 1 FROM location WHERE location_id = $1 AND status = 'active'`,
+        "SELECT 1 FROM location WHERE location_id = $1 AND status = 'active'",
         [location],
       );
 
@@ -612,8 +612,8 @@ exports.updatePriceList = async (req, res) => {
       }
     }
 
-    let updateFields = [];
-    let updateValues = [];
+    const updateFields = [];
+    const updateValues = [];
     let idx = 1;
 
     if (name !== undefined) {
@@ -644,7 +644,7 @@ exports.updatePriceList = async (req, res) => {
     updateFields.push(`updated_by = $${idx++}`);
     updateValues.push(userId);
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     updateValues.push(priceListId);
 
@@ -671,9 +671,9 @@ exports.updatePriceList = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.toggleSuggestedPriceList = async (req, res) => {
+export async function toggleSuggestedPriceList(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -761,7 +761,7 @@ exports.toggleSuggestedPriceList = async (req, res) => {
       const newSortOrder = maxSortResult.rows[0].max_sort_order + 1;
 
       await client.query(
-        `UPDATE price_list SET sort_order = $1, updated_at = NOW() WHERE price_list_id = $2`,
+        "UPDATE price_list SET sort_order = $1, updated_at = NOW() WHERE price_list_id = $2",
         [newSortOrder, priceListId],
       );
     } else {
@@ -814,4 +814,4 @@ exports.toggleSuggestedPriceList = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

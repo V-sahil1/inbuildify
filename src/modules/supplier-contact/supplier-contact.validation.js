@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSupplierContactSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
@@ -89,7 +89,8 @@ const updateSupplierContactSchema = Joi.object({
     .max(100)
     .optional(),
 });
-module.exports = {
+
+export default {
   createSupplierContactSchema,
   getAllSupplierContactsSchema,
   deleteSupplierContactSchema,

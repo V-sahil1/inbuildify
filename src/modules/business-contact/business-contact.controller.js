@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createBusinessContact = async (req, res) => {
+export async function createBusinessContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -35,7 +35,7 @@ exports.createBusinessContact = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [leads_id, companyId, builderId]
+      [leads_id, companyId, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -47,7 +47,7 @@ exports.createBusinessContact = async (req, res) => {
     const existingContactsCheck = await client.query(
       `SELECT COUNT(*) as count FROM business_contact 
        WHERE leads_id = $1 AND contact_type = $2`,
-      [leads_id, contact_type]
+      [leads_id, contact_type],
     );
 
     const existingCount = parseInt(existingContactsCheck.rows[0].count);
@@ -57,7 +57,7 @@ exports.createBusinessContact = async (req, res) => {
       `SELECT contact_type, COUNT(*) as count FROM business_contact 
        WHERE leads_id = $1 
        GROUP BY contact_type`,
-      [leads_id]
+      [leads_id],
     );
 
     const parsedCountryId = country_id === "" ? null : country_id;
@@ -71,7 +71,7 @@ exports.createBusinessContact = async (req, res) => {
 
       const stateCheckRes = await client.query(
         "SELECT 1 FROM state WHERE state_id = $1 AND country_id = $2",
-        [parsedStateId, parsedCountryId]
+        [parsedStateId, parsedCountryId],
       );
 
       if (stateCheckRes.rowCount === 0) {
@@ -93,14 +93,14 @@ exports.createBusinessContact = async (req, res) => {
 
     // Check total contacts for this lead (max 4)
     const totalContactsCheck = await client.query(
-      `SELECT COUNT(*) as total FROM business_contact WHERE leads_id = $1`,
-      [leads_id]
+      "SELECT COUNT(*) as total FROM business_contact WHERE leads_id = $1",
+      [leads_id],
     );
 
     const totalContacts = parseInt(totalContactsCheck.rows[0].total);
     if (totalContacts >= 4) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Maximum 4 contacts allowed per lead. This lead already has " + totalContacts + " contacts");
+      return errorResponse(res, 400, `Maximum 4 contacts allowed per lead. This lead already has ${ totalContacts } contacts`);
     }
 
     const insertQuery = `
@@ -156,9 +156,9 @@ exports.createBusinessContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllBusinessContacts = async (req, res) => {
+export async function getAllBusinessContacts(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -180,8 +180,8 @@ exports.getAllBusinessContacts = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
     let idx = 1;
 
     // Add builder/company filtering through leads table
@@ -245,9 +245,9 @@ exports.getAllBusinessContacts = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getBusinessContactById = async (req, res) => {
+export async function getBusinessContactById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -300,9 +300,9 @@ exports.getBusinessContactById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateBusinessContact = async (req, res) => {
+export async function updateBusinessContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -356,8 +356,15 @@ exports.updateBusinessContact = async (req, res) => {
       return errorResponse(res, 404, "Business contact not found.");
     }
 
-    const finalCountryId = country_id !== undefined ? (country_id === "" ? null : country_id) : checkResult.rows[0].country_id;
-    const finalStateId = state_id !== undefined ? (state_id === "" ? null : state_id) : checkResult.rows[0].state_id;
+    let finalCountryId = checkResult.rows[0].country_id;
+    if (country_id !== undefined) {
+      finalCountryId = country_id === "" ? null : country_id;
+    }
+
+    let finalStateId = checkResult.rows[0].state_id;
+    if (state_id !== undefined) {
+      finalStateId = state_id === "" ? null : state_id;
+    }
 
     if (finalStateId) {
       if (!finalCountryId) {
@@ -367,7 +374,7 @@ exports.updateBusinessContact = async (req, res) => {
 
       const stateCheckRes = await client.query(
         "SELECT 1 FROM state WHERE state_id = $1 AND country_id = $2",
-        [finalStateId, finalCountryId]
+        [finalStateId, finalCountryId],
       );
 
       if (stateCheckRes.rowCount === 0) {
@@ -451,7 +458,7 @@ exports.updateBusinessContact = async (req, res) => {
       return errorResponse(res, 400, "No fields to update");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE business_contact
@@ -479,9 +486,9 @@ exports.updateBusinessContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteBusinessContact = async (req, res) => {
+export async function deleteBusinessContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -524,7 +531,7 @@ exports.deleteBusinessContact = async (req, res) => {
     // Remove ownership check as table doesn't have builder_id/company_id
 
     await client.query(
-      `DELETE FROM business_contact WHERE business_contact_id = $1`,
+      "DELETE FROM business_contact WHERE business_contact_id = $1",
       [business_contact_id],
     );
 
@@ -538,9 +545,9 @@ exports.deleteBusinessContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getBusinessContactsByLeadsId = async (req, res) => {
+export async function getBusinessContactsByLeadsId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -559,7 +566,7 @@ exports.getBusinessContactsByLeadsId = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [leads_id, companyId, builderId]
+      [leads_id, companyId, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -578,7 +585,7 @@ exports.getBusinessContactsByLeadsId = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Business contacts retrieved successfully"
+      "Business contacts retrieved successfully",
     );
   } catch (error) {
     console.error("Get business contacts by leads ID error:", error);
@@ -586,4 +593,4 @@ exports.getBusinessContactsByLeadsId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

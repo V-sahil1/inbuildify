@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionStageSchema = Joi.object({
   builder: Joi.string().uuid().required().messages({
@@ -104,7 +104,8 @@ const updateConstructionStageSchema = Joi.object({
         "Enter valid font color in HEX format (e.g., #FFF453)",
     }),
 });
-module.exports = {
+
+export default {
   createConstructionStageSchema,
   getAllConstructionStageSchema,
   deleteConstructionStageSchema,

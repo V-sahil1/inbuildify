@@ -1,7 +1,6 @@
-const getPool = require("../../config/database");
-const addressRepo = require("../../repositories/address.repository");
-
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import addressRepo from "../../repositories/address.repository";
+import { keysToCamelCase } from "../../utils/common";
 
 async function getCompanyByBuilderId(builderId, client) {
   const result = await client.query(
@@ -14,11 +13,13 @@ async function getCompanyByBuilderId(builderId, client) {
 
   const company = result.rows[0] || null;
 
-  if (!company) return null;
+  if (!company) {
+    return null;
+  }
 
   if (company.timezone_id) {
     const tzResult = await client.query(
-      `SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1`,
+      "SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1",
       [company.timezone_id],
     );
 
@@ -40,7 +41,7 @@ async function getCompanyByBuilderId(builderId, client) {
       country_id: company.country_id,
       zip_code: company.zip_code,
     };
-    
+
     // Remove individual address fields
     delete company.address_line1;
     delete company.address_line2;
@@ -69,11 +70,13 @@ async function upsertCompany(builderId, payload, client) {
   }
 
   const mapTimezone = async (company) => {
-    if (!company) return null;
+    if (!company) {
+      return null;
+    }
 
     if (company.timezone_id) {
       const tzResult = await client.query(
-        `SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1`,
+        "SELECT timezone_id, timezone_name FROM timezones WHERE timezone_id = $1",
         [company.timezone_id],
       );
 
@@ -178,7 +181,7 @@ async function upsertCompany(builderId, payload, client) {
   return mapTimezone(updateResult.rows[0]);
 }
 
-module.exports = {
+export default {
   getCompanyByBuilderId,
 
   upsertCompany,

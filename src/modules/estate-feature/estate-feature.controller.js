@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createEstateFeature = async (req, res) => {
+export async function createEstateFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -75,9 +75,9 @@ exports.createEstateFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllEstateFeatures = async (req, res) => {
+export async function getAllEstateFeatures(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -132,9 +132,9 @@ exports.getAllEstateFeatures = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getEstateFeaturesByEstateId = async (req, res) => {
+export async function getEstateFeaturesByEstateId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -180,9 +180,9 @@ exports.getEstateFeaturesByEstateId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteEstateFeature = async (req, res) => {
+export async function deleteEstateFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -238,9 +238,9 @@ exports.deleteEstateFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateEstateFeature = async (req, res) => {
+export async function updateEstateFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -318,4 +318,4 @@ exports.updateEstateFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

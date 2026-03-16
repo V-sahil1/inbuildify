@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createDocumentCommonSubfolder = async (req, res) => {
+export async function createDocumentCommonSubfolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -192,9 +192,9 @@ exports.createDocumentCommonSubfolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getDocumentCommonSubfolderTree = async (req, res) => {
+export async function getDocumentCommonSubfolderTree(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -266,9 +266,9 @@ exports.getDocumentCommonSubfolderTree = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getDocumentCommonSubfolderByFolderId = async (req, res) => {
+export async function getDocumentCommonSubfolderByFolderId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -333,9 +333,9 @@ exports.getDocumentCommonSubfolderByFolderId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteDocumentCommonSubfolder = async (req, res) => {
+export async function deleteDocumentCommonSubfolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -405,9 +405,9 @@ exports.deleteDocumentCommonSubfolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDocumentCommonSubfolder = async (req, res) => {
+export async function updateDocumentCommonSubfolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -472,7 +472,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
     }
 
     const oldSortOrder = existingData.sort_order;
-    let newSortOrder = sort_order;
+    const newSortOrder = sort_order;
 
     if (newSortOrder !== undefined && newSortOrder !== null) {
       const maxSortQuery = `
@@ -557,7 +557,7 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
     }
 
     fields.push(`updated_by = $${paramIndex++}`);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     values.push(updatedBy);
 
     values.push(document_common_subfolder_id);
@@ -583,4 +583,4 @@ exports.updateDocumentCommonSubfolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

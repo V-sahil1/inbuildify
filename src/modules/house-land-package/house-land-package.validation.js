@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -40,7 +40,7 @@ const createHouseLandPackageSchema = Joi.object({
   range_id: optionalUuidRule.messages({
     "string.guid": "Range ID must be a valid UUID",
   }),
-  disclaimer_type: stringRule.max(255).optional().valid('validity', 'standard').allow(null),
+  disclaimer_type: stringRule.max(255).optional().valid("validity", "standard").allow(null),
   floor_plan_id: optionalUuidRule.messages({
     "string.guid": "Floor plan ID must be a valid UUID",
   }),
@@ -86,7 +86,7 @@ const updateHouseLandPackageSchema = Joi.object({
   }),
   package_description: stringRule.max(3000).optional().allow(""),
   house_feature_id: optionalUuidRule,
-  disclaimer_type: stringRule.max(255).optional().valid('validity', 'standard').allow(null),
+  disclaimer_type: stringRule.max(255).optional().valid("validity", "standard").allow(null),
   disclaimer_description: stringRule.max(3000).optional().allow(""),
   attach_files: stringRule.max(500).optional().allow(""),
 });
@@ -116,7 +116,7 @@ const getHouseLandPackageDetailedInfoSchema = Joi.object({
   house_land_package_id: uuidRule,
 });
 
-module.exports = {
+export default {
   createHouseLandPackageSchema,
   updateHouseLandPackageSchema,
   getHouseLandPackageByIdSchema,

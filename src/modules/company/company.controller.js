@@ -1,12 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const {
-  getCompanyByBuilderId,
-  upsertCompany,
-} = require("./company.service");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { getCompanyByBuilderId, upsertCompany as upsertCompanyService } from "./company.service";
 
-exports.getCompany = async (req, res) => {
+export async function getCompany(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -33,9 +30,9 @@ exports.getCompany = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.upsertCompany = async (req, res) => {
+export async function upsertCompany(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -47,7 +44,7 @@ exports.upsertCompany = async (req, res) => {
 
     await client.query("BEGIN");
 
-    const company = await upsertCompany(builderId, req.body, client);
+    const company = await upsertCompanyService(builderId, req.body, client);
 
     await client.query("COMMIT");
 
@@ -63,4 +60,4 @@ exports.upsertCompany = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

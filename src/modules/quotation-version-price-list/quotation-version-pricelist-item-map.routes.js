@@ -1,19 +1,19 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const {
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createPricelistItemMapSchema,
   getByVersionParamsSchema,
   updatePricelistItemMapSchema,
   idParamsSchema,
-} = require("./quotation-version-pricelist-item-map.validation.js");
-const controller = require("./quotation-version-pricelist-item-map.controller.js");
+} from "./quotation-version-pricelist-item-map.validation.js";
+import controller from "./quotation-version-pricelist-item-map.controller.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -22,13 +22,13 @@ router.post(
   "/",
   camelToSnakeMiddleware,
   validateRequest(createPricelistItemMapSchema, REQUEST_SOURCE.BODY),
-  controller.createPricelistItemMap
+  controller.createPricelistItemMap,
 );
 
 router.get(
   "/:quotation_version_id",
   validateRequest(getByVersionParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getPricelistItemsByVersionId
+  controller.getPricelistItemsByVersionId,
 );
 
 router.put(
@@ -36,13 +36,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(idParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePricelistItemMapSchema, REQUEST_SOURCE.BODY),
-  controller.updatePricelistItemMap
+  controller.updatePricelistItemMap,
 );
 
 router.delete(
   "/:id",
   validateRequest(idParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deletePricelistItemMap
+  controller.deletePricelistItemMap,
 );
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -178,7 +178,7 @@ const getAllLotsSchema = Joi.object({
   created_by: optionalUuidRule,
 });
 
-module.exports = {
+export default {
   createLotSchema,
   updateLotSchema,
   getLotByIdSchema,

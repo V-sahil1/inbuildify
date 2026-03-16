@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createTemplateNote = async (req, res) => {
+export async function createTemplateNote(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -37,7 +37,7 @@ exports.createTemplateNote = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A template note with this name already exists for this builder/company."
+        "A template note with this name already exists for this builder/company.",
       );
     }
 
@@ -70,7 +70,7 @@ exports.createTemplateNote = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Template note created successfully."
+      "Template note created successfully.",
     );
   } catch (error) {
     console.error("Error creating template note:", error);
@@ -78,9 +78,9 @@ exports.createTemplateNote = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllTemplateNotes = async (req, res) => {
+export async function getAllTemplateNotes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -127,7 +127,7 @@ exports.getAllTemplateNotes = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Template notes fetched successfully."
+      "Template notes fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching template notes:", error);
@@ -135,9 +135,9 @@ exports.getAllTemplateNotes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteTemplateNote = async (req, res) => {
+export async function deleteTemplateNote(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -160,7 +160,7 @@ exports.deleteTemplateNote = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Template note not found or unauthorized to delete."
+        "Template note not found or unauthorized to delete.",
       );
     }
 
@@ -182,9 +182,9 @@ exports.deleteTemplateNote = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTemplateNote = async (req, res) => {
+export async function updateTemplateNote(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -210,7 +210,7 @@ exports.updateTemplateNote = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Template note not found or unauthorized to update."
+        "Template note not found or unauthorized to update.",
       );
     }
 
@@ -298,7 +298,7 @@ exports.updateTemplateNote = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "A template note with this name already exists."
+          "A template note with this name already exists.",
         );
       }
     }
@@ -322,7 +322,7 @@ exports.updateTemplateNote = async (req, res) => {
 
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE template_note
@@ -338,7 +338,7 @@ exports.updateTemplateNote = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Template note updated successfully."
+      "Template note updated successfully.",
     );
   } catch (error) {
     console.error("Error updating template note:", error);
@@ -346,9 +346,9 @@ exports.updateTemplateNote = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTemplateNoteIsActive = async (req, res) => {
+export async function updateTemplateNoteIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -373,7 +373,7 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
           OR company_id = $3
         )
       `,
-      [template_note_id, builderId, companyId]
+      [template_note_id, builderId, companyId],
     );
 
     if (existing.rowCount === 0) {
@@ -402,7 +402,7 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      `Template note status updated successfully to ${newStatus ? 'active' : 'inactive'}`
+      `Template note status updated successfully to ${newStatus ? "active" : "inactive"}`,
     );
   } catch (error) {
     console.error("Error updating template note is_active:", error);
@@ -410,4 +410,4 @@ exports.updateTemplateNoteIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

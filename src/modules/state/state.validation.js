@@ -1,9 +1,9 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getStateSchema = Joi.object({
   country_id: Joi.string().uuid().required(),
 });
 
-module.exports = {
+export default {
   getStateSchema,
 };

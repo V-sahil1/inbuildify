@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Reusable rules
 const uuidRule = Joi.string().uuid().required().messages({
@@ -413,11 +413,11 @@ const getAllJobFormsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createJobFormSchema,
   updateJobFormSchema,
   getJobFormByIdSchema,
   deleteJobFormSchema,
   getAllJobFormsSchema,
-  updateJobFormParamsSchema
+  updateJobFormParamsSchema,
 };

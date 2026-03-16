@@ -1,27 +1,28 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createMasterFacade,
   getMasterFacades,
   getMasterFacadeById,
   updateMasterFacade,
   deleteMasterFacade,
-} = require("./master-facade.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
-const {
+} from "./master-facade.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import {
   createMasterFacadeSchema,
   getMasterFacadeByIdSchema,
   getMasterFacadesSchema,
   updateMasterFacadeParamsSchema,
   updateMasterFacadeSchema,
   deleteMasterFacadeSchema,
-} = require("./master-facade.validation.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./master-facade.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -34,21 +35,21 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createMasterFacadeSchema, REQUEST_SOURCE.FORM_DATA),
-  createMasterFacade
+  createMasterFacade,
 );
 
 router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getMasterFacadesSchema, REQUEST_SOURCE.QUERY),
-  getMasterFacades
+  getMasterFacades,
 );
 
 router.get(
   "/:id",
   camelToSnakeMiddleware,
   validateRequest(getMasterFacadeByIdSchema, REQUEST_SOURCE.PARAMS),
-  getMasterFacadeById
+  getMasterFacadeById,
 );
 
 router.put(
@@ -58,14 +59,14 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateMasterFacadeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateMasterFacadeSchema, REQUEST_SOURCE.FORM_DATA),
-  updateMasterFacade
+  updateMasterFacade,
 );
 
 router.delete(
   "/:facade_id",
   camelToSnakeMiddleware,
   validateRequest(deleteMasterFacadeSchema, REQUEST_SOURCE.PARAMS),
-  deleteMasterFacade
+  deleteMasterFacade,
 );
 
-module.exports = router;
+export default router;

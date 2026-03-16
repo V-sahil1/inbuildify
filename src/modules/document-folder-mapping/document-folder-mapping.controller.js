@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getAllDocumentFolderMappings = async (req, res) => {
+export async function getAllDocumentFolderMappings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -14,7 +14,7 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -22,7 +22,7 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
       `SELECT * FROM document_folder_mapping
        WHERE (builder_id = $1 OR company_id = $2)
        LIMIT 1`,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (result.rowCount === 0) {
@@ -30,7 +30,7 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
         `INSERT INTO document_folder_mapping (company_id, builder_id, select_all_files_from_folder, created_by, updated_by)
          VALUES ($1, $2, false, $3, $4)
          RETURNING *`,
-        [companyId, builderId, req.user?.users_id, req.user?.users_id]
+        [companyId, builderId, req.user?.users_id, req.user?.users_id],
       );
     }
 
@@ -62,7 +62,7 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(getResult.rows[0]),
-      "Document folder mappings fetched successfully."
+      "Document folder mappings fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching document folder mappings:", err);
@@ -70,9 +70,9 @@ exports.getAllDocumentFolderMappings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDocumentFolderMapping = async (req, res) => {
+export async function updateDocumentFolderMapping(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -85,7 +85,7 @@ exports.updateDocumentFolderMapping = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -185,7 +185,7 @@ exports.updateDocumentFolderMapping = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
   UPDATE document_folder_mapping dfm
@@ -218,7 +218,7 @@ exports.updateDocumentFolderMapping = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Failed to update document folder mapping."
+        "Failed to update document folder mapping.",
       );
     }
 
@@ -229,13 +229,13 @@ exports.updateDocumentFolderMapping = async (req, res) => {
       FROM document_folder_mapping dfm
       WHERE dfm.document_folder_mapping_id = $1
       `,
-      [updateResult.rows[0].document_folder_mapping_id]
+      [updateResult.rows[0].document_folder_mapping_id],
     );
 
     return successResponse(
       res,
       keysToCamelCase(updatedRecord.rows[0]),
-      "Document folder mapping updated successfully."
+      "Document folder mapping updated successfully.",
     );
   } catch (err) {
     console.error("Error updating document folder mapping:", err);
@@ -243,4 +243,4 @@ exports.updateDocumentFolderMapping = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

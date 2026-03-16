@@ -1,26 +1,26 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { upsertBuilder, getBuilderProfile, getAllBuilders } = require("./builder.service");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { upsertBuilder as upsertBuilderService, getBuilderProfile, getAllBuilders as getAllBuildersService } from "./builder.service";
 
-exports.upsertBuilder = async (req, res) => {
+export async function upsertBuilder(req, res) {
   try {
     const builderId = req.user.builder_id;
     const logoUrl = req.file?.location || null;
 
-    const builder = await upsertBuilder(builderId, req.body, logoUrl);
+    const builder = await upsertBuilderService(builderId, req.body, logoUrl);
 
     return successResponse(
       res,
       keysToCamelCase(builder),
-      "Builder profile saved successfully"
+      "Builder profile saved successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getMyBuilderProfile = async (req, res) => {
+export async function getMyBuilderProfile(req, res) {
   try {
     const builderId = req.user?.builder_id;
     if (!builderId) {
@@ -36,25 +36,25 @@ exports.getMyBuilderProfile = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(builder),
-      "Builder profile fetched successfully"
+      "Builder profile fetched successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, "Failed to fetch builder profile");
   }
-};
+}
 
-exports.getAllBuilders = async (req, res) => {
+export async function getAllBuilders(req, res) {
   try {
-    const builders = await getAllBuilders();
+    const builders = await getAllBuildersService();
 
     return successResponse(
       res,
       keysToCamelCase(builders),
-      "All builders fetched successfully"
+      "All builders fetched successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, "Failed to fetch builders");
   }
-};
+}

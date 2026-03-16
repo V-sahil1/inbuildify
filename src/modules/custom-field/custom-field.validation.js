@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createCustomFieldSchema = Joi.object({
   module_id: Joi.string().uuid().required().messages({
@@ -83,7 +83,7 @@ const createOptionSchema = Joi.object({
     .items(
       Joi.string().trim().min(1).messages({
         "string.empty": "Option value cannot be empty.",
-      })
+      }),
     )
     .min(1)
     .max(1)
@@ -107,7 +107,7 @@ const deleteOptionSchema = Joi.object({
   options: Joi.array().items(Joi.string().trim().min(1)).min(1).required(),
 });
 
-module.exports = {
+export default {
   createCustomFieldSchema,
   getAllCustomFieldSchema,
   deleteCustomFieldSchema,

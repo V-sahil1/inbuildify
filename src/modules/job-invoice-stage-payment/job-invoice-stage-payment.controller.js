@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobInvoiceStagePayment = async (req, res) => {
+export async function createJobInvoiceStagePayment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -107,9 +107,9 @@ exports.createJobInvoiceStagePayment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllJobInvoiceStagePayments = async (req, res) => {
+export async function getAllJobInvoiceStagePayments(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -179,9 +179,9 @@ exports.getAllJobInvoiceStagePayments = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobInvoiceStagePayment = async (req, res) => {
+export async function deleteJobInvoiceStagePayment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -223,7 +223,7 @@ exports.deleteJobInvoiceStagePayment = async (req, res) => {
     await client.query(deleteQuery, [id]);
 
     await client.query(
-      `UPDATE job_invoice_stage_payments SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_invoice_settings_id = $2`,
+      "UPDATE job_invoice_stage_payments SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_invoice_settings_id = $2",
       [deletedSortOrder, jobInvoiceSettingsId],
     );
 
@@ -238,9 +238,9 @@ exports.deleteJobInvoiceStagePayment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobInvoiceStagePayment = async (req, res) => {
+export async function updateJobInvoiceStagePayment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -356,7 +356,7 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
       values.push(sort_order);
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
@@ -384,4 +384,4 @@ exports.updateJobInvoiceStagePayment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

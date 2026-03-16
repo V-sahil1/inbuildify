@@ -1,13 +1,13 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
 /* -----------------------------
    ESTATE IMAGES
 ------------------------------ */
 
-exports.getEstateImages = async (req, res) => {
+export async function getEstateImages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -98,7 +98,7 @@ exports.getEstateImages = async (req, res) => {
     );
 
     const responseData = keysToCamelCase(result.rows);
-    
+
     // Return single object if only one record, array if multiple
     const data = responseData.length === 1 ? responseData[0] : responseData;
 
@@ -113,9 +113,9 @@ exports.getEstateImages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateEstateImage = async (req, res) => {
+export async function updateEstateImage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -153,10 +153,8 @@ exports.updateEstateImage = async (req, res) => {
         if (existingImage.image_url) {
           await deleteFromS3(existingImage.image_url);
         }
-      } else {
-        if (existingImage.image_url && existingImage.image_url !== image_url) {
-          await deleteFromS3(existingImage.image_url);
-        }
+      } else if (existingImage.image_url && existingImage.image_url !== image_url) {
+        await deleteFromS3(existingImage.image_url);
       }
     }
 
@@ -199,9 +197,9 @@ exports.updateEstateImage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createEstateDocument = async (req, res) => {
+export async function createEstateDocument(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -315,13 +313,13 @@ exports.createEstateDocument = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 /* -----------------------------
    ESTATE DOCUMENTS
 ------------------------------ */
 
-exports.getEstateDocuments = async (req, res) => {
+export async function getEstateDocuments(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -401,7 +399,7 @@ exports.getEstateDocuments = async (req, res) => {
         data: keysToCamelCase(result.rows),
         pagination: {
           currentPage: pageNum,
-          totalPages: totalPages,
+          totalPages,
           totalRecords: totalCount,
           limit: limitNum,
         },
@@ -414,9 +412,9 @@ exports.getEstateDocuments = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateEstateDocument = async (req, res) => {
+export async function updateEstateDocument(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -464,13 +462,11 @@ exports.updateEstateDocument = async (req, res) => {
         if (existingDocument.file_url) {
           await deleteFromS3(existingDocument.file_url);
         }
-      } else {
-        if (
-          existingDocument.file_url &&
+      } else if (
+        existingDocument.file_url &&
           existingDocument.file_url !== fileUrl
-        ) {
-          await deleteFromS3(existingDocument.file_url);
-        }
+      ) {
+        await deleteFromS3(existingDocument.file_url);
       }
     }
 
@@ -525,4 +521,4 @@ exports.updateEstateDocument = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

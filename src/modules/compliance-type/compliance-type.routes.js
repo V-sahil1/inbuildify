@@ -1,11 +1,10 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-  getAllComplianceTypes,
-} = require("./compliance-type.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
+import { getAllComplianceTypes } from "./compliance-type.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -13,4 +12,4 @@ router.use(camelToSnakeMiddleware);
 
 router.get("/", getAllComplianceTypes);
 
-module.exports = router;
+export default router;

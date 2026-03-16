@@ -1,22 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createJobSettings,
-  updateJobSettings,
-  getUserJobSettings,
-} = require("./job-setting.controller.js");
-const {
-  createJobSettingsSchema,
-  updateJobSettingSchema,
-} = require("./job-setting.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { createJobSettings, updateJobSettings, getUserJobSettings } from "./job-setting.controller.js";
+import { createJobSettingsSchema, updateJobSettingSchema } from "./job-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -25,7 +17,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createJobSettingsSchema, REQUEST_SOURCE.BODY),
-  createJobSettings
+  createJobSettings,
 );
 
 router.get("/", getUserJobSettings);
@@ -33,7 +25,7 @@ router.get("/", getUserJobSettings);
 router.put(
   "/",
   validateRequest(updateJobSettingSchema, REQUEST_SOURCE.BODY),
-  updateJobSettings
+  updateJobSettings,
 );
 
-module.exports = router;
+export default router;

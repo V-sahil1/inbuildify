@@ -1,1 +1,3 @@
-module.exports.generateOtpExpiry = () => new Date(Date.now() + 10 * 60 * 1000);
+export function generateOtpExpiry() {
+  return new Date(Date.now() + 10 * 60 * 1000);
+}

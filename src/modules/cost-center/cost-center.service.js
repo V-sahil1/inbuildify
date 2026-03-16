@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 /**
  * CREATE COST CENTER
@@ -105,7 +105,7 @@ async function getCostCenters(builderId, companyId, filters = {}) {
   const pool = getPool();
 
   let whereClause = "WHERE (company_id = $1 OR builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (filters.code) {
@@ -312,7 +312,7 @@ async function updateCostCenter(
 
     updateFields.push(`updated_by = $${paramIndex++}`);
     updateValues.push(userId);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     if (updateFields.length === 0) {
       throw new Error("No fields to update");
@@ -562,7 +562,7 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
   const pool = getPool();
 
   let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (filters.cost_center_id) {
@@ -645,7 +645,7 @@ async function deleteCostCenterChecklistMap(id, builderId, companyId) {
   }
 }
 
-module.exports = {
+export default {
   createCostCenter,
   getCostCenters,
   getCostCenterById,

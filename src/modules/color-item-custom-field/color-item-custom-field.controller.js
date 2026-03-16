@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createColorItemCustomField = async (req, res) => {
+export async function createColorItemCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -24,7 +24,7 @@ exports.createColorItemCustomField = async (req, res) => {
       return errorResponse(res, 400, "Field name is required.");
     }
 
-    let finalSortOrder = sort_order || 1;
+    const finalSortOrder = sort_order || 1;
 
     await client.query("BEGIN");
 
@@ -104,9 +104,9 @@ exports.createColorItemCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorItemCustomFields = async (req, res) => {
+export async function getColorItemCustomFields(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -180,9 +180,9 @@ exports.getColorItemCustomFields = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorItemCustomFieldById = async (req, res) => {
+export async function getColorItemCustomFieldById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -221,9 +221,9 @@ exports.getColorItemCustomFieldById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorItemCustomField = async (req, res) => {
+export async function updateColorItemCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -331,7 +331,7 @@ exports.updateColorItemCustomField = async (req, res) => {
       paramIndex++;
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
 
     if (updateValues.length === 0) {
       await client.query("ROLLBACK");
@@ -366,9 +366,9 @@ exports.updateColorItemCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorItemCustomField = async (req, res) => {
+export async function deleteColorItemCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -433,4 +433,4 @@ exports.deleteColorItemCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

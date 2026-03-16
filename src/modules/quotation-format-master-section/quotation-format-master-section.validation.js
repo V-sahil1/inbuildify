@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // ============================================================
 //        MASTER SECTION VALIDATION SCHEMAS
@@ -288,7 +288,7 @@ const paramsItemIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   // Master Section
   createMasterSectionSchema,
   updateMasterSectionSchema,

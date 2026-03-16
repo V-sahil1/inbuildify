@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* ============================================================
     COMMON RULES
@@ -107,7 +107,7 @@ const getContactsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createContactSchema,
   updateContactSchema,
   convertContactSchema,

@@ -23,4 +23,4 @@ const parseFormDataJson = (req, res, next) => {
   next();
 };
 
-module.exports = parseFormDataJson;
+export default parseFormDataJson;

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllWorkFlowProcessSchema = Joi.object({
   limit: Joi.number().optional().default(25).max(50),
@@ -30,7 +30,7 @@ const displayOrderManageSchema = Joi.object({
           "number.integer": "Display Order must be an integer",
           "any.required": "Display Order is required",
         }),
-      })
+      }),
     )
     .unique("workflowProcessId")
     .unique("displayOrder")
@@ -62,17 +62,17 @@ const getWorkflowProcessesByCategoryIdSchema = Joi.object({
 
 const imageRule = Joi.alternatives().try(
   Joi.string().uri().max(500).trim().messages({
-    'string.base': 'Image must be a string',
-    'string.uri': 'Image must be a valid URL',
-    'string.max': 'Image URL must not exceed 500 characters'
+    "string.base": "Image must be a string",
+    "string.uri": "Image must be a valid URL",
+    "string.max": "Image URL must not exceed 500 characters",
   }),
   Joi.object({
-    fieldname: Joi.string().valid('image').required(),
+    fieldname: Joi.string().valid("image").required(),
     originalname: Joi.string().required(),
     mimetype: Joi.string().required(),
     size: Joi.number().max(10 * 1024 * 1024).required(),
-    location: Joi.string().uri().required()
-  }).unknown(true)
+    location: Joi.string().uri().required(),
+  }).unknown(true),
 ).optional();
 
 const createWorkflowProcessTaskSchema = Joi.object({
@@ -117,7 +117,7 @@ const deleteWorkflowProcessTaskSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   getAllWorkFlowProcessSchema,
   createWorkFlowProcessSchema,
   updateWorkFlowProcessSchema,

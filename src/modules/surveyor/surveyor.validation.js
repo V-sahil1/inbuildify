@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSurveyorSchema = Joi.object({
   name: Joi.string()
@@ -202,7 +202,7 @@ const updateSurveyorSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createSurveyorSchema,
   getAllServeyorSchema,
   deleteSurveyorSchema,

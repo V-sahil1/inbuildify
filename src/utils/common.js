@@ -1,9 +1,7 @@
-const { v4: uuidv4 } = require("uuid");
-const jwt = require("jsonwebtoken");
-const {
-  ALLOWED_FILE_TYPES,
-  ALLOWED_FILE_SIZE,
-} = require("../config/constants");
+import { v4 as uuidv4 } from "uuid";
+import jwt from "jsonwebtoken";
+
+import { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } from "../config/constants";
 
 const generateRequestId = () => {
   return uuidv4();
@@ -69,9 +67,9 @@ function toCamelCase(str) {
 function keysToSnakeCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
-  } else if (Array.isArray(obj)) {
+  } if (Array.isArray(obj)) {
     return obj.map(keysToSnakeCase);
-  } else if (obj !== null && typeof obj === "object") {
+  } if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj).map(([key, value]) => [
         toSnakeCase(key),
@@ -85,9 +83,9 @@ function keysToSnakeCase(obj) {
 function keysToCamelCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
-  } else if (Array.isArray(obj)) {
+  } if (Array.isArray(obj)) {
     return obj.map(keysToCamelCase);
-  } else if (obj !== null && typeof obj === "object") {
+  } if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj).map(([key, value]) => [
         toCamelCase(key),
@@ -114,15 +112,16 @@ const generateDynamicReferenceNumber = async ({
   padding = 4,
   includeYear = true,
 }) => {
-  if (!prefix || !tableName || !client)
+  if (!prefix || !tableName || !client) {
     throw new Error("prefix, tableName and client are required");
+  }
 
   const year = includeYear ? new Date().getFullYear().toString() : "";
   const base = `${prefix}${year}`;
 
   // Auto user scope
-  let where = [];
-  let values = [];
+  const where = [];
+  const values = [];
 
   if (user?.company_id) {
     where.push(`company_id = $${values.length + 1}`);
@@ -150,7 +149,7 @@ const generateDynamicReferenceNumber = async ({
   return `${base}${String(next).padStart(padding, "0")}`;
 };
 
-module.exports = {
+export default {
   generateRequestId,
   checkRequiredFields,
   checkValidEmail,

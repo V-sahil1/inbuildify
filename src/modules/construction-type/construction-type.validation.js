@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructiontyeSchema = Joi.object({
   builder: Joi.string().uuid().required().messages({
@@ -67,7 +67,8 @@ const updateConstructionTypeSchema = Joi.object({
       "string.guid": "dwelling type ID must be a valid UUID",
     }),
 });
-module.exports = {
+
+export default {
   createConstructiontyeSchema,
   getAllConstructionTypeSchema,
   deleteConstructionTypeSchema,

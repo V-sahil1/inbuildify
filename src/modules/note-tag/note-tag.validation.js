@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createNoteTageSchema = Joi.object({
   name: Joi.string()
@@ -103,7 +103,8 @@ const updateNoteTagSchema = Joi.object({
 const updateNoteTagIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createNoteTageSchema,
   getAllNoteTagSchema,
   deleteNoteTagSchema,

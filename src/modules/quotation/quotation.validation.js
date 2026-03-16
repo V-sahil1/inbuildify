@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createQuotationSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
@@ -73,7 +73,7 @@ const compareQuotationVersionsQuerySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createQuotationSchema,
   deleteQuotationSchema,
   updateQuotationVersionParamsSchema,

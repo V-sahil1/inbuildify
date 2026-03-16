@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createSalesProcess = async (req, res) => {
+export async function createSalesProcess(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -82,9 +82,9 @@ exports.createSalesProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSalesProcess = async (req, res) => {
+export async function getAllSalesProcess(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -113,9 +113,9 @@ exports.getAllSalesProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSalesProcess = async (req, res) => {
+export async function deleteSalesProcess(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -127,7 +127,7 @@ exports.deleteSalesProcess = async (req, res) => {
       return errorResponse(res, 400, "Sales process iD is required.");
     }
     const existingSales = await client.query(
-      `SELECT sales_process_id FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2`,
+      "SELECT sales_process_id FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2",
       [id, builderId],
     );
 
@@ -140,7 +140,7 @@ exports.deleteSalesProcess = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM sales_process WHERE sales_process_id = $1`,
+      "DELETE FROM sales_process WHERE sales_process_id = $1",
       [id],
     );
 
@@ -151,9 +151,9 @@ exports.deleteSalesProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSalesProcess = async (req, res) => {
+export async function updateSalesProcess(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -172,7 +172,7 @@ exports.updateSalesProcess = async (req, res) => {
     }
 
     const existingSales = await client.query(
-      `SELECT * FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2`,
+      "SELECT * FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2",
       [id, builderId],
     );
 
@@ -235,7 +235,7 @@ exports.updateSalesProcess = async (req, res) => {
     fields.push(`company_id = $${paramIndex++}`);
     values.push(companyId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE sales_process 
@@ -263,4 +263,4 @@ exports.updateSalesProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

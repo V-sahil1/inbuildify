@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createInclusionPackageSchema = Joi.object({
   name: Joi.string().max(255).required().messages({
@@ -20,7 +20,7 @@ const inclusionPackageIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createInclusionPackageSchema,
   updateInclusionPackageSchema,
   inclusionPackageIdSchema,

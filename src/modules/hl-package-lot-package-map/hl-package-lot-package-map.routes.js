@@ -1,25 +1,24 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createHlPackageLotPackageMapSchema,
   getLotPackagesByHlPackageIdSchema,
   deleteHlPackageLotPackageMapSchema,
   getAllHlPackageLotPackageMapsSchema,
-} = require("./hl-package-lot-package-map.validation");
-
-const {
+} from "./hl-package-lot-package-map.validation";
+import {
   createHlPackageLotPackageMap,
   getLotPackagesByHlPackageId,
   deleteHlPackageLotPackageMap,
   getAllHlPackageLotPackageMaps,
-} = require("./hl-package-lot-package-map.controller");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./hl-package-lot-package-map.controller";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -49,4 +48,4 @@ router.delete(
   deleteHlPackageLotPackageMap,
 );
 
-module.exports = router;
+export default router;

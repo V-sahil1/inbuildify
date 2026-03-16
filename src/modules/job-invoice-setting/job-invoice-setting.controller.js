@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobInvoiceSetting = async (req, res) => {
+export async function createJobInvoiceSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,15 +15,15 @@ exports.createJobInvoiceSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM job_invoice_settings WHERE builder_id = $1 OR company_id = $2`,
-      [builderId, companyId]
+      "SELECT 1 FROM job_invoice_settings WHERE builder_id = $1 OR company_id = $2",
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -31,7 +31,7 @@ exports.createJobInvoiceSetting = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Job invoice settings already exist for this builder."
+        "Job invoice settings already exist for this builder.",
       );
     }
     const { show_invoice_summary_in_pdf, invoice_terms_days } = req.body;
@@ -68,7 +68,7 @@ exports.createJobInvoiceSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job invoice settings created successfully."
+      "Job invoice settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -77,9 +77,9 @@ exports.createJobInvoiceSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobInvoiceSetting = async (req, res) => {
+export async function updateJobInvoiceSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -92,7 +92,7 @@ exports.updateJobInvoiceSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -107,7 +107,7 @@ exports.updateJobInvoiceSetting = async (req, res) => {
       FROM job_invoice_settings 
       WHERE builder_id = $1 OR company_id = $2
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (checkRecord.rowCount === 0) {
@@ -115,7 +115,7 @@ exports.updateJobInvoiceSetting = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job invoice settings not found for this user."
+        "Job invoice settings not found for this user.",
       );
     }
 
@@ -140,7 +140,7 @@ exports.updateJobInvoiceSetting = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_invoice_settings
@@ -158,7 +158,7 @@ exports.updateJobInvoiceSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job invoice settings updated successfully."
+      "Job invoice settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -167,9 +167,9 @@ exports.updateJobInvoiceSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobInvoiceSettings = async (req, res) => {
+export async function getUserJobInvoiceSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -184,7 +184,7 @@ exports.getUserJobInvoiceSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -199,14 +199,14 @@ exports.getUserJobInvoiceSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING show_invoice_summary_in_pdf, invoice_terms_days;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job invoice settings fetched successfully"
+      "Job invoice settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching job invoice settings:", error);
@@ -214,4 +214,4 @@ exports.getUserJobInvoiceSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

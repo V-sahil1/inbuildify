@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -33,7 +33,7 @@ const createLotPackageSchema = Joi.object({
   lot_package_group_id: optionalUuidRule.messages({
     "string.guid": "Lot package group ID must be a valid UUID",
   }),
-  disclaimer: stringRule.max(100).optional().valid('validity', 'standard').allow("").messages({
+  disclaimer: stringRule.max(100).optional().valid("validity", "standard").allow("").messages({
     "string.max": "Disclaimer must not exceed 100 characters",
   }),
   floor_plan_id: optionalUuidRule.messages({
@@ -57,7 +57,7 @@ const updateLotPackageSchema = Joi.object({
   lot_package_group_id: optionalUuidRule.messages({
     "string.guid": "Lot package group ID must be a valid UUID",
   }),
-  disclaimer: stringRule.max(100).optional().valid('validity', 'standard').allow("").messages({
+  disclaimer: stringRule.max(100).optional().valid("validity", "standard").allow("").messages({
     "string.max": "Disclaimer must not exceed 100 characters",
   }),
   floor_plan_id: optionalUuidRule.messages({
@@ -86,7 +86,7 @@ const getAllLotPackagesSchema = Joi.object({
   search: Joi.string().trim().optional().allow(""),
 });
 
-module.exports = {
+export default {
   createLotPackageSchema,
   updateLotPackageSchema,
   getLotPackageByIdSchema,

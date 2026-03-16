@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createChecklistItem = async (req, res) => {
+export async function createChecklistItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -205,9 +205,9 @@ exports.createChecklistItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllChecklistItem = async (req, res) => {
+export async function getAllChecklistItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -265,9 +265,9 @@ exports.getAllChecklistItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getChecklistItemsByChecklistId = async (req, res) => {
+export async function getChecklistItemsByChecklistId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -317,9 +317,9 @@ exports.getChecklistItemsByChecklistId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteChecklistItem = async (req, res) => {
+export async function deleteChecklistItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -368,9 +368,9 @@ exports.deleteChecklistItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateChecklistItem = async (req, res) => {
+export async function updateChecklistItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -474,7 +474,7 @@ exports.updateChecklistItem = async (req, res) => {
       );
     }
 
-    let existingSortOrder = item.sort;
+    const existingSortOrder = item.sort;
 
     if (sort !== undefined && sort !== null) {
       const maxSortQuery = `
@@ -558,7 +558,7 @@ exports.updateChecklistItem = async (req, res) => {
       values.push(sort);
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     if (fields.length === 1) {
       await client.query("ROLLBACK");
@@ -590,4 +590,4 @@ exports.updateChecklistItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,25 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createColor,
-  getColors,
-  getColorById,
-  updateColor,
-  deleteColor,
-  copyColor,
-} = require("./color.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const {
-  createColorSchema,
-  updateColorSchema,
-  copyColorSchema,
-} = require("./color.validation");
+import { createColor, getColors, getColorById, updateColor, deleteColor, copyColor } from "./color.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import { createColorSchema, updateColorSchema, copyColorSchema } from "./color.validation";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -51,4 +40,4 @@ router.post(
   copyColor,
 );
 
-module.exports = router;
+export default router;

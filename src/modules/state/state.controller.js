@@ -1,21 +1,20 @@
-const getPool = require("../../config/database");
-const { errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { successResponse } = require("../../helper/response");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getState = async (req, res) => {
+export async function getState(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const country_id = req.params.country_id;
 
-    const country = await client.query(`SELECT * FROM country WHERE country_id = $1 AND name = $2`, [country_id, 'australia']);
+    const country = await client.query("SELECT * FROM country WHERE country_id = $1 AND name = $2", [country_id, "australia"]);
     if (country.rowCount === 0) {
       return errorResponse(res, 404, "Country not found.");
     }
 
-    const query = `SELECT * FROM state WHERE country_id = $1;`;
+    const query = "SELECT * FROM state WHERE country_id = $1;";
     const result = await client.query(query, [country_id]);
 
     if (result.rowCount === 0) {
@@ -28,9 +27,9 @@ exports.getState = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllStates = async (req, res) => {
+export async function getAllStates(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -50,4 +49,4 @@ exports.getAllStates = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

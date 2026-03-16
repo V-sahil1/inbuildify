@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createRoleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(150).required().messages({
@@ -52,7 +52,7 @@ const updateRoleSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-module.exports = {
+export default {
   createRoleSchema,
   getAllRoleSchema,
   deleteRoleSchema,

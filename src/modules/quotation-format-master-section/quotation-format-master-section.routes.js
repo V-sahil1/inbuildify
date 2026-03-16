@@ -1,12 +1,12 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const quotationFormatMasterSectionController = require("./quotation-format-master-section.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-
-const {
+import quotationFormatMasterSectionController from "./quotation-format-master-section.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import {
   createMasterSectionSchema,
   updateMasterSectionSchema,
   getMasterSectionSchema,
@@ -19,9 +19,9 @@ const {
   updateMasterSectionItemSchema,
   getMasterSectionItemSchema,
   paramsItemIdSchema,
-} = require("./quotation-format-master-section.validation");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./quotation-format-master-section.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -132,4 +132,4 @@ router.delete(
   quotationFormatMasterSectionController.deleteMasterSectionItem,
 );
 
-module.exports = router;
+export default router;

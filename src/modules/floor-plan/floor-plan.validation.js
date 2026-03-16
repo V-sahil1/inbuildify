@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const imageRule = Joi.alternatives()
   .try(
@@ -194,7 +194,7 @@ const deleteFloorPlanSchema = Joi.object({
   floor_plan_id: floorPlanIdRule.required(),
 });
 
-module.exports = {
+export default {
   createFloorPlanSchema,
   getFloorPlansSchema,
   updateFloorPlanSchema,

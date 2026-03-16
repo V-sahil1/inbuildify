@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createDwellingTypeSchema = Joi.object({
   name: Joi.string()
@@ -47,7 +47,7 @@ const updateDwellingTypeActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createDwellingTypeSchema,
   updateDwellingTypeSchema,
   deleteDwellingTypeSchema,

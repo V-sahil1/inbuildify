@@ -1,19 +1,20 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createLeadSource,
   getLeadSources,
   getLeadSourceById,
   updateLeadSource,
   deleteLeadSource,
   updateLeadSourceIsActive,
-} = require("./lead-source.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+} from "./lead-source.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createLeadSourceSchema,
   getLeadResourcesSchema,
   getLeadSourceByIdSchema,
@@ -21,8 +22,8 @@ const {
   updateLeadSourceSchema,
   deleteLeadSourceSchema,
   updateLeadSourceIsActiveSchema,
-} = require("./leadSource.validation.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./leadSource.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,35 +32,35 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createLeadSourceSchema, REQUEST_SOURCE.BODY),
-  createLeadSource
+  createLeadSource,
 );
 router.get(
   "/",
   validateRequest(getLeadResourcesSchema, REQUEST_SOURCE.QUERY),
-  getLeadSources
+  getLeadSources,
 );
 router.get(
   "/:lead_source_id",
   validateRequest(getLeadSourceByIdSchema, REQUEST_SOURCE.PARAMS),
-  getLeadSourceById
+  getLeadSourceById,
 );
 router.put(
   "/:lead_source_id",
   validateRequest(updateLeadSourceParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLeadSourceSchema),
-  updateLeadSource
+  updateLeadSource,
 );
 router.delete(
   "/:lead_source_id",
   validateRequest(deleteLeadSourceSchema, REQUEST_SOURCE.PARAMS),
-  deleteLeadSource
+  deleteLeadSource,
 );
 
 router.put(
   "/is-active/:lead_source_id",
   validateRequest(updateLeadSourceParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLeadSourceIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateLeadSourceIsActive
+  updateLeadSourceIsActive,
 );
 
-module.exports = router;
+export default router;

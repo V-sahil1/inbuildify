@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createIntegrationSettingsSchema = Joi.object({
   automatically_send_welcome_email: Joi.boolean().optional(),
@@ -40,7 +40,7 @@ const updateIntegrationSettingSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createIntegrationSettingsSchema,
   updateIntegrationSettingSchema,
 };

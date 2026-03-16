@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const serviceRule = Joi.string()
   .min(2)
@@ -42,7 +42,7 @@ const deleteServiceSchema = Joi.object({
   service_id: serviceIdRule.required(),
 });
 
-module.exports = {
+export default {
   createServiceSchema,
   getServiceByIdSchema,
   updateServiceSchema,

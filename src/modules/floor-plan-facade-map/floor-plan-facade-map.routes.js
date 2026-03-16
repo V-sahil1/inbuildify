@@ -1,17 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const floorPlanFacadeMapController = require("./floor-plan-facade-map.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const {
+import floorPlanFacadeMapController from "./floor-plan-facade-map.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import {
   createFloorPlanFacadeMapSchema,
   getFloorPlanFacadeMapsSchema,
   deleteFloorPlanFacadeMapSchema,
-} = require("./floor-plan-facade-map.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./floor-plan-facade-map.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.post(
   "/",
@@ -38,4 +39,4 @@ router.delete(
   floorPlanFacadeMapController.deleteFloorPlanFacadeMap,
 );
 
-module.exports = router;
+export default router;

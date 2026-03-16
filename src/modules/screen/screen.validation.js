@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createScreenSchema = Joi.object({
   name: Joi.string().trim().min(3).max(150).required().messages({
@@ -23,7 +23,8 @@ const updateScreenParamsSchema = Joi.object({
 const updateScreenSchema = Joi.object({
   name: Joi.string().trim().min(3).max(150).required(),
 });
-module.exports = {
+
+export default {
   createScreenSchema,
   deleteScreenSchema,
   updateScreenParamsSchema,

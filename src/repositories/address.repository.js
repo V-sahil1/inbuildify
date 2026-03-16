@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database";
 
 /**
  * Create or update address
@@ -33,57 +33,57 @@ async function createOrUpdateAddress(addressId, data) {
     );
 
     return res.rows[0].address_id;
-  } else {
-    // UPDATE - only update fields that are provided
-    const updateFields = [];
-    const updateValues = [];
-    let paramIndex = 1;
+  }
+  // UPDATE - only update fields that are provided
+  const updateFields = [];
+  const updateValues = [];
+  let paramIndex = 1;
 
-    if (address_line1 !== undefined) {
-      updateFields.push(`address_line1 = $${paramIndex++}`);
-      updateValues.push(address_line1);
-    }
-    if (address_line2 !== undefined) {
-      updateFields.push(`address_line2 = $${paramIndex++}`);
-      updateValues.push(address_line2);
-    }
-    if (city !== undefined) {
-      updateFields.push(`city = $${paramIndex++}`);
-      updateValues.push(city);
-    }
-    if (zip_code !== undefined) {
-      updateFields.push(`zip_code = $${paramIndex++}`);
-      updateValues.push(zip_code);
-    }
-    if (country_id !== undefined) {
-      updateFields.push(`country_id = $${paramIndex++}`);
-      updateValues.push(country_id);
-    }
-    if (state_id !== undefined) {
-      updateFields.push(`state_id = $${paramIndex++}`);
-      updateValues.push(state_id);
-    }
+  if (address_line1 !== undefined) {
+    updateFields.push(`address_line1 = $${paramIndex++}`);
+    updateValues.push(address_line1);
+  }
+  if (address_line2 !== undefined) {
+    updateFields.push(`address_line2 = $${paramIndex++}`);
+    updateValues.push(address_line2);
+  }
+  if (city !== undefined) {
+    updateFields.push(`city = $${paramIndex++}`);
+    updateValues.push(city);
+  }
+  if (zip_code !== undefined) {
+    updateFields.push(`zip_code = $${paramIndex++}`);
+    updateValues.push(zip_code);
+  }
+  if (country_id !== undefined) {
+    updateFields.push(`country_id = $${paramIndex++}`);
+    updateValues.push(country_id);
+  }
+  if (state_id !== undefined) {
+    updateFields.push(`state_id = $${paramIndex++}`);
+    updateValues.push(state_id);
+  }
 
-    // Only proceed with update if there are fields to update
-    if (updateFields.length > 0) {
-      updateFields.push("updated_at = NOW()");
-      updateValues.push(addressId);
+  // Only proceed with update if there are fields to update
+  if (updateFields.length > 0) {
+    updateFields.push("updated_at = NOW()");
+    updateValues.push(addressId);
 
-      await pool.query(
-        `
+    await pool.query(
+      `
           UPDATE address
           SET
             ${updateFields.join(",\n            ")}
           WHERE address_id = $${paramIndex}
           `,
-        updateValues,
-      );
-    }
-
-    return addressId;
+      updateValues,
+    );
   }
+
+  return addressId;
+
 }
 
-module.exports = {
+export default {
   createOrUpdateAddress,
 };

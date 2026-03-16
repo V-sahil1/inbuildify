@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSurveyTemplateSchema = Joi.object({
   name: Joi.string()
@@ -97,7 +97,7 @@ const updateSurveyTemplateSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createSurveyTemplateSchema,
   getAllSurveyTemplateSchema,
   deleteSurveyTemplateSchema,

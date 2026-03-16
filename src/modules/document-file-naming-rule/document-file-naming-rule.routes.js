@@ -1,29 +1,28 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createDocumentFileNamingRule,
   getAllDocumentFileNamingRules,
   deleteDocumentFileNamingRule,
   updateDocumentFileNamingRule,
   getNamingFormat,
   createNamingFormat,
-} = require("./document-file-naming-rule.controller.js");
-const {
+} from "./document-file-naming-rule.controller.js";
+import {
   createDocumentFileNamingRuleSchema,
   getAllDocumentFileNamingRulesSchema,
   deleteDocumentFileNamingRuleSchema,
   updateDocumentFileNamingRuleParamsSchema,
   updateDocumentFileNamingRuleSchema,
   updateNamingFormatSchema,
-} = require("./document-file-naming-rule.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./document-file-naming-rule.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -32,40 +31,40 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createDocumentFileNamingRuleSchema, REQUEST_SOURCE.BODY),
-  createDocumentFileNamingRule
+  createDocumentFileNamingRule,
 );
 
 router.get(
   "/",
   validateRequest(getAllDocumentFileNamingRulesSchema, REQUEST_SOURCE.QUERY),
-  getAllDocumentFileNamingRules
+  getAllDocumentFileNamingRules,
 );
 
 router.delete(
   "/:document_file_naming_rule_id",
   validateRequest(deleteDocumentFileNamingRuleSchema, REQUEST_SOURCE.PARAMS),
-  deleteDocumentFileNamingRule
+  deleteDocumentFileNamingRule,
 );
 
 router.put(
   "/:document_file_naming_rule_id",
   validateRequest(
     updateDocumentFileNamingRuleParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateDocumentFileNamingRuleSchema, REQUEST_SOURCE.BODY),
-  updateDocumentFileNamingRule
+  updateDocumentFileNamingRule,
 );
 
 router.post(
   "/naming-format",
   validateRequest(updateNamingFormatSchema, REQUEST_SOURCE.BODY),
-  createNamingFormat
+  createNamingFormat,
 );
 
 router.get(
   "/naming-format",
-  getNamingFormat
+  getNamingFormat,
 );
 
-module.exports = router;
+export default router;

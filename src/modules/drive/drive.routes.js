@@ -1,16 +1,19 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const driveController = require("./drive.controller.js");
-const { createDriveSchema, updateIdParamsSchema, updateDriveSchema, getAllDriveSchema} = require("./drive.validation.js");
-
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import driveController from "./drive.controller.js";
+import {
+  createDriveSchema,
+  updateIdParamsSchema,
+  updateDriveSchema,
+  getAllDriveSchema,
+} from "./drive.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -24,6 +27,6 @@ router.get("/:drive_id", driveController.getDriveById);
 
 router.put("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), validateRequest(updateDriveSchema, REQUEST_SOURCE.BODY), driveController.updateDrive);
 
-router.delete("/:drive_id",validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), driveController.deleteDrive);
+router.delete("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), driveController.deleteDrive);
 
-module.exports = router;
+export default router;

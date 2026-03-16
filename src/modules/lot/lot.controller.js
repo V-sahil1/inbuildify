@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createLot = async (req, res) => {
+export async function createLot(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -61,11 +61,11 @@ exports.createLot = async (req, res) => {
         );
       }
 
-      // If lead exists and user is trying to create a new lot for it, 
+      // If lead exists and user is trying to create a new lot for it,
       // delete the previous lot(s) associated with this lead
       await client.query(
         "DELETE FROM lot WHERE leads_id = $1",
-        [leads_id]
+        [leads_id],
       );
     }
 
@@ -217,7 +217,7 @@ exports.createLot = async (req, res) => {
       land_fill_mm || null,
       total_size_m2 || null,
       userId,
-      userId
+      userId,
     ];
 
     const result = await client.query(sql, values);
@@ -225,7 +225,7 @@ exports.createLot = async (req, res) => {
     if (leads_id) {
       await client.query(
         "UPDATE leads SET lot_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2",
-        [result.rows[0].lot_id, leads_id]
+        [result.rows[0].lot_id, leads_id],
       );
     }
 
@@ -247,9 +247,9 @@ exports.createLot = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllLots = async (req, res) => {
+export async function getAllLots(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -272,8 +272,8 @@ exports.getAllLots = async (req, res) => {
       created_date,
       created_by,
     } = req.query;
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     whereConditions.push(`(
@@ -399,9 +399,9 @@ exports.getAllLots = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLotById = async (req, res) => {
+export async function getLotById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -447,9 +447,9 @@ exports.getLotById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLot = async (req, res) => {
+export async function updateLot(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -516,7 +516,7 @@ exports.updateLot = async (req, res) => {
     ];
 
     const restrictedFields = [
-      "leads_id"
+      "leads_id",
     ];
     const attemptedRestrictedUpdates = restrictedFields.filter(
       (field) => req.body[field] !== undefined,
@@ -639,7 +639,7 @@ exports.updateLot = async (req, res) => {
       return errorResponse(res, 400, "No valid fields to update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateValues.push(lot_id);
 
     const sql = `
@@ -672,9 +672,9 @@ exports.updateLot = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLot = async (req, res) => {
+export async function deleteLot(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -714,4 +714,4 @@ exports.deleteLot = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

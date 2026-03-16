@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobCommissionSubStageSchema = Joi.object({
   job_commission_id: Joi.string().uuid().required().messages({
@@ -135,7 +135,7 @@ const updateJobCommissionSubStageSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createJobCommissionSubStageSchema,
   getAllJobCommissionSubStageSchema,
   getJobCommissionSubStagesByCommissionIdSchema,

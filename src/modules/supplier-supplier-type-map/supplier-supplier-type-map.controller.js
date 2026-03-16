@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createSupplierTypeMap = async (req, res) => {
+export async function createSupplierTypeMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -134,9 +134,9 @@ exports.createSupplierTypeMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSupplierTypeMaps = async (req, res) => {
+export async function getAllSupplierTypeMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -148,8 +148,8 @@ exports.getAllSupplierTypeMaps = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    let conditions = [];
-    let values = [];
+    const conditions = [];
+    const values = [];
     let index = 1;
 
     // Add builder scope condition
@@ -187,9 +187,9 @@ exports.getAllSupplierTypeMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSupplierTypeMap = async (req, res) => {
+export async function updateSupplierTypeMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -271,9 +271,9 @@ exports.updateSupplierTypeMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSupplierSupplierTypeMap = async (req, res) => {
+export async function deleteSupplierSupplierTypeMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -331,7 +331,7 @@ exports.deleteSupplierSupplierTypeMap = async (req, res) => {
       );
     }
 
-    await client.query(`DELETE FROM supplier_supplier_type_map WHERE id = $1`, [
+    await client.query("DELETE FROM supplier_supplier_type_map WHERE id = $1", [
       id,
     ]);
 
@@ -344,9 +344,9 @@ exports.deleteSupplierSupplierTypeMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createSupplierTypeConstructionChecklistMap = async (req, res) => {
+export async function createSupplierTypeConstructionChecklistMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -432,9 +432,9 @@ exports.createSupplierTypeConstructionChecklistMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSupplierTypeConstructionChecklistMap = async (req, res) => {
+export async function deleteSupplierTypeConstructionChecklistMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -474,7 +474,7 @@ exports.deleteSupplierTypeConstructionChecklistMap = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM supplier_type_construction_checklist_map WHERE id = $1`,
+      "DELETE FROM supplier_type_construction_checklist_map WHERE id = $1",
       [id],
     );
 
@@ -487,9 +487,9 @@ exports.deleteSupplierTypeConstructionChecklistMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSupplierTypeConstructionChecklistMaps = async (req, res) => {
+export async function getAllSupplierTypeConstructionChecklistMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -501,8 +501,8 @@ exports.getAllSupplierTypeConstructionChecklistMaps = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    let conditions = [];
-    let values = [];
+    const conditions = [];
+    const values = [];
     let index = 1;
 
     // Add builder scope condition
@@ -542,4 +542,4 @@ exports.getAllSupplierTypeConstructionChecklistMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

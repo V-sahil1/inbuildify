@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createTemplateNoteSchema = Joi.object({
   name: Joi.string()
@@ -48,7 +48,8 @@ const updateTemplateNoteSchema = Joi.object({
 const updateTemplateNoteIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createTemplateNoteSchema,
   getAllTemplateNotesSchema,
   deleteTemplateNoteSchema,

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createConstructionEtsRechargeApproval = async (req, res) => {
+export async function createConstructionEtsRechargeApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -42,7 +42,7 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
       etsRechargeResult.rows[0].construction_ets_recharge_id;
 
     const roleCheck = await client.query(
-      `SELECT role_id FROM role WHERE role_id = $1`,
+      "SELECT role_id FROM role WHERE role_id = $1",
       [role_id],
     );
 
@@ -103,9 +103,9 @@ exports.createConstructionEtsRechargeApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
+export async function getAllConstructionEtsRechargeApprovals(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -113,10 +113,10 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
     const { construction_ets_recharge_id, role_id } = req.query;
 
     let whereClause = "";
-    let values = [];
+    const values = [];
 
     if (construction_ets_recharge_id) {
-      whereClause += `WHERE cera.construction_ets_recharge_id = $1`;
+      whereClause += "WHERE cera.construction_ets_recharge_id = $1";
       values.push(construction_ets_recharge_id);
     }
 
@@ -124,7 +124,7 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
       if (whereClause) {
         whereClause += ` AND cera.role_id = $${values.length + 1}`;
       } else {
-        whereClause += `WHERE cera.role_id = $1`;
+        whereClause += "WHERE cera.role_id = $1";
       }
       values.push(role_id);
     }
@@ -163,9 +163,9 @@ exports.getAllConstructionEtsRechargeApprovals = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
+export async function getConstructionEtsRechargeApprovalById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -219,9 +219,9 @@ exports.getConstructionEtsRechargeApprovalById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionEtsRechargeApproval = async (req, res) => {
+export async function updateConstructionEtsRechargeApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -247,7 +247,7 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
     }
 
     const existingResult = await client.query(
-      `SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
+      "SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1",
       [construction_ets_recharge_approval_id],
     );
 
@@ -314,7 +314,7 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
 
     updateFields.push(`updated_by = $${idx++}`);
     updateValues.push(user_id);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `UPDATE construction_ets_recharge_approval SET ${updateFields.join(
@@ -354,9 +354,9 @@ exports.updateConstructionEtsRechargeApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
+export async function deleteConstructionEtsRechargeApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -372,7 +372,7 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
     }
 
     const checkResult = await client.query(
-      `SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
+      "SELECT construction_ets_recharge_approval_id FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1",
       [construction_ets_recharge_approval_id],
     );
 
@@ -385,7 +385,7 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1`,
+      "DELETE FROM construction_ets_recharge_approval WHERE construction_ets_recharge_approval_id = $1",
       [construction_ets_recharge_approval_id],
     );
 
@@ -400,4 +400,4 @@ exports.deleteConstructionEtsRechargeApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

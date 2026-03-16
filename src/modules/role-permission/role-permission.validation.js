@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createRolePermissionSchema = Joi.object({
   role_id: Joi.string().uuid().required().messages({
@@ -65,7 +65,7 @@ const updateRolePermissionIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createRolePermissionSchema,
   getAllRolePermissionSchema,
   deleteRolePermissionSchema,

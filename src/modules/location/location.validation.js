@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createLocationSchema = Joi.object({
   name: Joi.string().trim().max(150).required(),
@@ -29,7 +29,7 @@ const updateLocationShema = Joi.object({
   status: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createLocationSchema,
   deleteLocationSchema,
   updateLocationParamsSchema,

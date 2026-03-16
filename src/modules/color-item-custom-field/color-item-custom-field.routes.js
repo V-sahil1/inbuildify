@@ -1,23 +1,20 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createColorItemCustomField,
   getColorItemCustomFields,
   getColorItemCustomFieldById,
   updateColorItemCustomField,
   deleteColorItemCustomField,
-} = require("./color-item-custom-field.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const {
-  createColorItemCustomFieldSchema,
-  updateColorItemCustomFieldSchema,
-} = require("./color-item-custom-field.validation");
+} from "./color-item-custom-field.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import { createColorItemCustomFieldSchema, updateColorItemCustomFieldSchema } from "./color-item-custom-field.validation";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -42,4 +39,4 @@ router.put(
 
 router.delete("/:id", deleteColorItemCustomField);
 
-module.exports = router;
+export default router;

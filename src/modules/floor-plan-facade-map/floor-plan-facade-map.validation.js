@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Common rules
 const uuidRule = Joi.string()
@@ -30,7 +30,7 @@ const deleteFloorPlanFacadeMapSchema = Joi.object({
   id: uuidRule.required(),
 });
 
-module.exports = {
+export default {
   createFloorPlanFacadeMapSchema,
   getFloorPlanFacadeMapsSchema,
   deleteFloorPlanFacadeMapSchema,

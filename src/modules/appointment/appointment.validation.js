@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createAppointmentSchema = Joi.object({
   title: Joi.string()
@@ -129,7 +129,8 @@ const updateAppointmentSchema = Joi.object({
     "boolean.base": "send_appointment_customer must be a boolean value",
   }),
 });
-module.exports = {
+
+export default {
   createAppointmentSchema,
   getAllAppointmentSchema,
   deleteAppointmentSchema,

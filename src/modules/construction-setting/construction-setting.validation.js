@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionSettingSchema = Joi.object({
   suppliers_tradies_madatory_to_complete_checklist:
@@ -103,7 +103,7 @@ const updateConstructionSettingSchema = Joi.object({
     }),
 });
 
-module.exports = {
+export default {
   createConstructionSettingSchema,
   updateConstructionSettingSchema,
 };

@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createJobInvoiceStagePayment,
   getAllJobInvoiceStagePayments,
   deleteJobInvoiceStagePayment,
   updateJobInvoiceStagePayment,
-} = require("./job-invoice-stage-payment.controller.js");
-const {
+} from "./job-invoice-stage-payment.controller.js";
+import {
   createJobInvoiceStagePaymentSchema,
   getAllJobInvoiceStagePaymentSchema,
   deleteJobInvoiceStagePaymentSchema,
   updateJobInvoiceStagePaymentParamsSchema,
   updateJobInvoiceStagePaymentSchema,
-} = require("./job-invoice-stage-payment.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./job-invoice-stage-payment.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -29,29 +28,29 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createJobInvoiceStagePaymentSchema, REQUEST_SOURCE.BODY),
-  createJobInvoiceStagePayment
+  createJobInvoiceStagePayment,
 );
 
 router.get(
   "/",
   validateRequest(getAllJobInvoiceStagePaymentSchema, REQUEST_SOURCE.QUERY),
-  getAllJobInvoiceStagePayments
+  getAllJobInvoiceStagePayments,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteJobInvoiceStagePaymentSchema, REQUEST_SOURCE.PARAMS),
-  deleteJobInvoiceStagePayment
+  deleteJobInvoiceStagePayment,
 );
 
 router.put(
   "/:job_invoice_stage_payment_id",
   validateRequest(
     updateJobInvoiceStagePaymentParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateJobInvoiceStagePaymentSchema, REQUEST_SOURCE.BODY),
-  updateJobInvoiceStagePayment
+  updateJobInvoiceStagePayment,
 );
 
-module.exports = router;
+export default router;

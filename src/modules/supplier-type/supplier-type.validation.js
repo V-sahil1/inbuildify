@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSuppllierTypeSchema = Joi.object({
   name: Joi.string()
@@ -41,7 +41,8 @@ const updateSupplierTypeSchema = Joi.object({
     .optional(),
   is_active: Joi.boolean().optional(),
 });
-module.exports = {
+
+export default {
   createSuppllierTypeSchema,
   getAllSupllierTypeSchema,
   deleteSupplierTypeSchema,

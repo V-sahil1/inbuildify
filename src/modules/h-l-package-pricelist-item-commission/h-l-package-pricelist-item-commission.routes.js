@@ -1,6 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createPriceListItemMap,
   getPriceListItemMaps,
   getAllPriceListItemMaps,
@@ -11,22 +13,20 @@ const {
   getAllPackageCommissionMaps,
   updatePackageCommissionMap,
   deletePackageCommissionMap,
-} = require("./h-l-package-pricelist-item-commission.controller.js");
-
-const {
+} from "./h-l-package-pricelist-item-commission.controller.js";
+import {
   createPriceListItemMapSchema,
   updatePriceListItemMapSchema,
   getPriceListItemMapsSchema,
   deletePriceListItemMapSchema,
   createPackageCommissionMapSchema,
   updatePackageCommissionMapSchema,
-} = require("./h-l-package-pricelist-item-commission.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./h-l-package-pricelist-item-commission.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -35,31 +35,31 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createPriceListItemMapSchema, REQUEST_SOURCE.BODY),
-  createPriceListItemMap
+  createPriceListItemMap,
 );
 
 router.get(
   "/",
-  getAllPriceListItemMaps
+  getAllPriceListItemMaps,
 );
 
 router.get(
   "/:house_land_package_id",
   validateRequest(getPriceListItemMapsSchema, REQUEST_SOURCE.PARAMS),
-  getPriceListItemMaps
+  getPriceListItemMaps,
 );
 
 router.put(
   "/:id",
   validateRequest(updatePriceListItemMapSchema, REQUEST_SOURCE.BODY),
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
-  updatePriceListItemMap
+  updatePriceListItemMap,
 );
 
 router.delete(
   "/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
-  deletePriceListItemMap
+  deletePriceListItemMap,
 );
 
 // --- Package Commission Map Routes ---
@@ -67,31 +67,31 @@ router.delete(
 router.post(
   "/package-commission",
   validateRequest(createPackageCommissionMapSchema, REQUEST_SOURCE.BODY),
-  createPackageCommissionMap
+  createPackageCommissionMap,
 );
 
 router.get(
   "/package-commission/all",
-  getAllPackageCommissionMaps
+  getAllPackageCommissionMaps,
 );
 
 router.get(
   "/package-commission/:house_land_package_id",
   validateRequest(getPriceListItemMapsSchema, REQUEST_SOURCE.PARAMS),
-  getPackageCommissionMaps
+  getPackageCommissionMaps,
 );
 
 router.put(
   "/package-commission/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePackageCommissionMapSchema, REQUEST_SOURCE.BODY),
-  updatePackageCommissionMap
+  updatePackageCommissionMap,
 );
 
 router.delete(
   "/package-commission/:id",
   validateRequest(deletePriceListItemMapSchema, REQUEST_SOURCE.PARAMS),
-  deletePackageCommissionMap
+  deletePackageCommissionMap,
 );
 
-module.exports = router;
+export default router;

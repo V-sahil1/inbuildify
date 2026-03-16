@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createSurveyTemplate = async (req, res) => {
+export async function createSurveyTemplate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -144,9 +144,9 @@ exports.createSurveyTemplate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSurveyTemplate = async (req, res) => {
+export async function getAllSurveyTemplate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -158,8 +158,8 @@ exports.getAllSurveyTemplate = async (req, res) => {
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    let conditions = ["builder_id = $1"];
-    let values = [builderId];
+    const conditions = ["builder_id = $1"];
+    const values = [builderId];
     let paramIndex = 2;
 
     if (name !== undefined && name.trim() !== "") {
@@ -232,9 +232,9 @@ exports.getAllSurveyTemplate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSurveyTemplate = async (req, res) => {
+export async function deleteSurveyTemplate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -300,9 +300,9 @@ exports.deleteSurveyTemplate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSurveyTemplate = async (req, res) => {
+export async function updateSurveyTemplate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -467,8 +467,12 @@ exports.updateSurveyTemplate = async (req, res) => {
       values.push(value);
     };
 
-    if (name !== undefined) push("name", name);
-    if (sort_order !== undefined) push("sort_order", sort_order);
+    if (name !== undefined) {
+      push("name", name);
+    }
+    if (sort_order !== undefined) {
+      push("sort_order", sort_order);
+    }
     if (is_recommended !== undefined) {
       if (is_recommended === true) {
         const updateRecommendedQuery = `
@@ -490,7 +494,9 @@ exports.updateSurveyTemplate = async (req, res) => {
       push("is_recommended", is_recommended);
     }
 
-    if (statusInBody) push("status", requestedStatus);
+    if (statusInBody) {
+      push("status", requestedStatus);
+    }
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -498,7 +504,7 @@ exports.updateSurveyTemplate = async (req, res) => {
     }
 
     push("updated_by", userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const whereClauseValues = [survey_template_id, builderId, companyId];
 
@@ -529,4 +535,4 @@ exports.updateSurveyTemplate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

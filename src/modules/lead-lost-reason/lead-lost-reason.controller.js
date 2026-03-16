@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createLeadLostReason = async (req, res) => {
+export async function createLeadLostReason(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -112,9 +112,9 @@ exports.createLeadLostReason = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllLeadLostReasons = async (req, res) => {
+export async function getAllLeadLostReasons(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -165,9 +165,9 @@ exports.getAllLeadLostReasons = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLeadLostReason = async (req, res) => {
+export async function deleteLeadLostReason(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -179,7 +179,7 @@ exports.deleteLeadLostReason = async (req, res) => {
       return errorResponse(res, 400, " ID is required.");
     }
     const existingSurveyor = await client.query(
-      `SELECT lead_lost_reason, sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2`,
+      "SELECT lead_lost_reason, sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1 AND builder_id = $2",
       [id, builderId],
     );
 
@@ -194,12 +194,12 @@ exports.deleteLeadLostReason = async (req, res) => {
     const deletedSortOrder = existingSurveyor.rows[0].sort_order;
 
     await client.query(
-      `DELETE FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
+      "DELETE FROM lead_lost_reason WHERE lead_lost_reason_id = $1",
       [id],
     );
 
     await client.query(
-      `UPDATE lead_lost_reason SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      "UPDATE lead_lost_reason SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
       [deletedSortOrder, builderId],
     );
 
@@ -210,9 +210,9 @@ exports.deleteLeadLostReason = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLeadLostReason = async (req, res) => {
+export async function updateLeadLostReason(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -289,7 +289,7 @@ exports.updateLeadLostReason = async (req, res) => {
 
     if (sort_order !== undefined && sort_order !== null) {
       const existingSortOrderResult = await client.query(
-        `SELECT sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1`,
+        "SELECT sort_order FROM lead_lost_reason WHERE lead_lost_reason_id = $1",
         [id],
       );
       const existingSortOrder = existingSortOrderResult.rows[0].sort_order;
@@ -360,7 +360,7 @@ exports.updateLeadLostReason = async (req, res) => {
     updates.push(`updated_by = $${idx++}`);
     values.push(userId);
 
-    updates.push(`updated_at = NOW()`);
+    updates.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE lead_lost_reason
@@ -389,9 +389,9 @@ exports.updateLeadLostReason = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLeadLostReasonIsActive = async (req, res) => {
+export async function updateLeadLostReasonIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -454,4 +454,4 @@ exports.updateLeadLostReasonIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

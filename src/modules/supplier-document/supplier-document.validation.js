@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const imageRule = Joi.alternatives()
   .try(
@@ -64,7 +64,8 @@ const updateSupplierDocumentSchema = Joi.object({
   trade_license_image: imageRule.optional().allow(null, ""),
   induction_pack_image: imageRule.optional().allow(null, ""),
 });
-module.exports = {
+
+export default {
   createSupplierContactSchema,
   getAllSupplierDocumentSchema,
   updateSupplierDocumentParamsSchema,

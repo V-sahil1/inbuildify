@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createDocumentCommonSubfolderSchem = Joi.object({
   document_common_folder_id: Joi.string().uuid().optional().messages({
@@ -67,7 +67,7 @@ const getDocumentCommonSubfolderByParentIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createDocumentCommonSubfolderSchem,
   getDocumentCommonSubfolderByFolderIdParamsSchema,
   getDocumentCommonSubfolderByFolderIdSchema,

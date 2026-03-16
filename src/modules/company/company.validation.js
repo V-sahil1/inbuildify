@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const addressSchema = Joi.object({
   address_line1: Joi.string()
@@ -109,4 +109,4 @@ const upsertCompanySchema = Joi.object({
   company_logo: Joi.string().max(500).allow(null, "").optional(),
 });
 
-module.exports = { upsertCompanySchema };
+export default { upsertCompanySchema };

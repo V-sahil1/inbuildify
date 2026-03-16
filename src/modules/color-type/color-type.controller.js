@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createColorType = async (req, res) => {
+export async function createColorType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -73,9 +73,9 @@ exports.createColorType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllColorTypes = async (req, res) => {
+export async function getAllColorTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -129,9 +129,9 @@ exports.getAllColorTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorTypeById = async (req, res) => {
+export async function getColorTypeById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -198,9 +198,9 @@ exports.getColorTypeById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorType = async (req, res) => {
+export async function updateColorType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -276,7 +276,7 @@ exports.updateColorType = async (req, res) => {
     }
 
     updateFields.push(`updated_by = $${paramIndex++}`);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
     updateValues.push(userId);
 
     updateValues.push(id, companyId, builderId);
@@ -310,9 +310,9 @@ exports.updateColorType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorType = async (req, res) => {
+export async function deleteColorType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -370,4 +370,4 @@ exports.deleteColorType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

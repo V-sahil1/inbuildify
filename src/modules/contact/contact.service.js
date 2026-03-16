@@ -1,16 +1,11 @@
-const contactRepository = require("./contact.repository");
-const userRepository = require("../user/user.repository");
-const addressRepository = require("../../repositories/address.repository");
-const tokenRepository = require("../../repositories/token.repository");
-
-const emailService = require("../../service/email.service");
-const {
-  generateStrongPassword,
-  validatePasswordPolicy,
-} = require("../../utils/password.util");
-
-const { encrypt } = require("../../utils/common");
-const getPool = require("../../config/database");
+import contactRepository from "./contact.repository";
+import userRepository from "../user/user.repository";
+import addressRepository from "../../repositories/address.repository";
+import tokenRepository from "../../repositories/token.repository";
+import emailService from "../../service/email.service";
+import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util";
+import { encrypt } from "../../utils/common";
+import getPool from "../../config/database";
 
 /* ------------------------------------------------------------
       LIST CONTACTS
@@ -167,7 +162,7 @@ async function updateContact(currentUser, contact_id, body) {
   } = body;
 
   // Remove role_id from updateData - users cannot update roles
-  let updateData = {
+  const updateData = {
     name,
     email,
     phone,
@@ -292,7 +287,7 @@ async function convertContactToUser(currentUser, contact_id, body) {
   };
 }
 
-module.exports = {
+export default {
   getContacts,
   getContactById,
   createContact,

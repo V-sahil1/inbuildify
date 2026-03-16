@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
-exports.createMasterFacade = async (req, res) => {
+export async function createMasterFacade(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -196,9 +196,9 @@ exports.createMasterFacade = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getMasterFacades = async (req, res) => {
+export async function getMasterFacades(req, res) {
   const builderId = req.user.builder_id;
   const companyId = req.user.company_id;
 
@@ -369,9 +369,9 @@ exports.getMasterFacades = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getMasterFacadeById = async (req, res) => {
+export async function getMasterFacadeById(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -424,9 +424,9 @@ exports.getMasterFacadeById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateMasterFacade = async (req, res) => {
+export async function updateMasterFacade(req, res) {
   const { facade_id } = req.params;
   const builderId = req.user.builder_id;
   const companyId = req.user.company_id;
@@ -476,9 +476,11 @@ exports.updateMasterFacade = async (req, res) => {
     if (statusInBody) {
       if (typeof requestedStatus === "string") {
         const v = requestedStatus.trim().toLowerCase();
-        if (v === "true") requestedStatus = true;
-        else if (v === "false") requestedStatus = false;
-        else {
+        if (v === "true") {
+          requestedStatus = true;
+        } else if (v === "false") {
+          requestedStatus = false;
+        } else {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
@@ -555,9 +557,11 @@ exports.updateMasterFacade = async (req, res) => {
     ];
 
     for (const [key, rawValue] of Object.entries(updates)) {
-      if (!allowedFields.includes(key)) continue;
+      if (!allowedFields.includes(key)) {
+        continue;
+      }
 
-      let value = rawValue;
+      const value = rawValue;
 
       setClauses.push(`${key} = $${values.length + 1}`);
       values.push(value);
@@ -738,9 +742,9 @@ exports.updateMasterFacade = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteMasterFacade = async (req, res) => {
+export async function deleteMasterFacade(req, res) {
   const { facade_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -783,4 +787,4 @@ exports.deleteMasterFacade = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createLeadSchema = Joi.object({
   force_create: Joi.boolean().optional().default(false),
@@ -184,7 +184,7 @@ const convertLeadToOpportunitySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,

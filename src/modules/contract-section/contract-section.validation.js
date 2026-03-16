@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createContractSectionSchema = Joi.object({
   contract_format_id: Joi.string().uuid().required().messages({
@@ -106,7 +106,7 @@ const deleteContractSectionSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createContractSectionSchema,
   getAllContractSectionsSchema,
   getContractSectionByIdSchema,

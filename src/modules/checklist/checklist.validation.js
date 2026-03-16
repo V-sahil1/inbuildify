@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createChecklistSchema = Joi.object({
   screen_id: Joi.string().uuid().required().messages({
@@ -67,7 +67,7 @@ const updateChecklistIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createChecklistSchema,
   getAllChecklistSchema,
   deleteChecklistSchema,

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createTemplateEmail = async (req, res) => {
+export async function createTemplateEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -24,7 +24,7 @@ exports.createTemplateEmail = async (req, res) => {
     await client.query("BEGIN");
 
     const builderCheck = await client.query(
-      `SELECT builder_id FROM builder WHERE builder_id = $1`,
+      "SELECT builder_id FROM builder WHERE builder_id = $1",
       [builderId],
     );
     if (builderCheck.rowCount === 0) {
@@ -33,7 +33,7 @@ exports.createTemplateEmail = async (req, res) => {
     }
 
     const userCheck = await client.query(
-      `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
+      "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false",
       [userId],
     );
     if (userCheck.rowCount === 0) {
@@ -43,7 +43,7 @@ exports.createTemplateEmail = async (req, res) => {
 
     if (additional_recipient_users.length > 0) {
       const usersCheck = await client.query(
-        `SELECT users_id FROM users WHERE  users_id = ANY($1) AND is_deleted = false`,
+        "SELECT users_id FROM users WHERE  users_id = ANY($1) AND is_deleted = false",
         [additional_recipient_users],
       );
       if (usersCheck.rowCount !== additional_recipient_users.length) {
@@ -58,7 +58,7 @@ exports.createTemplateEmail = async (req, res) => {
 
     if (additional_recipient_groups.length > 0) {
       const groupsCheck = await client.query(
-        `SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2)`,
+        "SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2)",
         [builderId, additional_recipient_groups],
       );
       if (groupsCheck.rowCount !== additional_recipient_groups.length) {
@@ -73,7 +73,7 @@ exports.createTemplateEmail = async (req, res) => {
 
     if (additional_recipient_groups.length > 0) {
       const groupsCheck = await client.query(
-        `SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2) AND is_active = true`,
+        "SELECT user_group_id FROM user_group WHERE builder_id = $1 AND user_group_id = ANY($2) AND is_active = true",
         [builderId, additional_recipient_groups],
       );
       if (groupsCheck.rowCount !== additional_recipient_groups.length) {
@@ -153,9 +153,9 @@ exports.createTemplateEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getTemplateEmails = async (req, res) => {
+export async function getTemplateEmails(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -281,13 +281,13 @@ exports.getTemplateEmails = async (req, res) => {
           updated_by
         ) VALUES
         ${staticTemplates
-          .map(
-            (_, i) =>
-              `($${i * 11 + 1}, $${i * 11 + 2}, $${i * 11 + 3}, $${i * 11 + 4},
+    .map(
+      (_, i) =>
+        `($${i * 11 + 1}, $${i * 11 + 2}, $${i * 11 + 3}, $${i * 11 + 4},
                 $${i * 11 + 5}, $${i * 11 + 6}, $${i * 11 + 7}, $${i * 11 + 8},
                 $${i * 11 + 9}, $${i * 11 + 10}, $${i * 11 + 11})`,
-          )
-          .join(", ")}
+    )
+    .join(", ")}
         RETURNING *;
       `;
 
@@ -378,7 +378,7 @@ exports.getTemplateEmails = async (req, res) => {
       queryParams.push(type);
     }
 
-    fetchQuery += ` ORDER BY created_at ASC`;
+    fetchQuery += " ORDER BY created_at ASC";
 
     const result = await client.query(fetchQuery, queryParams);
 
@@ -452,9 +452,9 @@ exports.getTemplateEmails = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTemplateEmail = async (req, res) => {
+export async function updateTemplateEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const { id } = req.params;
@@ -507,7 +507,7 @@ exports.updateTemplateEmail = async (req, res) => {
       additional_recipient_users.length > 0
     ) {
       const usersCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false AND is_verified = true`,
+        "SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false AND is_verified = true",
         [additional_recipient_users],
       );
       if (usersCheck.rowCount !== additional_recipient_users.length) {
@@ -581,7 +581,7 @@ exports.updateTemplateEmail = async (req, res) => {
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE template_email
@@ -637,9 +637,9 @@ exports.updateTemplateEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteTemplateEmail = async (req, res) => {
+export async function deleteTemplateEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -652,7 +652,7 @@ exports.deleteTemplateEmail = async (req, res) => {
     await client.query("BEGIN");
 
     const builderCheck = await client.query(
-      `SELECT builder_id FROM builder WHERE builder_id = $1`,
+      "SELECT builder_id FROM builder WHERE builder_id = $1",
       [builderId],
     );
     if (builderCheck.rowCount === 0) {
@@ -661,7 +661,7 @@ exports.deleteTemplateEmail = async (req, res) => {
     }
 
     const userCheck = await client.query(
-      `SELECT users_id FROM users WHERE users_id = $1`,
+      "SELECT users_id FROM users WHERE users_id = $1",
       [userId],
     );
     if (userCheck.rowCount === 0) {
@@ -707,9 +707,9 @@ exports.deleteTemplateEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTemplateEmailIsActive = async (req, res) => {
+export async function updateTemplateEmailIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -764,4 +764,4 @@ exports.updateTemplateEmailIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

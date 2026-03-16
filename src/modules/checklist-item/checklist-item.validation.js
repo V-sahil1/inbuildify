@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createChecklistItemSchema = Joi.object({
   construction_type_id: Joi.string().uuid().required().messages({
@@ -96,7 +96,8 @@ const updateChecklistItemSchema = Joi.object({
     "number.min": "Sort must be at least 1",
   }),
 });
-module.exports = {
+
+export default {
   createChecklistItemSchema,
   getAllChecklistItemSchema,
   getChecklistItemsByChecklistIdSchema,

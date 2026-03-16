@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createLeadLostReasonSchema = Joi.object({
   lost_reason: Joi.string()
@@ -67,7 +67,8 @@ const updateLeadLostReasonSchema = Joi.object({
 const updateLeadLostReasonIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createLeadLostReasonSchema,
   getAllLeadLostReasonsSchema,
   deleteLeadLostReasonSchema,

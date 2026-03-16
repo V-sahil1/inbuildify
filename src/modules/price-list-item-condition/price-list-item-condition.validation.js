@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPriceListItemConditionValidation = Joi.object({
   price_list_item_id: Joi.string().uuid().required().messages({
@@ -107,7 +107,7 @@ const getAllPriceListItemConditionsValidation = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPriceListItemConditionValidation,
   updatePriceListItemConditionValidation,
   getPriceListItemConditionByIdValidation,

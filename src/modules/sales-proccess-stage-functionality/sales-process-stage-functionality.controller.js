@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getSalesProcessStageFunctionalities = async (req, res) => {
+export async function getSalesProcessStageFunctionalities(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -20,7 +20,7 @@ exports.getSalesProcessStageFunctionalities = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Sales process stage functionalities retrieved successfully."
+      "Sales process stage functionalities retrieved successfully.",
     );
 
   } catch (error) {
@@ -29,4 +29,4 @@ exports.getSalesProcessStageFunctionalities = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

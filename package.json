@@ -4,11 +4,12 @@
   "description": "",
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "seed:all": "node src/seeder/seedAll.js"
   },
   "dependencies": {
@@ -34,6 +35,7 @@
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",
+    "globals": "^17.4.0",
     "nodemon": "^3.1.11"
   }
 }

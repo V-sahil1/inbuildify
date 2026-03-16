@@ -1,7 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createSupplierTypeMap,
   getAllSupplierTypeMaps,
   deleteSupplierSupplierTypeMap,
@@ -9,22 +10,20 @@ const {
   createSupplierTypeConstructionChecklistMap,
   getAllSupplierTypeConstructionChecklistMaps,
   deleteSupplierTypeConstructionChecklistMap,
-} = require("./supplier-supplier-type-map.controller.js");
-const {
+} from "./supplier-supplier-type-map.controller.js";
+import {
   createSupplierTypeMapSchema,
   getAllSupplierTypeMapsSchema,
   deleteSupplierSupplierTypeMapSchema,
   updateSupplierTypeMapSchema,
   updateSupplierTypeParamsSchema,
   createSupplierTpeChecklistSchema,
-} = require("./supplier-supplier-type-map.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./supplier-supplier-type-map.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -74,4 +73,4 @@ router.delete(
   validateRequest(deleteSupplierSupplierTypeMapSchema, REQUEST_SOURCE.PARAMS),
   deleteSupplierTypeConstructionChecklistMap,
 );
-module.exports = router;
+export default router;

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createLeadSource = async (req, res) => {
+export async function createLeadSource(req, res) {
   const { name, sort_order, is_active, allow_change } = req.body || {};
 
   const builderId = req.user?.builder_id;
@@ -99,9 +99,9 @@ exports.createLeadSource = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLeadSources = async (req, res) => {
+export async function getLeadSources(req, res) {
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
 
@@ -140,7 +140,7 @@ exports.getLeadSources = async (req, res) => {
         pagination: {
           totalRecords: total,
           curruntPage: page,
-          totalPages: totalPages,
+          totalPages,
           limit,
         },
       },
@@ -152,9 +152,9 @@ exports.getLeadSources = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLeadSourceById = async (req, res) => {
+export async function getLeadSourceById(req, res) {
   const { lead_source_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -183,9 +183,9 @@ exports.getLeadSourceById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLeadSource = async (req, res) => {
+export async function updateLeadSource(req, res) {
   const { lead_source_id } = req.params;
   const { name, sort_order, allow_change } = req.body;
 
@@ -383,9 +383,9 @@ exports.updateLeadSource = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLeadSource = async (req, res) => {
+export async function deleteLeadSource(req, res) {
   const { lead_source_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -397,7 +397,7 @@ exports.deleteLeadSource = async (req, res) => {
       return errorResponse(res, 400, "lead source id is required.");
     }
     const existingSource = await client.query(
-      `SELECT lead_source_id, sort_order FROM lead_source WHERE lead_source_id = $1 AND builder_id = $2`,
+      "SELECT lead_source_id, sort_order FROM lead_source WHERE lead_source_id = $1 AND builder_id = $2",
       [lead_source_id, builderId],
     );
 
@@ -407,12 +407,12 @@ exports.deleteLeadSource = async (req, res) => {
 
     const deletedSortOrder = existingSource.rows[0].sort_order;
 
-    await client.query(`DELETE FROM lead_source WHERE lead_source_id = $1`, [
+    await client.query("DELETE FROM lead_source WHERE lead_source_id = $1", [
       lead_source_id,
     ]);
 
     await client.query(
-      `UPDATE lead_source SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      "UPDATE lead_source SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
       [deletedSortOrder, builderId],
     );
 
@@ -423,9 +423,9 @@ exports.deleteLeadSource = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLeadSourceIsActive = async (req, res) => {
+export async function updateLeadSourceIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -488,4 +488,4 @@ exports.updateLeadSourceIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,27 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createEstateStage,
   getAllEstateStages,
   deleteEstateStage,
   updateEstateStage,
-} = require("./estate-stage.controller.js");
-const {
+} from "./estate-stage.controller.js";
+import {
   createEstateStageSchema,
   getALLEstateStageSchema,
   deleteEstateStageSchema,
   updateEstateStageParamsSchema,
   updsteEstateStageSchema,
-} = require("./estate-stage.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { createImageOrPdfUpload, handleMulterError } = require("../../utils/s3Upload.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./estate-stage.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createImageOrPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -33,25 +32,25 @@ router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getALLEstateStageSchema, REQUEST_SOURCE.QUERY),
-  getAllEstateStages
+  getAllEstateStages,
 );
 
 router.post(
   "/",
   upload.fields([
-    { name: "attachFile", maxCount: 10},
+    { name: "attachFile", maxCount: 10 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createEstateStageSchema, REQUEST_SOURCE.FORM_DATA),
-  createEstateStage
+  createEstateStage,
 );
 
 router.delete(
   "/:estate_stage_id",
   camelToSnakeMiddleware,
   validateRequest(deleteEstateStageSchema, REQUEST_SOURCE.PARAMS),
-  deleteEstateStage
+  deleteEstateStage,
 );
 
 router.put(
@@ -63,7 +62,7 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateEstateStageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updsteEstateStageSchema, REQUEST_SOURCE.FORM_DATA),
-  updateEstateStage
+  updateEstateStage,
 );
 
-module.exports = router;
+export default router;

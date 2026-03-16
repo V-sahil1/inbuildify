@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 class InvoiceRepository {
   constructor() {
@@ -39,12 +39,12 @@ class InvoiceRepository {
         status,
       } = invoiceData;
 
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // 1. Verify existence of the lead
-      const leadQuery = `SELECT * FROM leads WHERE leads_id = $1 FOR UPDATE`;
+      const leadQuery = "SELECT * FROM leads WHERE leads_id = $1 FOR UPDATE";
       const leadResult = await client.query(leadQuery, [leads_id]);
-      
+
       if (leadResult.rowCount === 0) {
         throw new Error("Lead not found");
       }
@@ -52,7 +52,7 @@ class InvoiceRepository {
       const lead = leadResult.rows[0];
 
       // 2. Enforce that Invoices can only be created for Converted Leads
-      if (lead.status !== 'Convert') {
+      if (lead.status !== "Convert") {
         throw new Error("Cannot create an invoice for a lead that has not been converted to an opportunity");
       }
 
@@ -93,10 +93,10 @@ class InvoiceRepository {
       `;
       await client.query(updateOppQuery, [leads_id]);
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return keysToCamelCase(newInvoice);
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -154,7 +154,7 @@ class InvoiceRepository {
         throw new Error("No fields provided for update");
       }
 
-      fields.push(`updated_at = NOW()`);
+      fields.push("updated_at = NOW()");
       values.push(invoiceId);
 
       const query = `
@@ -187,4 +187,4 @@ class InvoiceRepository {
   }
 }
 
-module.exports = new InvoiceRepository();
+export default new InvoiceRepository();

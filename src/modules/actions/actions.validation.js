@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createActionSchema = {
   params: Joi.object({
@@ -148,7 +148,7 @@ const getActionSchema = {
   }),
 };
 
-module.exports = {
+export default {
   createActionSchema,
   updateActionSchema,
   getActionSchema,

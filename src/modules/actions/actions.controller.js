@@ -1,13 +1,17 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
 const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
+  if (!userIds || userIds.length === 0) {
+    return {};
+  }
 
   const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+  if (validUserIds.length === 0) {
+    return {};
+  }
 
   const usersQuery = `
     SELECT users_id, name 
@@ -23,14 +27,16 @@ const getUsersDetails = async (client, userIds) => {
 };
 
 const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
-exports.createAction = async (req, res) => {
+export async function createAction(req, res) {
   const { lead_id } = req.params;
   const builderId = req.user.builder_id;
   const attachment = req.file?.location;
@@ -58,8 +64,8 @@ exports.createAction = async (req, res) => {
     await client.query("BEGIN");
 
     const checkLeadExists = await client.query(
-      `SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [lead_id, builderId]
+      "SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false",
+      [lead_id, builderId],
     );
 
     if (checkLeadExists.rowCount === 0) {
@@ -79,7 +85,7 @@ exports.createAction = async (req, res) => {
     ]);
     const action = result.rows[0];
 
-    let tagIds = [];
+    const tagIds = [];
     if (tags && tags.length > 0) {
       for (const tagName of tags) {
         const tagRes = await client.query(
@@ -87,7 +93,7 @@ exports.createAction = async (req, res) => {
            VALUES ($1, $2)
            ON CONFLICT (builder_id, name) DO UPDATE SET name = EXCLUDED.name
            RETURNING tag_id`,
-          [builderId, tagName]
+          [builderId, tagName],
         );
         tagIds.push(tagRes.rows[0].tag_id);
       }
@@ -107,7 +113,7 @@ exports.createAction = async (req, res) => {
             task.due_date,
             task.priority,
             task.description || null,
-          ]
+          ],
         );
         taskId = taskRes.rows[0].task_id;
       }
@@ -115,7 +121,7 @@ exports.createAction = async (req, res) => {
       const notesRes = await client.query(
         `INSERT INTO notes (action_id, message, tags, attachment, task_id)
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [action.action_id, message, tagIds, attachment || null, taskId]
+        [action.action_id, message, tagIds, attachment || null, taskId],
       );
       details = notesRes.rows[0];
     }
@@ -142,14 +148,14 @@ exports.createAction = async (req, res) => {
         return errorResponse(
           res,
           404,
-          `Recipients not found: ${missing.join(", ")}`
+          `Recipients not found: ${missing.join(", ")}`,
         );
       }
 
       const smsRes = await client.query(
         `INSERT INTO sms (action_id, recipient, message)
          VALUES ($1, $2::uuid[], $3) RETURNING *`,
-        [action.action_id, recipients, message]
+        [action.action_id, recipients, message],
       );
 
       details = {
@@ -157,7 +163,7 @@ exports.createAction = async (req, res) => {
         actionId: smsRes.rows[0].action_id,
         recipient: recipients.map((id) => {
           const contact = contactCheckRes.rows.find(
-            (c) => c.leads_contact_id === id
+            (c) => c.leads_contact_id === id,
           );
           return {
             id,
@@ -174,15 +180,15 @@ exports.createAction = async (req, res) => {
     if (type === "APPOINTMENT") {
       if (select_users && select_users.length > 0) {
         const selectUsersRes = await client.query(
-          `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
-          [select_users, builderId]
+          "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND builder_id = $2 AND is_verified = true AND is_deleted = false",
+          [select_users, builderId],
         );
         if (selectUsersRes.rowCount === 0) {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
             404,
-            "Select users not found or not verified."
+            "Select users not found or not verified.",
           );
         }
       }
@@ -198,7 +204,7 @@ exports.createAction = async (req, res) => {
           location,
           select_users,
           notes,
-        ]
+        ],
       );
       details = appointmentRes.rows[0];
     }
@@ -206,8 +212,8 @@ exports.createAction = async (req, res) => {
     if (type === "TASK") {
       if (task.assignee) {
         const assigneeRes = await client.query(
-          `SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false`,
-          [task.assignee, builderId]
+          "SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_verified = true AND is_deleted = false",
+          [task.assignee, builderId],
         );
         if (assigneeRes.rowCount === 0) {
           await client.query("ROLLBACK");
@@ -227,7 +233,7 @@ exports.createAction = async (req, res) => {
           task.time || null,
           task.assignee || null,
           attachment || null,
-        ]
+        ],
       );
       details = taskRes.rows[0];
     }
@@ -239,8 +245,8 @@ exports.createAction = async (req, res) => {
     ]);
 
     const tagNamesRes = await client.query(
-      `SELECT t.tag_id, t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false`,
-      [tagIds, builderId]
+      "SELECT t.tag_id, t.name FROM tags t WHERE t.tag_id = ANY($1::uuid[]) AND t.builder_id = $2 AND t.is_deleted = false",
+      [tagIds, builderId],
     );
 
     details.tags = tagNamesRes.rows.map((r) => ({
@@ -261,7 +267,7 @@ exports.createAction = async (req, res) => {
         updated_by: formatUserObject(action.updated_by_id, usersMap),
         [type?.toLowerCase()]: keysToCamelCase(details),
       }),
-      "Action created successfully."
+      "Action created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -270,9 +276,9 @@ exports.createAction = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateAction = async (req, res) => {
+export async function updateAction(req, res) {
   const { action_id } = req.params;
   const builderId = req.user.builder_id;
   const attachment = req.file?.location || null;
@@ -299,8 +305,8 @@ exports.updateAction = async (req, res) => {
     await client.query("BEGIN");
 
     const actionRes = await client.query(
-      `SELECT * FROM actions WHERE action_id = $1 AND builder_id = $2`,
-      [action_id, builderId]
+      "SELECT * FROM actions WHERE action_id = $1 AND builder_id = $2",
+      [action_id, builderId],
     );
     if (actionRes.rowCount === 0) {
       return errorResponse(res, 404, "Action not found.");
@@ -313,14 +319,14 @@ exports.updateAction = async (req, res) => {
 
     // Update the updated_by_id and updated_at
     await client.query(
-      `UPDATE actions SET updated_by_id = $1, updated_at = NOW() WHERE action_id = $2`,
-      [req.user.user_id, action_id]
+      "UPDATE actions SET updated_by_id = $1, updated_at = NOW() WHERE action_id = $2",
+      [req.user.user_id, action_id],
     );
 
     // Fetch updated action
     const updatedActionRes = await client.query(
-      `SELECT * FROM actions WHERE action_id = $1`,
-      [action_id]
+      "SELECT * FROM actions WHERE action_id = $1",
+      [action_id],
     );
     const updatedAction = updatedActionRes.rows[0];
 
@@ -328,8 +334,8 @@ exports.updateAction = async (req, res) => {
 
     if (existingAction.type === "NOTES") {
       const oldRes = await client.query(
-        `SELECT * FROM notes WHERE notes_id = $1 AND action_id = $2`,
-        [action_type_id, action_id]
+        "SELECT * FROM notes WHERE notes_id = $1 AND action_id = $2",
+        [action_type_id, action_id],
       );
       if (oldRes.rowCount === 0) {
         return errorResponse(res, 404, "Notes record not found.");
@@ -342,7 +348,7 @@ exports.updateAction = async (req, res) => {
                attachment = COALESCE($2, attachment)
          WHERE notes_id = $3 AND action_id = $4 
          RETURNING *`,
-        [message, attachment || oldNote.attachment, action_type_id, action_id]
+        [message, attachment || oldNote.attachment, action_type_id, action_id],
       );
       details = notesRes.rows[0];
 
@@ -359,7 +365,7 @@ exports.updateAction = async (req, res) => {
           `SELECT tag_id, name 
              FROM tags 
             WHERE name = ANY($1) AND builder_id = $2 AND is_deleted = false`,
-          [tags, builderId]
+          [tags, builderId],
         );
         const existingTags = existingTagsRes.rows;
         const existingTagNames = existingTags.map((t) => t.name);
@@ -371,7 +377,7 @@ exports.updateAction = async (req, res) => {
             `INSERT INTO tags (name, builder_id) 
                SELECT unnest($1::text[]), $2 
              RETURNING tag_id, name`,
-            [missingTags, builderId]
+            [missingTags, builderId],
           );
           newTags = insertRes.rows;
         }
@@ -380,8 +386,8 @@ exports.updateAction = async (req, res) => {
 
         const tagIds = allTags.map((t) => t.tag_id);
         await client.query(
-          `UPDATE notes SET tags = $1 WHERE notes_id = $2 AND action_id = $3`,
-          [tagIds, action_type_id, action_id]
+          "UPDATE notes SET tags = $1 WHERE notes_id = $2 AND action_id = $3",
+          [tagIds, action_type_id, action_id],
         );
       }
       const finalTagRes = await client.query(
@@ -389,7 +395,7 @@ exports.updateAction = async (req, res) => {
            FROM tags t
            INNER JOIN notes nt ON t.tag_id = ANY(nt.tags)
           WHERE nt.notes_id = $1`,
-        [action_type_id]
+        [action_type_id],
       );
       details.tags = finalTagRes.rows;
     }
@@ -403,7 +409,7 @@ exports.updateAction = async (req, res) => {
              FROM leads_contact
             WHERE leads_contact_id = ANY($1::uuid[])
               AND lead_id = $2`,
-          [recipients, existingAction.lead_id]
+          [recipients, existingAction.lead_id],
         );
 
         const foundIds = contactCheckRes.rows.map((r) => r.leads_contact_id);
@@ -414,7 +420,7 @@ exports.updateAction = async (req, res) => {
           return errorResponse(
             res,
             404,
-            `Recipients not found: ${missing.join(", ")}`
+            `Recipients not found: ${missing.join(", ")}`,
           );
         }
 
@@ -424,7 +430,7 @@ exports.updateAction = async (req, res) => {
                   message = COALESCE($2, message) 
             WHERE sms_id = $3 AND action_id = $4 
             RETURNING *`,
-          [recipients, message, action_type_id, action_id]
+          [recipients, message, action_type_id, action_id],
         );
 
         if (smsRes.rowCount === 0) {
@@ -436,7 +442,7 @@ exports.updateAction = async (req, res) => {
           actionId: smsRes.rows[0].action_id,
           recipient: recipients.map((id) => {
             const contact = contactCheckRes.rows.find(
-              (c) => c.leads_contact_id === id
+              (c) => c.leads_contact_id === id,
             );
             return {
               id,
@@ -454,7 +460,7 @@ exports.updateAction = async (req, res) => {
               SET message = COALESCE($1, message) 
             WHERE sms_id = $2 AND action_id = $3 
             RETURNING *`,
-          [message, action_type_id, action_id]
+          [message, action_type_id, action_id],
         );
         if (smsRes.rowCount === 0) {
           return errorResponse(res, 404, "SMS record not found.");
@@ -465,12 +471,12 @@ exports.updateAction = async (req, res) => {
              FROM leads_contact lc
              JOIN sms s ON lc.leads_contact_id = ANY(s.recipient)
             WHERE s.sms_id = $1 AND s.action_id = $2`,
-          [action_type_id, action_id]
+          [action_type_id, action_id],
         );
 
         const recipientWithNames = smsRes.rows[0].recipient.map((id) => {
           const contact = contactCheckRes.rows.find(
-            (c) => c.leads_contact_id === id
+            (c) => c.leads_contact_id === id,
           );
           return {
             id,
@@ -501,7 +507,7 @@ exports.updateAction = async (req, res) => {
             AND builder_id = $3
             AND is_verified = true
             AND is_deleted = false`,
-        [action_type_id, action_id, builderId]
+        [action_type_id, action_id, builderId],
       );
 
       let selectUsers = currentUsersRes.rows;
@@ -514,7 +520,7 @@ exports.updateAction = async (req, res) => {
               AND builder_id = $2 
               AND is_verified = true 
               AND is_deleted = false`,
-          [select_users, builderId]
+          [select_users, builderId],
         );
 
         const foundIds = selectUsersRes.rows.map((r) => r.users_id);
@@ -525,7 +531,7 @@ exports.updateAction = async (req, res) => {
           return errorResponse(
             res,
             404,
-            `Select users not found or not verified: ${missing.join(", ")}`
+            `Select users not found or not verified: ${missing.join(", ")}`,
           );
         }
         selectUsers = selectUsersRes.rows;
@@ -554,7 +560,7 @@ exports.updateAction = async (req, res) => {
           notes,
           action_type_id,
           action_id,
-        ]
+        ],
       );
 
       if (apptRes.rowCount === 0) {
@@ -571,21 +577,21 @@ exports.updateAction = async (req, res) => {
 
     if (existingAction.type === "TASK") {
       const oldTaskRes = await client.query(
-        `SELECT * FROM task WHERE task_id = $1 AND action_id = $2`,
-        [action_type_id, action_id]
+        "SELECT * FROM task WHERE task_id = $1 AND action_id = $2",
+        [action_type_id, action_id],
       );
       if (oldTaskRes.rowCount === 0) {
         return errorResponse(res, 404, "Task record not found.");
       }
       const oldTask = oldTaskRes.rows[0];
 
-      let assigneeId = task?.assignee || oldTask.assignee || null;
+      const assigneeId = task?.assignee || oldTask.assignee || null;
       let assigneeData = null;
       if (assigneeId) {
         const checkAssigneeExists = await client.query(
           `SELECT users_id, name FROM users 
           WHERE users_id = $1 AND builder_id = $2 AND is_deleted = false AND is_verified = true`,
-          [assigneeId, builderId]
+          [assigneeId, builderId],
         );
         if (checkAssigneeExists.rowCount === 0) {
           return errorResponse(res, 404, "Assignee not found or not verified.");
@@ -595,7 +601,7 @@ exports.updateAction = async (req, res) => {
 
       let taskTime = task?.time || oldTask.time;
       if (taskTime && /^[0-9]{1,2}$/.test(taskTime)) {
-        taskTime = taskTime.padStart(2, "0") + ":00:00";
+        taskTime = `${taskTime.padStart(2, "0") }:00:00`;
       }
 
       const taskRes = await client.query(
@@ -613,7 +619,7 @@ exports.updateAction = async (req, res) => {
           attachment || oldTask.attachment,
           action_type_id,
           action_id,
-        ]
+        ],
       );
       details = taskRes.rows[0];
 
@@ -646,7 +652,7 @@ exports.updateAction = async (req, res) => {
         updated_by: formatUserObject(updatedAction.updated_by_id, usersMap),
         [existingAction.type.toLowerCase()]: keysToCamelCase(details),
       }),
-      "Action updated successfully."
+      "Action updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -655,9 +661,9 @@ exports.updateAction = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAction = async (req, res) => {
+export async function getAction(req, res) {
   const { filter = "all" } = req.query;
   const pool = getPool();
   const client = await pool.connect();
@@ -673,11 +679,11 @@ exports.getAction = async (req, res) => {
     const queryParams = [leadId, builderId];
 
     if (filter !== "all") {
-      actionQuery += ` AND a.type = $3`;
+      actionQuery += " AND a.type = $3";
       queryParams.push(filter.toUpperCase());
     }
 
-    actionQuery += ` ORDER BY a.created_at DESC`;
+    actionQuery += " ORDER BY a.created_at DESC";
 
     const actionResult = await client.query(actionQuery, queryParams);
     if (actionResult.rows.length === 0) {
@@ -716,8 +722,8 @@ exports.getAction = async (req, res) => {
 
     if (filter === "all" || filter.toUpperCase() === "NOTES") {
       const notesRes = await client.query(
-        `SELECT * FROM notes WHERE action_id = ANY($1) AND is_deleted = false`,
-        [actionIds]
+        "SELECT * FROM notes WHERE action_id = ANY($1) AND is_deleted = false",
+        [actionIds],
       );
       const notes = keysToCamelCase(notesRes.rows);
 
@@ -725,8 +731,8 @@ exports.getAction = async (req, res) => {
       let tagsMap = {};
       if (allTagIds.length > 0) {
         const tagsRes = await client.query(
-          `SELECT tag_id, name FROM tags WHERE tag_id = ANY($1) AND is_deleted = false`,
-          [allTagIds]
+          "SELECT tag_id, name FROM tags WHERE tag_id = ANY($1) AND is_deleted = false",
+          [allTagIds],
         );
         const tags = keysToCamelCase(tagsRes.rows);
         tagsMap = Object.fromEntries(tags.map((t) => [t.tagId, t]));
@@ -736,8 +742,8 @@ exports.getAction = async (req, res) => {
       let noteTasks = [];
       if (noteTaskIds.length > 0) {
         const taskRes = await client.query(
-          `SELECT * FROM task WHERE task_id = ANY($1) AND is_deleted = false`,
-          [noteTaskIds]
+          "SELECT * FROM task WHERE task_id = ANY($1) AND is_deleted = false",
+          [noteTaskIds],
         );
         noteTasks = keysToCamelCase(taskRes.rows);
       }
@@ -759,8 +765,8 @@ exports.getAction = async (req, res) => {
 
     if (filter === "all" || filter.toUpperCase() === "SMS") {
       const smsRes = await client.query(
-        `SELECT * FROM sms WHERE action_id = ANY($1) AND is_deleted = false`,
-        [actionIds]
+        "SELECT * FROM sms WHERE action_id = ANY($1) AND is_deleted = false",
+        [actionIds],
       );
 
       const smsList = keysToCamelCase(smsRes.rows);
@@ -772,10 +778,10 @@ exports.getAction = async (req, res) => {
           `SELECT leads_contact_id, name
             FROM leads_contact
             WHERE leads_contact_id = ANY($1)`,
-          [allRecipientIds]
+          [allRecipientIds],
         );
         recipientMap = Object.fromEntries(
-          contactRes.rows.map((c) => [c.leads_contact_id, c.name])
+          contactRes.rows.map((c) => [c.leads_contact_id, c.name]),
         );
       }
 
@@ -791,8 +797,8 @@ exports.getAction = async (req, res) => {
 
     if (filter === "all" || filter.toUpperCase() === "APPOINTMENT") {
       const appointmentRes = await client.query(
-        `SELECT * FROM appointment WHERE action_id = ANY($1) AND is_deleted = false`,
-        [actionIds]
+        "SELECT * FROM appointment WHERE action_id = ANY($1) AND is_deleted = false",
+        [actionIds],
       );
       const appointments = keysToCamelCase(appointmentRes.rows);
 
@@ -806,7 +812,7 @@ exports.getAction = async (req, res) => {
               AND builder_id = $2 
               AND is_verified = true 
               AND is_deleted = false`,
-          [allUserIds, builderId]
+          [allUserIds, builderId],
         );
         const users = keysToCamelCase(usersRes.rows);
         usersMap = Object.fromEntries(users.map((u) => [u.usersId, u]));
@@ -828,8 +834,8 @@ exports.getAction = async (req, res) => {
 
     if (filter === "all" || filter.toUpperCase() === "TASK") {
       const taskRes = await client.query(
-        `SELECT * FROM task WHERE action_id = ANY($1) AND is_deleted = false`,
-        [actionIds]
+        "SELECT * FROM task WHERE action_id = ANY($1) AND is_deleted = false",
+        [actionIds],
       );
       const tasks = keysToCamelCase(taskRes.rows);
 
@@ -846,7 +852,7 @@ exports.getAction = async (req, res) => {
               AND builder_id = $2 
               AND is_verified = true 
               AND is_deleted = false`,
-          [allAssigneeIds, builderId]
+          [allAssigneeIds, builderId],
         );
         const users = keysToCamelCase(usersRes.rows);
         assigneesMap = Object.fromEntries(users.map((u) => [u.usersId, u]));
@@ -874,4 +880,4 @@ exports.getAction = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

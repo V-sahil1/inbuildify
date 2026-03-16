@@ -1,12 +1,16 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
+  if (!userIds || userIds.length === 0) {
+    return {};
+  }
 
   const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+  if (validUserIds.length === 0) {
+    return {};
+  }
 
   const usersQuery = `
     SELECT users_id, name 
@@ -22,14 +26,16 @@ const getUsersDetails = async (client, userIds) => {
 };
 
 const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
   return {
     id: userId,
     name: usersMap[userId] || null,
   };
 };
 
-exports.getAllColorSubCategories = async (req, res) => {
+export async function getAllColorSubCategories(req, res) {
   const { color_category_id: colorCategoryId } = req.params;
   const { limit, offset } = req.query;
   const parsedLimit = parseInt(limit, 10) || 25;
@@ -42,7 +48,7 @@ exports.getAllColorSubCategories = async (req, res) => {
     let filterClause = "";
     if (colorCategoryId) {
       params.push(colorCategoryId);
-      filterClause = ` AND sc.color_category_id = $4 `;
+      filterClause = " AND sc.color_category_id = $4 ";
     }
 
     const result = await client.query(
@@ -58,7 +64,7 @@ exports.getAllColorSubCategories = async (req, res) => {
     let countFilter = "";
     if (colorCategoryId) {
       countParams.push(colorCategoryId);
-      countFilter = ` AND sc.color_category_id = $2 `;
+      countFilter = " AND sc.color_category_id = $2 ";
     }
     const totalResult = await client.query(
       `SELECT COUNT(*)
@@ -71,8 +77,12 @@ exports.getAllColorSubCategories = async (req, res) => {
     // Get all unique user IDs
     const userIds = new Set();
     result.rows.forEach((row) => {
-      if (row.created_by_id) userIds.add(row.created_by_id);
-      if (row.updated_by_id) userIds.add(row.updated_by_id);
+      if (row.created_by_id) {
+        userIds.add(row.created_by_id);
+      }
+      if (row.updated_by_id) {
+        userIds.add(row.updated_by_id);
+      }
     });
 
     const usersMap = await getUsersDetails(client, Array.from(userIds));
@@ -108,9 +118,9 @@ exports.getAllColorSubCategories = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorSubCategoryById = async (req, res) => {
+export async function getColorSubCategoryById(req, res) {
   const { color_sub_category_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -151,9 +161,9 @@ exports.getColorSubCategoryById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createColorSubCategory = async (req, res) => {
+export async function createColorSubCategory(req, res) {
   const { colorCategoryId, name, description } = req.body;
   const builderId = req.user.builder_id;
   const userId = req.user.users_id;
@@ -163,7 +173,7 @@ exports.createColorSubCategory = async (req, res) => {
 
   try {
     const parent = await client.query(
-      `SELECT 1 FROM color_category WHERE color_category_id = $1 AND builder_id = $2 AND is_deleted = false`,
+      "SELECT 1 FROM color_category WHERE color_category_id = $1 AND builder_id = $2 AND is_deleted = false",
       [colorCategoryId, builderId],
     );
     if (parent.rowCount === 0) {
@@ -171,7 +181,7 @@ exports.createColorSubCategory = async (req, res) => {
     }
 
     const dup = await client.query(
-      `SELECT 1 FROM color_sub_category WHERE color_category_id = $1 AND name = $2 AND is_deleted = false`,
+      "SELECT 1 FROM color_sub_category WHERE color_category_id = $1 AND name = $2 AND is_deleted = false",
       [colorCategoryId, name],
     );
     if (dup.rowCount > 0) {
@@ -209,9 +219,9 @@ exports.createColorSubCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorSubCategory = async (req, res) => {
+export async function updateColorSubCategory(req, res) {
   const { color_sub_category_id } = req.params;
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
@@ -269,9 +279,9 @@ exports.updateColorSubCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorSubCategory = async (req, res) => {
+export async function deleteColorSubCategory(req, res) {
   const { color_sub_category_id } = req.params;
   const builderId = req.user.builder_id;
   const userId = req.user.users_id;
@@ -323,4 +333,4 @@ exports.deleteColorSubCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,26 +1,22 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createTemplatePdf,
   updateTemplatePdf,
   getTemplatePdfById,
   getTemplatePdfList,
   deleteTemplatePdf,
-} = require("./template-pdf.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-
-const {
-  createTemplatePdfSchema,
-} = require("./template-pdf.validation");
-
-const { createUpload, handleMulterError } = require("../../utils/s3Upload");
-const parseFormDataJson = require("../../middleware/parseFormDataJson");
+} from "./template-pdf.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import { createTemplatePdfSchema } from "./template-pdf.validation";
+import { createUpload, handleMulterError } from "../../utils/s3Upload";
+import parseFormDataJson from "../../middleware/parseFormDataJson";
 
 const upload = createUpload("pdf-template-assets");
 
@@ -63,4 +59,4 @@ router.put(
 /** DELETE */
 router.delete("/:template_pdf_id", deleteTemplatePdf);
 
-module.exports = router;
+export default router;

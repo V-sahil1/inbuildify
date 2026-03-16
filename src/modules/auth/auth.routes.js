@@ -1,6 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   registerRoot,
   verifyEmail,
   resendOtp,
@@ -9,8 +11,8 @@ const {
   resetPassword,
   refreshToken,
   logout,
-} = require("./auth.controller");
-const {
+} from "./auth.controller";
+import {
   registerRootSchema,
   verifyEmailSchema,
   resendOtpSchema,
@@ -18,56 +20,56 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema,
   refreshTokenSchema,
-} = require("./auth.validation");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware")
+} from "./auth.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
 
 // AUTH ROUTES
 router.post(
   "/register", camelToSnakeMiddleware,
   validateRequest(registerRootSchema, REQUEST_SOURCE.BODY),
-  registerRoot
+  registerRoot,
 );
 
 router.post(
   "/verify-email", camelToSnakeMiddleware,
   validateRequest(verifyEmailSchema, REQUEST_SOURCE.BODY),
-  verifyEmail
+  verifyEmail,
 );
 
 router.post(
   "/resend-otp", camelToSnakeMiddleware,
   validateRequest(resendOtpSchema, REQUEST_SOURCE.BODY),
-  resendOtp
+  resendOtp,
 );
 
 router.post(
   "/login", camelToSnakeMiddleware,
   validateRequest(loginUserSchema, REQUEST_SOURCE.BODY),
-  login
+  login,
 );
 
 router.post(
   "/forgot-password", camelToSnakeMiddleware,
   validateRequest(forgotPasswordSchema, REQUEST_SOURCE.BODY),
-  forgotPassword
+  forgotPassword,
 );
 
 router.post(
-  "/reset-password", 
+  "/reset-password",
   validateRequest(resetPasswordSchema, REQUEST_SOURCE.BODY),
-  resetPassword
+  resetPassword,
 );
 
 router.post(
   "/refresh-token",
   validateRequest(refreshTokenSchema, REQUEST_SOURCE.BODY),
-  refreshToken
+  refreshToken,
 );
 
 router.post("/logout", authMiddleware, roleMiddleware, logout);
 
-module.exports = router;
+export default router;

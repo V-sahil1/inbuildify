@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobVariationSettingSchema = Joi.object({
   allow_notes_in_variation: Joi.boolean().default(false),
@@ -106,7 +106,7 @@ const updateJobVariationSettingSchema = Joi.object({
     }),
 });
 
-module.exports = {
+export default {
   createJobVariationSettingSchema,
   updateJobVariationSettingParamsSchema,
   updateJobVariationSettingSchema,

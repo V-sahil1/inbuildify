@@ -1,6 +1,6 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 // Ownership check helper - returns version row or null
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
@@ -13,13 +13,13 @@ const verifyVersionOwnership = async (client, quotationVersionId, companyId, bui
        (l.company_id = $2 AND $2 IS NOT NULL)
        OR (l.builder_id = $3 AND $3 IS NOT NULL)
      ) LIMIT 1`,
-    [quotationVersionId, companyId, builderId]
+    [quotationVersionId, companyId, builderId],
   );
   return result.rowCount > 0 ? result.rows[0] : null;
 };
 
 // Create pricelist item map
-exports.createPricelistItemMap = async (req, res) => {
+export async function createPricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -53,14 +53,14 @@ exports.createPricelistItemMap = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [price_list_item_id, companyId, builderId]
+      [price_list_item_id, companyId, builderId],
     );
 
     if (itemCheck.rowCount === 0) {
       return errorResponse(res, 404, "Price list item not found, inactive, or does not belong to your organization");
     }
 
-    if (itemCheck.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+    if (itemCheck.rows[0].cost_type === "Included" && quantity !== undefined && quantity !== null) {
       return errorResponse(res, 400, "Quantity cannot be specified for items with cost type 'Included'");
     }
 
@@ -68,7 +68,7 @@ exports.createPricelistItemMap = async (req, res) => {
     const duplicateCheck = await client.query(
       `SELECT id FROM quotation_version_pricelist_item_map
        WHERE quotation_version_id = $1 AND price_list_item_id = $2 LIMIT 1`,
-      [quotation_version_id, price_list_item_id]
+      [quotation_version_id, price_list_item_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -85,7 +85,7 @@ exports.createPricelistItemMap = async (req, res) => {
        (quotation_version_id, price_list_item_id, quantity, note, total_price)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [quotation_version_id, price_list_item_id, qty, note || null, totalPrice]
+      [quotation_version_id, price_list_item_id, qty, note || null, totalPrice],
     );
 
     const responseData = {
@@ -100,10 +100,10 @@ exports.createPricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // Get all pricelist item maps by quotation version id
-exports.getPricelistItemsByVersionId = async (req, res) => {
+export async function getPricelistItemsByVersionId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -127,13 +127,13 @@ exports.getPricelistItemsByVersionId = async (req, res) => {
        LEFT JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        WHERE m.quotation_version_id = $1
        ORDER BY m.created_at ASC`,
-      [quotation_version_id]
+      [quotation_version_id],
     );
 
     return successResponse(
       res,
       result.rows.map(row => keysToCamelCase(row)),
-      "Pricelist item maps fetched successfully"
+      "Pricelist item maps fetched successfully",
     );
   } catch (error) {
     console.error("Get pricelist item maps error:", error);
@@ -141,10 +141,10 @@ exports.getPricelistItemsByVersionId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // Update pricelist item map (quantity, note)
-exports.updatePricelistItemMap = async (req, res) => {
+export async function updatePricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -170,7 +170,7 @@ exports.updatePricelistItemMap = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -186,7 +186,7 @@ exports.updatePricelistItemMap = async (req, res) => {
       return errorResponse(res, 400, "Quotation version must have both location and dwelling type selected before updating pricelist items");
     }
 
-    if (checkResult.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+    if (checkResult.rows[0].cost_type === "Included" && quantity !== undefined && quantity !== null) {
       return errorResponse(res, 400, "Quantity cannot be updated for items with cost type 'Included'");
     }
 
@@ -218,7 +218,7 @@ exports.updatePricelistItemMap = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     values.push(id);
 
     const result = await client.query(
@@ -226,7 +226,7 @@ exports.updatePricelistItemMap = async (req, res) => {
        SET ${updateFields.join(", ")}
        WHERE id = $${paramIndex}
        RETURNING *`,
-      values
+      values,
     );
 
     const responseData = {
@@ -241,10 +241,10 @@ exports.updatePricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // Delete pricelist item map
-exports.deletePricelistItemMap = async (req, res) => {
+export async function deletePricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -267,7 +267,7 @@ exports.deletePricelistItemMap = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -280,7 +280,7 @@ exports.deletePricelistItemMap = async (req, res) => {
 
     await client.query(
       "DELETE FROM quotation_version_pricelist_item_map WHERE id = $1",
-      [id]
+      [id],
     );
 
     return successResponse(res, null, "Pricelist item map deleted successfully");
@@ -290,4 +290,4 @@ exports.deletePricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

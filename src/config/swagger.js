@@ -1,33 +1,35 @@
-const { REQUEST_SOURCE } = require("../config/constants");
+import { REQUEST_SOURCE } from "../config/constants";
 
 // Default example values for Swagger
 function getDefaultExample(type) {
   switch (type) {
-    case "boolean":
-      return true;
-    case "number":
-    case "integer":
-      return 1;
-    case "string":
-      return "string";
-    case "array":
-      return [];
-    case "object":
-      return {};
-    default:
-      return "";
+  case "boolean":
+    return true;
+  case "number":
+  case "integer":
+    return 1;
+  case "string":
+    return "string";
+  case "array":
+    return [];
+  case "object":
+    return {};
+  default:
+    return "";
   }
 }
 
 // Convert Joi schema to Swagger query parameters
 function joiToSwagger(joiSchema) {
-  if (!joiSchema || !joiSchema.describe) return [];
+  if (!joiSchema || !joiSchema.describe) {
+    return [];
+  }
   const swaggerParams = [];
   const desc = joiSchema.describe();
 
   for (const key in desc.keys) {
     const k = desc.keys[key];
-    let type = k.type === "date" ? "string" : k.type;
+    const type = k.type === "date" ? "string" : k.type;
     let format;
 
     // Detect UUID
@@ -64,19 +66,25 @@ function toCamelCase(str) {
 
 // Convert Joi schema to Swagger request body schema
 function joiToSwaggerBody(joiSchema, isFormData = false) {
-  if (!joiSchema || !joiSchema.describe) return { type: "object", example: {} };
-  
+  if (!joiSchema || !joiSchema.describe) {
+    return { type: "object", example: {} };
+  }
+
   const properties = {};
   const required = [];
   const example = {};
   const desc = joiSchema.describe();
 
-  if (!desc.keys) return { type: "object", example: {} };
+  if (!desc.keys) {
+    return { type: "object", example: {} };
+  }
 
   for (const key in desc.keys) {
     const k = desc.keys[key];
     let type = k.type === "date" ? "string" : k.type;
-    if (type === "number") type = "integer";
+    if (type === "number") {
+      type = "integer";
+    }
     let format;
 
     // Detect UUID
@@ -88,7 +96,9 @@ function joiToSwaggerBody(joiSchema, isFormData = false) {
 
     const isRequired = k.flags?.presence === "required" || false;
     const propKey = isFormData ? toCamelCase(key) : key;
-    if (isRequired) required.push(propKey);
+    if (isRequired) {
+      required.push(propKey);
+    }
 
     let propExample;
     if (format === "uuid") {
@@ -98,7 +108,9 @@ function joiToSwaggerBody(joiSchema, isFormData = false) {
     }
 
     properties[propKey] = { type };
-    if (format) properties[propKey].format = format;
+    if (format) {
+      properties[propKey].format = format;
+    }
 
     // For multipart/form-data, non-string types (like boolean/integer) can crash swagger-ui
     // when building FormData, so we force them to string type in the Swagger spec.
@@ -111,20 +123,24 @@ function joiToSwaggerBody(joiSchema, isFormData = false) {
 
     if (type === "array" && k.items && k.items.length > 0) {
       let itemType = k.items[0].type === "date" ? "string" : k.items[0].type;
-      if (itemType === "number") itemType = "integer";
+      if (itemType === "number") {
+        itemType = "integer";
+      }
       properties[propKey].items = { type: itemType };
-      
+
       let itemFormat;
       if (itemType === "string" && k.items[0].rules?.some((r) => r.name === "uuid")) {
         itemFormat = "uuid";
       } else if (itemType === "date" || k.items[0].type === "date") {
         itemFormat = "date-time";
       }
-      if (itemFormat) properties[propKey].items.format = itemFormat;
+      if (itemFormat) {
+        properties[propKey].items.format = itemFormat;
+      }
 
       if (propExample === undefined || (Array.isArray(propExample) && propExample.length === 0)) {
-        propExample = itemFormat === "uuid" 
-          ? ["3fa85f64-5717-4562-b3fc-2c963f66afa6"] 
+        propExample = itemFormat === "uuid"
+          ? ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
           : [getDefaultExample(itemType)];
       }
     }
@@ -134,7 +150,9 @@ function joiToSwaggerBody(joiSchema, isFormData = false) {
   }
 
   const schema = { type: "object", properties, example };
-  if (required.length > 0) schema.required = required;
+  if (required.length > 0) {
+    schema.required = required;
+  }
 
   return schema;
 }
@@ -143,7 +161,9 @@ function joiToSwaggerBody(joiSchema, isFormData = false) {
 function dedupeParameters(params) {
   const map = {};
   params.forEach((p) => {
-    if (!map[p.name]) map[p.name] = p;
+    if (!map[p.name]) {
+      map[p.name] = p;
+    }
   });
   return Object.values(map);
 }
@@ -152,7 +172,9 @@ function dedupeParameters(params) {
 function extractRoutes(app) {
   const routes = [];
 
-  if (!app._router || !app._router.stack) return routes;
+  if (!app._router || !app._router.stack) {
+    return routes;
+  }
 
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
@@ -193,8 +215,10 @@ function generateSwaggerSpec(app) {
       const lowerMethod = method.toLowerCase();
 
       // Convert :param → {param} for Swagger
-      let swaggerPath = route.path.replace(/:(\w+)/g, '{$1}');
-      if (!paths[swaggerPath]) paths[swaggerPath] = {};
+      const swaggerPath = route.path.replace(/:(\w+)/g, "{$1}");
+      if (!paths[swaggerPath]) {
+        paths[swaggerPath] = {};
+      }
 
       const pathParts = route.path.split("/").filter(Boolean);
       const tagName = pathParts.length ? pathParts[0] : "General";
@@ -254,31 +278,39 @@ function generateSwaggerSpec(app) {
         const joiParams = joiToSwagger(joiSchema);
         routeConfig.parameters.push(...joiParams);
       }
-      
+
       const isFormData = joiSource === REQUEST_SOURCE.FORM_DATA;
       const hasFiles = fileFields.length > 0;
 
       if ((joiSchema && joiSource === REQUEST_SOURCE.BODY) || isFormData || hasFiles) {
-        let schemaProps = isFormData || (joiSchema && joiSource === REQUEST_SOURCE.BODY) 
-            ? joiToSwaggerBody(joiSchema, isFormData) 
-            : { type: "object", properties: {} };
-            
+        const schemaProps = isFormData || (joiSchema && joiSource === REQUEST_SOURCE.BODY)
+          ? joiToSwaggerBody(joiSchema, isFormData)
+          : { type: "object", properties: {} };
+
         if (hasFiles) {
-          if (!schemaProps.properties) schemaProps.properties = {};
+          if (!schemaProps.properties) {
+            schemaProps.properties = {};
+          }
           fileFields.forEach((field) => {
             if (field === "any") {
               // Can't cleanly represent "any" in swagger 3.0 easily without a specific field name
-              schemaProps.properties["file"] = { type: "string", format: "binary" };
-              if (schemaProps.example) delete schemaProps.example["file"];
+              schemaProps.properties.file = { type: "string", format: "binary" };
+              if (schemaProps.example) {
+                delete schemaProps.example.file;
+              }
             } else if (field.maxCount === 1 || field.maxCount === undefined && !field.maxCount) {
               schemaProps.properties[field.name] = { type: "string", format: "binary" };
-              if (schemaProps.example) delete schemaProps.example[field.name];
+              if (schemaProps.example) {
+                delete schemaProps.example[field.name];
+              }
             } else {
-              schemaProps.properties[field.name] = { 
-                type: "array", 
-                items: { type: "string", format: "binary" } 
+              schemaProps.properties[field.name] = {
+                type: "array",
+                items: { type: "string", format: "binary" },
               };
-              if (schemaProps.example) delete schemaProps.example[field.name];
+              if (schemaProps.example) {
+                delete schemaProps.example[field.name];
+              }
             }
           });
         }
@@ -325,4 +357,4 @@ function generateSwaggerSpec(app) {
   };
 }
 
-module.exports = generateSwaggerSpec;
+export default generateSwaggerSpec;

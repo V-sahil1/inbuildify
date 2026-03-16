@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 /**
  * USER REPOSITORY
@@ -14,7 +14,7 @@ const { keysToCamelCase } = require("../../utils/common");
 async function findByEmail(email) {
   const pool = getPool();
   const res = await pool.query(
-    `SELECT * FROM users WHERE LOWER(email) = LOWER($1)`,
+    "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
     [email],
   );
   const user = res.rows[0];
@@ -26,7 +26,7 @@ async function findByEmail(email) {
 
 async function findByLoginId(loginId) {
   const pool = getPool();
-  const res = await pool.query(`SELECT * FROM users WHERE login_id = $1`, [
+  const res = await pool.query("SELECT * FROM users WHERE login_id = $1", [
     loginId,
   ]);
   const user = res.rows[0];
@@ -80,7 +80,7 @@ async function getUsers({ builderId, page, limit, search, role, role_id }) {
       )
   `;
 
-  let queryParams = [builderId, searchFilter];
+  const queryParams = [builderId, searchFilter];
   let paramIndex = 3;
 
   if (role) {
@@ -152,7 +152,7 @@ async function getUsers({ builderId, page, limit, search, role, role_id }) {
   );
 
   // Build count query with same filters
-  let countWhereClause = whereClause.replace(
+  const countWhereClause = whereClause.replace(
     `LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`,
     "",
   );
@@ -195,7 +195,7 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
       )
   `;
 
-  let queryParams = [builderId, searchFilter];
+  const queryParams = [builderId, searchFilter];
   let paramIndex = 3;
 
   if (role) {
@@ -211,9 +211,9 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
   if (is_active !== undefined) {
     whereClause += ` AND u.is_active = $${paramIndex++}`;
     queryParams.push(is_active);
-  };
+  }
 
-      console.log("🚀 ~ getAllUsers ~ whereClause:", whereClause)
+  console.log("🚀 ~ getAllUsers ~ whereClause:", whereClause);
   const res = await pool.query(
     `
       SELECT 
@@ -270,7 +270,7 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
     `,
     queryParams,
   );
-  console.log("🚀 ~ getAllUsers ~ res:", res)
+  console.log("🚀 ~ getAllUsers ~ res:", res);
 
   return res.rows.map((user) => keysToCamelCase(user));
 }
@@ -409,7 +409,9 @@ async function updateUser(userId, data) {
       (k) => data[k] !== undefined && k !== "builders",
     );
 
-    if (keys.length === 0) return;
+    if (keys.length === 0) {
+      return;
+    }
 
     let index = 1;
     const setClauses = keys.map((k) => `${k} = $${index++}`);
@@ -580,7 +582,7 @@ async function setUserBuilder(userId, builderId) {
   );
 }
 
-module.exports = {
+export default {
   createUser,
   updateUser,
   findByEmail,

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createUserRoleMapping = async (req, res) => {
+export async function createUserRoleMapping(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -31,7 +31,7 @@ exports.createUserRoleMapping = async (req, res) => {
       FROM role
       WHERE role_id = $1
       `,
-      [role_id]
+      [role_id],
     );
 
     if (roleResult.rowCount === 0) {
@@ -47,14 +47,14 @@ exports.createUserRoleMapping = async (req, res) => {
           AND role_id = $2
         LIMIT 1
         `,
-        [role_type_id, role_id]
+        [role_type_id, role_id],
       );
 
       if (roleTypeResult.rowCount === 0) {
         return errorResponse(
           res,
           400,
-          "Invalid role_type_id or role_type not linked to this role."
+          "Invalid role_type_id or role_type not linked to this role.",
         );
       }
     }
@@ -66,7 +66,7 @@ exports.createUserRoleMapping = async (req, res) => {
         FROM users
         WHERE users_id = $1 AND is_deleted = false
         `,
-        [user_id]
+        [user_id],
       );
 
       if (userResult.rowCount === 0) {
@@ -90,7 +90,7 @@ exports.createUserRoleMapping = async (req, res) => {
         AND builder_id = $4
       LIMIT 1
       `,
-      [role_id, user_id, role_type_id, builderId]
+      [role_id, user_id, role_type_id, builderId],
     );
 
     if (duplicateResult.rowCount > 0) {
@@ -110,7 +110,7 @@ exports.createUserRoleMapping = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING user_role_mapping_id;
       `,
-      [companyId, builderId, user_id, role_id, role_type_id, assigned_by]
+      [companyId, builderId, user_id, role_id, role_type_id, assigned_by],
     );
 
     const mappingId = insertResult.rows[0].user_role_mapping_id;
@@ -164,7 +164,7 @@ exports.createUserRoleMapping = async (req, res) => {
     return successResponse(
       res,
       formattedResponse,
-      "Role mapping created successfully."
+      "Role mapping created successfully.",
     );
   } catch (error) {
     console.error("Create User Role Mapping Error:", error);
@@ -177,9 +177,9 @@ exports.createUserRoleMapping = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllUserRoleMapping = async (req, res) => {
+export async function getAllUserRoleMapping(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -197,7 +197,7 @@ exports.getAllUserRoleMapping = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const whereConditions = [`urm.builder_id = $1`];
+    const whereConditions = ["urm.builder_id = $1"];
     const values = [builderId];
     let idx = 2;
 
@@ -285,7 +285,7 @@ exports.getAllUserRoleMapping = async (req, res) => {
         limit,
         totalPages,
       },
-      "User role mapping fetched successfully."
+      "User role mapping fetched successfully.",
     );
   } catch (error) {
     console.error("Get User Role Mapping Error:", error);
@@ -293,9 +293,9 @@ exports.getAllUserRoleMapping = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteUserRoleMapping = async (req, res) => {
+export async function deleteUserRoleMapping(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -324,7 +324,7 @@ exports.deleteUserRoleMapping = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Record not found or you are not allowed to delete this record."
+        "Record not found or you are not allowed to delete this record.",
       );
     }
 
@@ -345,9 +345,9 @@ exports.deleteUserRoleMapping = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateUserRoleMapping = async (req, res) => {
+export async function updateUserRoleMapping(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -374,7 +374,7 @@ exports.updateUserRoleMapping = async (req, res) => {
       WHERE user_role_mapping_id = $1
         AND builder_id = $2;
       `,
-      [user_role_mapping_id, builderId]
+      [user_role_mapping_id, builderId],
     );
 
     if (existingResult.rowCount === 0) {
@@ -400,7 +400,7 @@ exports.updateUserRoleMapping = async (req, res) => {
         FROM role
         WHERE role_id = $1;
         `,
-        [finalRoleId]
+        [finalRoleId],
       );
 
       if (roleResult.rowCount === 0) {
@@ -417,14 +417,14 @@ exports.updateUserRoleMapping = async (req, res) => {
           AND role_id = $2
         LIMIT 1;
         `,
-        [finalRoleTypeId, finalRoleId]
+        [finalRoleTypeId, finalRoleId],
       );
 
       if (roleTypeResult.rowCount === 0) {
         return errorResponse(
           res,
           400,
-          "Invalid role_type_id or role_type not accessible for this role."
+          "Invalid role_type_id or role_type not accessible for this role.",
         );
       }
     }
@@ -437,7 +437,7 @@ exports.updateUserRoleMapping = async (req, res) => {
         WHERE users_id = $1
           AND is_deleted = false;
         `,
-        [finalUserId]
+        [finalUserId],
       );
 
       if (userResult.rowCount === 0) {
@@ -468,7 +468,7 @@ exports.updateUserRoleMapping = async (req, res) => {
         finalRoleTypeId,
         builderId,
         user_role_mapping_id,
-      ]
+      ],
     );
 
     if (duplicateResult.rowCount > 0) {
@@ -494,7 +494,7 @@ exports.updateUserRoleMapping = async (req, res) => {
         finalAssignedBy,
         companyId,
         user_role_mapping_id,
-      ]
+      ],
     );
 
     const updatedMappingId = updateResult.rows[0].user_role_mapping_id;
@@ -551,7 +551,7 @@ exports.updateUserRoleMapping = async (req, res) => {
     return successResponse(
       res,
       formattedResponse,
-      "User role mapping updated successfully."
+      "User role mapping updated successfully.",
     );
   } catch (error) {
     console.error("Update User Role Mapping Error:", error);
@@ -564,4 +564,4 @@ exports.updateUserRoleMapping = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

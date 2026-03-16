@@ -27,4 +27,4 @@ function generateInvoiceCode(name = "default", type = "default", versionNumber =
   return `${prefix}${typeCode}${randomNum}-I${versionNumber}`;
 }
 
-module.exports = { generateCode, generateInvoiceCode };
+export default { generateCode, generateInvoiceCode };

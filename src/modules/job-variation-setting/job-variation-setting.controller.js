@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobVariationSettings = async (req, res) => {
+export async function createJobVariationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -37,7 +37,7 @@ exports.createJobVariationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Either company_id or builder_id must exist."
+        "Either company_id or builder_id must exist.",
       );
     }
 
@@ -48,7 +48,7 @@ exports.createJobVariationSettings = async (req, res) => {
       SELECT 1 FROM job_variation_settings
       WHERE company_id = $1 AND builder_id = $2
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     if (duplicate.rowCount > 0) {
@@ -56,7 +56,7 @@ exports.createJobVariationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Job variation settings already exist for this company and builder."
+        "Job variation settings already exist for this company and builder.",
       );
     }
 
@@ -69,7 +69,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "You cannot define allow_cost_adjustment or show_notes_in_variation_by_default when allow_notes_in_variation = false."
+          "You cannot define allow_cost_adjustment or show_notes_in_variation_by_default when allow_notes_in_variation = false.",
         );
       }
     }
@@ -80,7 +80,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "pre_contract_header and post_contract_header are only allowed when contract_based_variation_header = true."
+          "pre_contract_header and post_contract_header are only allowed when contract_based_variation_header = true.",
         );
       }
     }
@@ -91,7 +91,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "contract_based_variation_header_title is only allowed when contract_based_variation_header = false."
+          "contract_based_variation_header_title is only allowed when contract_based_variation_header = false.",
         );
       }
     }
@@ -105,7 +105,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Notify signed variation user/group IDs are only allowed when notify_signed_variation = true."
+          "Notify signed variation user/group IDs are only allowed when notify_signed_variation = true.",
         );
       }
     }
@@ -119,7 +119,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Notify after contract user/group IDs are only allowed when notify_signed_variation_only_after_contract_prepared = true."
+          "Notify after contract user/group IDs are only allowed when notify_signed_variation_only_after_contract_prepared = true.",
         );
       }
     }
@@ -139,8 +139,8 @@ exports.createJobVariationSettings = async (req, res) => {
 
     if (allUserIds.length > 0) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
-        [allUserIds]
+        "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
+        [allUserIds],
       );
 
       if (userCheck.rows.length !== allUserIds.length) {
@@ -169,7 +169,7 @@ exports.createJobVariationSettings = async (req, res) => {
     WHERE user_group_id = ANY($1::uuid[])
       AND builder_id = $2
     `,
-        [allGroupIds, builderId]
+        [allGroupIds, builderId],
       );
 
       const existingIds = groupExistCheck.rows.map((r) => r.user_group_id);
@@ -177,13 +177,13 @@ exports.createJobVariationSettings = async (req, res) => {
       if (existingIds.length !== allGroupIds.length) {
         // find which IDs are invalid
         const invalidIds = allGroupIds.filter(
-          (id) => !existingIds.includes(id)
+          (id) => !existingIds.includes(id),
         );
 
         return errorResponse(
           res,
           400,
-          `Invalid user_group_ids: ${invalidIds.join(", ")}`
+          `Invalid user_group_ids: ${invalidIds.join(", ")}`,
         );
       }
 
@@ -195,7 +195,7 @@ exports.createJobVariationSettings = async (req, res) => {
       AND builder_id = $2
       AND is_active = true
     `,
-        [allGroupIds, builderId]
+        [allGroupIds, builderId],
       );
 
       const activeIds = groupActiveCheck.rows.map((r) => r.user_group_id);
@@ -207,7 +207,7 @@ exports.createJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Inactive user_group_ids: ${inactiveIds.join(", ")}`
+          `Inactive user_group_ids: ${inactiveIds.join(", ")}`,
         );
       }
     }
@@ -280,7 +280,7 @@ exports.createJobVariationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job variation settings created successfully."
+      "Job variation settings created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -289,9 +289,9 @@ exports.createJobVariationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobVariationSettings = async (req, res) => {
+export async function updateJobVariationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -305,7 +305,7 @@ exports.updateJobVariationSettings = async (req, res) => {
       SELECT * FROM job_variation_settings
       WHERE builder_id = $1
       `,
-      [builderId]
+      [builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -348,7 +348,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "allow_cost_adjustment and show_notes_in_variation_by_default can only be TRUE when allow_notes_in_variation = TRUE"
+          "allow_cost_adjustment and show_notes_in_variation_by_default can only be TRUE when allow_notes_in_variation = TRUE",
         );
       }
     }
@@ -362,7 +362,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "notify_signed_variation_user_ids and notify_signed_variation_group_ids cannot be defined when notify_signed_variation = FALSE"
+          "notify_signed_variation_user_ids and notify_signed_variation_group_ids cannot be defined when notify_signed_variation = FALSE",
         );
       }
 
@@ -379,7 +379,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "notify_after_contract_user_ids and notify_after_contract_group_ids cannot be defined when notify_signed_variation_only_after_contract_prepared = FALSE"
+          "notify_after_contract_user_ids and notify_after_contract_group_ids cannot be defined when notify_signed_variation_only_after_contract_prepared = FALSE",
         );
       }
 
@@ -399,7 +399,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "pre_contract_header & post_contract_header cannot be defined when contract_based_variation_header = FALSE"
+          "pre_contract_header & post_contract_header cannot be defined when contract_based_variation_header = FALSE",
         );
       }
     } else {
@@ -408,7 +408,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "contract_based_variation_header_title can only be defined when contract_based_variation_header = FALSE"
+          "contract_based_variation_header_title can only be defined when contract_based_variation_header = FALSE",
         );
       }
       contract_based_variation_header_title = null;
@@ -423,8 +423,8 @@ exports.updateJobVariationSettings = async (req, res) => {
 
     if (allUserIds.length > 0) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
-        [allUserIds]
+        "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
+        [allUserIds],
       );
 
       const found = userCheck.rows.map((r) => r.users_id);
@@ -435,7 +435,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid user_ids: ${invalid.join(", ")}`
+          `Invalid user_ids: ${invalid.join(", ")}`,
         );
       }
     }
@@ -455,7 +455,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         WHERE user_group_id = ANY($1::uuid[])
         AND builder_id = $2
         `,
-        [allGroupIds, builderId]
+        [allGroupIds, builderId],
       );
 
       const exists = groupExist.rows.map((r) => r.user_group_id);
@@ -466,7 +466,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid user_group_ids: ${invalid.join(", ")}`
+          `Invalid user_group_ids: ${invalid.join(", ")}`,
         );
       }
 
@@ -478,7 +478,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         AND builder_id = $2
         AND is_active = TRUE
         `,
-        [allGroupIds, builderId]
+        [allGroupIds, builderId],
       );
 
       const active = groupActive.rows.map((r) => r.user_group_id);
@@ -489,7 +489,7 @@ exports.updateJobVariationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Inactive user_group_ids: ${inactive.join(", ")}`
+          `Inactive user_group_ids: ${inactive.join(", ")}`,
         );
       }
     }
@@ -565,7 +565,7 @@ exports.updateJobVariationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Job variation settings updated successfully."
+      "Job variation settings updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -574,9 +574,9 @@ exports.updateJobVariationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobVariationSettings = async (req, res) => {
+export async function getUserJobVariationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -607,7 +607,7 @@ exports.getUserJobVariationSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -638,14 +638,14 @@ exports.getUserJobVariationSettings = async (req, res) => {
       notify_after_contract_user_ids,
       notify_after_contract_group_ids;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job variation settings fetched successfully"
+      "Job variation settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching job variation settings:", error);
@@ -653,4 +653,4 @@ exports.getUserJobVariationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

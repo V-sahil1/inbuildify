@@ -1,14 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-
-const controller = require("./job-process.controller");
-const validation = require("../job-process/job-process.validation");
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import controller from "./job-process.controller";
+import validation from "../job-process/job-process.validation";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -146,4 +146,4 @@ router.get("/tasks", camelToSnakeMiddleware, controller.getAllJobTasks);
 
 router.get("/tasks-only", camelToSnakeMiddleware, controller.getAllTasksOnly);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorTypeSchema = Joi.object({
   color_type_name: Joi.string()
@@ -44,7 +44,7 @@ const paramsIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorTypeSchema,
   updateColorTypeSchema,
   paramsIdSchema,

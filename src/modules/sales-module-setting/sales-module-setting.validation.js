@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const updateSalesModuleSettingSchema = Joi.object({
   allow_duplicate_leads: Joi.boolean().optional(),
@@ -39,6 +39,6 @@ const updateSalesModuleSettingSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-module.exports = {
+export default {
   updateSalesModuleSettingSchema,
 };

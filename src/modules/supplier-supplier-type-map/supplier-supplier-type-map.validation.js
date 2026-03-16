@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSupplierTypeMapSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
@@ -48,7 +48,8 @@ const createSupplierTpeChecklistSchema = Joi.object({
     "any.required": "construction checklist id is required",
   }),
 });
-module.exports = {
+
+export default {
   createSupplierTypeMapSchema,
   getAllSupplierTypeMapsSchema,
   deleteSupplierSupplierTypeMapSchema,

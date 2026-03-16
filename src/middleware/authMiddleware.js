@@ -1,8 +1,10 @@
-const jwt = require("jsonwebtoken");
-const getPool = require("../config/database");
-const { v4: uuidv4 } = require("uuid");
-const { errorResponse } = require("../helper/response");
-const dotenv = require("dotenv");
+import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
+
+import getPool from "../config/database";
+import { errorResponse } from "../helper/response";
+
 dotenv.config({ quiet: true });
 
 const handleTokenAuthorization = async (requestId, token, req, res, next) => {
@@ -157,4 +159,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+export default authMiddleware;

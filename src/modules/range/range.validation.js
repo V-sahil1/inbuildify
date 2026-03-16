@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createRangeSchema = Joi.object({
   name: Joi.string()
@@ -117,7 +117,7 @@ const updateRangeActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createRangeSchema,
   updateRangeParamsSchema,
   updateRangeSchema,

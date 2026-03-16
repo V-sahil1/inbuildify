@@ -1,25 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createSupplierContact,
   getAllSupplierContacts,
   deleteSupplierContact,
   updateSupplierContact,
-} = require("./supplier-contact.controller.js");
-const {
+} from "./supplier-contact.controller.js";
+import {
   createSupplierContactSchema,
   getAllSupplierContactsSchema,
   deleteSupplierContactSchema,
   updateSupplierContactParamsSchema,
   updateSupplierContactSchema,
-} = require("./supplier-contact.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./supplier-contact.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,26 +28,26 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createSupplierContactSchema, REQUEST_SOURCE.BODY),
-  createSupplierContact
+  createSupplierContact,
 );
 
 router.get(
   "/",
   validateRequest(getAllSupplierContactsSchema, REQUEST_SOURCE.QUERY),
-  getAllSupplierContacts
+  getAllSupplierContacts,
 );
 
 router.delete(
   "/:supplier_contact_id",
   validateRequest(deleteSupplierContactSchema, REQUEST_SOURCE.PARAMS),
-  deleteSupplierContact
+  deleteSupplierContact,
 );
 
 router.put(
   "/:supplier_contact_id",
   validateRequest(updateSupplierContactParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateSupplierContactSchema, REQUEST_SOURCE.BODY),
-  updateSupplierContact
+  updateSupplierContact,
 );
 
-module.exports = router;
+export default router;

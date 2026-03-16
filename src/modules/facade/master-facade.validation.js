@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const nameRule = Joi.string()
   .min(2)
@@ -77,8 +77,12 @@ const createMasterFacadeSchema = Joi.object({
     .custom((value, helpers) => {
       try {
         const num = BigInt(value);
-        if (num <= 0n) return helpers.error("number.min");
-        if (num > 1000000n) return helpers.error("number.max");
+        if (num <= 0n) {
+          return helpers.error("number.min");
+        }
+        if (num > 1000000n) {
+          return helpers.error("number.max");
+        }
         return Number(num); // or keep as string if safer
       } catch {
         return helpers.error("number.base");
@@ -148,8 +152,12 @@ const updateMasterFacadeSchema = Joi.object({
     .custom((value, helpers) => {
       try {
         const num = BigInt(value);
-        if (num <= 0n) return helpers.error("number.min");
-        if (num > 1000000n) return helpers.error("number.max");
+        if (num <= 0n) {
+          return helpers.error("number.min");
+        }
+        if (num > 1000000n) {
+          return helpers.error("number.max");
+        }
         return Number(num); // or keep as string if safer
       } catch {
         return helpers.error("number.base");
@@ -188,7 +196,7 @@ const deleteMasterFacadeSchema = Joi.object({
   facade_id: facadeIdRule.required(),
 });
 
-module.exports = {
+export default {
   createMasterFacadeSchema,
   getMasterFacadeByIdSchema,
   getMasterFacadesSchema,

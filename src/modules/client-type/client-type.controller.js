@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createClientType = async (req, res) => {
+export async function createClientType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -114,9 +114,9 @@ exports.createClientType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllClientType = async (req, res) => {
+export async function getAllClientType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -167,9 +167,9 @@ exports.getAllClientType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteClientType = async (req, res) => {
+export async function deleteClientType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -181,7 +181,7 @@ exports.deleteClientType = async (req, res) => {
       return errorResponse(res, 400, " ID is required.");
     }
     const existingClient = await client.query(
-      `SELECT client_type, sort_order FROM client_type WHERE client_type_id = $1 AND builder_id = $2`,
+      "SELECT client_type, sort_order FROM client_type WHERE client_type_id = $1 AND builder_id = $2",
       [id, builderId],
     );
 
@@ -191,12 +191,12 @@ exports.deleteClientType = async (req, res) => {
 
     const deletedSortOrder = existingClient.rows[0].sort_order;
 
-    await client.query(`DELETE FROM client_type WHERE client_type_id = $1`, [
+    await client.query("DELETE FROM client_type WHERE client_type_id = $1", [
       id,
     ]);
 
     await client.query(
-      `UPDATE client_type SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      "UPDATE client_type SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
       [deletedSortOrder, builderId],
     );
 
@@ -207,9 +207,9 @@ exports.deleteClientType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateClientType = async (req, res) => {
+export async function updateClientType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -276,7 +276,7 @@ exports.updateClientType = async (req, res) => {
 
     if (sort_order !== undefined && sort_order !== null) {
       const existingResult = await client.query(
-        `SELECT sort_order FROM client_type WHERE client_type_id = $1`,
+        "SELECT sort_order FROM client_type WHERE client_type_id = $1",
         [id],
       );
       const existingSortOrder = existingResult.rows[0].sort_order;
@@ -360,7 +360,7 @@ exports.updateClientType = async (req, res) => {
     updates.push(`updated_by = $${idx++}`);
     values.push(userId);
 
-    updates.push(`updated_at = NOW()`);
+    updates.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE client_type
@@ -389,9 +389,9 @@ exports.updateClientType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateClientTypeIsActive = async (req, res) => {
+export async function updateClientTypeIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -450,4 +450,4 @@ exports.updateClientTypeIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

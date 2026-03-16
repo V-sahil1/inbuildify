@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const addressSchema = Joi.object({
   address_line1: Joi.string()
@@ -168,4 +168,4 @@ const upsertBuilderSchema = Joi.object({
   insurer: insurerSchema.optional(),
 }).min(1);
 
-module.exports = { upsertBuilderSchema };
+export default { upsertBuilderSchema };

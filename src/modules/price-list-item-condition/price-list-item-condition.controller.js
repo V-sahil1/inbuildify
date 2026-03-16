@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPriceListItemCondition = async (req, res) => {
+export async function createPriceListItemCondition(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -143,9 +143,9 @@ exports.createPriceListItemCondition = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPriceListItemConditions = async (req, res) => {
+export async function getAllPriceListItemConditions(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -154,7 +154,7 @@ exports.getAllPriceListItemConditions = async (req, res) => {
     const { company_id, builder_id } = req.user;
 
     let whereClause = "WHERE (pli.company_id = $1 OR pli.builder_id = $2)";
-    let values = [company_id, builder_id];
+    const values = [company_id, builder_id];
     let paramIndex = values.length + 1;
 
     if (price_list_item_id) {
@@ -192,9 +192,9 @@ exports.getAllPriceListItemConditions = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPriceListItemConditionById = async (req, res) => {
+export async function getPriceListItemConditionById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -248,9 +248,9 @@ exports.getPriceListItemConditionById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePriceListItemCondition = async (req, res) => {
+export async function updatePriceListItemCondition(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -285,7 +285,7 @@ exports.updatePriceListItemCondition = async (req, res) => {
     }
 
     const currentCondition = existingCondition.rows[0];
-    let finalConditionName = condition_name || currentCondition.condition_name;
+    const finalConditionName = condition_name || currentCondition.condition_name;
 
     if (condition_name && condition_name !== currentCondition.condition_name) {
       const validConditions = [
@@ -330,18 +330,16 @@ exports.updatePriceListItemCondition = async (req, res) => {
           "range_start and range_end are not applicable for corner_block condition",
         );
       }
-    } else {
-      if (
-        range_start !== undefined &&
+    } else if (
+      range_start !== undefined &&
         range_end !== undefined &&
         range_start >= range_end
-      ) {
-        return errorResponse(
-          res,
-          400,
-          "range_start must be less than range_end",
-        );
-      }
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "range_start must be less than range_end",
+      );
     }
 
     const updateFields = [];
@@ -399,7 +397,7 @@ exports.updatePriceListItemCondition = async (req, res) => {
       );
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE price_list_item_condition
@@ -423,9 +421,9 @@ exports.updatePriceListItemCondition = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePriceListItemCondition = async (req, res) => {
+export async function deletePriceListItemCondition(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -478,4 +476,4 @@ exports.deletePriceListItemCondition = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

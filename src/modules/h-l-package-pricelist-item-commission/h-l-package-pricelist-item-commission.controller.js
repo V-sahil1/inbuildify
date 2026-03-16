@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPriceListItemMap = async (req, res) => {
+export async function createPriceListItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -21,7 +21,7 @@ exports.createPriceListItemMap = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [house_land_package_id, companyId, builderId]
+      [house_land_package_id, companyId, builderId],
     );
 
     if (packageCheck.rowCount === 0) {
@@ -33,21 +33,21 @@ exports.createPriceListItemMap = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [price_list_item_id, companyId, builderId]
+      [price_list_item_id, companyId, builderId],
     );
 
     if (priceCheck.rowCount === 0) {
       return errorResponse(res, 404, "Price list item not found or does not belong to your organization");
     }
 
-    if (priceCheck.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+    if (priceCheck.rows[0].cost_type === "Included" && quantity !== undefined && quantity !== null) {
       return errorResponse(res, 400, "Quantity cannot be specified for items with cost type 'Included'");
     }
 
     const duplicateCheck = await client.query(
       `SELECT id FROM h_l_package_pricelist_item_map 
        WHERE house_land_package_id = $1 AND price_list_item_id = $2 LIMIT 1`,
-      [house_land_package_id, price_list_item_id]
+      [house_land_package_id, price_list_item_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -63,7 +63,7 @@ exports.createPriceListItemMap = async (req, res) => {
        (house_land_package_id, price_list_item_id, quantity, total_price, note) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
-      [house_land_package_id, price_list_item_id, quantityToUse, totalPrice, note || null]
+      [house_land_package_id, price_list_item_id, quantityToUse, totalPrice, note || null],
     );
 
     const detailedMapping = await client.query(
@@ -72,18 +72,18 @@ exports.createPriceListItemMap = async (req, res) => {
        JOIN price_list_item pli ON plim.price_list_item_id = pli.price_list_item_id
        JOIN house_land_package hlp ON plim.house_land_package_id = hlp.house_land_package_id
        WHERE plim.id = $1`,
-      [mappingResult.rows[0].id]
+      [mappingResult.rows[0].id],
     );
 
     const houseTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const currentPriceTotal = parseFloat(houseTotalSum.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const currentCommissionTotal = parseFloat(commissionTotalSum.rows[0].total);
 
@@ -99,7 +99,7 @@ exports.createPriceListItemMap = async (req, res) => {
       cost: parseFloat(row.cost),
       note: row.note,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
 
     return successResponse(
@@ -107,9 +107,9 @@ exports.createPriceListItemMap = async (req, res) => {
       {
         mapping: formattedMapping,
         houseTotal: currentPriceTotal + currentCommissionTotal,
-        commissionTotal: currentCommissionTotal
+        commissionTotal: currentCommissionTotal,
       },
-      "Price list item mapping created successfully"
+      "Price list item mapping created successfully",
     );
   } catch (error) {
     console.error("Create price list item mapping error:", error);
@@ -117,9 +117,9 @@ exports.createPriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPriceListItemMaps = async (req, res) => {
+export async function getPriceListItemMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -133,7 +133,7 @@ exports.getPriceListItemMaps = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [house_land_package_id, companyId, builderId]
+      [house_land_package_id, companyId, builderId],
     );
 
     if (packageCheck.rowCount === 0) {
@@ -147,18 +147,18 @@ exports.getPriceListItemMaps = async (req, res) => {
        JOIN house_land_package hlp ON plim.house_land_package_id = hlp.house_land_package_id
        WHERE plim.house_land_package_id = $1 AND pli.status = 'active'
        ORDER BY plim.created_at DESC`,
-      [house_land_package_id]
+      [house_land_package_id],
     );
 
     const housePriceSumResult = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const housePriceTotal = parseFloat(housePriceSumResult.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const commissionTotal = parseFloat(commissionTotalSum.rows[0].total);
 
@@ -173,7 +173,7 @@ exports.getPriceListItemMaps = async (req, res) => {
       cost: parseFloat(row.cost),
       note: row.note,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
 
     return successResponse(
@@ -181,9 +181,9 @@ exports.getPriceListItemMaps = async (req, res) => {
       {
         mappings: formattedMappings,
         houseTotal: housePriceTotal + commissionTotal,
-        commissionTotal: commissionTotal
+        commissionTotal,
       },
-      "Price list item mappings fetched successfully"
+      "Price list item mappings fetched successfully",
     );
   } catch (error) {
     console.error("Get price list item mappings error:", error);
@@ -191,9 +191,9 @@ exports.getPriceListItemMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPriceListItemMaps = async (req, res) => {
+export async function getAllPriceListItemMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -215,7 +215,7 @@ exports.getAllPriceListItemMaps = async (req, res) => {
          OR (hlp.builder_id = $2 AND $2 IS NOT NULL)
        ) AND pli.status = 'active'
        ORDER BY plim.created_at DESC`,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const rows = result.rows;
@@ -229,7 +229,7 @@ exports.getAllPriceListItemMaps = async (req, res) => {
          (hlp.company_id = $1 AND $1 IS NOT NULL)
          OR (hlp.builder_id = $2 AND $2 IS NOT NULL)
        )`,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const organizationCommissionTotal = parseFloat(commissionSumResult.rows[0].total);
@@ -245,7 +245,7 @@ exports.getAllPriceListItemMaps = async (req, res) => {
       cost: parseFloat(row.cost),
       note: row.note,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
 
     return successResponse(
@@ -253,9 +253,9 @@ exports.getAllPriceListItemMaps = async (req, res) => {
       {
         mappings: formattedMappings,
         houseTotal: housePriceSum + organizationCommissionTotal,
-        commissionTotal: organizationCommissionTotal
+        commissionTotal: organizationCommissionTotal,
       },
-      "All price list item mappings fetched successfully"
+      "All price list item mappings fetched successfully",
     );
   } catch (error) {
     console.error("Get all price list item mappings error:", error);
@@ -263,9 +263,9 @@ exports.getAllPriceListItemMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePriceListItemMap = async (req, res) => {
+export async function updatePriceListItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -288,14 +288,14 @@ exports.updatePriceListItemMap = async (req, res) => {
          (pli.company_id = $2 AND $2 IS NOT NULL)
          OR (pli.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
       return errorResponse(res, 404, "Price list item mapping not found or price list item does not belong to your organization");
     }
 
-    if (checkResult.rows[0].cost_type === 'Included' && quantity !== undefined && quantity !== null) {
+    if (checkResult.rows[0].cost_type === "Included" && quantity !== undefined && quantity !== null) {
       return errorResponse(res, 400, "Quantity cannot be updated for items with cost type 'Included'");
     }
 
@@ -303,16 +303,16 @@ exports.updatePriceListItemMap = async (req, res) => {
     const price = parseFloat(checkResult.rows[0].cost) || 0;
     const totalPrice = price * quantityToUse;
 
-    let updateValues = [quantityToUse, totalPrice, id];
+    const updateValues = [quantityToUse, totalPrice, id];
     let updateQuery = `UPDATE h_l_package_pricelist_item_map 
                        SET quantity = $1, total_price = $2, updated_at = CURRENT_TIMESTAMP`;
-    
+
     if (note !== undefined) {
-      updateQuery += `, note = $4`;
+      updateQuery += ", note = $4";
       updateValues.push(note);
     }
-    
-    updateQuery += ` WHERE id = $3 RETURNING *`;
+
+    updateQuery += " WHERE id = $3 RETURNING *";
 
     const mappingResult = await client.query(updateQuery, updateValues);
 
@@ -322,18 +322,18 @@ exports.updatePriceListItemMap = async (req, res) => {
        JOIN price_list_item pli ON plim.price_list_item_id = pli.price_list_item_id
        JOIN house_land_package hlp ON plim.house_land_package_id = hlp.house_land_package_id
        WHERE plim.id = $1`,
-      [id]
+      [id],
     );
 
     const houseTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [checkResult.rows[0].house_land_package_id]
+      [checkResult.rows[0].house_land_package_id],
     );
     const currentPriceTotal = parseFloat(houseTotalSum.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [checkResult.rows[0].house_land_package_id]
+      [checkResult.rows[0].house_land_package_id],
     );
     const currentCommissionTotal = parseFloat(commissionTotalSum.rows[0].total);
 
@@ -349,7 +349,7 @@ exports.updatePriceListItemMap = async (req, res) => {
       cost: parseFloat(row.cost),
       note: row.note,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
 
     return successResponse(
@@ -357,9 +357,9 @@ exports.updatePriceListItemMap = async (req, res) => {
       {
         mapping: formattedMapping,
         houseTotal: currentPriceTotal + currentCommissionTotal,
-        commissionTotal: currentCommissionTotal
+        commissionTotal: currentCommissionTotal,
       },
-      "Price list item mapping updated successfully"
+      "Price list item mapping updated successfully",
     );
   } catch (error) {
     console.error("Update price list item mapping error:", error);
@@ -367,9 +367,9 @@ exports.updatePriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePriceListItemMap = async (req, res) => {
+export async function deletePriceListItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -386,7 +386,7 @@ exports.deletePriceListItemMap = async (req, res) => {
          (hlp.company_id = $2 AND $2 IS NOT NULL)
          OR (hlp.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -397,13 +397,13 @@ exports.deletePriceListItemMap = async (req, res) => {
 
     const houseTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [checkResult.rows[0].house_land_package_id]
+      [checkResult.rows[0].house_land_package_id],
     );
     const housePriceTotal = parseFloat(houseTotalSum.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [checkResult.rows[0].house_land_package_id]
+      [checkResult.rows[0].house_land_package_id],
     );
     const commissionTotal = parseFloat(commissionTotalSum.rows[0].total);
 
@@ -411,9 +411,9 @@ exports.deletePriceListItemMap = async (req, res) => {
       res,
       {
         houseTotal: housePriceTotal + commissionTotal,
-        commissionTotal: commissionTotal
+        commissionTotal,
       },
-      "Price list item mapping deleted successfully"
+      "Price list item mapping deleted successfully",
     );
   } catch (error) {
     console.error("Delete price list item mapping error:", error);
@@ -421,11 +421,11 @@ exports.deletePriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // --- Package Commission Map CRUD ---
 
-exports.createPackageCommissionMap = async (req, res) => {
+export async function createPackageCommissionMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -445,7 +445,7 @@ exports.createPackageCommissionMap = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [house_land_package_id, companyId, builderId]
+      [house_land_package_id, companyId, builderId],
     );
 
     if (packageCheck.rowCount === 0) {
@@ -462,7 +462,7 @@ exports.createPackageCommissionMap = async (req, res) => {
           (company_id = $2 AND $2 IS NOT NULL)
           OR (builder_id = $3 AND $3 IS NOT NULL)
         ) LIMIT 1`,
-        [commissionId, companyId, builderId]
+        [commissionId, companyId, builderId],
       );
 
       if (commissionCheck.rowCount === 0) {
@@ -473,7 +473,7 @@ exports.createPackageCommissionMap = async (req, res) => {
       const duplicateCheck = await client.query(
         `SELECT id FROM h_l_package_commission_map 
          WHERE house_land_package_id = $1 AND job_commission_id = $2 LIMIT 1`,
-        [house_land_package_id, commissionId]
+        [house_land_package_id, commissionId],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -483,7 +483,7 @@ exports.createPackageCommissionMap = async (req, res) => {
 
       const subStageSum = await client.query(
         "SELECT COALESCE(SUM(commission_value), 0) as total FROM job_commission_sub_stage WHERE job_commission_id = $1",
-        [commissionId]
+        [commissionId],
       );
       const calculatedTotal = parseFloat(subStageSum.rows[0].total);
 
@@ -492,7 +492,7 @@ exports.createPackageCommissionMap = async (req, res) => {
          (house_land_package_id, job_commission_id, total_commission) 
          VALUES ($1, $2, $3) 
          RETURNING id`,
-        [house_land_package_id, commissionId, calculatedTotal]
+        [house_land_package_id, commissionId, calculatedTotal],
       );
       createdIds.push(mappingResult.rows[0].id);
     }
@@ -503,18 +503,18 @@ exports.createPackageCommissionMap = async (req, res) => {
        JOIN job_commission jc ON pcm.job_commission_id = jc.job_commission_id
        JOIN house_land_package hlp ON pcm.house_land_package_id = hlp.house_land_package_id
        WHERE pcm.id = ANY($1)`,
-      [createdIds]
+      [createdIds],
     );
 
     const housePriceSumResult = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const housePriceTotal = parseFloat(housePriceSumResult.rows[0].total);
 
     const totalSumResult = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const currentCommissionTotal = parseFloat(totalSumResult.rows[0].total);
 
@@ -528,7 +528,7 @@ exports.createPackageCommissionMap = async (req, res) => {
       packageTitle: row.package_title,
       totalCommission: parseFloat(row.total_commission),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
 
     return successResponse(
@@ -536,9 +536,9 @@ exports.createPackageCommissionMap = async (req, res) => {
       {
         mapping: formattedMappings[0],
         houseTotal: housePriceTotal + currentCommissionTotal,
-        commissionTotal: currentCommissionTotal
+        commissionTotal: currentCommissionTotal,
       },
-      "Package commission mapping created successfully"
+      "Package commission mapping created successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -547,9 +547,9 @@ exports.createPackageCommissionMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPackageCommissionMaps = async (req, res) => {
+export async function getPackageCommissionMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -563,7 +563,7 @@ exports.getPackageCommissionMaps = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [house_land_package_id, companyId, builderId]
+      [house_land_package_id, companyId, builderId],
     );
 
     if (packageCheck.rowCount === 0) {
@@ -572,13 +572,13 @@ exports.getPackageCommissionMaps = async (req, res) => {
 
     const housePriceSumResult = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const housePriceTotal = parseFloat(housePriceSumResult.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const commissionTotal = parseFloat(commissionTotalSum.rows[0].total);
 
@@ -589,7 +589,7 @@ exports.getPackageCommissionMaps = async (req, res) => {
        JOIN house_land_package hlp ON pcm.house_land_package_id = hlp.house_land_package_id
        WHERE pcm.house_land_package_id = $1
        ORDER BY pcm.created_at DESC`,
-      [house_land_package_id]
+      [house_land_package_id],
     );
 
     const formattedMappings = result.rows.map(row => ({
@@ -600,7 +600,7 @@ exports.getPackageCommissionMaps = async (req, res) => {
       packageTitle: row.package_title,
       totalCommission: parseFloat(row.total_commission),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
 
     return successResponse(
@@ -608,9 +608,9 @@ exports.getPackageCommissionMaps = async (req, res) => {
       {
         mappings: formattedMappings,
         houseTotal: housePriceTotal + commissionTotal,
-        commissionTotal
+        commissionTotal,
       },
-      "Package commission mappings fetched successfully"
+      "Package commission mappings fetched successfully",
     );
   } catch (error) {
     console.error("Get package commission mappings error:", error);
@@ -618,9 +618,9 @@ exports.getPackageCommissionMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPackageCommissionMaps = async (req, res) => {
+export async function getAllPackageCommissionMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -642,7 +642,7 @@ exports.getAllPackageCommissionMaps = async (req, res) => {
          OR (hlp.builder_id = $2 AND $2 IS NOT NULL)
        )
        ORDER BY pcm.created_at DESC`,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     const totalCommissionSum = result.rows.reduce((sum, row) => sum + parseFloat(row.total_commission || 0), 0);
@@ -655,16 +655,16 @@ exports.getAllPackageCommissionMaps = async (req, res) => {
       packageTitle: row.package_title,
       totalCommission: parseFloat(row.total_commission),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
 
     return successResponse(
       res,
       {
         mappings: formattedMappings,
-        commissionTotal: totalCommissionSum
+        commissionTotal: totalCommissionSum,
       },
-      "All package commission mappings fetched successfully"
+      "All package commission mappings fetched successfully",
     );
   } catch (error) {
     console.error("Get all package commission mappings error:", error);
@@ -672,9 +672,9 @@ exports.getAllPackageCommissionMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePackageCommissionMap = async (req, res) => {
+export async function updatePackageCommissionMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -694,7 +694,7 @@ exports.updatePackageCommissionMap = async (req, res) => {
          (hlp.company_id = $2 AND $2 IS NOT NULL)
          OR (hlp.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -711,7 +711,7 @@ exports.updatePackageCommissionMap = async (req, res) => {
           (company_id = $2 AND $2 IS NOT NULL)
           OR (builder_id = $3 AND $3 IS NOT NULL)
         ) LIMIT 1`,
-        [job_commission_id, companyId, builderId]
+        [job_commission_id, companyId, builderId],
       );
 
       if (commissionCheck.rowCount === 0) {
@@ -722,7 +722,7 @@ exports.updatePackageCommissionMap = async (req, res) => {
 
     const subStageSum = await client.query(
       "SELECT COALESCE(SUM(commission_value), 0) as total FROM job_commission_sub_stage WHERE job_commission_id = $1",
-      [commissionIdToUse]
+      [commissionIdToUse],
     );
     const calculatedTotal = parseFloat(subStageSum.rows[0].total);
 
@@ -731,7 +731,7 @@ exports.updatePackageCommissionMap = async (req, res) => {
        SET job_commission_id = $1, total_commission = $2, updated_at = CURRENT_TIMESTAMP
        WHERE id = $3
        RETURNING *`,
-      [commissionIdToUse, calculatedTotal, id]
+      [commissionIdToUse, calculatedTotal, id],
     );
 
     const detailedMapping = await client.query(
@@ -740,18 +740,18 @@ exports.updatePackageCommissionMap = async (req, res) => {
        JOIN job_commission jc ON pcm.job_commission_id = jc.job_commission_id
        JOIN house_land_package hlp ON pcm.house_land_package_id = hlp.house_land_package_id
        WHERE pcm.id = $1`,
-      [id]
+      [id],
     );
 
     const housePriceSumResult = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const housePriceTotal = parseFloat(housePriceSumResult.rows[0].total);
 
     const totalSumResult = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const currentCommissionTotal = parseFloat(totalSumResult.rows[0].total);
 
@@ -766,7 +766,7 @@ exports.updatePackageCommissionMap = async (req, res) => {
       packageTitle: row.package_title,
       totalCommission: parseFloat(row.total_commission),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
 
     return successResponse(
@@ -774,9 +774,9 @@ exports.updatePackageCommissionMap = async (req, res) => {
       {
         mapping: formattedMapping,
         houseTotal: housePriceTotal + currentCommissionTotal,
-        commissionTotal: currentCommissionTotal
+        commissionTotal: currentCommissionTotal,
       },
-      "Package commission mapping updated successfully"
+      "Package commission mapping updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -785,9 +785,9 @@ exports.updatePackageCommissionMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePackageCommissionMap = async (req, res) => {
+export async function deletePackageCommissionMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -806,7 +806,7 @@ exports.deletePackageCommissionMap = async (req, res) => {
          (hlp.company_id = $2 AND $2 IS NOT NULL)
          OR (hlp.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -820,13 +820,13 @@ exports.deletePackageCommissionMap = async (req, res) => {
 
     const housePriceSumResult = await client.query(
       "SELECT COALESCE(SUM(total_price), 0) as total FROM h_l_package_pricelist_item_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const housePriceTotal = parseFloat(housePriceSumResult.rows[0].total);
 
     const commissionTotalSum = await client.query(
       "SELECT COALESCE(SUM(total_commission), 0) as total FROM h_l_package_commission_map WHERE house_land_package_id = $1",
-      [house_land_package_id]
+      [house_land_package_id],
     );
     const currentCommissionTotal = parseFloat(commissionTotalSum.rows[0].total || 0);
 
@@ -836,9 +836,9 @@ exports.deletePackageCommissionMap = async (req, res) => {
       res,
       {
         houseTotal: housePriceTotal + currentCommissionTotal,
-        commissionTotal: currentCommissionTotal
+        commissionTotal: currentCommissionTotal,
       },
-      "Package commission mapping deleted successfully"
+      "Package commission mapping deleted successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -847,4 +847,4 @@ exports.deletePackageCommissionMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

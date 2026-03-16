@@ -1,11 +1,11 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createBusinessContactSchema = Joi.object({
   leads_id: Joi.string().uuid().allow(null).optional(),
   contact_type: Joi.string()
     .valid("company", "conveyancer", "mortgage_broker", "financer")
     .messages({
-      "any.only": "Invalid contact type. Must be one of: company, conveyancer, mortgage_broker, financer"
+      "any.only": "Invalid contact type. Must be one of: company, conveyancer, mortgage_broker, financer",
     })
     .required(),
   name: Joi.string().min(2).max(255).required(),
@@ -52,7 +52,7 @@ const deleteBusinessContactSchema = Joi.object({
   business_contact_id: Joi.string().uuid().required(),
 });
 
-module.exports = {
+export default {
   createBusinessContactSchema,
   getAllBusinessContactsSchema,
   getBusinessContactByIdSchema,

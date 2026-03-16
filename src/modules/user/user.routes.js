@@ -1,25 +1,21 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const userController = require("./user.controller");
-
-const { createUpload, handleMulterError } = require("../../utils/s3Upload");
-const camelToSnake = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-
-const {
+import userController from "./user.controller";
+import { createUpload, handleMulterError } from "../../utils/s3Upload";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import {
   createUserSchema,
   updateUserSchema,
   resetPasswordSchema,
   changeLoginIdSchema,
   getUsersSchema,
-} = require("./user.validation");
-
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./user.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 const uploadPhoto = createUpload("users/photo");
 const uploadSignature = createUpload("users/signature");
@@ -33,14 +29,14 @@ const uploadSignature = createUpload("users/signature");
 // GET all users (admin-only)
 router.get(
   "/",
-  camelToSnake,
+  camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(getUsersSchema, REQUEST_SOURCE.QUERY),
   userController.getUsers,
 );
 
-router.get("/profile", camelToSnake, authMiddleware, userController.getProfile);
+router.get("/profile", camelToSnakeMiddleware, authMiddleware, userController.getProfile);
 
 router.post(
   "/",
@@ -59,7 +55,7 @@ router.post(
     }
     next();
   },
-  camelToSnake,
+  camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(createUserSchema, REQUEST_SOURCE.FORM_DATA),
@@ -84,7 +80,7 @@ router.put(
     }
     next();
   },
-  camelToSnake,
+  camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(updateUserSchema, REQUEST_SOURCE.FORM_DATA),
@@ -118,7 +114,7 @@ router.post(
 // CHANGE LOGIN ID (admin popup)
 router.post(
   "/:userId/change-login-id",
-  camelToSnake,
+  camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
   validateRequest(changeLoginIdSchema),
@@ -189,4 +185,4 @@ router.delete(
   userController.deleteSignature,
 );
 
-module.exports = router;
+export default router;

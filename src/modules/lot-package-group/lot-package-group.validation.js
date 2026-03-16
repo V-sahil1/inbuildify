@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -41,7 +41,7 @@ const getAllLotPackageGroupsSchema = Joi.object({
   search: Joi.string().trim().optional().allow(""),
 });
 
-module.exports = {
+export default {
   createLotPackageGroupSchema,
   updateLotPackageGroupSchema,
   getLotPackageGroupByIdSchema,

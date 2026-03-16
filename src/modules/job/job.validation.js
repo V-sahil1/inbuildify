@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const convertOpportunitySchema = {
   params: Joi.object({
@@ -34,6 +34,6 @@ const convertOpportunitySchema = {
   }),
 };
 
-module.exports = {
+export default {
   convertOpportunitySchema,
 };

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createLocation = async (req, res) => {
+export async function createLocation(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -62,9 +62,9 @@ exports.createLocation = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllLocation = async (req, res) => {
+export async function getAllLocation(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -105,7 +105,7 @@ exports.getAllLocation = async (req, res) => {
       paramIndex++;
     }
 
-    dataQuery += ` ORDER BY created_at DESC`;
+    dataQuery += " ORDER BY created_at DESC";
 
     const dataResult = await client.query(dataQuery, queryParams);
 
@@ -120,9 +120,9 @@ exports.getAllLocation = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLocation = async (req, res) => {
+export async function deleteLocation(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -169,9 +169,9 @@ exports.deleteLocation = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLocation = async (req, res) => {
+export async function updateLocation(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -291,7 +291,7 @@ exports.updateLocation = async (req, res) => {
     fields.push(`updated_by = $${index++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE location
@@ -318,4 +318,4 @@ exports.updateLocation = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

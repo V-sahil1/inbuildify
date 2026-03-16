@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSalesStageSchema = Joi.object({
   sales_process_id: Joi.string().uuid().required().messages({
@@ -87,7 +87,8 @@ const getSalesStageBySalesProcessIdSchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
 });
-module.exports = {
+
+export default {
   createSalesStageSchema,
   getSalesStageBySalesProcessIdSchema,
   deleteSalesStageSchema,

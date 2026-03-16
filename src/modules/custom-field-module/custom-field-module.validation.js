@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createCustomFieldModuleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(50).optional(),
@@ -39,7 +39,7 @@ const updateCustomFieldModuleSchema = Joi.object({
   description: Joi.string().trim().max(500).optional(),
 });
 
-module.exports = {
+export default {
   createCustomFieldModuleSchema,
   getAllCustomFieldModuleSchema,
   deleteCustomFieldModuleSchema,

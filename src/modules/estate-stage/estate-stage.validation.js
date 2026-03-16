@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
@@ -13,7 +13,7 @@ const createEstateStageSchema = Joi.object({
   release_date: Joi.date().optional().allow(null),
   attach_file: Joi.alternatives().try(
     Joi.array().items(Joi.string().uri()),
-    Joi.string().uri().allow(null, "")
+    Joi.string().uri().allow(null, ""),
   ).optional().messages({
     "array.base": "attach_file must be an array of URLs",
     "string.uri": "attach_file must be a valid URL",
@@ -63,13 +63,14 @@ const updsteEstateStageSchema = Joi.object({
   release_date: Joi.date().optional().allow(null),
   attach_file: Joi.alternatives().try(
     Joi.array().items(Joi.string().uri()),
-    Joi.string().uri()
+    Joi.string().uri(),
   ).optional().allow(null, "").messages({
     "array.base": "attach_file must be an array of URLs or a single URL",
     "string.uri": "attach_file must be a valid URL",
   }),
 });
-module.exports = {
+
+export default {
   createEstateStageSchema,
   getALLEstateStageSchema,
   deleteEstateStageSchema,

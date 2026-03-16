@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSchedulerSettingsSchema = Joi.object({
   receiver_of_replies: Joi.array()
@@ -18,7 +18,7 @@ const updateSchedulerSettingSchema = Joi.object({
     }),
 });
 
-module.exports = {
+export default {
   createSchedulerSettingsSchema,
   updateSchedulerSettingSchema,
 };

@@ -1,7 +1,5 @@
-const getPool = require("../../config/database");
-const {
-  ensureWorkflowStageByStageId,
-} = require("./job-process-workflow.guard");
+import getPool from "../../config/database";
+import { ensureWorkflowStageByStageId } from "./job-process-workflow.guard";
 
 /**
  * CREATE STAGE
@@ -112,9 +110,9 @@ async function createStage(companyId, builderId, payload) {
     sortOrder: stageData.sort_order,
     dependentStage: stageData.dependent_stage_id
       ? {
-          id: stageData.dependent_stage_id,
-          name: stageData.dependent_stage_name,
-        }
+        id: stageData.dependent_stage_id,
+        name: stageData.dependent_stage_name,
+      }
       : null,
 
     functionality: {
@@ -290,9 +288,9 @@ async function updateStage(stageId, payload, builderId, companyId) {
     sortOrder: stageData.sort_order,
     dependentStage: stageData.dependent_stage_id
       ? {
-          id: stageData.dependent_stage_id,
-          name: stageData.dependent_stage_name,
-        }
+        id: stageData.dependent_stage_id,
+        name: stageData.dependent_stage_name,
+      }
       : null,
 
     functionality: {
@@ -333,7 +331,7 @@ async function deleteStage(stageId, builderId) {
     throw new Error("You can only delete your own stages");
   }
 
-  await pool.query(`DELETE FROM job_process_stage WHERE stage_id = $1`, [
+  await pool.query("DELETE FROM job_process_stage WHERE stage_id = $1", [
     stageId,
   ]);
 }
@@ -565,7 +563,9 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
       [subStageId, payload.name, payload.sort_order],
     );
 
-    if (!rowCount) throw new Error("Sub-stage not found");
+    if (!rowCount) {
+      throw new Error("Sub-stage not found");
+    }
 
     await client.query("COMMIT");
 
@@ -686,7 +686,7 @@ async function deleteSubStage(subStageId, builderId, companyId, taskId = null) {
     );
 
     await client.query(
-      `DELETE FROM job_process_sub_stage WHERE sub_stage_id = $1`,
+      "DELETE FROM job_process_sub_stage WHERE sub_stage_id = $1",
 
       [subStageId],
     );
@@ -841,9 +841,9 @@ async function getJobProcess(companyId, builderId) {
         sortOrder: r.stage_order,
         dependentStage: r.dependent_stage_id
           ? {
-              id: r.dependent_stage_id,
-              name: r.dependent_stage_name,
-            }
+            id: r.dependent_stage_id,
+            name: r.dependent_stage_name,
+          }
           : null,
         functionality: {
           id: r.functionality_id,
@@ -951,9 +951,9 @@ async function getStages(companyId, builderId) {
     sortOrder: row.sort_order,
     dependentStage: row.dependent_stage_id
       ? {
-          id: row.dependent_stage_id,
-          name: row.dependent_stage_name,
-        }
+        id: row.dependent_stage_id,
+        name: row.dependent_stage_name,
+      }
       : null,
     functionality: {
       id: row.functionality_id,
@@ -1002,13 +1002,13 @@ async function getStageFunctionalities() {
   const pool = getPool();
 
   const { rows } = await pool.query(
-    `SELECT * FROM job_process_stage_functionality ORDER BY name`,
+    "SELECT * FROM job_process_stage_functionality ORDER BY name",
   );
 
   return rows;
 }
 
-module.exports = {
+export default {
   createStage,
   updateStage,
   deleteStage,

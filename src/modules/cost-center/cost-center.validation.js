@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createCostCenterSchema = Joi.object({
   code: Joi.string().min(5).max(10).required(),
@@ -58,7 +58,7 @@ const getAllCostCentersSchema = Joi.object({
   status: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createCostCenterSchema,
   updateCostCenterSchema,
   costCenterParamsSchema,

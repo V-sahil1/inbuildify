@@ -1,4 +1,4 @@
-const getPool = require("../../config/database");
+import getPool from "../../config/database";
 
 async function createAgentReferralPartner(data, client = getPool()) {
   const {
@@ -69,8 +69,8 @@ async function getAgentReferralPartnersByBuilder(
 
   let whereClause = "WHERE arp.builder_id = $1";
   let countWhereClause = "WHERE arp.builder_id = $1";
-  let values = [builderId];
-  let countValues = [builderId];
+  const values = [builderId];
+  const countValues = [builderId];
   let paramIndex = 2;
 
   if (search) {
@@ -139,8 +139,8 @@ async function getAgentReferralPartnersByCompany(
 
   let whereClause = "WHERE arp.company_id = $1";
   let countWhereClause = "WHERE arp.company_id = $1";
-  let values = [companyId];
-  let countValues = [companyId];
+  const values = [companyId];
+  const countValues = [companyId];
   let paramIndex = 2;
 
   if (search) {
@@ -254,7 +254,7 @@ async function deleteAgentReferralPartner(partnerId, client = getPool()) {
   const userId = partnerResult.rows[0].user_id;
 
   const result = await client.query(
-    `DELETE FROM agent_referral_partner WHERE agent_referral_partner_id = $1 RETURNING *`,
+    "DELETE FROM agent_referral_partner WHERE agent_referral_partner_id = $1 RETURNING *",
     [partnerId],
   );
 
@@ -279,7 +279,7 @@ async function getAgentReferralPartnerByEmail(email, client = getPool()) {
   return result.rows[0] || null;
 }
 
-module.exports = {
+export default {
   createAgentReferralPartner,
   getAgentReferralPartnerById,
   getAgentReferralPartnersByBuilder,

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createSupplierType = async (req, res) => {
+export async function createSupplierType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -82,9 +82,9 @@ exports.createSupplierType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSupplierType = async (req, res) => {
+export async function getAllSupplierType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -96,10 +96,10 @@ exports.getAllSupplierType = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Scope missing.");
     }
 
-    let { is_active, name } = req.query;
+    const { is_active, name } = req.query;
 
-    let conditions = [];
-    let values = [];
+    const conditions = [];
+    const values = [];
     let index = 1;
 
     if (companyId) {
@@ -146,9 +146,9 @@ exports.getAllSupplierType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSupplierType = async (req, res) => {
+export async function deleteSupplierType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -220,9 +220,9 @@ exports.deleteSupplierType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSupplierType = async (req, res) => {
+export async function updateSupplierType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -357,7 +357,7 @@ exports.updateSupplierType = async (req, res) => {
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
 			UPDATE supplier_type
@@ -385,9 +385,9 @@ exports.updateSupplierType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.toggleActiveStatus = async (req, res) => {
+export async function toggleActiveStatus(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -450,4 +450,4 @@ exports.toggleActiveStatus = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

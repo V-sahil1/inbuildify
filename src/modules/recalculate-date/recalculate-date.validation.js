@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createRecalculateDateSchema = Joi.object({
   recalculate_workflow_job_estimated_dates: Joi.boolean().default(false),
@@ -23,7 +23,8 @@ const updateRecalculateDateSchema = Joi.object({
     .optional(),
   recalculate_confirmed_booking_dates: Joi.boolean().optional(),
 });
-module.exports = {
+
+export default {
   createRecalculateDateSchema,
   updateRecalculateDateSchema,
 };

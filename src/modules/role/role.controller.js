@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
-exports.createRole = async (req, res) => {
+export async function createRole(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -17,8 +17,8 @@ exports.createRole = async (req, res) => {
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM role WHERE LOWER(name) = LOWER($1)`,
-      [name.trim()]
+      "SELECT 1 FROM role WHERE LOWER(name) = LOWER($1)",
+      [name.trim()],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -44,7 +44,7 @@ exports.createRole = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Role created successfully."
+      "Role created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -53,9 +53,9 @@ exports.createRole = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllRole = async (req, res) => {
+export async function getAllRole(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -95,7 +95,7 @@ exports.getAllRole = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Role fetched successfully."
+      "Role fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching role:", error);
@@ -103,9 +103,9 @@ exports.getAllRole = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteRole = async (req, res) => {
+export async function deleteRole(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -116,15 +116,15 @@ exports.deleteRole = async (req, res) => {
       return errorResponse(res, 400, "Role ID is required.");
     }
     const existingRole = await client.query(
-      `SELECT role_id FROM role WHERE role_id = $1`,
-      [id]
+      "SELECT role_id FROM role WHERE role_id = $1",
+      [id],
     );
 
     if (existingRole.rowCount === 0) {
       return errorResponse(res, 404, "Role not found.");
     }
 
-    await client.query(`DELETE FROM role WHERE role_id = $1`, [id]);
+    await client.query("DELETE FROM role WHERE role_id = $1", [id]);
 
     return successResponse(res, null, "Role deleted successfully.");
   } catch (error) {
@@ -133,9 +133,9 @@ exports.deleteRole = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRole = async (req, res) => {
+export async function updateRole(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -183,7 +183,7 @@ exports.updateRole = async (req, res) => {
          WHERE LOWER(name) = LOWER($1) 
          AND builder_id = $2 
          AND role_id != $3`,
-        [name.trim(), builderId, role_id]
+        [name.trim(), builderId, role_id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -224,14 +224,14 @@ exports.updateRole = async (req, res) => {
     values.push(userId);
     index++;
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     if (fields.length === 2 && !name && !type && !description) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "At least one field must be provided for update (name, type, description)."
+        "At least one field must be provided for update (name, type, description).",
       );
     }
 
@@ -250,7 +250,7 @@ exports.updateRole = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Role updated successfully."
+      "Role updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -259,4 +259,4 @@ exports.updateRole = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

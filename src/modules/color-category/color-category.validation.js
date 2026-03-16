@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorCategorySchema = Joi.object({
   color_id: Joi.string().uuid().required().messages({
@@ -105,7 +105,7 @@ const copyColorCategorySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorCategorySchema,
   updateColorCategorySchema,
   paramsIdSchema,

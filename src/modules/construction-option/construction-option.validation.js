@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionOptionSchema = Joi.object({
   option_name: Joi.string()
@@ -32,7 +32,7 @@ const updateConstructionOptionSchema = Joi.object({
     .optional(),
 });
 
-module.exports = {
+export default {
   createConstructionOptionSchema,
   deleteConstructionOptionSchema,
   updateConstructionOptionParamsSchema,

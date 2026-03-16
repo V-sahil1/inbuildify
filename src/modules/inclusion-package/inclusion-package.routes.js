@@ -1,23 +1,24 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createInclusionPackage,
   getAllInclusionPackages,
   getInclusionPackageById,
   updateInclusionPackage,
   deleteInclusionPackage,
-} = require("./inclusion-package.controller");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const {
+} from "./inclusion-package.controller";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import {
   createInclusionPackageSchema,
   updateInclusionPackageSchema,
   inclusionPackageIdSchema,
-} = require("./inclusion-package.validation");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./inclusion-package.validation";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,18 +29,18 @@ router.get("/", getAllInclusionPackages);
 router.get(
   "/:id",
   validateRequest(inclusionPackageIdSchema, REQUEST_SOURCE.PARAMS),
-  getInclusionPackageById
+  getInclusionPackageById,
 );
 router.put(
   "/:id",
   validateRequest(inclusionPackageIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateInclusionPackageSchema, REQUEST_SOURCE.BODY),
-  updateInclusionPackage
+  updateInclusionPackage,
 );
 router.delete(
   "/:id",
   validateRequest(inclusionPackageIdSchema, REQUEST_SOURCE.PARAMS),
-  deleteInclusionPackage
+  deleteInclusionPackage,
 );
 
-module.exports = router;
+export default router;

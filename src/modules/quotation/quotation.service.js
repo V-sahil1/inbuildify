@@ -1,7 +1,7 @@
-const quotationRepository = require("./quotation.repository");
-const leadsRepository = require("../lead/leads.repository");
-const { generateDynamicReferenceNumber } = require("../../utils/common");
-const getPool = require("../../config/database");
+import quotationRepository from "./quotation.repository";
+import leadsRepository from "../lead/leads.repository";
+import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -25,7 +25,7 @@ class QuotationService {
 
       const client = await getPool().connect();
       try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
         // Check for latest quotation version of this lead
         const latestVersionQuery = `
@@ -100,13 +100,12 @@ class QuotationService {
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
         }
 
-        await client.query('COMMIT');
+        await client.query("COMMIT");
 
         // Fetch fully enriched version to include lead and contact details mapping
         const enrichedVersion = await quotationRepository.getQuotationVersionDetailsById(quotationVersion.quotation_version_id);
 
         // Format result like original response
-        const { keysToCamelCase } = require("../../utils/common");
 
         const formattedQuotation = keysToCamelCase(quotation);
         formattedQuotation.versions = enrichedVersion ? [enrichedVersion] : [keysToCamelCase(quotationVersion)];
@@ -117,7 +116,7 @@ class QuotationService {
           message: "Quotation created successfully",
         };
       } catch (innerError) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         throw innerError;
       } finally {
         client.release();
@@ -266,7 +265,7 @@ class QuotationService {
               (company_id = $2 AND $2 IS NOT NULL)
               OR (builder_id = $3 AND $3 IS NOT NULL)
             ) LIMIT 1`,
-            [updateData[v.field], companyId, builderId]
+            [updateData[v.field], companyId, builderId],
           );
           if (result.rowCount === 0) {
             return {
@@ -291,19 +290,23 @@ class QuotationService {
 
       if (rangeChanged || dwellingTypeChanged) {
         // Set facade_id and floor_plan_id to NULL only if not explicitly updating them right now
-        if (updateData.facade_id === undefined) updateData.facade_id = null;
-        if (updateData.floor_plan_id === undefined) updateData.floor_plan_id = null;
+        if (updateData.facade_id === undefined) {
+          updateData.facade_id = null;
+        }
+        if (updateData.floor_plan_id === undefined) {
+          updateData.floor_plan_id = null;
+        }
 
         // Delete related package mappings
         await client.query(
-          `DELETE FROM quotation_version_package_map WHERE quotation_version_id = $1`,
-          [versionId]
+          "DELETE FROM quotation_version_package_map WHERE quotation_version_id = $1",
+          [versionId],
         );
 
         // Delete related pricelist item mappings
         await client.query(
-          `DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1`,
-          [versionId]
+          "DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1",
+          [versionId],
         );
       }
 
@@ -353,7 +356,7 @@ class QuotationService {
       const sourceVersion = checkResult.rows[0];
       const quotationId = sourceVersion.quotation_id;
 
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // 2. Get the next version number
       const maxVersion = await quotationRepository.getLatestQuotationVersionNo(quotationId);
@@ -381,7 +384,7 @@ class QuotationService {
         sourceVersion.range_id,
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
-        sourceVersion.facade_id
+        sourceVersion.facade_id,
       ];
 
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
@@ -415,7 +418,7 @@ class QuotationService {
         WHERE quotation_version_id = $2
       `, [newVersionId, versionId]);
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       // Fetch the full newly created version using repository to return all enriched fields
       const enrichedNewVersion = await quotationRepository.getQuotationVersionDetailsById(newVersionId);
@@ -426,7 +429,7 @@ class QuotationService {
         message: "Quotation version duplicated successfully",
       };
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       console.error("DEBUG: Error in duplicateQuotationVersion service:", error);
       return {
         success: false,
@@ -495,7 +498,7 @@ class QuotationService {
       const versionsCheck = await client.query(
         `SELECT quotation_version_id, quotation_id FROM quotation_version 
          WHERE quotation_version_id IN ($1, $2)`,
-        [versionId1, versionId2]
+        [versionId1, versionId2],
       );
 
       if (versionsCheck.rowCount < 2) {
@@ -503,7 +506,7 @@ class QuotationService {
       }
 
       const allBelongToQuotation = versionsCheck.rows.every(
-        r => r.quotation_id === quotationId
+        r => r.quotation_id === quotationId,
       );
       if (!allBelongToQuotation) {
         return { success: false, message: "Both versions must belong to the same quotation" };
@@ -518,7 +521,7 @@ class QuotationService {
            FROM lot
            LEFT JOIN state s ON lot.state_id = s.state_id
            WHERE lot.lot_id = $1`,
-          [lotId]
+          [lotId],
         );
         if (lotResult.rowCount > 0) {
           const lot = lotResult.rows[0];
@@ -640,4 +643,4 @@ class QuotationService {
   }
 }
 
-module.exports = new QuotationService();
+export default new QuotationService();

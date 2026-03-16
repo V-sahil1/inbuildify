@@ -1,28 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createEstateFeature,
   getAllEstateFeatures,
   getEstateFeaturesByEstateId,
   updateEstateFeature,
   deleteEstateFeature,
-} = require("./estate-feature.controller.js");
-const {
+} from "./estate-feature.controller.js";
+import {
   createEstateFeatureSchema,
   getAllEstateFeatureSchema,
   getEstateFeatureByEstateIdSchema,
   updateEstateFeatureSchema,
   updateEstateFeatureParamsSchema,
   deleteEstateFeatureSchema,
-} = require("./estate-feature.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./estate-feature.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,32 +30,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createEstateFeatureSchema, REQUEST_SOURCE.BODY),
-  createEstateFeature
+  createEstateFeature,
 );
 
 router.get(
   "/",
   validateRequest(getAllEstateFeatureSchema, REQUEST_SOURCE.QUERY),
-  getAllEstateFeatures
+  getAllEstateFeatures,
 );
 
 router.get(
   "/:estate_id",
   validateRequest(getEstateFeatureByEstateIdSchema, REQUEST_SOURCE.PARAMS),
-  getEstateFeaturesByEstateId
+  getEstateFeaturesByEstateId,
 );
 
 router.put(
   "/:estate_feature_id",
   validateRequest(updateEstateFeatureParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateEstateFeatureSchema, REQUEST_SOURCE.BODY),
-  updateEstateFeature
+  updateEstateFeature,
 );
 
 router.delete(
   "/:estate_feature_id",
   validateRequest(deleteEstateFeatureSchema, REQUEST_SOURCE.PARAMS),
-  deleteEstateFeature
+  deleteEstateFeature,
 );
 
-module.exports = router;
+export default router;

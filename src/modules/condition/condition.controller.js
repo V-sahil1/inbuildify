@@ -1,17 +1,17 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getConditions = async (req, res) => {
+export async function getConditions(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
-    let query = `SELECT * FROM conditions ORDER BY name ASC`;
+    const query = "SELECT * FROM conditions ORDER BY name ASC";
     const result = await client.query(query);
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Conditions fetched successfully."
+      "Conditions fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching conditions:", err);
@@ -19,4 +19,4 @@ exports.getConditions = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

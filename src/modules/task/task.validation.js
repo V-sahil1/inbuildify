@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createTaskSchema = Joi.object({
   name: Joi.string()
@@ -147,7 +147,7 @@ const updateTaskSchema = Joi.object({
   attach_files: Joi.string().max(500).allow(null, "").optional(),
 });
 
-module.exports = {
+export default {
   createTaskSchema,
   getAllTaskSchema,
   deleteTaskSchema,

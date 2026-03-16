@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPortalSettingsSchema = Joi.object({
   send_login_credentials_to_customer: Joi.boolean().default(false),
@@ -32,7 +32,7 @@ const updatePortalSettingsSchema = Joi.object({
   publish_packages_to_agent_portal: Joi.boolean(),
 });
 
-module.exports = {
+export default {
   createPortalSettingsSchema,
   updatePortalSettingsSchema,
 };

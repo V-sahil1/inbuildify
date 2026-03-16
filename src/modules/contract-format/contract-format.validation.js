@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createContractFormatSchema = Joi.object({
   format_name: Joi.string()
@@ -129,7 +129,7 @@ const deleteContractFormatSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createContractFormatSchema,
   getAllContractFormatsSchema,
   getContractFormatByIdSchema,

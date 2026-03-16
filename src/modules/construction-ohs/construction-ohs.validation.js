@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* ========================
    SETTINGS VALIDATION
@@ -44,7 +44,7 @@ const getListItemChema = Joi.object({
   field_type: Joi.string().max(20).valid("category", "item").optional(),
 });
 
-module.exports = {
+export default {
   upsertSettingsSchema,
   createListItemSchema,
   updateListItemSchema,

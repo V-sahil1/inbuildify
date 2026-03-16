@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPackageSchema = Joi.object({
   name: Joi.string()
@@ -137,7 +137,7 @@ const deletePackageSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPackageSchema,
   getAllPackagesSchema,
   updatePackageParamsSchema,

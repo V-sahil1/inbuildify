@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPropertySchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
@@ -133,7 +133,7 @@ const deletePropertySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPropertySchema,
   getPropertyByLeadSchema,
   updatePropertySchema,

@@ -1,21 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  getConstructionEtsRechargeSettings,
-  updateConstructionEtsRechargeSettings,
-} = require("./construction-ets-recharge.controller.js");
-
-const {
-  updateConstructionEtsRechargeSettingsSchema,
-} = require("./construction-ets-recharge.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { getConstructionEtsRechargeSettings, updateConstructionEtsRechargeSettings } from "./construction-ets-recharge.controller.js";
+import { updateConstructionEtsRechargeSettingsSchema } from "./construction-ets-recharge.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -23,14 +16,13 @@ router.use(camelToSnakeMiddleware);
 
 router.get(
   "/",
-  getConstructionEtsRechargeSettings
+  getConstructionEtsRechargeSettings,
 );
 
 router.put(
   "/",
   validateRequest(updateConstructionEtsRechargeSettingsSchema, REQUEST_SOURCE.BODY),
-  updateConstructionEtsRechargeSettings
+  updateConstructionEtsRechargeSettings,
 );
 
-module.exports = router;
-
+export default router;

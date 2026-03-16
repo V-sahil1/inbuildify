@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPriceListItemMapSchema = Joi.object({
   package_id: Joi.string().uuid().required().messages({
@@ -55,7 +55,8 @@ const updatePriceListItemMapSchema = Joi.object({
     "string.guid": "price list item ID must be a valid UUID",
   }),
 });
-module.exports = {
+
+export default {
   createPriceListItemMapSchema,
   getAllPackagePriceListItemMapSchema,
   getPackagePricelistItemByPackageIdSchema,

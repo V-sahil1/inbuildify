@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createCustomFieldValueSchema = Joi.object({
   custom_field_id: Joi.string().uuid().required().messages({
@@ -67,10 +67,10 @@ const updateCustomFieldValueSchema = Joi.object({
   "value_number",
   "value_date",
   "value_boolean",
-  "value_list"
+  "value_list",
 );
 
-module.exports = {
+export default {
   createCustomFieldValueSchema,
   getAllCustomFieldValueSchema,
   deleteCustomFieldValueSchema,

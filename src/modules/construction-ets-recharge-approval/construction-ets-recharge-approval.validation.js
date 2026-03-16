@@ -1,53 +1,53 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionEtsRechargeApprovalValidation = Joi.object({
   role_id: Joi.string().uuid().required().messages({
     "string.uuid": "Role ID must be a valid UUID",
-    "any.required": "Role ID is required"
+    "any.required": "Role ID is required",
   }),
   amount: Joi.number().positive().required().messages({
     "number.positive": "Amount must be a positive number",
-    "any.required": "Amount is required"
-  })
+    "any.required": "Amount is required",
+  }),
 });
 
 const updateConstructionEtsRechargeApprovalValidation = Joi.object({
   role_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Role ID must be a valid UUID"
+    "string.uuid": "Role ID must be a valid UUID",
   }),
   amount: Joi.number().positive().optional().messages({
-    "number.positive": "Amount must be a positive number"
-  })
+    "number.positive": "Amount must be a positive number",
+  }),
 }).min(1);
 
 const getConstructionEtsRechargeApprovalByIdValidation = Joi.object({
   construction_ets_recharge_approval_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction ETS recharge approval ID must be a valid UUID",
-    "any.required": "Construction ETS recharge approval ID is required"
-  })
+    "any.required": "Construction ETS recharge approval ID is required",
+  }),
 });
 
 const queryValidation = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.integer": "Page must be an integer",
-    "number.min": "Page must be at least 1"
+    "number.min": "Page must be at least 1",
   }),
   limit: Joi.number().integer().min(1).max(100).optional().messages({
     "number.integer": "Limit must be an integer",
     "number.min": "Limit must be at least 1",
-    "number.max": "Limit must be at most 100"
+    "number.max": "Limit must be at most 100",
   }),
   construction_ets_recharge_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Construction ETS recharge ID must be a valid UUID"
+    "string.uuid": "Construction ETS recharge ID must be a valid UUID",
   }),
   role_id: Joi.string().uuid().optional().messages({
-    "string.uuid": "Role ID must be a valid UUID"
-  })
+    "string.uuid": "Role ID must be a valid UUID",
+  }),
 });
 
-module.exports = {
+export default {
   createConstructionEtsRechargeApprovalValidation,
   updateConstructionEtsRechargeApprovalValidation,
   getConstructionEtsRechargeApprovalByIdValidation,
-  queryValidation
+  queryValidation,
 };

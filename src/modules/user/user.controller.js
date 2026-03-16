@@ -1,17 +1,17 @@
-const userService = require("./user.service");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import userService from "./user.service";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-module.exports.getUsers = async (req, res) => {
+export async function getUsers(req, res) {
   try {
     const data = await userService.getUsers(req.user, req.query);
     return successResponse(res, data, "Users fetched successfully.");
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.getProfile = async (req, res) => {
+export async function getProfile(req, res) {
   try {
     const data = await userService.getProfile(req.user.user_id);
     return successResponse(
@@ -22,9 +22,9 @@ module.exports.getProfile = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.createUser = async (req, res) => {
+export async function createUser(req, res) {
   try {
     const photo = req.files?.photo?.[0] || null;
     const signature = req.files?.signature?.[0] || null;
@@ -42,9 +42,9 @@ module.exports.createUser = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.updateUser = async (req, res) => {
+export async function updateUser(req, res) {
   try {
     const userId = req.params.user_id;
 
@@ -77,9 +77,9 @@ module.exports.updateUser = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.deleteUser = async (req, res) => {
+export async function deleteUser(req, res) {
   try {
     const userId = req.params.user_id;
 
@@ -105,13 +105,13 @@ module.exports.deleteUser = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
 /* =========================================
     PASSWORD & LOGIN ID MANAGEMENT
 ========================================= */
 
-module.exports.resetPassword = async (req, res) => {
+export async function resetPassword(req, res) {
   try {
     const userId = req.params.user_id;
 
@@ -137,9 +137,9 @@ module.exports.resetPassword = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.changeLoginId = async (req, res) => {
+export async function changeLoginId(req, res) {
   try {
     const userId = req.params.user_id;
 
@@ -165,13 +165,13 @@ module.exports.changeLoginId = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
 /* =========================================
        ACTIVE / INACTIVE MANAGEMENT
 ========================================= */
 
-module.exports.toggleActive = async (req, res) => {
+export async function toggleActive(req, res) {
   try {
     const userId = req.params.userId;
 
@@ -197,13 +197,13 @@ module.exports.toggleActive = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
 /* =========================================
            LOCK / UNLOCK USER
 ========================================= */
 
-module.exports.toggleLock = async (req, res) => {
+export async function toggleLock(req, res) {
   try {
     const userId = req.params.userId;
 
@@ -229,13 +229,13 @@ module.exports.toggleLock = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
 /* =========================================
             PHOTO MANAGEMENT
 ========================================= */
 
-module.exports.updatePhoto = async (req, res) => {
+export async function updatePhoto(req, res) {
   try {
     const file = req.files?.photo?.[0] || null;
     if (!file) {
@@ -255,9 +255,9 @@ module.exports.updatePhoto = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.deletePhoto = async (req, res) => {
+export async function deletePhoto(req, res) {
   try {
     const data = await userService.deletePhoto(req.user, req.params.user_id);
     return successResponse(
@@ -268,13 +268,13 @@ module.exports.deletePhoto = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
 /* =========================================
           SIGNATURE MANAGEMENT
 ========================================= */
 
-module.exports.updateSignature = async (req, res) => {
+export async function updateSignature(req, res) {
   try {
     const file = req.files?.signature?.[0] || null;
     if (!file) {
@@ -294,9 +294,9 @@ module.exports.updateSignature = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.deleteSignature = async (req, res) => {
+export async function deleteSignature(req, res) {
   try {
     const data = await userService.deleteSignature(
       req.user,
@@ -310,4 +310,4 @@ module.exports.deleteSignature = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}

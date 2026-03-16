@@ -1,12 +1,16 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
+  if (!userIds || userIds.length === 0) {
+    return {};
+  }
 
   const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+  if (validUserIds.length === 0) {
+    return {};
+  }
 
   const usersQuery = `
     SELECT users_id, name 
@@ -22,14 +26,16 @@ const getUsersDetails = async (client, userIds) => {
 };
 
 const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
-exports.getAllWorkFlowProcessTask = async (req, res) => {
+export async function getAllWorkFlowProcessTask(req, res) {
   try {
     const { limit, offset, workflow_process_id, lead_id } = req.query;
     const parsedLimit = parseInt(limit, 10) || 25;
@@ -39,15 +45,15 @@ exports.getAllWorkFlowProcessTask = async (req, res) => {
     const client = await pool.connect();
     try {
       const actionsRes = await client.query(
-        `SELECT action_id FROM actions WHERE builder_id = $1 AND lead_id = $2 AND type = 'TASK'`,
-        [builderId, lead_id]
+        "SELECT action_id FROM actions WHERE builder_id = $1 AND lead_id = $2 AND type = 'TASK'",
+        [builderId, lead_id],
       );
 
       if (actionsRes.rowCount === 0) {
         return successResponse(
           res,
           [],
-          "Workflow process tasks fetched successfully."
+          "Workflow process tasks fetched successfully.",
         );
       }
 
@@ -87,7 +93,7 @@ exports.getAllWorkFlowProcessTask = async (req, res) => {
       return successResponse(
         res,
         tasksWithUsers,
-        "Workflow process tasks fetched successfully."
+        "Workflow process tasks fetched successfully.",
       );
     } catch (error) {
       console.error("Get all workflow process task error:", error);
@@ -99,9 +105,9 @@ exports.getAllWorkFlowProcessTask = async (req, res) => {
     console.error("Get all workflow process task outer error:", error);
     return errorResponse(res, error.statusCode || 400, error.message);
   }
-};
+}
 
-exports.deleteWorkFlowProcessTask = async (req, res) => {
+export async function deleteWorkFlowProcessTask(req, res) {
   try {
     const { action_id } = req.params;
     const builderId = req.user.builder_id;
@@ -119,7 +125,7 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
            AND t.is_workflow_process_task = true 
            AND a.type = 'TASK' 
            AND t.is_deleted = false`,
-        [builderId, action_id]
+        [builderId, action_id],
       );
 
       if (actionsRes.rowCount === 0) {
@@ -127,7 +133,7 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
         return errorResponse(
           res,
           404,
-          "Workflow process task not found."
+          "Workflow process task not found.",
         );
       }
       const taskRes = await client.query(
@@ -138,7 +144,7 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
            AND is_workflow_process_task = true 
            AND is_deleted = false 
          RETURNING *`,
-        [action_id]
+        [action_id],
       );
 
       if (taskRes.rowCount === 0) {
@@ -146,7 +152,7 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
         return errorResponse(
           res,
           404,
-          "Workflow process task not found."
+          "Workflow process task not found.",
         );
       }
 
@@ -172,7 +178,7 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
       return successResponse(
         res,
         taskWithUsers,
-        "Workflow process task deleted successfully."
+        "Workflow process task deleted successfully.",
       );
     } catch (error) {
       await client.query("ROLLBACK");
@@ -185,4 +191,4 @@ exports.deleteWorkFlowProcessTask = async (req, res) => {
     console.error("Delete workflow process task outer error:", error);
     return errorResponse(res, error.statusCode || 400, error.message);
   }
-};
+}

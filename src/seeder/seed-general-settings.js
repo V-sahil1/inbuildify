@@ -7,7 +7,7 @@ async function seedGeneralSettings({ company_id, builder_id, created_by, client 
     `SELECT id FROM general_settings
      WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL)
      LIMIT 1`,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
   if (existing.rowCount === 0) {
@@ -18,9 +18,9 @@ async function seedGeneralSettings({ company_id, builder_id, created_by, client 
         round_of_cost, negative_value_show, negative_value_color,
         show_reference_id_in_pdf
       ) VALUES ($1, $2, false, false, false, true, '#FF0000', 'hide_document_id_and_job_id')`,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
   }
 }
 
-module.exports = { seedGeneralSettings };
+export default { seedGeneralSettings };

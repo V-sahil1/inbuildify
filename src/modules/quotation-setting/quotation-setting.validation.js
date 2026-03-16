@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createQuotationSettingSchems = Joi.object({
   allow_save_as_new_version: Joi.boolean().default(false),
@@ -87,7 +87,7 @@ const updateQuotationSettingSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createQuotationSettingSchems,
   updateQuotationSettingParamsSchema,
   updateQuotationSettingSchema,

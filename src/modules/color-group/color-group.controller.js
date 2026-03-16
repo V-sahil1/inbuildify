@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createColorGroup = async (req, res) => {
+export async function createColorGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -82,9 +82,9 @@ exports.createColorGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllColorGroups = async (req, res) => {
+export async function getAllColorGroups(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -94,8 +94,8 @@ exports.getAllColorGroups = async (req, res) => {
 
     const { status, search } = req.query;
 
-    let conditions = [`company_id = $1`, `builder_id = $2`];
-    let values = [companyId, builderId];
+    const conditions = ["company_id = $1", "builder_id = $2"];
+    const values = [companyId, builderId];
     let index = 3;
 
     if (status !== undefined) {
@@ -134,9 +134,9 @@ exports.getAllColorGroups = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorGroupById = async (req, res) => {
+export async function getColorGroupById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -180,9 +180,9 @@ exports.getColorGroupById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorGroup = async (req, res) => {
+export async function updateColorGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -266,7 +266,7 @@ exports.updateColorGroup = async (req, res) => {
 
     updateFields.push(`updated_by = $${paramIndex++}`);
     updateValues.push(userId);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
     updateValues.push(colorGroupId);
 
     const updateQuery = `
@@ -298,9 +298,9 @@ exports.updateColorGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorGroup = async (req, res) => {
+export async function deleteColorGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -359,4 +359,4 @@ exports.deleteColorGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

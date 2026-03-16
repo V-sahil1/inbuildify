@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 class LeadsRepository {
   constructor() {
@@ -46,7 +46,7 @@ class LeadsRepository {
         email,
         phone,
         notes,
-        send_letter === true || send_letter === "true" ? true : false, // Ensure proper boolean
+        !!(send_letter === true || send_letter === "true"), // Ensure proper boolean
         lead_source_id,
         status,
         rating,
@@ -69,7 +69,7 @@ class LeadsRepository {
          FROM leads_contact_map lcm
          JOIN users u ON lcm.contact_id = u.users_id
          WHERE lcm.leads_id = $1`,
-        [lead.leads_id]
+        [lead.leads_id],
       );
 
       return {
@@ -92,14 +92,14 @@ class LeadsRepository {
       const values = [builderId, createdBy, name];
 
       if (excludeLeadId) {
-        query += ` AND leads_id != $4`;
+        query += " AND leads_id != $4";
         values.push(excludeLeadId);
       }
 
-      query += ` LIMIT 1`;
+      query += " LIMIT 1";
 
       console.log("Checking duplicate with name:", name, "builderId:", builderId, "createdBy:", createdBy);
-      
+
       const result = await client.query(query, values);
       console.log("Duplicate check result:", result.rowCount);
       return result.rowCount > 0 ? keysToCamelCase(result.rows[0]) : null;
@@ -125,8 +125,8 @@ class LeadsRepository {
       } = filters;
 
       const offset = (page - 1) * limit;
-      let whereConditions = ["(l.builder_id = $1 OR (l.company_id = $2 AND $2 IS NOT NULL))"];
-      let queryParams = [builderId, companyId];
+      const whereConditions = ["(l.builder_id = $1 OR (l.company_id = $2 AND $2 IS NOT NULL))"];
+      const queryParams = [builderId, companyId];
       let paramIndex = 3;
 
       if (status) {
@@ -567,7 +567,7 @@ class LeadsRepository {
       }
 
       updateFields.push(`updated_by = $${paramIndex++}`);
-      updateFields.push(`updated_at = NOW()`);
+      updateFields.push("updated_at = NOW()");
       values.push(updated_by);
 
       values.push(leadId, builderId);
@@ -589,19 +589,19 @@ class LeadsRepository {
   async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId) {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // 1. Verify existence and ownership
-      const leadQuery = `SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE`;
+      const leadQuery = "SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE";
       const leadResult = await client.query(leadQuery, [leadId, builderId, companyId]);
-      
+
       if (leadResult.rowCount === 0) {
         throw new Error("Lead not found or unauthorized");
       }
 
       const lead = leadResult.rows[0];
 
-      if (lead.status === 'Convert') {
+      if (lead.status === "Convert") {
         throw new Error("Lead is already converted");
       }
 
@@ -621,11 +621,11 @@ class LeadsRepository {
       `;
       await client.query(updateLeadQuery, [leadId]);
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       return keysToCamelCase(oppResult.rows[0]);
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -674,4 +674,4 @@ class LeadsRepository {
   }
 }
 
-module.exports = new LeadsRepository();
+export default new LeadsRepository();

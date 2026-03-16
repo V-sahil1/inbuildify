@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createHouseLandPackageSettingSchema = Joi.object({
   include_facade_cost_in_total: Joi.boolean().default(false),
@@ -15,7 +15,7 @@ const updateHouseLandPackageSettingSchems = Joi.object({
   include_facade_cost_in_total: Joi.bool().default(false),
 });
 
-module.exports = {
+export default {
   createHouseLandPackageSettingSchema,
   updateHouseLandPackageSettingParamsSchema,
   updateHouseLandPackageSettingSchems,

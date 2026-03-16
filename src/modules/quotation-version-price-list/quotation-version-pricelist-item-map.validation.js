@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPricelistItemMapSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
@@ -43,7 +43,7 @@ const idParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPricelistItemMapSchema,
   getByVersionParamsSchema,
   updatePricelistItemMapSchema,

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllMasterPriceListCategoriesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
@@ -40,7 +40,7 @@ const displayOrderManageSchema = Joi.object({
           "number.integer": "Display Order must be an integer",
           "any.required": "Display Order is required",
         }),
-      })
+      }),
     )
     .required()
     .messages({
@@ -63,7 +63,7 @@ const getMasterPriceListCategoryByIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   getAllMasterPriceListCategoriesSchema,
   createMasterPriceListCategorySchema,
   updateMasterPriceListCategorySchema,

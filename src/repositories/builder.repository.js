@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database";
 
 async function getBuilderAddress(builderId) {
   const pool = getPool();
@@ -62,7 +62,7 @@ async function getCompanyAddress(builderId) {
   }
 }
 
-module.exports = {
+export default {
   getBuilderAddress,
   getCompanyAddress,
 };

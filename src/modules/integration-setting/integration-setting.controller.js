@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createIntegrationSettings = async (req, res) => {
+export async function createIntegrationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,7 +15,7 @@ exports.createIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -40,7 +40,7 @@ exports.createIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Integration settings already exist for this builder or company."
+        "Integration settings already exist for this builder or company.",
       );
     }
     const userValidationPromises = [];
@@ -51,7 +51,7 @@ exports.createIntegrationSettings = async (req, res) => {
         WHERE users_id = $1 AND is_deleted = false
       `;
       userValidationPromises.push(
-        client.query(query, [assign_leads_if_assignee_not_found])
+        client.query(query, [assign_leads_if_assignee_not_found]),
       );
     }
 
@@ -61,7 +61,7 @@ exports.createIntegrationSettings = async (req, res) => {
         WHERE users_id = $1 AND is_deleted = false
       `;
       userValidationPromises.push(
-        client.query(query, [always_assign_leads_to])
+        client.query(query, [always_assign_leads_to]),
       );
     }
 
@@ -74,7 +74,7 @@ exports.createIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user for assign_leads_if_assignee_not_found."
+        "Invalid user for assign_leads_if_assignee_not_found.",
       );
     }
 
@@ -85,7 +85,7 @@ exports.createIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user for always_assign_leads_to."
+        "Invalid user for always_assign_leads_to.",
       );
     }
 
@@ -123,7 +123,7 @@ exports.createIntegrationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Integration settings created successfully."
+      "Integration settings created successfully.",
     );
   } catch (err) {
     console.error("Error creating integration settings:", err);
@@ -131,9 +131,9 @@ exports.createIntegrationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateIntegrationSettings = async (req, res) => {
+export async function updateIntegrationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -146,7 +146,7 @@ exports.updateIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -175,7 +175,7 @@ exports.updateIntegrationSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Integration settings not found."
+        "Integration settings not found.",
       );
     }
 
@@ -183,14 +183,14 @@ exports.updateIntegrationSettings = async (req, res) => {
       const userCheck = await client.query(
         `SELECT users_id FROM users 
          WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
-        [assign_leads_if_assignee_not_found]
+        [assign_leads_if_assignee_not_found],
       );
 
       if (userCheck.rowCount === 0) {
         return errorResponse(
           res,
           400,
-          "Invalid user for assign_leads_if_assignee_not_found."
+          "Invalid user for assign_leads_if_assignee_not_found.",
         );
       }
     }
@@ -199,14 +199,14 @@ exports.updateIntegrationSettings = async (req, res) => {
       const userCheck = await client.query(
         `SELECT users_id FROM users 
          WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
-        [always_assign_leads_to]
+        [always_assign_leads_to],
       );
 
       if (userCheck.rowCount === 0) {
         return errorResponse(
           res,
           400,
-          "Invalid user for always_assign_leads_to."
+          "Invalid user for always_assign_leads_to.",
         );
       }
     }
@@ -220,26 +220,33 @@ exports.updateIntegrationSettings = async (req, res) => {
       values.push(value);
     };
 
-    if (automatically_send_welcome_email !== undefined)
+    if (automatically_send_welcome_email !== undefined) {
       addField("automatically_send_welcome_email", automatically_send_welcome_email);
+    }
 
-    if (rea_hl_enabled !== undefined)
+    if (rea_hl_enabled !== undefined) {
       addField("rea_hl_enabled", rea_hl_enabled);
+    }
 
-    if (canibuild_enabled !== undefined)
+    if (canibuild_enabled !== undefined) {
       addField("canibuild_enabled", canibuild_enabled);
+    }
 
-    if (website_hl_enabled !== undefined)
+    if (website_hl_enabled !== undefined) {
       addField("website_hl_enabled", website_hl_enabled);
+    }
 
-    if (google_enabled !== undefined)
+    if (google_enabled !== undefined) {
       addField("google_enabled", google_enabled);
+    }
 
-    if (assign_leads_if_assignee_not_found !== undefined)
+    if (assign_leads_if_assignee_not_found !== undefined) {
       addField("assign_leads_if_assignee_not_found", assign_leads_if_assignee_not_found);
+    }
 
-    if (always_assign_leads_to !== undefined)
+    if (always_assign_leads_to !== undefined) {
       addField("always_assign_leads_to", always_assign_leads_to);
+    }
 
     if (fields.length === 0) {
       return errorResponse(res, 400, "No fields provided to update.");
@@ -248,7 +255,7 @@ exports.updateIntegrationSettings = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE integration_settings
@@ -263,7 +270,7 @@ exports.updateIntegrationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Integration settings updated successfully."
+      "Integration settings updated successfully.",
     );
   } catch (err) {
     console.error("Error updating integration settings:", err);
@@ -271,10 +278,9 @@ exports.updateIntegrationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-
-exports.getUserIntegrationSettings = async (req, res) => {
+export async function getUserIntegrationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -289,7 +295,7 @@ exports.getUserIntegrationSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -304,14 +310,14 @@ exports.getUserIntegrationSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING *;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Integration settings fetched successfully"
+      "Integration settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching integration settings:", error);
@@ -319,4 +325,4 @@ exports.getUserIntegrationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

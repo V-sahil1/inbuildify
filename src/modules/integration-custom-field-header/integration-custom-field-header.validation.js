@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createIntegrationCustomFieldHeaderSchema = Joi.object({
   header_name: Joi.string().trim().min(1).max(150).required(),
@@ -37,7 +37,7 @@ const updateIntegrationCustomFieldHeaderSchem = Joi.object({
   header_name: Joi.string().trim().min(1).max(150).optional(),
 });
 
-module.exports = {
+export default {
   createIntegrationCustomFieldHeaderSchema,
   getAllIntegrationCustomFieldHeaderSchema,
   deleteIntegrationCustomFieldHeaderSchema,

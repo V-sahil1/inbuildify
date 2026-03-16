@@ -1,20 +1,19 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const contactController = require("./contact.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-
-const {
+import contactController from "./contact.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import {
   createContactSchema,
   updateContactSchema,
   convertContactSchema,
   getContactsSchema,
-} = require("./contact.validation");
+} from "./contact.validation";
 
 /* ============================================================
     CONTACT ROUTES
@@ -96,4 +95,4 @@ router.post(
   contactController.convertContactToUser,
 );
 
-module.exports = router;
+export default router;

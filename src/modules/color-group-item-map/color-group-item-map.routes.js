@@ -1,23 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createColorGroupItemMap,
-  getAllColorGroupItemMaps,
-  deleteColorGroupItemMap,
-} = require("./color-group-item-map.controller");
-const {
+import { createColorGroupItemMap, getAllColorGroupItemMaps, deleteColorGroupItemMap } from "./color-group-item-map.controller";
+import {
   createColorGroupItemMapSchema,
   getAllColorGroupItemMapsSchema,
   deleteColorGroupItemMapSchema,
-} = require("./color-group-item-map.validation");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const caseConverterMiddleware = require("../../middleware/caseConverterMiddleware");
-
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./color-group-item-map.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import caseConverterMiddleware from "../../middleware/caseConverterMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -41,4 +36,4 @@ router.delete(
   deleteColorGroupItemMap,
 );
 
-module.exports = router;
+export default router;

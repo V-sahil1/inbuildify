@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createDocumentCommonFolderSchema = Joi.object({
   name: Joi.string().min(1).max(150).required(),
@@ -57,7 +57,7 @@ const updateDocumentCommonFolderSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createDocumentCommonFolderSchema,
   getAllDocumentCommonFolderSchema,
   deleteDocumentCommonFolderSchema,

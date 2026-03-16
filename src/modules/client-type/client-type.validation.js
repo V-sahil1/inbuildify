@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createClientTypeSchema = Joi.object({
   client_type: Joi.string()
@@ -69,7 +69,8 @@ const updateClientTypeSchema = Joi.object({
 const updateClientTypeIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createClientTypeSchema,
   getAllClientTypeSchema,
   deleteClientTypeSchema,

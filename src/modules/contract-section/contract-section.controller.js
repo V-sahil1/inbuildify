@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
-exports.createContractSection = async (req, res) => {
+export async function createContractSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -102,9 +102,9 @@ exports.createContractSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllContractSections = async (req, res) => {
+export async function getAllContractSections(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -127,8 +127,8 @@ exports.getAllContractSections = async (req, res) => {
     const offset = (page - 1) * limit;
     const { contract_format_id, section_name } = req.query;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
     let idx = 1;
 
     const formatQuery = `
@@ -198,9 +198,9 @@ exports.getAllContractSections = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getContractSectionById = async (req, res) => {
+export async function getContractSectionById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -238,9 +238,9 @@ exports.getContractSectionById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateContractSection = async (req, res) => {
+export async function updateContractSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -341,7 +341,7 @@ exports.updateContractSection = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE contract_section cs
@@ -370,9 +370,9 @@ exports.updateContractSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteContractSection = async (req, res) => {
+export async function deleteContractSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -445,4 +445,4 @@ exports.deleteContractSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

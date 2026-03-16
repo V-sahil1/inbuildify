@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createUserRoleMappingSchema = Joi.object({
   role_type_id: Joi.string().uuid().optional().messages({
@@ -69,7 +69,7 @@ const updateUserRoleMappingSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createUserRoleMappingSchema,
   getAllUserRoleMappingSchema,
   deleteUserRoleMppingSchema,

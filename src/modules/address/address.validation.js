@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createAddressSchema = Joi.object({
   country_id: Joi.string().uuid().allow(null).optional(),
@@ -26,4 +26,4 @@ const createAddressSchema = Joi.object({
     .max(4),
 });
 
-module.exports = { createAddressSchema };
+export default { createAddressSchema };

@@ -5,7 +5,7 @@ async function isValidRole(client, role_id) {
     FROM role
     WHERE role_id = $1
     `,
-    [role_id]
+    [role_id],
   );
 
   return result.rowCount > 0;
@@ -27,7 +27,7 @@ const REQUEST_SOURCE = {
 const ALLOWED_FILE_TYPES = process.env.FILE_TYPES || "image/jpeg|image/png|image/jpg|application/pdf";
 const ALLOWED_FILE_SIZE = process.env.FILE_SIZE || 5;
 
-module.exports = {
+export default {
   isValidRole,
   VALID_SORT_COLUMNS,
   DEFAULT_LIMIT,

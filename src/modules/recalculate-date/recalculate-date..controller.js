@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createRecalculateDate = async (req, res) => {
+export async function createRecalculateDate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -32,7 +32,7 @@ exports.createRecalculateDate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "When 'recalculate_construction_job_estimated_dates' is false, you cannot define 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates'."
+        "When 'recalculate_construction_job_estimated_dates' is false, you cannot define 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates'.",
       );
     }
 
@@ -45,7 +45,7 @@ exports.createRecalculateDate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'."
+        "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'.",
       );
     }
 
@@ -65,7 +65,7 @@ exports.createRecalculateDate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Recalculate Date settings already exist for this company/builder."
+        "Recalculate Date settings already exist for this company/builder.",
       );
     }
 
@@ -103,7 +103,7 @@ exports.createRecalculateDate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Recalculate Date settings created successfully."
+      "Recalculate Date settings created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -112,9 +112,9 @@ exports.createRecalculateDate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getRecalculateDate = async (req, res) => {
+export async function getRecalculateDate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -155,14 +155,14 @@ exports.getRecalculateDate = async (req, res) => {
       return successResponse(
         res,
         keysToCamelCase(insertResult.rows[0]),
-        "Recalculate Date settings created and fetched successfully."
+        "Recalculate Date settings created and fetched successfully.",
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Recalculate Date settings fetched successfully."
+      "Recalculate Date settings fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching recalculate date:", error);
@@ -170,9 +170,9 @@ exports.getRecalculateDate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRecalculateDate = async (req, res) => {
+export async function updateRecalculateDate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -195,7 +195,7 @@ exports.updateRecalculateDate = async (req, res) => {
       `SELECT * FROM recalculate_date 
        WHERE (builder_id = $1 OR company_id = $2)
        FOR UPDATE`,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (existing.rowCount === 0) {
@@ -220,7 +220,7 @@ exports.updateRecalculateDate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Cannot update 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates' because 'recalculate_construction_job_estimated_dates' is already false. Set it to true first."
+          "Cannot update 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates' because 'recalculate_construction_job_estimated_dates' is already false. Set it to true first.",
         );
       }
     }
@@ -234,7 +234,7 @@ exports.updateRecalculateDate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'."
+        "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'.",
       );
     }
 
@@ -251,7 +251,7 @@ exports.updateRecalculateDate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "When 'recalculate_construction_job_estimated_dates' is false, you cannot define 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates'."
+          "When 'recalculate_construction_job_estimated_dates' is false, you cannot define 'capture_reason_rebooking_and_rebooking_email', 'capture_text', or 'recalculate_confirmed_booking_dates'.",
         );
       }
     }
@@ -265,7 +265,7 @@ exports.updateRecalculateDate = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'."
+          "When 'capture_reason_rebooking_and_rebooking_email' is false, you cannot define 'capture_text'.",
         );
       }
     }
@@ -276,14 +276,14 @@ exports.updateRecalculateDate = async (req, res) => {
 
     if (recalculate_workflow_job_estimated_dates !== undefined) {
       fields.push(
-        `recalculate_workflow_job_estimated_dates = $${paramIndex++}`
+        `recalculate_workflow_job_estimated_dates = $${paramIndex++}`,
       );
       values.push(recalculate_workflow_job_estimated_dates);
     }
 
     if (recalculate_construction_job_estimated_dates !== undefined) {
       fields.push(
-        `recalculate_construction_job_estimated_dates = $${paramIndex++}`
+        `recalculate_construction_job_estimated_dates = $${paramIndex++}`,
       );
       values.push(recalculate_construction_job_estimated_dates);
     }
@@ -295,13 +295,13 @@ exports.updateRecalculateDate = async (req, res) => {
       fields.push(
         `recalculate_confirmed_booking_dates = $${paramIndex++},
          capture_reason_rebooking_and_rebooking_email = $${paramIndex++},
-         capture_text = NULL`
+         capture_text = NULL`,
       );
       values.push(false, false);
     } else {
       if (capture_reason_rebooking_and_rebooking_email !== undefined) {
         fields.push(
-          `capture_reason_rebooking_and_rebooking_email = $${paramIndex++}`
+          `capture_reason_rebooking_and_rebooking_email = $${paramIndex++}`,
         );
         values.push(capture_reason_rebooking_and_rebooking_email);
       }
@@ -310,7 +310,7 @@ exports.updateRecalculateDate = async (req, res) => {
         capture_reason_rebooking_and_rebooking_email === false ||
         capture_reason_rebooking_and_rebooking_email === "false"
       ) {
-        fields.push(`capture_text = NULL`);
+        fields.push("capture_text = NULL");
       } else if (capture_text !== undefined) {
         fields.push(`capture_text = $${paramIndex++}`);
         values.push(capture_text);
@@ -327,14 +327,14 @@ exports.updateRecalculateDate = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE recalculate_date
@@ -352,7 +352,7 @@ exports.updateRecalculateDate = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Recalculate Date settings updated successfully."
+      "Recalculate Date settings updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -361,4 +361,4 @@ exports.updateRecalculateDate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

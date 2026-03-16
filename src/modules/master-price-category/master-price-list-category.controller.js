@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getAllMasterPriceListCategories = async (req, res) => {
+export async function getAllMasterPriceListCategories(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -48,7 +48,7 @@ exports.getAllMasterPriceListCategories = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Master price list category fetched successfully."
+      "Master price list category fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching master price list category:", error);
@@ -56,9 +56,9 @@ exports.getAllMasterPriceListCategories = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getMasterPriceListCategoryById = async (req, res) => {
+export async function getMasterPriceListCategoryById(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -71,7 +71,7 @@ exports.getMasterPriceListCategoryById = async (req, res) => {
       SELECT * FROM master_price_list_categories
       WHERE master_price_list_category_id = $1 AND builder_id = $2 AND is_deleted = false
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (result.rowCount === 0) {
@@ -81,7 +81,7 @@ exports.getMasterPriceListCategoryById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Category fetched successfully."
+      "Category fetched successfully.",
     );
   } catch (error) {
     console.error("Get category by ID error:", error);
@@ -89,9 +89,9 @@ exports.getMasterPriceListCategoryById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createMasterPriceListCategory = async (req, res) => {
+export async function createMasterPriceListCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -115,7 +115,7 @@ exports.createMasterPriceListCategory = async (req, res) => {
       FROM master_price_list_categories
       WHERE builder_id = $1 AND company_id = $2
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     const displayOrder = orderResult.rows[0].next_order;
@@ -141,7 +141,7 @@ exports.createMasterPriceListCategory = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Category created successfully."
+      "Category created successfully.",
     );
   } catch (error) {
     console.error("Create category error:", error);
@@ -149,9 +149,9 @@ exports.createMasterPriceListCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateMasterPriceListCategory = async (req, res) => {
+export async function updateMasterPriceListCategory(req, res) {
   const { id } = req.params;
   const { name, description } = req.body;
 
@@ -180,7 +180,7 @@ exports.updateMasterPriceListCategory = async (req, res) => {
         AND company_id = $3
         AND is_deleted = false
       `,
-      [id, builderId, companyId]
+      [id, builderId, companyId],
     );
 
     if (existingCategory.rowCount === 0) {
@@ -219,7 +219,7 @@ exports.updateMasterPriceListCategory = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Category updated successfully."
+      "Category updated successfully.",
     );
   } catch (error) {
     console.error("Update category error:", error);
@@ -227,9 +227,9 @@ exports.updateMasterPriceListCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.displayOrderManage = async (req, res) => {
+export async function displayOrderManage(req, res) {
   const { orderedCategories } = req.body;
   const builderId = req.user?.builder_id;
   const companyId = req.user?.company_id;
@@ -243,7 +243,7 @@ exports.displayOrderManage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "orderedCategories must be a non-empty array."
+        "orderedCategories must be a non-empty array.",
       );
     }
 
@@ -266,11 +266,11 @@ exports.displayOrderManage = async (req, res) => {
         AND is_deleted = false
         AND master_price_list_category_id = ANY($3::uuid[])
       `,
-      [builderId, companyId, categoryIds]
+      [builderId, companyId, categoryIds],
     );
 
     const validIds = existingCategories.map(
-      (c) => c.master_price_list_category_id
+      (c) => c.master_price_list_category_id,
     );
 
     const invalidIds = categoryIds.filter((id) => !validIds.includes(id));
@@ -280,7 +280,7 @@ exports.displayOrderManage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid or deleted category IDs: ${invalidIds.join(", ")}`
+        `Invalid or deleted category IDs: ${invalidIds.join(", ")}`,
       );
     }
 
@@ -290,7 +290,7 @@ exports.displayOrderManage = async (req, res) => {
 
     for (const { categoryId, displayOrder } of orderedCategories) {
       cases.push(
-        `WHEN master_price_list_category_id = $${i} THEN $${i + 1}::int`
+        `WHEN master_price_list_category_id = $${i} THEN $${i + 1}::int`,
       );
       values.push(categoryId, Number(displayOrder));
       i += 2;
@@ -316,7 +316,7 @@ exports.displayOrderManage = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updatedRows),
-      "Category display orders updated successfully."
+      "Category display orders updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -324,14 +324,14 @@ exports.displayOrderManage = async (req, res) => {
     return errorResponse(
       res,
       500,
-      error?.message || "Failed to update category display orders."
+      error?.message || "Failed to update category display orders.",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteMasterPriceListCategory = async (req, res) => {
+export async function deleteMasterPriceListCategory(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -340,8 +340,8 @@ exports.deleteMasterPriceListCategory = async (req, res) => {
 
   try {
     const checkCategoryExists = await client.query(
-      `SELECT * FROM master_price_list_categories WHERE master_price_list_category_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [id, builderId]
+      "SELECT * FROM master_price_list_categories WHERE master_price_list_category_id = $1 AND builder_id = $2 AND is_deleted = false",
+      [id, builderId],
     );
 
     if (checkCategoryExists.rowCount === 0) {
@@ -355,7 +355,7 @@ exports.deleteMasterPriceListCategory = async (req, res) => {
       WHERE master_price_list_category_id = $1 AND builder_id = $2
       RETURNING *
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (result.rowCount === 0) {
@@ -365,7 +365,7 @@ exports.deleteMasterPriceListCategory = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Category deleted successfully."
+      "Category deleted successfully.",
     );
   } catch (error) {
     console.error("Delete category error:", error);
@@ -373,4 +373,4 @@ exports.deleteMasterPriceListCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

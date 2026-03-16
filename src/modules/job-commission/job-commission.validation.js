@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobCommissionSchema = Joi.object({
   commission_type: Joi.string().valid("outgoing", "incoming").required(),
@@ -153,7 +153,7 @@ const updateJobCommissionSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createJobCommissionSchema,
   getAllJobCommissionsSchema,
   deleteJobCommissionSchema,

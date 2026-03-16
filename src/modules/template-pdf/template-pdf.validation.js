@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* =========================
    Reusable helpers
@@ -193,7 +193,7 @@ function getFormatValidationSchema(type) {
   return formatSchemas[type];
 }
 
-module.exports = {
+export default {
   createTemplatePdfSchema,
   updateTemplatePdfSchema,
   getFormatValidationSchema,

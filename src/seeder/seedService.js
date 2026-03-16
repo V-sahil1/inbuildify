@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database";
 
 const seedServices = async () => {
   const pool = await getPool();
@@ -36,7 +36,7 @@ const seedServices = async () => {
         VALUES ($1)
         ON CONFLICT (service_id) DO NOTHING;
         `,
-        [s.service]
+        [s.service],
       );
     }
 

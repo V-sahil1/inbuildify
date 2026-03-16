@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createUserPasswordHistorySchema = Joi.object({
   old_password: Joi.string().min(6).max(255).required().messages({
@@ -46,7 +46,7 @@ const deleteUserPasswordHistoryByUserIdSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createUserPasswordHistorySchema,
   getAllUserPasswordHistorySchema,
   deleteUserPasswordHistorySchema,

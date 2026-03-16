@@ -1,9 +1,9 @@
-const agentReferralPartnerService = require("./agent-referral-partner.service");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import agentReferralPartnerService from "./agent-referral-partner.service";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
-module.exports.createAgentReferralPartner = async (req, res) => {
+export async function createAgentReferralPartner(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -34,9 +34,9 @@ module.exports.createAgentReferralPartner = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-module.exports.getAgentReferralPartnerById = async (req, res) => {
+export async function getAgentReferralPartnerById(req, res) {
   try {
     const { partner_id } = req.params;
     const data =
@@ -56,9 +56,9 @@ module.exports.getAgentReferralPartnerById = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.getAgentReferralPartners = async (req, res) => {
+export async function getAgentReferralPartners(req, res) {
   try {
     const { page = 1, limit = 25 } = req.query;
     const pageNum = parseInt(page);
@@ -79,9 +79,9 @@ module.exports.getAgentReferralPartners = async (req, res) => {
   } catch (err) {
     return errorResponse(res, err.status || 500, err.message);
   }
-};
+}
 
-module.exports.updateAgentReferralPartner = async (req, res) => {
+export async function updateAgentReferralPartner(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -115,9 +115,9 @@ module.exports.updateAgentReferralPartner = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-module.exports.deleteAgentReferralPartner = async (req, res) => {
+export async function deleteAgentReferralPartner(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -144,4 +144,4 @@ module.exports.deleteAgentReferralPartner = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

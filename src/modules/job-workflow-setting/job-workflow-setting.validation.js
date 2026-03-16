@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobWorkflowSettingSchema = Joi.object({
   show_all_tasks_to_all_roles: Joi.boolean().default(false),
@@ -25,7 +25,7 @@ const updateJobWorkflowSettingSchema = Joi.object({
     Joi.boolean().default(false),
 });
 
-module.exports = {
+export default {
   createJobWorkflowSettingSchema,
   updateJobWorkflowSettingParamsSchema,
   updateJobWorkflowSettingSchema,

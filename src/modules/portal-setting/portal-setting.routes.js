@@ -1,24 +1,15 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createPortalSettings,
-  getPortalSettings,
-  updatePortalSettings,
-} = require("./portal-setting.controller.js");
-const {
-  createPortalSettingsSchema,
-  updatePortalSettingsSchema,
-} = require("./portal-setting.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { createPortalSettings, getPortalSettings, updatePortalSettings } from "./portal-setting.controller.js";
+import { createPortalSettingsSchema, updatePortalSettingsSchema } from "./portal-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -44,4 +35,4 @@ router.put(
   validateRequest(updatePortalSettingsSchema, REQUEST_SOURCE.FORM_DATA),
   updatePortalSettings,
 );
-module.exports = router;
+export default router;

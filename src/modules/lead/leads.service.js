@@ -1,7 +1,7 @@
-const leadsRepository = require("./leads.repository");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { generateDynamicReferenceNumber } = require("../../utils/common");
-const getPool = require("../../config/database");
+import leadsRepository from "./leads.repository";
+import { successResponse, errorResponse } from "../../helper/response";
+import { generateDynamicReferenceNumber } from "../../utils/common";
+import getPool from "../../config/database";
 
 class LeadsService {
   async createLead(
@@ -33,7 +33,7 @@ class LeadsService {
       const existingLeadByName = await leadsRepository.checkDuplicateName(
         leadData.name,
         builderId,
-        userId
+        userId,
       );
 
       if (existingLeadByName) {
@@ -168,7 +168,7 @@ class LeadsService {
           leadData.name,
           builderId,
           userId,
-          leadId
+          leadId,
         );
 
         if (existingLeadByName) {
@@ -204,7 +204,7 @@ class LeadsService {
         const hlpValidation = await this.validateHouseLandPackage(
           leadData.house_land_package_id,
           builderId,
-          companyId
+          companyId,
         );
         if (!hlpValidation.valid) {
           return {
@@ -224,7 +224,7 @@ class LeadsService {
         leadDataWithUpdatedBy,
         builderId,
       );
-      
+
       const fullyPopulatedLead = await leadsRepository.getLeadById(leadId, builderId, companyId);
 
       return {
@@ -246,7 +246,7 @@ class LeadsService {
         leadId,
         opportunityNotes,
         builderId,
-        companyId
+        companyId,
       );
 
       return {
@@ -577,4 +577,4 @@ class LeadsService {
   }
 }
 
-module.exports = new LeadsService();
+export default new LeadsService();

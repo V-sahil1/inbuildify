@@ -1,23 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createContractor,
   getContractors,
   getContractorById,
   updateContractor,
   deleteContractor,
-} = require("./contractor.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const {
+} from "./contractor.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import {
   createContractorSchema,
   getContractorByIdSchema,
   updateContractorParamsSchema,
   updateContractorSchema,
   deleteContractorSchema,
-} = require("./contractor.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./contractor.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -27,18 +29,18 @@ router.get("/", getContractors);
 router.get(
   "/:id",
   validateRequest(getContractorByIdSchema, REQUEST_SOURCE.PARAMS),
-  getContractorById
+  getContractorById,
 );
 router.put(
   "/:id",
   validateRequest(updateContractorParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateContractorSchema),
-  updateContractor
+  updateContractor,
 );
 router.delete(
   "/:id",
   validateRequest(deleteContractorSchema, REQUEST_SOURCE.PARAMS),
-  deleteContractor
+  deleteContractor,
 );
 
-module.exports = router;
+export default router;

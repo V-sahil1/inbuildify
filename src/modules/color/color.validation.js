@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorSchema = Joi.object({
   color_name: Joi.string()
@@ -56,7 +56,7 @@ const copyColorSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorSchema,
   updateColorSchema,
   copyColorSchema,

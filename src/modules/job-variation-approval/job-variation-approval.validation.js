@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobVariationApprovalSchema = Joi.object({
   role_id: Joi.string().uuid().required().messages({
@@ -60,7 +60,7 @@ const updateJobVariationApprovalParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createJobVariationApprovalSchema,
   getJobVariationApprovalsSchema,
   deleteJobVariationApprovalSchema,

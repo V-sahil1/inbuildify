@@ -1,27 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createChecklistItem,
   getAllChecklistItem,
   getChecklistItemsByChecklistId,
   deleteChecklistItem,
   updateChecklistItem,
-} = require("./checklist-item.controller.js");
-const {
+} from "./checklist-item.controller.js";
+import {
   createChecklistItemSchema,
   getAllChecklistItemSchema,
   getChecklistItemsByChecklistIdSchema,
   deleteChecklistItemSchema,
   updateChecklistItemParamsSchema,
   updateChecklistItemSchema,
-} = require("./checklist-item.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./checklist-item.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,32 +30,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createChecklistItemSchema, REQUEST_SOURCE.BODY),
-  createChecklistItem
+  createChecklistItem,
 );
 
 router.get(
   "/",
   validateRequest(getAllChecklistItemSchema, REQUEST_SOURCE.QUERY),
-  getAllChecklistItem
+  getAllChecklistItem,
 );
 
 router.get(
   "/:checklist_id",
   validateRequest(getChecklistItemsByChecklistIdSchema, REQUEST_SOURCE.PARAMS),
-  getChecklistItemsByChecklistId
+  getChecklistItemsByChecklistId,
 );
 
 router.delete(
   "/:checklist_item_id",
   validateRequest(deleteChecklistItemSchema, REQUEST_SOURCE.PARAMS),
-  deleteChecklistItem
+  deleteChecklistItem,
 );
 
 router.put(
   "/:checklist_item_id",
   validateRequest(updateChecklistItemParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateChecklistItemSchema, REQUEST_SOURCE.BODY),
-  updateChecklistItem
+  updateChecklistItem,
 );
 
-module.exports = router;
+export default router;

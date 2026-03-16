@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createMaintenanceSettingSchema = Joi.object({
   area_enabled: Joi.boolean().default(false),
@@ -57,12 +57,13 @@ const updateMaintenanceSettingSchema = Joi.object({
     value.allow_completion_without_supplier_response === true
   ) {
     return helpers.message(
-      "Cannot allow completion without supplier response when supplier is disabled."
+      "Cannot allow completion without supplier response when supplier is disabled.",
     );
   }
   return value;
 });
-module.exports = {
+
+export default {
   createMaintenanceSettingSchema,
   updateMaintenanceSettingParamsSchema,
   updateMaintenanceSettingSchema,

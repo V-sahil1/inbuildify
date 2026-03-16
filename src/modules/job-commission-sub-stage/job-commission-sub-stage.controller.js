@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobCommissionSubStage = async (req, res) => {
+export async function createJobCommissionSubStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -12,7 +12,7 @@ exports.createJobCommissionSubStage = async (req, res) => {
     const createdBy = req.user?.users_id;
     const builderId = req.user?.builder_id;
 
-    let {
+    const {
       job_commission_id,
       name,
       commission_unit,
@@ -200,9 +200,9 @@ exports.createJobCommissionSubStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllJobCommissionSubStages = async (req, res) => {
+export async function getAllJobCommissionSubStages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -264,9 +264,9 @@ exports.getAllJobCommissionSubStages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getJobCommissionSubStagesByCommissionId = async (req, res) => {
+export async function getJobCommissionSubStagesByCommissionId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -346,9 +346,9 @@ exports.getJobCommissionSubStagesByCommissionId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobCommissionSubStage = async (req, res) => {
+export async function deleteJobCommissionSubStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -389,7 +389,7 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
     }
 
     await client.query(
-      `UPDATE job_commission_sub_stage SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_id = $2`,
+      "UPDATE job_commission_sub_stage SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_id = $2",
       [deletedSortOrder, jobCommissionId],
     );
 
@@ -416,9 +416,9 @@ exports.deleteJobCommissionSubStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobCommissionSubStage = async (req, res) => {
+export async function updateJobCommissionSubStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -519,35 +519,40 @@ exports.updateJobCommissionSubStage = async (req, res) => {
       const digits = val.toString().replace(".", "").length;
 
       if (oldUnit === "percentage") {
-        if (val > 100)
+        if (val > 100) {
           return errorResponse(res, 400, "Percentage cannot exceed 100.");
-        if (decimals > 2)
+        }
+        if (decimals > 2) {
           return errorResponse(
             res,
             400,
             "Percentage cannot have more than 2 decimals.",
           );
-        if (digits > 5)
+        }
+        if (digits > 5) {
           return errorResponse(
             res,
             400,
             "Percentage exceeds precision limit (5,2).",
           );
+        }
       }
 
       if (oldUnit === "amount") {
-        if (decimals > 2)
+        if (decimals > 2) {
           return errorResponse(
             res,
             400,
             "Amount cannot have more than 2 decimals.",
           );
-        if (digits > 10)
+        }
+        if (digits > 10) {
           return errorResponse(
             res,
             400,
             "Amount exceeds precision limit (10,2).",
           );
+        }
       }
     }
 
@@ -557,35 +562,40 @@ exports.updateJobCommissionSubStage = async (req, res) => {
       const digits = val.toString().replace(".", "").length;
 
       if (commission_unit === "percentage") {
-        if (val > 100)
+        if (val > 100) {
           return errorResponse(res, 400, "Percentage cannot exceed 100.");
-        if (decimals > 2)
+        }
+        if (decimals > 2) {
           return errorResponse(
             res,
             400,
             "Percentage cannot have more than 2 decimals.",
           );
-        if (digits > 5)
+        }
+        if (digits > 5) {
           return errorResponse(
             res,
             400,
             "Percentage exceeds precision limit (5,2).",
           );
+        }
       }
 
       if (commission_unit === "amount") {
-        if (decimals > 2)
+        if (decimals > 2) {
           return errorResponse(
             res,
             400,
             "Amount cannot have more than 2 decimals.",
           );
-        if (digits > 10)
+        }
+        if (digits > 10) {
           return errorResponse(
             res,
             400,
             "Amount exceeds precision limit (10,2).",
           );
+        }
       }
     }
 
@@ -617,7 +627,7 @@ exports.updateJobCommissionSubStage = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(updatedBy);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_commission_sub_stage
@@ -659,4 +669,4 @@ exports.updateJobCommissionSubStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

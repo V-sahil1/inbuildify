@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPriceListSchema = Joi.object({
   name: Joi.string()
@@ -59,7 +59,7 @@ const updatePriceListSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPriceListSchema,
   getAllPriceListSchema,
   deletePriceListSchema,

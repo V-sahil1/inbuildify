@@ -1,20 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  updateSalesModuleSettings,
-  getSalesModuleSetting,
-} = require("./sales-module-setting.controller.js");
-const {
-  updateSalesModuleSettingSchema,
-} = require("./sales-module-setting.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { updateSalesModuleSettings, getSalesModuleSetting } from "./sales-module-setting.controller.js";
+import { updateSalesModuleSettingSchema } from "./sales-module-setting.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,6 +20,6 @@ router.put(
   "/",
 
   validateRequest(updateSalesModuleSettingSchema, REQUEST_SOURCE.BODY),
-  updateSalesModuleSettings
+  updateSalesModuleSettings,
 );
-module.exports = router;
+export default router;

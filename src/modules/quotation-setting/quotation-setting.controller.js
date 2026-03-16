@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createQuotationSettings = async (req, res) => {
+export async function createQuotationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,15 +15,15 @@ exports.createQuotationSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM quotation_settings WHERE builder_id = $1 OR company_id = $2`,
-      [builderId, companyId]
+      "SELECT 1 FROM quotation_settings WHERE builder_id = $1 OR company_id = $2",
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -31,7 +31,7 @@ exports.createQuotationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Quotation settings already exist for this builder/company."
+        "Quotation settings already exist for this builder/company.",
       );
     }
 
@@ -63,7 +63,7 @@ exports.createQuotationSettings = async (req, res) => {
         `SELECT price_list_id 
          FROM price_list 
          WHERE price_list_id = $1 AND builder_id = $2 AND company_id = $3`,
-        [default_pricelist_id, builderId, companyId]
+        [default_pricelist_id, builderId, companyId],
       );
 
       if (priceListCheck.rowCount === 0) {
@@ -71,7 +71,7 @@ exports.createQuotationSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid default_pricelist_id. Price list not found."
+          "Invalid default_pricelist_id. Price list not found.",
         );
       }
     }
@@ -81,7 +81,7 @@ exports.createQuotationSettings = async (req, res) => {
         `SELECT price_list_id 
          FROM price_list 
          WHERE price_list_id = $1 AND builder_id = $2 AND company_id = $3 AND is_active = true`,
-        [default_pricelist_id, builderId, companyId]
+        [default_pricelist_id, builderId, companyId],
       );
 
       if (priceListActiveCheck.rowCount === 0) {
@@ -167,7 +167,7 @@ exports.createQuotationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Quotation settings created successfully."
+      "Quotation settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -176,9 +176,9 @@ exports.createQuotationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getQuotationSettings = async (req, res) => {
+export async function getQuotationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -202,7 +202,7 @@ exports.getQuotationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Quotation settings fetched successfully."
+      "Quotation settings fetched successfully.",
     );
   } catch (error) {
     console.error(error);
@@ -210,9 +210,9 @@ exports.getQuotationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateQuotationSettings = async (req, res) => {
+export async function updateQuotationSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -231,7 +231,7 @@ exports.updateQuotationSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -241,7 +241,7 @@ exports.updateQuotationSettings = async (req, res) => {
       `SELECT * FROM quotation_settings 
        WHERE quotation_settings_id = $1 
        AND (builder_id = $2 OR company_id = $3)`,
-      [quotation_settings_id, builderId, companyId]
+      [quotation_settings_id, builderId, companyId],
     );
 
     if (existing.rowCount === 0) {
@@ -249,7 +249,7 @@ exports.updateQuotationSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Quotation settings not found or access denied."
+        "Quotation settings not found or access denied.",
       );
     }
 
@@ -279,7 +279,7 @@ exports.updateQuotationSettings = async (req, res) => {
     } = req.body;
 
     const hasAtLeastOneField = Object.values(req.body).some(
-      (v) => v !== undefined
+      (v) => v !== undefined,
     );
 
     if (!hasAtLeastOneField) {
@@ -287,7 +287,7 @@ exports.updateQuotationSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -296,7 +296,7 @@ exports.updateQuotationSettings = async (req, res) => {
         `SELECT price_list_id 
          FROM price_list 
          WHERE price_list_id = $1 AND builder_id = $2 AND company_id = $3`,
-        [default_pricelist_id, builderId, companyId]
+        [default_pricelist_id, builderId, companyId],
       );
 
       if (checkPriceList.rowCount === 0) {
@@ -311,7 +311,7 @@ exports.updateQuotationSettings = async (req, res) => {
            AND builder_id = $2 
            AND company_id = $3 
            AND is_active = true`,
-        [default_pricelist_id, builderId, companyId]
+        [default_pricelist_id, builderId, companyId],
       );
 
       if (activeCheck.rowCount === 0) {
@@ -387,7 +387,7 @@ exports.updateQuotationSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Quotation settings updated successfully."
+      "Quotation settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -396,9 +396,9 @@ exports.updateQuotationSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getQuotationSetting = async (req, res) => {
+export async function getQuotationSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -417,7 +417,7 @@ exports.getQuotationSetting = async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -432,7 +432,7 @@ exports.getQuotationSetting = async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *;
         `,
-        [company_id, builder_id, user_id, user_id]
+        [company_id, builder_id, user_id, user_id],
       );
     }
 
@@ -441,7 +441,7 @@ exports.getQuotationSetting = async (req, res) => {
       {
         quotationSettings: keysToCamelCase(result.rows[0]),
       },
-      "Quotation Settings fetched successfully"
+      "Quotation Settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching quotation settings:", error);
@@ -449,4 +449,4 @@ exports.getQuotationSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

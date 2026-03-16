@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createConstructionChecklistPredecessor = async (req, res) => {
+export async function createConstructionChecklistPredecessor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -21,7 +21,7 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
     }
 
     const checklistCheck = await client.query(
-      `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
+      "SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3",
       [construction_checklist_id, builderId, companyId],
     );
     if (checklistCheck.rowCount === 0) {
@@ -34,7 +34,7 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
 
     if (predecessor_checklist_id) {
       const predecessorCheck = await client.query(
-        `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
+        "SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3",
         [predecessor_checklist_id, builderId, companyId],
       );
       if (predecessorCheck.rowCount === 0) {
@@ -111,9 +111,9 @@ exports.createConstructionChecklistPredecessor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionChecklistPredecessors = async (req, res) => {
+export async function getAllConstructionChecklistPredecessors(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -128,7 +128,7 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
     let whereClause = "WHERE 1=1";
-    let values = [];
+    const values = [];
     let paramIndex = 1;
 
     if (construction_checklist_id) {
@@ -184,9 +184,9 @@ exports.getAllConstructionChecklistPredecessors = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getConstructionChecklistPredecessorById = async (req, res) => {
+export async function getConstructionChecklistPredecessorById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -243,9 +243,9 @@ exports.getConstructionChecklistPredecessorById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionChecklistPredecessor = async (req, res) => {
+export async function updateConstructionChecklistPredecessor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -292,7 +292,7 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
     if (predecessor_checklist_id !== undefined) {
       if (predecessor_checklist_id) {
         const predecessorCheck = await client.query(
-          `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
+          "SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3",
           [predecessor_checklist_id, builderId, companyId],
         );
         if (predecessorCheck.rowCount === 0) {
@@ -332,7 +332,7 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
       );
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `UPDATE construction_checklist_predecessor SET ${updateFields.join(", ")} 
@@ -371,9 +371,9 @@ exports.updateConstructionChecklistPredecessor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionChecklistPredecessor = async (req, res) => {
+export async function deleteConstructionChecklistPredecessor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -416,7 +416,7 @@ exports.deleteConstructionChecklistPredecessor = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM construction_checklist_predecessor WHERE construction_checklist_predecessor_id = $1`,
+      "DELETE FROM construction_checklist_predecessor WHERE construction_checklist_predecessor_id = $1",
       [construction_checklist_predecessor_id],
     );
 
@@ -431,4 +431,4 @@ exports.deleteConstructionChecklistPredecessor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

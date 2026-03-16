@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createEstateFeatureSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
@@ -62,7 +62,7 @@ const updateEstateFeatureParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createEstateFeatureSchema,
   getAllEstateFeatureSchema,
   getEstateFeatureByEstateIdSchema,

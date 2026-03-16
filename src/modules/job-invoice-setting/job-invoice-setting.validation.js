@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobInvocieSettingSchema = Joi.object({
   show_invoice_summary_in_pdf: Joi.boolean().default(false),
@@ -17,7 +17,7 @@ const updateJobInvoiceSettingSchema = Joi.object({
   invoice_terms_days: Joi.number().integer().min(0).optional(),
 });
 
-module.exports = {
+export default {
   createJobInvocieSettingSchema,
   updateJobInvoiceSettingParamsSchema,
   updateJobInvoiceSettingSchema,

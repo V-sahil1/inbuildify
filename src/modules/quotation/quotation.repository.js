@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 class QuotationRepository {
   constructor() {
@@ -9,7 +9,7 @@ class QuotationRepository {
   async getQuotationByLeadId(leadsId) {
     const client = await this.pool.connect();
     try {
-      const query = `SELECT * FROM quotation WHERE leads_id = $1 LIMIT 1`;
+      const query = "SELECT * FROM quotation WHERE leads_id = $1 LIMIT 1";
       const result = await client.query(query, [leadsId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
@@ -93,7 +93,7 @@ class QuotationRepository {
   async getLatestQuotationVersionNo(quotationId) {
     const client = await this.pool.connect();
     try {
-      const query = `SELECT MAX(quotation_version_no) as max_version FROM quotation_version WHERE quotation_id = $1`;
+      const query = "SELECT MAX(quotation_version_no) as max_version FROM quotation_version WHERE quotation_id = $1";
       const result = await client.query(query, [quotationId]);
       return parseInt(result.rows[0].max_version || 0, 10);
     } finally {
@@ -175,7 +175,7 @@ class QuotationRepository {
       await client.query("BEGIN");
 
       // 1. Get original version data
-      const getVersionQuery = `SELECT * FROM quotation_version WHERE quotation_version_id = $1`;
+      const getVersionQuery = "SELECT * FROM quotation_version WHERE quotation_version_id = $1";
       const versionResult = await client.query(getVersionQuery, [
         sourceVersionId,
       ]);
@@ -213,7 +213,7 @@ class QuotationRepository {
 
       const newVersionResult = await client.query(
         insertVersionQuery,
-        newVersionValues
+        newVersionValues,
       );
       const newVersion = newVersionResult.rows[0];
 
@@ -393,7 +393,7 @@ class QuotationRepository {
         return null;
       }
 
-      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      updateFields.push("updated_at = CURRENT_TIMESTAMP");
       values.push(versionId);
 
       const query = `
@@ -404,7 +404,9 @@ class QuotationRepository {
       `;
 
       const result = await client.query(query, values);
-      if (result.rows.length === 0) return null;
+      if (result.rows.length === 0) {
+        return null;
+      }
 
       // Fetch the updated version with lead lot_id and contacts
       const enrichQuery = `
@@ -620,7 +622,9 @@ class QuotationRepository {
         WHERE qv.quotation_version_id = $1
       `;
       const versionResult = await client.query(versionQuery, [versionId]);
-      if (versionResult.rowCount === 0) return null;
+      if (versionResult.rowCount === 0) {
+        return null;
+      }
 
       const version = keysToCamelCase(versionResult.rows[0]);
 
@@ -663,7 +667,7 @@ class QuotationRepository {
   async deleteQuotation(quotationId) {
     const client = await this.pool.connect();
     try {
-      const query = `DELETE FROM quotation WHERE quotation_id = $1 RETURNING *`;
+      const query = "DELETE FROM quotation WHERE quotation_id = $1 RETURNING *";
       const result = await client.query(query, [quotationId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
@@ -672,4 +676,4 @@ class QuotationRepository {
   }
 }
 
-module.exports = new QuotationRepository();
+export default new QuotationRepository();

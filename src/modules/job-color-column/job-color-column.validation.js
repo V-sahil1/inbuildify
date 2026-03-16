@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobColorCoulmnSchema = Joi.object({
   column_name: Joi.string()
@@ -60,7 +60,7 @@ const updateJobColorColumnSchema = Joi.object({
   width: Joi.number().integer().optional(),
 });
 
-module.exports = {
+export default {
   createJobColorCoulmnSchema,
   getJobColorColumnSchema,
   updateJobColorColumnParamsSchema,

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createFunctionality = async (req, res) => {
+export async function createFunctionality(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -42,7 +42,7 @@ exports.createFunctionality = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Functionality with this name already exists for this screen."
+        "Functionality with this name already exists for this screen.",
       );
     }
 
@@ -61,7 +61,7 @@ exports.createFunctionality = async (req, res) => {
       res,
       keysToCamelCase(result.rows[0]),
       "Functionality created successfully.",
-      201
+      201,
     );
   } catch (error) {
     console.error("Error creating functionality:", error);
@@ -69,9 +69,9 @@ exports.createFunctionality = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFunctionalities = async (req, res) => {
+export async function getFunctionalities(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -91,7 +91,7 @@ exports.getFunctionalities = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(dataResult.rows),
-      "Functionalities fetched successfully."
+      "Functionalities fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching functionalities:", error);
@@ -99,9 +99,9 @@ exports.getFunctionalities = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteFunctionality = async (req, res) => {
+export async function deleteFunctionality(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -116,7 +116,7 @@ exports.deleteFunctionality = async (req, res) => {
       `SELECT functionality_id 
        FROM functionality 
        WHERE functionality_id = $1`,
-      [functionality_id]
+      [functionality_id],
     );
 
     if (existingFunctionality.rowCount === 0) {
@@ -124,8 +124,8 @@ exports.deleteFunctionality = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM functionality WHERE functionality_id = $1`,
-      [functionality_id]
+      "DELETE FROM functionality WHERE functionality_id = $1",
+      [functionality_id],
     );
 
     return successResponse(res, null, "Functionality deleted successfully.");
@@ -135,9 +135,9 @@ exports.deleteFunctionality = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateFunctionality = async (req, res) => {
+export async function updateFunctionality(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -154,14 +154,14 @@ exports.updateFunctionality = async (req, res) => {
       WHERE functionality_id = $1
         AND builder_id = $2
       `,
-      [functionality_id, builderId]
+      [functionality_id, builderId],
     );
 
     if (existingResult.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Functionality not found for this builder."
+        "Functionality not found for this builder.",
       );
     }
 
@@ -185,7 +185,7 @@ exports.updateFunctionality = async (req, res) => {
         return errorResponse(
           res,
           404,
-          "Screen not found or you are not authorized to update this screen."
+          "Screen not found or you are not authorized to update this screen.",
         );
       }
     }
@@ -214,13 +214,13 @@ exports.updateFunctionality = async (req, res) => {
         return errorResponse(
           res,
           409,
-          "Functionality with this name already exists for this screen."
+          "Functionality with this name already exists for this screen.",
         );
       }
     }
 
-    let updateFields = [];
-    let values = [];
+    const updateFields = [];
+    const values = [];
     let index = 1;
 
     if (name !== undefined) {
@@ -239,7 +239,7 @@ exports.updateFunctionality = async (req, res) => {
       return errorResponse(res, 400, "No fields provided to update.");
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE functionality
@@ -256,7 +256,7 @@ exports.updateFunctionality = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Functionality updated successfully."
+      "Functionality updated successfully.",
     );
   } catch (error) {
     console.error("Error updating functionality:", error);
@@ -265,7 +265,7 @@ exports.updateFunctionality = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Functionality with this name already exists."
+        "Functionality with this name already exists.",
       );
     }
 
@@ -273,9 +273,9 @@ exports.updateFunctionality = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFunctionalitiesByScreen = async (req, res) => {
+export async function getFunctionalitiesByScreen(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -336,7 +336,7 @@ exports.getFunctionalitiesByScreen = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Functionalities fetched successfully."
+      "Functionalities fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching functionalities:", error);
@@ -344,9 +344,9 @@ exports.getFunctionalitiesByScreen = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFunctionalitiesByScreen = async (req, res) => {
+export async function getFunctionalitiesByScreenWithoutPagination(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -383,7 +383,7 @@ exports.getFunctionalitiesByScreen = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Functionalities fetched successfully"
+      "Functionalities fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching functionalities:", error);
@@ -391,4 +391,4 @@ exports.getFunctionalitiesByScreen = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

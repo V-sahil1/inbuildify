@@ -1,30 +1,29 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createSchedulerEmail,
   getAllSchedulerEmail,
   deleteSchedulerEmail,
   updateSchedulerEmail,
   getSchedulerEmails,
   toggleSchedulerEmailStatus,
-} = require("./scheduler-email.controller.js");
-const {
+} from "./scheduler-email.controller.js";
+import {
   createSchedulerEmailSchema,
   getAllSchedulerEmailSchema,
   getSchedulerEmailSchema,
   deleteSchedulerEmailSchema,
   updateSchedulerEmailParamsSchema,
   updateSchedulerEmailSchema,
-} = require("./scheduler-email.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./scheduler-email.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -74,4 +73,4 @@ router.put(
   toggleSchedulerEmailStatus,
 );
 
-module.exports = router;
+export default router;

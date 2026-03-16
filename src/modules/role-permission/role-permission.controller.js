@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
-exports.createRolePermission = async (req, res) => {
+export async function createRolePermission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -28,8 +28,8 @@ exports.createRolePermission = async (req, res) => {
     await client.query("BEGIN");
 
     const roleCheck = await client.query(
-      `SELECT role_id FROM role WHERE role_id = $1 AND builder_id = $2`,
-      [role_id, builderId]
+      "SELECT role_id FROM role WHERE role_id = $1 AND builder_id = $2",
+      [role_id, builderId],
     );
 
     if (roleCheck.rowCount === 0) {
@@ -37,13 +37,13 @@ exports.createRolePermission = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Invalid role_id: No role found for this builder."
+        "Invalid role_id: No role found for this builder.",
       );
     }
 
     const roleActiveCheck = await client.query(
-      `SELECT role_id FROM role WHERE role_id = $1 AND builder_id = $2 AND is_active = true`,
-      [role_id, builderId]
+      "SELECT role_id FROM role WHERE role_id = $1 AND builder_id = $2 AND is_active = true",
+      [role_id, builderId],
     );
 
     if (roleActiveCheck.rowCount === 0) {
@@ -58,7 +58,7 @@ exports.createRolePermission = async (req, res) => {
        AND builder_id = $2
        AND company_id = $3
        AND LOWER(module_name) = LOWER($4)`,
-      [role_id, builderId, companyId, module_name.trim()]
+      [role_id, builderId, companyId, module_name.trim()],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -66,7 +66,7 @@ exports.createRolePermission = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Permission already exists for this role and module."
+        "Permission already exists for this role and module.",
       );
     }
 
@@ -109,7 +109,7 @@ exports.createRolePermission = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Role permission created successfully."
+      "Role permission created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -118,9 +118,9 @@ exports.createRolePermission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllRolePermission = async (req, res) => {
+export async function getAllRolePermission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -167,7 +167,7 @@ exports.getAllRolePermission = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Role permission fetched successfully."
+      "Role permission fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching role permission:", error);
@@ -175,9 +175,9 @@ exports.getAllRolePermission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteRolePermission = async (req, res) => {
+export async function deleteRolePermission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -189,21 +189,21 @@ exports.deleteRolePermission = async (req, res) => {
       return errorResponse(res, 400, "Role permission iD is required.");
     }
     const existingRolePermission = await client.query(
-      `SELECT role_permission_id FROM role_permission WHERE role_permission_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      "SELECT role_permission_id FROM role_permission WHERE role_permission_id = $1 AND builder_id = $2",
+      [id, builderId],
     );
 
     if (existingRolePermission.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Role permission not found for this builder."
+        "Role permission not found for this builder.",
       );
     }
 
     await client.query(
-      `DELETE FROM role_permission WHERE role_permission_id = $1`,
-      [id]
+      "DELETE FROM role_permission WHERE role_permission_id = $1",
+      [id],
     );
 
     return successResponse(res, null, "Role permission deleted successfully.");
@@ -213,9 +213,9 @@ exports.deleteRolePermission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRolePermission = async (req, res) => {
+export async function updateRolePermission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -244,7 +244,7 @@ exports.updateRolePermission = async (req, res) => {
       `SELECT role_id, is_active 
        FROM role_permission 
        WHERE role_permission_id = $1 AND builder_id = $2 FOR UPDATE`,
-      [role_permission_id, builderId]
+      [role_permission_id, builderId],
     );
 
     if (existRes.rowCount === 0) {
@@ -256,7 +256,7 @@ exports.updateRolePermission = async (req, res) => {
       `SELECT role_id, is_active 
        FROM role_permission 
        WHERE role_permission_id = $1 AND builder_id = $2 AND is_active = true FOR UPDATE`,
-      [role_permission_id, builderId]
+      [role_permission_id, builderId],
     );
 
     if (existActiveRes.rowCount === 0) {
@@ -276,7 +276,7 @@ exports.updateRolePermission = async (req, res) => {
          WHERE role_id = $1 
          AND builder_id = $2 
          AND company_id = $3`,
-        [role_id, builderId, companyId]
+        [role_id, builderId, companyId],
       );
 
       if (roleCheck.rowCount === 0) {
@@ -284,7 +284,7 @@ exports.updateRolePermission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid role_id: role does not exist or not owned by this builder."
+          "Invalid role_id: role does not exist or not owned by this builder.",
         );
       }
 
@@ -294,7 +294,7 @@ exports.updateRolePermission = async (req, res) => {
          WHERE role_id = $1 
          AND builder_id = $2 
          AND company_id = $3 AND is_active = true`,
-        [role_id, builderId, companyId]
+        [role_id, builderId, companyId],
       );
 
       if (roleActiveCheck.rowCount === 0) {
@@ -312,7 +312,7 @@ exports.updateRolePermission = async (req, res) => {
        AND builder_id = $2
        AND company_id = $3
        AND LOWER(module_name) = LOWER($4)`,
-      [finalRoleId, builderId, companyId, module_name]
+      [finalRoleId, builderId, companyId, module_name],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -320,7 +320,7 @@ exports.updateRolePermission = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Permission already exists for this role and module."
+        "Permission already exists for this role and module.",
       );
     }
 
@@ -364,7 +364,7 @@ exports.updateRolePermission = async (req, res) => {
           builderId,
           companyId,
           role_permission_id,
-        ]
+        ],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -372,7 +372,7 @@ exports.updateRolePermission = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Module name already exists for this role."
+          "Module name already exists for this role.",
         );
       }
     }
@@ -381,7 +381,7 @@ exports.updateRolePermission = async (req, res) => {
     values.push(userId);
     idx++;
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE role_permission
@@ -406,7 +406,7 @@ exports.updateRolePermission = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Role permission updated successfully."
+      "Role permission updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -415,9 +415,9 @@ exports.updateRolePermission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRolePermissionIsActive = async (req, res) => {
+export async function updateRolePermissionIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -435,7 +435,7 @@ exports.updateRolePermissionIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -446,14 +446,14 @@ exports.updateRolePermissionIsActive = async (req, res) => {
       WHERE role_permission_id = $1
         AND builder_id = $2
       `,
-      [role_permission_id, builderId]
+      [role_permission_id, builderId],
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "role permission not found for this builder"
+        "role permission not found for this builder",
       );
     }
 
@@ -476,7 +476,7 @@ exports.updateRolePermissionIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "role status updated successfully."
+      "role status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating role is_active:", error);
@@ -484,4 +484,4 @@ exports.updateRolePermissionIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

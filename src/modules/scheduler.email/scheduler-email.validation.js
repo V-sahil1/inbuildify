@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSchedulerEmailSchema = Joi.object({
   name: Joi.string()
@@ -114,7 +114,7 @@ const updateSchedulerEmailSchema = Joi.object({
   is_active: Joi.boolean(),
 });
 
-module.exports = {
+export default {
   createSchedulerEmailSchema,
   getAllSchedulerEmailSchema,
   deleteSchedulerEmailSchema,

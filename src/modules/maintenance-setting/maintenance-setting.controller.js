@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
-exports.createMaintenanceSettings = async (req, res) => {
+export async function createMaintenanceSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -30,7 +30,7 @@ exports.createMaintenanceSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot allow completion without supplier response when supplier is disabled."
+        "Cannot allow completion without supplier response when supplier is disabled.",
       );
     }
 
@@ -51,7 +51,7 @@ exports.createMaintenanceSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more supervisor_roles are invalid for this builder."
+          "One or more supervisor_roles are invalid for this builder.",
         );
       }
     }
@@ -71,7 +71,7 @@ exports.createMaintenanceSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more supervisor_roles are inactive."
+          "One or more supervisor_roles are inactive.",
         );
       }
     }
@@ -90,7 +90,7 @@ exports.createMaintenanceSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Maintenance settings already exist for this company and builder."
+        "Maintenance settings already exist for this company and builder.",
       );
     }
 
@@ -154,7 +154,7 @@ exports.createMaintenanceSettings = async (req, res) => {
     return successResponse(
       res,
       data,
-      "Maintenance settings created successfully."
+      "Maintenance settings created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -163,9 +163,9 @@ exports.createMaintenanceSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateMaintenanceSettings = async (req, res) => {
+export async function updateMaintenanceSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -192,7 +192,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Builder or Company ID missing."
+        "Unauthorized: Builder or Company ID missing.",
       );
     }
 
@@ -204,7 +204,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
       FROM maintenance_settings
       WHERE builder_id = $1 AND company_id = $2
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (existingResult.rowCount === 0) {
@@ -217,14 +217,14 @@ exports.updateMaintenanceSettings = async (req, res) => {
     if (
       maintenance_start_date !== undefined &&
       !["handover_date", "occupancy_permit_date"].includes(
-        maintenance_start_date
+        maintenance_start_date,
       )
     ) {
       await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "maintenance_start_date must be 'handover_date' or 'occupancy_permit_date'."
+        "maintenance_start_date must be 'handover_date' or 'occupancy_permit_date'.",
       );
     }
 
@@ -236,7 +236,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot update allow_completion because supplier is disabled."
+        "Cannot update allow_completion because supplier is disabled.",
       );
     }
 
@@ -248,7 +248,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot allow completion without supplier response when supplier is disabled."
+        "Cannot allow completion without supplier response when supplier is disabled.",
       );
     }
 
@@ -264,7 +264,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
         FROM role
         WHERE role_id = ANY($1::uuid[])
         `,
-        [supervisor_roles]
+        [supervisor_roles],
       );
 
       if (roleCheck.rowCount !== supervisor_roles.length) {
@@ -272,7 +272,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more supervisor_roles are invalid."
+          "One or more supervisor_roles are invalid.",
         );
       }
     }
@@ -333,7 +333,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     values.push(builderId, companyId);
 
@@ -344,7 +344,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
       WHERE builder_id = $${i} AND company_id = $${i + 1}
       RETURNING *;
       `,
-      values
+      values,
     );
 
     await client.query("COMMIT");
@@ -352,7 +352,7 @@ exports.updateMaintenanceSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Maintenance settings updated successfully."
+      "Maintenance settings updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -361,9 +361,9 @@ exports.updateMaintenanceSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserMaintenanceSettings = async (req, res) => {
+export async function getUserMaintenanceSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -378,7 +378,7 @@ exports.getUserMaintenanceSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -393,14 +393,14 @@ exports.getUserMaintenanceSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING *;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Maintenance settings fetched successfully"
+      "Maintenance settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching maintenance settings:", error);
@@ -408,4 +408,4 @@ exports.getUserMaintenanceSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

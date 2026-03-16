@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* -----------------------------
    ESTATE IMAGES VALIDATION
@@ -58,7 +58,7 @@ const updateEstateDocumentSchema = Joi.object({
   fileUrl: Joi.string().uri().max(500).allow(null, "").optional(),
 });
 
-module.exports = {
+export default {
   getEstateImageSchema,
   updateEstateImageParamsSchema,
   updateEstateImageSchema,

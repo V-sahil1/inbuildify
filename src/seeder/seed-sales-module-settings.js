@@ -11,8 +11,8 @@ async function seedSalesModuleSettings({ company_id, builder_id, created_by, cli
       created_by, updated_by
     ) VALUES ($1, $2, false, true, true, 'email_and_phone', 'Mark as Won', 'sq_m2', $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedSalesModuleSettings };
+export default { seedSalesModuleSettings };

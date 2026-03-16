@@ -1,25 +1,20 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createSupplierDocument,
-  getAllSupplierDocuments,
-  updateSupplierDocument,
-} = require("./supplier-document.controller.js");
-const {
+import { createSupplierDocument, getAllSupplierDocuments, updateSupplierDocument } from "./supplier-document.controller.js";
+import {
   createSupplierContactSchema,
   getAllSupplierDocumentSchema,
   updateSupplierDocumentParamsSchema,
   updateSupplierDocumentSchema,
-} = require("./supplier-document.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
+} from "./supplier-document.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -65,4 +60,4 @@ router.put(
   validateRequest(updateSupplierDocumentSchema, REQUEST_SOURCE.FORM_DATA),
   updateSupplierDocument,
 );
-module.exports = router;
+export default router;

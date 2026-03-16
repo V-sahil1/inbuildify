@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
@@ -270,7 +270,8 @@ const paramsIdSchema = Joi.object({
     "any.required": "agent ID is required",
   }),
 });
-module.exports = {
+
+export default {
   createAgentReferralPartnerSchema,
   updateAgentReferralPartnerSchema,
   getAgentReferralPartnerSchema,

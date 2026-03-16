@@ -1,7 +1,7 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
 const filterPortalSettingsResponse = (data) => {
   const {
@@ -17,7 +17,7 @@ const filterPortalSettingsResponse = (data) => {
   return filteredData;
 };
 
-exports.createPortalSettings = async (req, res) => {
+export async function createPortalSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -178,9 +178,9 @@ exports.createPortalSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePortalSettings = async (req, res) => {
+export async function updatePortalSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -441,7 +441,7 @@ exports.updatePortalSettings = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(updatedBy);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE portal_settings
@@ -468,9 +468,9 @@ exports.updatePortalSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPortalSettings = async (req, res) => {
+export async function getPortalSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -513,4 +513,4 @@ exports.getPortalSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

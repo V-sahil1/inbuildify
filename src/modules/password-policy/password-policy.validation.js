@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const cretePasswordPolicySchema = Joi.object({
   expires_in_days: Joi.number()
@@ -131,7 +131,7 @@ const updatePasswordPolicyIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   cretePasswordPolicySchema,
   updatePasswordPolicyIdParamsSchema,
   updatePasswordPolicySchema,

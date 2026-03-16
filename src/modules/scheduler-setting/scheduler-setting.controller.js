@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database";
 
-exports.createSchedulerSettings = async (req, res) => {
+export async function createSchedulerSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -30,21 +30,21 @@ exports.createSchedulerSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Scheduler settings already exist for this builder/company."
+        "Scheduler settings already exist for this builder/company.",
       );
     }
 
     if (receiver_of_replies.length > 0) {
       for (const uId of receiver_of_replies) {
         const checkUser = await client.query(
-          `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
-          [uId]
+          "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false",
+          [uId],
         );
         if (checkUser.rows.length === 0) {
           return errorResponse(
             res,
             400,
-            `Receiver of replies user ${uId} is invalid.`
+            `Receiver of replies user ${uId} is invalid.`,
           );
         }
       }
@@ -69,7 +69,7 @@ exports.createSchedulerSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Scheduler settings created successfully."
+      "Scheduler settings created successfully.",
     );
   } catch (error) {
     console.error("Error creating scheduler settings:", error);
@@ -77,9 +77,9 @@ exports.createSchedulerSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSchedulerSettings = async (req, res) => {
+export async function updateSchedulerSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -103,7 +103,7 @@ exports.updateSchedulerSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Scheduler settings not found or you are not authorized to update it."
+        "Scheduler settings not found or you are not authorized to update it.",
       );
     }
 
@@ -113,21 +113,21 @@ exports.updateSchedulerSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
     if (receiver_of_replies) {
       for (const uId of receiver_of_replies) {
         const userCheck = await client.query(
-          `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false`,
-          [uId]
+          "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false",
+          [uId],
         );
         if (userCheck.rows.length === 0) {
           return errorResponse(
             res,
             400,
-            `Receiver of replies user ${uId} is invalid.`
+            `Receiver of replies user ${uId} is invalid.`,
           );
         }
       }
@@ -157,7 +157,7 @@ exports.updateSchedulerSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Scheduler settings updated successfully."
+      "Scheduler settings updated successfully.",
     );
   } catch (error) {
     console.error("Error updating scheduler settings:", error);
@@ -165,9 +165,9 @@ exports.updateSchedulerSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getSchedulerSettings = async (req, res) => {
+export async function getSchedulerSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -178,7 +178,7 @@ exports.getSchedulerSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing company or builder ID."
+        "Invalid user context. Missing company or builder ID.",
       );
     }
 
@@ -189,7 +189,7 @@ exports.getSchedulerSettings = async (req, res) => {
       WHERE company_id = $1 AND builder_id = $2
       LIMIT 1
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -204,14 +204,14 @@ exports.getSchedulerSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING receiver_of_replies
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Scheduler settings fetched successfully."
+      "Scheduler settings fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching scheduler settings:", error);
@@ -219,4 +219,4 @@ exports.getSchedulerSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

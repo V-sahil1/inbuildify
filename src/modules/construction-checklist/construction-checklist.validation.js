@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createConstructionChecklistValidation = Joi.object({
   name: Joi.string()
@@ -178,7 +178,7 @@ const queryValidation = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createConstructionChecklistValidation,
   updateConstructionChecklistValidation,
   getConstructionChecklistByIdValidation,

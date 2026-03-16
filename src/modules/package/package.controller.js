@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPackage = async (req, res) => {
+export async function createPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -51,7 +51,7 @@ exports.createPackage = async (req, res) => {
       for (const id of rangeIdsArray) {
         if (id) {
           const rangeCheck = await client.query(
-            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2`,
+            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2",
             [id, builderId],
           );
 
@@ -74,7 +74,7 @@ exports.createPackage = async (req, res) => {
       for (const id of dwellingTypeIdsArray) {
         if (id) {
           const dwellingTypeCheck = await client.query(
-            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2`,
+            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2",
             [id, builderId],
           );
 
@@ -97,7 +97,7 @@ exports.createPackage = async (req, res) => {
       for (const id of packageGroupIdsArray) {
         if (id) {
           const packageGroupCheck = await client.query(
-            `SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+            "SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)",
             [id, companyId, builderId],
           );
 
@@ -252,9 +252,9 @@ exports.createPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPackages = async (req, res) => {
+export async function getAllPackages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -457,9 +457,9 @@ exports.getAllPackages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePackage = async (req, res) => {
+export async function deletePackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -469,7 +469,7 @@ exports.deletePackage = async (req, res) => {
     const companyId = req.user.company_id;
 
     const check = await client.query(
-      `SELECT sort_order FROM package WHERE package_id = $1 AND builder_id = $2`,
+      "SELECT sort_order FROM package WHERE package_id = $1 AND builder_id = $2",
       [package_id, builderId],
     );
     if (check.rowCount === 0) {
@@ -479,7 +479,7 @@ exports.deletePackage = async (req, res) => {
     const deletedSortOrder = check.rows[0].sort_order;
 
     await client.query(
-      `DELETE FROM package WHERE package_id = $1 AND builder_id = $2`,
+      "DELETE FROM package WHERE package_id = $1 AND builder_id = $2",
       [package_id, builderId],
     );
 
@@ -497,9 +497,9 @@ exports.deletePackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePackage = async (req, res) => {
+export async function updatePackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -529,7 +529,7 @@ exports.updatePackage = async (req, res) => {
     await client.query("BEGIN");
 
     const existingRes = await client.query(
-      `SELECT * FROM package WHERE package_id = $1 AND builder_id = $2 FOR UPDATE`,
+      "SELECT * FROM package WHERE package_id = $1 AND builder_id = $2 FOR UPDATE",
       [package_id, builderId],
     );
 
@@ -546,7 +546,7 @@ exports.updatePackage = async (req, res) => {
       for (const id of rangeIdsArray) {
         if (id) {
           const rangeCheck = await client.query(
-            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2`,
+            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true AND builder_id = $2",
             [id, builderId],
           );
 
@@ -570,7 +570,7 @@ exports.updatePackage = async (req, res) => {
       for (const id of dwellingTypeIdsArray) {
         if (id) {
           const dwellingTypeCheck = await client.query(
-            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2`,
+            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true AND builder_id = $2",
             [id, builderId],
           );
 
@@ -594,7 +594,7 @@ exports.updatePackage = async (req, res) => {
       for (const id of packageGroupIdsArray) {
         if (id) {
           const packageGroupCheck = await client.query(
-            `SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+            "SELECT 1 FROM package_group WHERE package_group_id = $1 AND (company_id = $2 OR builder_id = $3)",
             [id, companyId, builderId],
           );
 
@@ -709,11 +709,15 @@ exports.updatePackage = async (req, res) => {
       allow_remove_package_items,
       "boolean",
     );
-    if (range_id !== undefined) addField("range_id", range_id);
-    if (dwelling_type_id !== undefined)
+    if (range_id !== undefined) {
+      addField("range_id", range_id);
+    }
+    if (dwelling_type_id !== undefined) {
       addField("dwelling_type_id", dwelling_type_id);
-    if (package_group_id !== undefined)
+    }
+    if (package_group_id !== undefined) {
       addField("package_group_id", package_group_id);
+    }
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -762,7 +766,7 @@ exports.updatePackage = async (req, res) => {
     values.push(userId);
     i++;
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE package
@@ -852,4 +856,4 @@ exports.updatePackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

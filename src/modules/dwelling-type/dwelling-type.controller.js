@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getAllDwellingTypes = async (req, res) => {
+export async function getAllDwellingTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -30,9 +30,9 @@ exports.getAllDwellingTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createDwellingType = async (req, res) => {
+export async function createDwellingType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -113,9 +113,9 @@ exports.createDwellingType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDwellingType = async (req, res) => {
+export async function updateDwellingType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -128,7 +128,7 @@ exports.updateDwellingType = async (req, res) => {
     await client.query("BEGIN");
 
     const existingDwellingType = await client.query(
-      `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2`,
+      "SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2",
       [dwelling_type_id, builderId],
     );
 
@@ -138,7 +138,7 @@ exports.updateDwellingType = async (req, res) => {
     }
 
     const existingActiveDwellingType = await client.query(
-      `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true`,
+      "SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2 AND is_active = true",
       [dwelling_type_id, builderId],
     );
 
@@ -187,7 +187,7 @@ exports.updateDwellingType = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
         UPDATE dwelling_type
@@ -214,9 +214,9 @@ exports.updateDwellingType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteDwellingType = async (req, res) => {
+export async function deleteDwellingType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -224,7 +224,7 @@ exports.deleteDwellingType = async (req, res) => {
   const builderId = req.user.builder_id;
   try {
     const checkDwellingTypeExists = await client.query(
-      `SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2`,
+      "SELECT * FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2",
       [dwelling_type_id, builderId],
     );
     if (checkDwellingTypeExists.rowCount === 0) {
@@ -256,7 +256,7 @@ exports.deleteDwellingType = async (req, res) => {
     await client.query(updatePackagesQuery, [dwelling_type_id]);
 
     // Delete the dwelling type
-    const query = `delete FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2;`;
+    const query = "delete FROM dwelling_type WHERE dwelling_type_id = $1 AND builder_id = $2;";
     const result = await client.query(query, [dwelling_type_id, builderId]);
 
     await client.query("COMMIT");
@@ -273,9 +273,9 @@ exports.deleteDwellingType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDwellingTypeActive = async (req, res) => {
+export async function updateDwellingTypeActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -342,4 +342,4 @@ exports.updateDwellingTypeActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

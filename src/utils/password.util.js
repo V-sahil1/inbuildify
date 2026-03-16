@@ -1,4 +1,4 @@
-const crypto = require("crypto");
+import crypto from "crypto";
 
 // Generate strong password
 function generateStrongPassword(length = 12) {
@@ -34,7 +34,7 @@ function validatePasswordPolicy(password) {
   );
 }
 
-module.exports = {
+export default {
   generateStrongPassword,
-  validatePasswordPolicy
+  validatePasswordPolicy,
 };

@@ -11,8 +11,8 @@ async function seedJobSettings({ company_id, builder_id, created_by, client }) {
       created_by, updated_by
     ) VALUES ($1, $2, false, false, false, 'all', true, $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedJobSettings };
+export default { seedJobSettings };

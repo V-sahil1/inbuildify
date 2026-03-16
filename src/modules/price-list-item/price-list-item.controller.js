@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPriceListItem = async (req, res) => {
+export async function createPriceListItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -29,7 +29,7 @@ exports.createPriceListItem = async (req, res) => {
       show_only_in_package,
       range_id,
       dwelling_type_id,
-      additional_item
+      additional_item,
     } = req.body;
 
     if (range_id) {
@@ -38,7 +38,7 @@ exports.createPriceListItem = async (req, res) => {
       for (const id of rangeIdsArray) {
         if (id) {
           const rangeCheck = await client.query(
-            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true`,
+            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true",
             [id],
           );
 
@@ -61,7 +61,7 @@ exports.createPriceListItem = async (req, res) => {
       for (const id of dwellingTypeIdsArray) {
         if (id) {
           const dwellingTypeCheck = await client.query(
-            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true`,
+            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true",
             [id],
           );
 
@@ -384,9 +384,9 @@ exports.createPriceListItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPriceListItems = async (req, res) => {
+export async function getAllPriceListItems(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -414,8 +414,8 @@ exports.getAllPriceListItems = async (req, res) => {
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
 
-    let conditions = [];
-    let values = [];
+    const conditions = [];
+    const values = [];
     let index = 1;
 
     conditions.push(`pli.builder_id = $${index++}`);
@@ -574,7 +574,7 @@ exports.getAllPriceListItems = async (req, res) => {
         pagination: {
           totalRecords: total,
           currentPage: page,
-          limit: limit,
+          limit,
           totalPages: Math.ceil(total / limit),
         },
       },
@@ -586,9 +586,9 @@ exports.getAllPriceListItems = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePriceListItem = async (req, res) => {
+export async function deletePriceListItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -641,9 +641,9 @@ exports.deletePriceListItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePriceListItem = async (req, res) => {
+export async function updatePriceListItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -678,7 +678,7 @@ exports.updatePriceListItem = async (req, res) => {
       for (const id of rangeIdsArray) {
         if (id) {
           const rangeCheck = await client.query(
-            `SELECT 1 FROM range WHERE range_id = $1 AND is_active = true`,
+            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true",
             [id],
           );
 
@@ -701,7 +701,7 @@ exports.updatePriceListItem = async (req, res) => {
       for (const id of dwellingTypeIdsArray) {
         if (id) {
           const dwellingTypeCheck = await client.query(
-            `SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true`,
+            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true",
             [id],
           );
 
@@ -833,7 +833,7 @@ exports.updatePriceListItem = async (req, res) => {
       return errorResponse(res, 400, "You cannot update price_list_id.");
     }
 
-    let finalCostType = cost_type ?? old.cost_type;
+    const finalCostType = cost_type ?? old.cost_type;
     let finalCostTypeText;
     let finalCostOption;
     let finalCost;
@@ -903,7 +903,7 @@ exports.updatePriceListItem = async (req, res) => {
       finalBuilderCost = old.builder_cost;
     }
 
-    let finalSortOrder = sort_order ?? old.sort_order;
+    const finalSortOrder = sort_order ?? old.sort_order;
     const oldSortOrder = old.sort_order;
 
     if (sort_order !== undefined && sort_order !== oldSortOrder) {
@@ -949,11 +949,16 @@ exports.updatePriceListItem = async (req, res) => {
       values.push(value);
     };
 
-    if (item_description) push("item_description", item_description);
-    if (short_description !== undefined)
+    if (item_description) {
+      push("item_description", item_description);
+    }
+    if (short_description !== undefined) {
       push("short_description", short_description);
+    }
 
-    if (cost_type) push("cost_type", finalCostType);
+    if (cost_type) {
+      push("cost_type", finalCostType);
+    }
     push("cost_type_text", finalCostTypeText);
     push("cost_option", finalCostOption);
     push("cost", finalCost);
@@ -961,20 +966,31 @@ exports.updatePriceListItem = async (req, res) => {
 
     push("sort_order", finalSortOrder);
 
-    if (uom !== undefined) push("uom", uom);
-    if (requestedStatus) push("status", requestedStatus);
+    if (uom !== undefined) {
+      push("uom", uom);
+    }
+    if (requestedStatus) {
+      push("status", requestedStatus);
+    }
 
-    if (include_by_default !== undefined)
+    if (include_by_default !== undefined) {
       push("include_by_default", include_by_default);
-    if (allow_remove_from_quotation !== undefined)
+    }
+    if (allow_remove_from_quotation !== undefined) {
       push("allow_remove_from_quotation", allow_remove_from_quotation);
-    if (show_in_hl_package !== undefined)
+    }
+    if (show_in_hl_package !== undefined) {
       push("show_in_hl_package", show_in_hl_package);
-    if (show_only_in_package !== undefined)
+    }
+    if (show_only_in_package !== undefined) {
       push("show_only_in_package", show_only_in_package);
-    if (range_id !== undefined) push("range_id", range_id);
-    if (dwelling_type_id !== undefined)
+    }
+    if (range_id !== undefined) {
+      push("range_id", range_id);
+    }
+    if (dwelling_type_id !== undefined) {
       push("dwelling_type_id", dwelling_type_id);
+    }
 
     push("updated_by", userId);
 
@@ -1078,4 +1094,4 @@ exports.updatePriceListItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

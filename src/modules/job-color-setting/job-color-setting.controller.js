@@ -1,6 +1,6 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 const DEFAULT_JOB_COLOR_COLUMNS = [
   {
@@ -65,7 +65,7 @@ const DEFAULT_JOB_COLOR_COLUMNS = [
   },
 ];
 
-exports.createJobColorSettings = async (req, res) => {
+export async function createJobColorSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -78,15 +78,15 @@ exports.createJobColorSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM job_color_settings WHERE builder_id = $1 OR company_id = $2`,
-      [builderId, companyId]
+      "SELECT 1 FROM job_color_settings WHERE builder_id = $1 OR company_id = $2",
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -94,7 +94,7 @@ exports.createJobColorSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Job color settings already exist for this builder/company."
+        "Job color settings already exist for this builder/company.",
       );
     }
     const {
@@ -144,7 +144,7 @@ exports.createJobColorSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color settings created successfully."
+      "Job color settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -153,9 +153,9 @@ exports.createJobColorSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobColorSetting = async (req, res) => {
+export async function updateJobColorSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -168,7 +168,7 @@ exports.updateJobColorSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -188,7 +188,7 @@ exports.updateJobColorSetting = async (req, res) => {
       FROM job_color_settings
       WHERE (builder_id = $1 OR company_id = $2)
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (checkRecord.rowCount === 0) {
@@ -196,7 +196,7 @@ exports.updateJobColorSetting = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job color settings not found for this user."
+        "Job color settings not found for this user.",
       );
     }
 
@@ -232,7 +232,7 @@ exports.updateJobColorSetting = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_color_settings
@@ -254,7 +254,7 @@ exports.updateJobColorSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color settings updated successfully."
+      "Job color settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -263,9 +263,9 @@ exports.updateJobColorSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobColorSettings = async (req, res) => {
+export async function getUserJobColorSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -282,7 +282,7 @@ exports.getUserJobColorSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     // 👉 Create settings if not exist
@@ -298,7 +298,7 @@ exports.getUserJobColorSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING *
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
@@ -312,7 +312,7 @@ exports.getUserJobColorSettings = async (req, res) => {
       WHERE job_color_settings_id = $1
       LIMIT 1
       `,
-      [jobColorSettingsId]
+      [jobColorSettingsId],
     );
 
     // 👉 Insert defaults only once
@@ -344,7 +344,7 @@ exports.getUserJobColorSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color settings fetched successfully"
+      "Job color settings fetched successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -353,4 +353,4 @@ exports.getUserJobColorSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

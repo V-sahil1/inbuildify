@@ -1,27 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createConstructionInspectionChecklist,
   getConstructionInspectionChecklists,
   updateConstructionInspectionChecklist,
   deleteConstructionInspectionChecklist,
   getConstructionInspectionChecklistById,
-} = require("./construction-inspection-checklist.controller");
-
-const {
+} from "./construction-inspection-checklist.controller";
+import {
   createConstructionInspectionChecklistSchema,
   getConstructionInspectionChecklistsSchema,
   updateConstructionInspectionChecklistSchema,
   deleteConstructionInspectionChecklistSchema,
   updateExistingJobsSchema,
-} = require("./construction-inspection-checklist.validation");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const caseConverterMiddleware = require("../../middleware/caseConverterMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./construction-inspection-checklist.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import caseConverterMiddleware from "../../middleware/caseConverterMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,40 +29,40 @@ router.post(
   "/",
   validateRequest(
     createConstructionInspectionChecklistSchema,
-    REQUEST_SOURCE.BODY
+    REQUEST_SOURCE.BODY,
   ),
-  createConstructionInspectionChecklist
+  createConstructionInspectionChecklist,
 );
 
 router.get(
   "/",
   validateRequest(
     getConstructionInspectionChecklistsSchema,
-    REQUEST_SOURCE.QUERY
+    REQUEST_SOURCE.QUERY,
   ),
-  getConstructionInspectionChecklists
+  getConstructionInspectionChecklists,
 );
 
 router.get(
   "/:id",
   validateRequest(
     deleteConstructionInspectionChecklistSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  getConstructionInspectionChecklistById
+  getConstructionInspectionChecklistById,
 );
 
 router.put(
   "/:id",
   validateRequest(
     deleteConstructionInspectionChecklistSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(
     updateConstructionInspectionChecklistSchema,
-    REQUEST_SOURCE.BODY
+    REQUEST_SOURCE.BODY,
   ),
-  updateConstructionInspectionChecklist
+  updateConstructionInspectionChecklist,
 );
 
 router.delete(
@@ -71,9 +70,9 @@ router.delete(
   validateRequest(updateExistingJobsSchema, REQUEST_SOURCE.BODY),
   validateRequest(
     deleteConstructionInspectionChecklistSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deleteConstructionInspectionChecklist
+  deleteConstructionInspectionChecklist,
 );
 
-module.exports = router;
+export default router;

@@ -1,29 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   getEstateImages,
   updateEstateImage,
   createEstateDocument,
   getEstateDocuments,
   updateEstateDocument,
-} = require("./estate-document-image.controller.js");
-
-const {
+} from "./estate-document-image.controller.js";
+import {
   getEstateImageSchema,
   updateEstateImageParamsSchema,
   updateEstateImageSchema,
   createEstateDocumentSchema,
   updateEstateDocumentSchema,
-} = require("./estate-document-image.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
+} from "./estate-document-image.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -39,7 +37,7 @@ const uploadDocument = createUpload("estate-document");
 router.get(
   "/image",
   validateRequest(getEstateImageSchema, REQUEST_SOURCE.QUERY),
-  getEstateImages
+  getEstateImages,
 );
 
 router.put(
@@ -49,7 +47,7 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(updateEstateImageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateEstateImageSchema, REQUEST_SOURCE.FORM_DATA),
-  updateEstateImage
+  updateEstateImage,
 );
 
 /* -----------------------------
@@ -62,7 +60,7 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createEstateDocumentSchema, REQUEST_SOURCE.FORM_DATA),
-  createEstateDocument
+  createEstateDocument,
 );
 
 router.get("/documents", getEstateDocuments);
@@ -73,7 +71,7 @@ router.put(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updateEstateDocumentSchema, REQUEST_SOURCE.FORM_DATA),
-  updateEstateDocument
+  updateEstateDocument,
 );
 
-module.exports = router;
+export default router;

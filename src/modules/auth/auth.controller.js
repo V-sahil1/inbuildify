@@ -1,5 +1,5 @@
-const AuthService = require("./auth.service");
-const { successResponse, errorResponse } = require("../../helper/response");
+import AuthService from "./auth.service";
+import { successResponse, errorResponse } from "../../helper/response";
 
 async function registerRoot(req, res) {
   try {
@@ -73,7 +73,7 @@ async function logout(req, res) {
   }
 }
 
-module.exports = {
+export default {
   registerRoot,
   verifyEmail,
   resendOtp,

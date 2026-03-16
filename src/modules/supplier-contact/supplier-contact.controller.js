@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createSupplierContact = async (req, res) => {
+export async function createSupplierContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -84,9 +84,9 @@ exports.createSupplierContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSupplierContacts = async (req, res) => {
+export async function getAllSupplierContacts(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -97,10 +97,10 @@ exports.getAllSupplierContacts = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    let { supplier_id } = req.query;
+    const { supplier_id } = req.query;
 
-    let conditions = [];
-    let values = [];
+    const conditions = [];
+    const values = [];
     let index = 1;
 
     conditions.push(`s.builder_id = $${index++}`);
@@ -136,9 +136,9 @@ exports.getAllSupplierContacts = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSupplierContact = async (req, res) => {
+export async function deleteSupplierContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -186,9 +186,9 @@ exports.deleteSupplierContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSupplierContact = async (req, res) => {
+export async function updateSupplierContact(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -256,7 +256,7 @@ exports.updateSupplierContact = async (req, res) => {
       return errorResponse(res, 400, "No fields provided to update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE supplier_contacts
@@ -280,4 +280,4 @@ exports.updateSupplierContact = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createEstateSchema = Joi.object({
   name: Joi.string()
@@ -125,7 +125,7 @@ const updateEstateSchema = Joi.object({
   featured: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createEstateSchema,
   getAllEstateSchema,
   deleteEstateSchema,

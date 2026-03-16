@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllDocumentFolderMappingsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
@@ -15,38 +15,35 @@ const getAllDocumentFolderMappingsSchema = Joi.object({
   }),
 });
 
-
 const updateDocumentFolderMappingSchema = Joi.object({
   signed_quotation: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Signed quotation folder ID must be a valid UUID"
+    "string.uuid": "Signed quotation folder ID must be a valid UUID",
   }),
   signed_color: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Signed color folder ID must be a valid UUID"
+    "string.uuid": "Signed color folder ID must be a valid UUID",
   }),
   signed_variation: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Signed variation folder ID must be a valid UUID"
+    "string.uuid": "Signed variation folder ID must be a valid UUID",
   }),
   signed_maintenance: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Signed maintenance folder ID must be a valid UUID"
+    "string.uuid": "Signed maintenance folder ID must be a valid UUID",
   }),
   signed_contract_document: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Signed contract document folder ID must be a valid UUID"
+    "string.uuid": "Signed contract document folder ID must be a valid UUID",
   }),
   compliance_certificate: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Compliance certificate folder ID must be a valid UUID"
+    "string.uuid": "Compliance certificate folder ID must be a valid UUID",
   }),
   purchase_order: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Purchase order folder ID must be a valid UUID"
+    "string.uuid": "Purchase order folder ID must be a valid UUID",
   }),
   job_documents: Joi.string().uuid().optional().allow(null).messages({
-    "string.uuid": "Job documents folder ID must be a valid UUID"
+    "string.uuid": "Job documents folder ID must be a valid UUID",
   }),
   select_all_files_from_folder: Joi.boolean().optional(),
 }).min(1);
 
-
-
-module.exports = {
+export default {
   getAllDocumentFolderMappingsSchema,
   updateDocumentFolderMappingSchema,
 };

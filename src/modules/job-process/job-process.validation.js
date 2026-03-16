@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuid = Joi.string().uuid();
 
@@ -6,11 +6,11 @@ const uuid = Joi.string().uuid();
    STAGE
 ========================================================= */
 
-exports.stageParamsSchema = Joi.object({
+export var stageParamsSchema = Joi.object({
   stage_id: uuid.required(),
 });
 
-exports.createStageSchema = Joi.object({
+export var createStageSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -21,7 +21,7 @@ exports.createStageSchema = Joi.object({
   dependent_stage_id: uuid.allow(null),
 });
 
-exports.updateStageSchema = Joi.object({
+export var updateStageSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -32,7 +32,7 @@ exports.updateStageSchema = Joi.object({
   dependent_stage_id: uuid.allow(null),
 });
 
-exports.deleteSubStageSchema = Joi.object({
+export var deleteSubStageSchema = Joi.object({
   task_id: uuid.optional(),
 });
 
@@ -40,11 +40,11 @@ exports.deleteSubStageSchema = Joi.object({
    SUB-STAGE
 ========================================================= */
 
-exports.subStageParamsSchema = Joi.object({
+export var subStageParamsSchema = Joi.object({
   sub_stage_id: uuid.required(),
 });
 
-exports.createSubStageSchema = Joi.object({
+export var createSubStageSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -53,7 +53,7 @@ exports.createSubStageSchema = Joi.object({
   sort_order: Joi.number().integer().min(1).required(),
 });
 
-exports.updateSubStageSchema = Joi.object({
+export var updateSubStageSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -66,11 +66,11 @@ exports.updateSubStageSchema = Joi.object({
    TASK
 ========================================================= */
 
-exports.taskParamsSchema = Joi.object({
+export var taskParamsSchema = Joi.object({
   task_id: uuid.required(),
 });
 
-exports.createTaskSchema = Joi.object({
+export var createTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -87,7 +87,7 @@ exports.createTaskSchema = Joi.object({
   predecessor_task_ids: Joi.array().items(uuid).default([]),
 });
 
-exports.updateTaskSchema = Joi.object({
+export var updateTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -108,11 +108,11 @@ exports.updateTaskSchema = Joi.object({
    SUB-TASK
 ========================================================= */
 
-exports.subTaskParamsSchema = Joi.object({
+export var subTaskParamsSchema = Joi.object({
   sub_task_id: uuid.required(),
 });
 
-exports.createSubTaskSchema = Joi.object({
+export var createSubTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -121,7 +121,7 @@ exports.createSubTaskSchema = Joi.object({
   sort_order: Joi.number().integer().min(1).required(),
 });
 
-exports.updateSubTaskSchema = Joi.object({
+export var updateSubTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -134,7 +134,7 @@ exports.updateSubTaskSchema = Joi.object({
    TASK DEPENDENCY
 ========================================================= */
 
-exports.deleteTaskDependencySchema = Joi.object({
+export var deleteTaskDependencySchema = Joi.object({
   task_id: uuid.required(),
   predecessor_task_id: uuid.required(),
 });

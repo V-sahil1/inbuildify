@@ -1,11 +1,8 @@
-const getPool = require("../../config/database");
-const { deleteFromS3 } = require("../../utils/s3Upload");
-const { buildDynamicUpdate } = require("../../utils/buildDynamicUpdate");
-const {
-  BUILDER_UPDATE_FIELDS,
-  INSURER_UPDATE_FIELDS,
-} = require("../../constants/updateFields");
-const { upsertAddress } = require("./address.service");
+import getPool from "../../config/database";
+import { deleteFromS3 } from "../../utils/s3Upload";
+import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate";
+import { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } from "../../constants/updateFields";
+import { upsertAddress } from "./address.service";
 
 async function upsertBuilder(builderId, payload, logoUrl) {
   const pool = getPool();
@@ -15,7 +12,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     await client.query("BEGIN");
 
     const existingRes = await client.query(
-      `SELECT * FROM builder WHERE builder_id = $1`,
+      "SELECT * FROM builder WHERE builder_id = $1",
       [builderId],
     );
 
@@ -104,7 +101,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
 
     if (payload.insurer) {
       const insurerRes = await client.query(
-        `SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1`,
+        "SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1",
         [builderId],
       );
 
@@ -262,4 +259,4 @@ async function getAllBuilders() {
   }
 }
 
-module.exports = { upsertBuilder, getBuilderProfile, getAllBuilders };
+export default { upsertBuilder, getBuilderProfile, getAllBuilders };

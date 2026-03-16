@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createLotPackage = async (req, res) => {
+export async function createLotPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -189,9 +189,9 @@ exports.createLotPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllLotPackages = async (req, res) => {
+export async function getAllLotPackages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -214,8 +214,8 @@ exports.getAllLotPackages = async (req, res) => {
     } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     whereConditions.push(`(
@@ -302,9 +302,9 @@ exports.getAllLotPackages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLotPackageById = async (req, res) => {
+export async function getLotPackageById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -354,9 +354,9 @@ exports.getLotPackageById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLotPackage = async (req, res) => {
+export async function updateLotPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -508,8 +508,8 @@ exports.updateLotPackage = async (req, res) => {
       "facade_id",
     ];
 
-    let updateFields = [];
-    let updateValues = [];
+    const updateFields = [];
+    const updateValues = [];
     let paramIndex = 1;
 
     for (const field of allowedFields) {
@@ -552,9 +552,9 @@ exports.updateLotPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLotPackage = async (req, res) => {
+export async function deleteLotPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -595,4 +595,4 @@ exports.deleteLotPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

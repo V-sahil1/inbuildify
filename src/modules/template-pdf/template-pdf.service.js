@@ -1,9 +1,21 @@
-const getPool = require("../../config/database");
-const { seedInitialPdfTemplates } = require("../../seeder/template-pdf.seed");
-const { deleteFromS3 } = require("../../utils/s3Upload");
-const {
-  getFormatValidationSchema,
-} = require("./template-pdf.validation");
+import getPool from "../../config/database";
+import { seedInitialPdfTemplates } from "../../seeder/template-pdf.seed";
+import { deleteFromS3 } from "../../utils/s3Upload";
+import { getFormatValidationSchema } from "./template-pdf.validation";
+
+function mergeTemplateImages(base, payload) {
+  const result = { ...base };
+
+  if (payload.logo_image) {
+    result.logo_image = payload.logo_image;
+  }
+
+  if (payload.watermark_image) {
+    result.watermark_image = payload.watermark_image;
+  }
+
+  return result;
+}
 
 function resolveScope(user) {
   return {
@@ -51,7 +63,9 @@ const formatTypeMap = {
 };
 
 function normalizeFormatType(type) {
-  if (!type) return null;
+  if (!type) {
+    return null;
+  }
 
   const cleaned = String(type).trim();
 
@@ -75,10 +89,14 @@ function normalizeFormatType(type) {
 async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
   const pool = getPool();
   const existing = await getTemplatePdfById(user, templatePdfId);
-  if (!existing) throw new Error("Template not found");
+  if (!existing) {
+    throw new Error("Template not found");
+  }
 
   const expectedName = formatTypeMap[formatType];
-  if (!expectedName) throw new Error("Invalid format_type");
+  if (!expectedName) {
+    throw new Error("Invalid format_type");
+  }
 
   if (existing.name !== expectedName) {
     throw new Error(`Template is not of type ${formatType}`);
@@ -226,7 +244,9 @@ function deepMergeFormatSection(existing, payload, formatType) {
   const updated = structuredClone(existing);
 
   for (const [key, value] of Object.entries(payload)) {
-    if (!allowedKeys.includes(key)) continue; // whitelist check
+    if (!allowedKeys.includes(key)) {
+      continue;
+    } // whitelist check
 
     if (value && typeof value === "object" && !Array.isArray(value)) {
       updated[key] = deepPatchMerge(updated[key] || {}, value);
@@ -237,13 +257,17 @@ function deepMergeFormatSection(existing, payload, formatType) {
 
   updated.logo_settings = updated.logo_settings || {};
 
-  if (payload.logo_image) updated.logo_settings.logo_image = payload.logo_image;
-  if (payload.watermark_image)
+  if (payload.logo_image) {
+    updated.logo_settings.logo_image = payload.logo_image;
+  }
+  if (payload.watermark_image) {
     updated.logo_settings.watermark_image = payload.watermark_image;
+  }
 
   return updated;
 }
-module.exports = {
+
+export default {
   createTemplatePdf,
   updateTemplatePdf,
   getTemplatePdfById,

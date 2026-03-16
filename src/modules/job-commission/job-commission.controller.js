@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobCommission = async (req, res) => {
+export async function createJobCommission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,7 +15,7 @@ exports.createJobCommission = async (req, res) => {
       return errorResponse(res, 400, "Builder ID is required.");
     }
 
-    let {
+    const {
       commission_type,
       name,
       recipient,
@@ -174,9 +174,9 @@ exports.createJobCommission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllJobCommissions = async (req, res) => {
+export async function getAllJobCommissions(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -193,7 +193,7 @@ exports.getAllJobCommissions = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const conditions = [`jc.builder_id = $1`];
+    const conditions = ["jc.builder_id = $1"];
     const values = [builderId];
     let paramIndex = 2;
 
@@ -243,9 +243,9 @@ exports.getAllJobCommissions = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobCommission = async (req, res) => {
+export async function deleteJobCommission(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -290,7 +290,7 @@ exports.deleteJobCommission = async (req, res) => {
     await client.query(deleteQuery, [job_commission_id, builderId]);
 
     await client.query(
-      `UPDATE job_commission SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_settings_id = $2 AND commission_type = $3`,
+      "UPDATE job_commission SET sort_order = sort_order - 1 WHERE sort_order > $1 AND job_commission_settings_id = $2 AND commission_type = $3",
       [deletedSortOrder, jobCommissionSettingsId, deletedCommissionType],
     );
 
@@ -304,9 +304,9 @@ exports.deleteJobCommission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobCommission = async (req, res) => {
+export async function updateJobCommission(req, res) {
   const { job_commission_id } = req.params;
   const builderId = req.user?.builder_id;
   const userId = req.user?.users_id;
@@ -411,7 +411,7 @@ exports.updateJobCommission = async (req, res) => {
 
     if (finalRecipient === "other_user" && finalRecipientUser) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1`,
+        "SELECT users_id FROM users WHERE users_id = $1",
         [finalRecipientUser],
       );
 
@@ -421,8 +421,8 @@ exports.updateJobCommission = async (req, res) => {
       }
     }
 
-    let finalUnit = commission_unit ?? old.commission_unit;
-    let finalValue = commission_value ?? old.commission_value;
+    const finalUnit = commission_unit ?? old.commission_unit;
+    const finalValue = commission_value ?? old.commission_value;
 
     if (finalUnit === "percentage") {
       if (Number(finalValue) > 100) {
@@ -561,7 +561,7 @@ exports.updateJobCommission = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_commission
@@ -587,4 +587,4 @@ exports.updateJobCommission = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

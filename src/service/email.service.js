@@ -1,4 +1,4 @@
-const sendEmail = require("../helper/sendMail");
+import sendEmail from "../helper/sendMail";
 
 async function sendPasswordEmail(email, loginId, password) {
   try {
@@ -37,7 +37,7 @@ If you did not request this change, please contact support.
   }
 }
 
-module.exports = {
+export default {
   sendPasswordEmail,
   sendLoginIdEmail,
 };

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -48,7 +48,7 @@ const getAllHlPackageLotPackageMapsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createHlPackageLotPackageMapSchema,
   getLotPackagesByHlPackageIdSchema,
   deleteHlPackageLotPackageMapSchema,

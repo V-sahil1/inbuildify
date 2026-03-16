@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPasswordPolicy = async (req, res) => {
+export async function createPasswordPolicy(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -24,8 +24,8 @@ exports.createPasswordPolicy = async (req, res) => {
 
     // Allow only ONE password policy per builder
     const existingPolicy = await client.query(
-      `SELECT 1 FROM password_policy WHERE builder_id = $1 LIMIT 1;`,
-      [builderId]
+      "SELECT 1 FROM password_policy WHERE builder_id = $1 LIMIT 1;",
+      [builderId],
     );
 
     if (existingPolicy.rowCount > 0) {
@@ -33,7 +33,7 @@ exports.createPasswordPolicy = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Password policy already exists for this builder."
+        "Password policy already exists for this builder.",
       );
     }
 
@@ -72,7 +72,7 @@ exports.createPasswordPolicy = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Password policy created successfully."
+      "Password policy created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -81,9 +81,9 @@ exports.createPasswordPolicy = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePasswordPolicy = async (req, res) => {
+export async function updatePasswordPolicy(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -138,7 +138,7 @@ exports.updatePasswordPolicy = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -146,7 +146,7 @@ exports.updatePasswordPolicy = async (req, res) => {
     values.push(userId);
     idx++;
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE password_policy
@@ -167,7 +167,7 @@ exports.updatePasswordPolicy = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Password policy updated successfully."
+      "Password policy updated successfully.",
     );
   } catch (error) {
     console.error("Error updating password policy:", error);
@@ -175,9 +175,9 @@ exports.updatePasswordPolicy = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePasswordPolicyIsActive = async (req, res) => {
+export async function updatePasswordPolicyIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -195,7 +195,7 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -207,14 +207,14 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
         AND company_id = $2
       LIMIT 1
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Password policy not found for this builder"
+        "Password policy not found for this builder",
       );
     }
 
@@ -239,7 +239,7 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "Password policy status updated successfully."
+      "Password policy status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating password policy is_active:", error);
@@ -247,9 +247,9 @@ exports.updatePasswordPolicyIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPasswordPolicy = async (req, res) => {
+export async function getPasswordPolicy(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -264,7 +264,7 @@ exports.getPasswordPolicy = async (req, res) => {
       `SELECT * FROM password_policy
        WHERE company_id = $1 AND builder_id = $2
        LIMIT 1`,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -273,18 +273,18 @@ exports.getPasswordPolicy = async (req, res) => {
           (company_id, builder_id, created_by, updated_by)
          VALUES ($1, $2, $3, $3)
          RETURNING *`,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Password policy fetched successfully"
+      "Password policy fetched successfully",
     );
   } catch (error) {
     return errorResponse(res, 500, error.message);
   } finally {
     client.release();
   }
-};
+}

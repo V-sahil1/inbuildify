@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createUserGroupSchema = Joi.object({
   users_id: Joi.array()
@@ -56,7 +56,7 @@ const updateUserGroupSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createUserGroupSchema,
   getAllUserGroupSchema,
   updateUserGroupParamsSchema,

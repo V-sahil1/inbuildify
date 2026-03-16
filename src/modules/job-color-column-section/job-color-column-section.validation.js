@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobColorColumnSectionSchema = Joi.object({
   section_name: Joi.string()
@@ -72,7 +72,8 @@ const updateJobColorColumnSectionSchema = Joi.object({
   .messages({
     "object.min": "At least one field must be provided for update",
   });
-module.exports = {
+
+export default {
   createJobColorColumnSectionSchema,
   getJobColorColumnSectionsSchema,
   deleteJobColorColumnSectionSchema,

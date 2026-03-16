@@ -1,24 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createConstructionChecklistPredecessor,
   getAllConstructionChecklistPredecessors,
   getConstructionChecklistPredecessorById,
   updateConstructionChecklistPredecessor,
   deleteConstructionChecklistPredecessor,
-} = require("./construction-checklist-predecessor.controller.js");
-const {
+} from "./construction-checklist-predecessor.controller.js";
+import {
   createConstructionChecklistPredecessorValidation,
   updateConstructionChecklistPredecessorValidation,
   getConstructionChecklistPredecessorByIdValidation,
   queryValidation,
-} = require("./construction-checklist-predecessor.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-checklist-predecessor.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -27,32 +28,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createConstructionChecklistPredecessorValidation, REQUEST_SOURCE.BODY),
-  createConstructionChecklistPredecessor
+  createConstructionChecklistPredecessor,
 );
 
 router.get(
   "/",
   validateRequest(queryValidation, REQUEST_SOURCE.QUERY),
-  getAllConstructionChecklistPredecessors
+  getAllConstructionChecklistPredecessors,
 );
 
 router.get(
   "/:construction_checklist_predecessor_id",
   validateRequest(getConstructionChecklistPredecessorByIdValidation, REQUEST_SOURCE.PARAMS),
-  getConstructionChecklistPredecessorById
+  getConstructionChecklistPredecessorById,
 );
 
 router.put(
   "/:construction_checklist_predecessor_id",
   validateRequest(getConstructionChecklistPredecessorByIdValidation, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionChecklistPredecessorValidation, REQUEST_SOURCE.BODY),
-  updateConstructionChecklistPredecessor
+  updateConstructionChecklistPredecessor,
 );
 
 router.delete(
   "/:construction_checklist_predecessor_id",
   validateRequest(getConstructionChecklistPredecessorByIdValidation, REQUEST_SOURCE.PARAMS),
-  deleteConstructionChecklistPredecessor
+  deleteConstructionChecklistPredecessor,
 );
 
-module.exports = router;
+export default router;

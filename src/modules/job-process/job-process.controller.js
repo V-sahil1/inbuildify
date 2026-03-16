@@ -1,12 +1,10 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-
-const { keysToCamelCase } = require("../../utils/common");
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 // Services
 
-const stageService = require("./job-process-stage.service");
-
-const taskService = require("./job-process-task.service");
+import stageService from "./job-process-stage.service";
+import taskService from "./job-process-task.service";
 
 /* =========================================================
 
@@ -14,7 +12,7 @@ const taskService = require("./job-process-task.service");
 
 ========================================================= */
 
-exports.createStage = async (req, res) => {
+export async function createStage(req, res) {
   try {
     const { company_id: companyId, builder_id: builderId } = req.user;
 
@@ -30,9 +28,9 @@ exports.createStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.updateStage = async (req, res) => {
+export async function updateStage(req, res) {
   try {
     const { company_id: companyId, builder_id: builderId } = req.user;
 
@@ -50,9 +48,9 @@ exports.updateStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.deleteStage = async (req, res) => {
+export async function deleteStage(req, res) {
   try {
     const { builder_id: builderId } = req.user;
 
@@ -62,9 +60,9 @@ exports.deleteStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getStages = async (req, res) => {
+export async function getStages(req, res) {
   try {
     const { company_id: companyId, builder_id: builderId } = req.user;
 
@@ -74,7 +72,7 @@ exports.getStages = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
 /* =========================================================
 
@@ -82,7 +80,7 @@ exports.getStages = async (req, res) => {
 
 ========================================================= */
 
-exports.createSubStage = async (req, res) => {
+export async function createSubStage(req, res) {
   try {
     const subStage = await stageService.createSubStage(
       req.params.stage_id,
@@ -94,9 +92,9 @@ exports.createSubStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.updateSubStage = async (req, res) => {
+export async function updateSubStage(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -114,9 +112,9 @@ exports.updateSubStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.deleteSubStage = async (req, res) => {
+export async function deleteSubStage(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
     const { task_id: taskId } = req.body || {};
@@ -132,9 +130,9 @@ exports.deleteSubStage = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getSubStages = async (req, res) => {
+export async function getSubStages(req, res) {
   try {
     const subStages = await stageService.getSubStages(req.params.stage_id);
 
@@ -142,7 +140,7 @@ exports.getSubStages = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
 /* =========================================================
 
@@ -150,7 +148,7 @@ exports.getSubStages = async (req, res) => {
 
 ========================================================= */
 
-exports.createTask = async (req, res) => {
+export async function createTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -168,9 +166,9 @@ exports.createTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.updateTask = async (req, res) => {
+export async function updateTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -188,9 +186,9 @@ exports.updateTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.deleteTask = async (req, res) => {
+export async function deleteTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -200,9 +198,9 @@ exports.deleteTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getTasks = async (req, res) => {
+export async function getTasks(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -218,7 +216,7 @@ exports.getTasks = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
 /* =========================================================
 
@@ -226,7 +224,7 @@ exports.getTasks = async (req, res) => {
 
 ========================================================= */
 
-exports.createSubTask = async (req, res) => {
+export async function createSubTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -244,9 +242,9 @@ exports.createSubTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.updateSubTask = async (req, res) => {
+export async function updateSubTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -264,9 +262,9 @@ exports.updateSubTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.deleteSubTask = async (req, res) => {
+export async function deleteSubTask(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -282,9 +280,9 @@ exports.deleteSubTask = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getSubTasks = async (req, res) => {
+export async function getSubTasks(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -300,7 +298,7 @@ exports.getSubTasks = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
 /* =========================================================
 
@@ -308,7 +306,7 @@ exports.getSubTasks = async (req, res) => {
 
 ========================================================= */
 
-exports.getJobProcess = async (req, res) => {
+export async function getJobProcess(req, res) {
   try {
     const { company_id: companyId, builder_id: builderId } = req.user;
 
@@ -318,9 +316,9 @@ exports.getJobProcess = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
-exports.getAllJobTasks = async (req, res) => {
+export async function getAllJobTasks(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -330,9 +328,9 @@ exports.getAllJobTasks = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
-exports.getAllTasksOnly = async (req, res) => {
+export async function getAllTasksOnly(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -346,13 +344,13 @@ exports.getAllTasksOnly = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 500, err.message);
   }
-};
+}
 
 /* =========================================================
    TASK DEPENDENCY
 ========================================================= */
 
-exports.deleteTaskDependency = async (req, res) => {
+export async function deleteTaskDependency(req, res) {
   try {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
@@ -367,4 +365,4 @@ exports.deleteTaskDependency = async (req, res) => {
   } catch (err) {
     return errorResponse(res, 400, err.message);
   }
-};
+}

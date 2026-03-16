@@ -1,25 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createProperty,
   getPropertyByLeadId,
   updateProperty,
   getAllProperties,
   deleteProperty,
-} = require("./property.controller.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+} from "./property.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createPropertySchema,
   getPropertyByLeadSchema,
   updatePropertySchema,
   updatePropertyParamSchema,
   getAllPropertiesSchema,
   deletePropertySchema,
-} = require("./property.validation.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./property.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -32,12 +34,12 @@ router.put(
   "/:property_id",
   validateRequest(updatePropertyParamSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePropertySchema),
-  updateProperty
+  updateProperty,
 );
 router.delete(
   "/:property_id",
   validateRequest(deletePropertySchema, REQUEST_SOURCE.PARAMS),
-  deleteProperty
+  deleteProperty,
 );
 
-module.exports = router;
+export default router;

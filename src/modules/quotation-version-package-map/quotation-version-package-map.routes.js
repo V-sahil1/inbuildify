@@ -1,18 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const {
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createPackageMapSchema,
   getPackageMapsByVersionSchema,
   deletePackageMapParamsSchema,
-} = require("./quotation-version-package-map.validation.js");
-const packageMapController = require("./quotation-version-package-map.controller.js");
+} from "./quotation-version-package-map.validation.js";
+import packageMapController from "./quotation-version-package-map.controller.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -21,19 +21,19 @@ router.post(
   "/",
   camelToSnakeMiddleware,
   validateRequest(createPackageMapSchema, REQUEST_SOURCE.BODY),
-  packageMapController.createPackageMap
+  packageMapController.createPackageMap,
 );
 
 router.get(
   "/:quotation_version_id",
   validateRequest(getPackageMapsByVersionSchema, REQUEST_SOURCE.PARAMS),
-  packageMapController.getPackagesByVersionId
+  packageMapController.getPackagesByVersionId,
 );
 
 router.delete(
   "/:id",
   validateRequest(deletePackageMapParamsSchema, REQUEST_SOURCE.PARAMS),
-  packageMapController.deletePackageMap
+  packageMapController.deletePackageMap,
 );
 
-module.exports = router;
+export default router;

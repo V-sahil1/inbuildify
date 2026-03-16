@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const nameRule = Joi.string()
   .min(2)
@@ -68,7 +68,7 @@ const updateLeadSourceIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createLeadSourceSchema,
   getLeadResourcesSchema,
   getLeadSourceByIdSchema,

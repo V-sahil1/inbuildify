@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const updateConstructionEtsRechargeSettingsSchema = Joi.object({
   enable_ets_supplier: Joi.boolean().optional(),
@@ -6,6 +6,6 @@ const updateConstructionEtsRechargeSettingsSchema = Joi.object({
   signature_section: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   updateConstructionEtsRechargeSettingsSchema,
 };

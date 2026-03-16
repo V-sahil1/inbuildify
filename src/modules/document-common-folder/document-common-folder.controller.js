@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createDocumentCommonFolder = async (req, res) => {
+export async function createDocumentCommonFolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -44,7 +44,7 @@ exports.createDocumentCommonFolder = async (req, res) => {
       return errorResponse(res, 400, "Folder name already exists.");
     }
 
-    let finalSortOrder = sort_order ?? 1;
+    const finalSortOrder = sort_order ?? 1;
 
     const maxSortOrderQuery = `
       SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
@@ -189,9 +189,9 @@ exports.createDocumentCommonFolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllDocumentCommonFolders = async (req, res) => {
+export async function getAllDocumentCommonFolders(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -311,9 +311,9 @@ exports.getAllDocumentCommonFolders = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteDocumentCommonFolder = async (req, res) => {
+export async function deleteDocumentCommonFolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -412,9 +412,9 @@ exports.deleteDocumentCommonFolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDocumentCommonFolder = async (req, res) => {
+export async function updateDocumentCommonFolder(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -486,7 +486,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
 
     const existingFolder = ownershipResult.rows[0];
     const oldSortOrder = existingFolder.sort_order;
-    let newSortOrder = sort_order;
+    const newSortOrder = sort_order;
 
     if (newSortOrder !== undefined && newSortOrder !== null) {
       const maxSortQuery = `
@@ -570,7 +570,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       }
       if (role_ids.length > 0) {
         const validRoles = await client.query(
-          `SELECT role_id FROM role WHERE role_id = ANY($1::uuid[])`,
+          "SELECT role_id FROM role WHERE role_id = ANY($1::uuid[])",
           [role_ids],
         );
         if (validRoles.rowCount !== role_ids.length) {
@@ -588,7 +588,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
       }
       if (user_ids.length > 0) {
         const validUsers = await client.query(
-          `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
+          "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
           [user_ids],
         );
         if (validUsers.rowCount !== user_ids.length) {
@@ -605,7 +605,7 @@ exports.updateDocumentCommonFolder = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(updatedBy);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     values.push(document_common_folder_id);
 
@@ -681,4 +681,4 @@ exports.updateDocumentCommonFolder = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

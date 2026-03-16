@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const headerRule = Joi.string().uuid().optional().messages({
   "string.guid": "header ID must be a valid UUID",
@@ -11,12 +11,10 @@ const valueRule = Joi.string().max(255).optional().allow(null, "").messages({
 const createIntegrationCustomFieldItemSchema = Joi.object({
   header1_id: headerRule,
   header2_id: headerRule,
- 
 
   value1: valueRule,
   value2: valueRule,
- 
-  
+
   assignee_user_id: Joi.string().uuid().optional().allow(null, "").messages({
     "string.guid": "assignee_user_id must be a valid UUID.",
   }),
@@ -60,13 +58,12 @@ const updateIntegrationCustomFieldParamsSchema = Joi.object({
 });
 
 const updateIntegrationCustoFieldItemSchema = Joi.object({
-   header1_id: headerRule,
+  header1_id: headerRule,
   header2_id: headerRule,
- 
+
   value1: valueRule,
   value2: valueRule,
 
-  
   assignee_user_id: Joi.string().uuid().optional().allow(null, "").messages({
     "string.guid": "assignee_user_id must be a valid UUID.",
   }),
@@ -81,7 +78,7 @@ const updateIntegrationCustomFieldItemIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createIntegrationCustomFieldItemSchema,
   getAllIntegrationCustomFieldItemSchema,
   deleteIntegrationCustomFieldItemSchema,

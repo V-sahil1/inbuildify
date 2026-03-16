@@ -1,7 +1,7 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
 // Reusable subquery columns for related entity details
 const RELATED_ENTITY_SUBQUERIES = `
@@ -107,7 +107,7 @@ const formatHouseLandPackageData = (row) => {
   };
 };
 
-exports.createHouseLandPackage = async (req, res) => {
+export async function createHouseLandPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -120,7 +120,7 @@ exports.createHouseLandPackage = async (req, res) => {
       range_id,
       disclaimer_type,
       floor_plan_id,
-      facade_id
+      facade_id,
     } = req.body;
 
     const builderId = req.user?.builder_id;
@@ -169,20 +169,20 @@ exports.createHouseLandPackage = async (req, res) => {
     }
 
     if (lot_id) {
-    const lotCheck = await client.query(
-      `SELECT lot_id FROM lot 
+      const lotCheck = await client.query(
+        `SELECT lot_id FROM lot 
        WHERE lot_id = $1 AND (
          (company_id = $2 AND $2 IS NOT NULL)
          OR (builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [lot_id, companyId, builderId],
-    );
+        [lot_id, companyId, builderId],
+      );
 
-    if (lotCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Lot not found or unauthorized access.");
+      if (lotCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(res, 404, "Lot not found or unauthorized access.");
+      }
     }
-  }
 
     if (dwelling_type_id) {
       const dtCheck = await client.query(
@@ -291,7 +291,7 @@ exports.createHouseLandPackage = async (req, res) => {
         ) RETURNING *
       )
       SELECT np.*,
-      ${getEntitySubqueries('np')},
+      ${getEntitySubqueries("np")},
       (SELECT name FROM users WHERE users_id = np.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(
@@ -364,7 +364,7 @@ exports.createHouseLandPackage = async (req, res) => {
     const finalData = {
       ...result.rows[0],
       price_sum: 0,
-      commission_sum: initialCommissionTotal
+      commission_sum: initialCommissionTotal,
     };
 
     const formattedData = formatHouseLandPackageData(finalData);
@@ -381,9 +381,9 @@ exports.createHouseLandPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getHouseLandPackageDetailedInfo = async (req, res) => {
+export async function getHouseLandPackageDetailedInfo(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -480,9 +480,9 @@ exports.getHouseLandPackageDetailedInfo = async (req, res) => {
       priceDetails: {
         priceType: row.price_type,
         housePrice: houseTotal,
-        landPrice: landPrice,
-        commission: commission,
-        totalPrice: totalPrice,
+        landPrice,
+        commission,
+        totalPrice,
       },
       designDetails: {
         rangeId: row.range_id,
@@ -527,9 +527,9 @@ exports.getHouseLandPackageDetailedInfo = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllHouseLandPackages = async (req, res) => {
+export async function getAllHouseLandPackages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -559,9 +559,9 @@ exports.getAllHouseLandPackages = async (req, res) => {
     const limitNum = parseInt(limit, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    let whereConditions = [];
-    let havingConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const havingConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     // Scope filter
@@ -629,7 +629,7 @@ exports.getAllHouseLandPackages = async (req, res) => {
       }
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
     // Total price filter (exact match on computed total)
     if (total_price) {
@@ -641,7 +641,7 @@ exports.getAllHouseLandPackages = async (req, res) => {
       queryParams.push(`%${total_price}%`);
     }
 
-    const havingClause = havingConditions.length > 0 ? `HAVING ${havingConditions.join(' AND ')}` : '';
+    const havingClause = havingConditions.length > 0 ? `HAVING ${havingConditions.join(" AND ")}` : "";
 
     // Count query with JOINs for filters
     const countResult = await client.query(
@@ -667,7 +667,7 @@ exports.getAllHouseLandPackages = async (req, res) => {
       `SELECT hlp.*,
        COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
        COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
-       ${getEntitySubqueries('hlp')},
+       ${getEntitySubqueries("hlp")},
        (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
        (
           SELECT json_build_object(
@@ -716,7 +716,7 @@ exports.getAllHouseLandPackages = async (req, res) => {
         totalRecords: total,
         currentPage: pageNum,
         limit: limitNum,
-        totalPages: totalPages,
+        totalPages,
       },
     });
   } catch (error) {
@@ -725,9 +725,9 @@ exports.getAllHouseLandPackages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getHouseLandPackageById = async (req, res) => {
+export async function getHouseLandPackageById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -744,7 +744,7 @@ exports.getHouseLandPackageById = async (req, res) => {
       SELECT hlp.*,
       COALESCE((SELECT SUM(total_price) FROM h_l_package_pricelist_item_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as price_sum,
       COALESCE((SELECT SUM(total_commission) FROM h_l_package_commission_map WHERE house_land_package_id = hlp.house_land_package_id), 0) as commission_sum,
-      ${getEntitySubqueries('hlp')},
+      ${getEntitySubqueries("hlp")},
       (SELECT name FROM users WHERE users_id = hlp.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(
@@ -795,9 +795,9 @@ exports.getHouseLandPackageById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateHouseLandPackage = async (req, res) => {
+export async function updateHouseLandPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -897,7 +897,7 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     if (req.body.dwelling_type_id) {
       const dwellingTypeCheck = await client.query(
-        `SELECT dwelling_type_id FROM dwelling_type WHERE dwelling_type_id = $1 AND (company_id = $2 OR builder_id = $3) AND is_active = true LIMIT 1`,
+        "SELECT dwelling_type_id FROM dwelling_type WHERE dwelling_type_id = $1 AND (company_id = $2 OR builder_id = $3) AND is_active = true LIMIT 1",
         [req.body.dwelling_type_id, companyId, builderId],
       );
 
@@ -913,7 +913,7 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     if (req.body.range_id) {
       const rangeCheck = await client.query(
-        `SELECT range_id FROM range WHERE range_id = $1 AND (company_id = $2 OR builder_id = $3) AND is_active = true LIMIT 1`,
+        "SELECT range_id FROM range WHERE range_id = $1 AND (company_id = $2 OR builder_id = $3) AND is_active = true LIMIT 1",
         [req.body.range_id, companyId, builderId],
       );
 
@@ -929,7 +929,7 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     if (req.body.floor_plan_id) {
       const floorPlanCheck = await client.query(
-        `SELECT floor_plan_id FROM floor_plan WHERE floor_plan_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true LIMIT 1`,
+        "SELECT floor_plan_id FROM floor_plan WHERE floor_plan_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true LIMIT 1",
         [req.body.floor_plan_id, companyId, builderId],
       );
 
@@ -945,7 +945,7 @@ exports.updateHouseLandPackage = async (req, res) => {
 
     if (req.body.facade_id) {
       const facadeCheck = await client.query(
-        `SELECT facade_id FROM facade WHERE facade_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true LIMIT 1`,
+        "SELECT facade_id FROM facade WHERE facade_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true LIMIT 1",
         [req.body.facade_id, companyId, builderId],
       );
 
@@ -1003,7 +1003,7 @@ exports.updateHouseLandPackage = async (req, res) => {
     // Validate house_feature_id if provided
     if (req.body.house_feature_id) {
       const houseFeatureCheck = await client.query(
-        `SELECT house_feature_id FROM house_feature WHERE house_feature_id = $1 AND (company_id = $2 OR builder_id = $3) LIMIT 1`,
+        "SELECT house_feature_id FROM house_feature WHERE house_feature_id = $1 AND (company_id = $2 OR builder_id = $3) LIMIT 1",
         [req.body.house_feature_id, companyId, builderId],
       );
 
@@ -1051,7 +1051,7 @@ exports.updateHouseLandPackage = async (req, res) => {
       // If over limit, delete the oldest files from S3
       while (updatedFiles.length > MAX_ATTACH_FILES) {
         const removedFile = updatedFiles.shift();
-        if (removedFile && removedFile.startsWith('http')) {
+        if (removedFile && removedFile.startsWith("http")) {
           try {
             await deleteFromS3(removedFile);
           } catch (err) {
@@ -1080,7 +1080,7 @@ exports.updateHouseLandPackage = async (req, res) => {
         RETURNING *
       )
       SELECT up.*, 
-      ${getEntitySubqueries('up')},
+      ${getEntitySubqueries("up")},
       (SELECT name FROM users WHERE users_id = up.created_by LIMIT 1) AS created_by_name,
       (
          SELECT json_build_object(
@@ -1129,7 +1129,7 @@ exports.updateHouseLandPackage = async (req, res) => {
       ...result.rows[0],
       price_sum: priceSum,
       commission_sum: commissionSum,
-      attach_files: updatedFiles
+      attach_files: updatedFiles,
     };
 
     const formattedData = formatHouseLandPackageData(finalData);
@@ -1140,16 +1140,16 @@ exports.updateHouseLandPackage = async (req, res) => {
       "House land package updated successfully",
     );
 
-} catch (error) {
+  } catch (error) {
     await client.query("ROLLBACK");
     console.error("Update house land package error:", error);
     return errorResponse(res, 500, "Internal server error");
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteHouseLandPackage = async (req, res) => {
+export async function deleteHouseLandPackage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1198,4 +1198,4 @@ exports.deleteHouseLandPackage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

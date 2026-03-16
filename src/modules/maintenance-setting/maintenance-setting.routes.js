@@ -1,23 +1,22 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createMaintenanceSettings,
   updateMaintenanceSettings,
   getUserMaintenanceSettings,
-} = require("./maintenance-setting.controller.js");
-const {
+} from "./maintenance-setting.controller.js";
+import {
   createMaintenanceSettingSchema,
   updateMaintenanceSettingParamsSchema,
   updateMaintenanceSettingSchema,
-} = require("./maintenance-setting.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./maintenance-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,7 +25,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createMaintenanceSettingSchema, REQUEST_SOURCE.BODY),
-  createMaintenanceSettings
+  createMaintenanceSettings,
 );
 
 router.get("/", getUserMaintenanceSettings);
@@ -34,7 +33,7 @@ router.get("/", getUserMaintenanceSettings);
 router.put(
   "/",
   validateRequest(updateMaintenanceSettingSchema, REQUEST_SOURCE.BODY),
-  updateMaintenanceSettings
+  updateMaintenanceSettings,
 );
 
-module.exports = router;
+export default router;

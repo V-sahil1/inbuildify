@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createDocumentFileNamingRule = async (req, res) => {
+export async function createDocumentFileNamingRule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -105,7 +105,7 @@ exports.createDocumentFileNamingRule = async (req, res) => {
     const responseData = {
       ...keysToCamelCase(insertResult.rows[0]),
       folderIds: folder_ids || [],
-      folderNames: folderNames,
+      folderNames,
     };
 
     return successResponse(
@@ -119,9 +119,9 @@ exports.createDocumentFileNamingRule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllDocumentFileNamingRules = async (req, res) => {
+export async function getAllDocumentFileNamingRules(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -197,9 +197,9 @@ exports.getAllDocumentFileNamingRules = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteDocumentFileNamingRule = async (req, res) => {
+export async function deleteDocumentFileNamingRule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -259,9 +259,9 @@ exports.deleteDocumentFileNamingRule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDocumentFileNamingRule = async (req, res) => {
+export async function updateDocumentFileNamingRule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -366,7 +366,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE document_file_naming_rule
@@ -412,7 +412,7 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
     const responseData = {
       ...keysToCamelCase(updatedRule),
       folderIds: updatedRule.folder_ids || [],
-      folderNames: folderNames,
+      folderNames,
     };
 
     return successResponse(
@@ -426,9 +426,9 @@ exports.updateDocumentFileNamingRule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createNamingFormat = async (req, res) => {
+export async function createNamingFormat(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -492,9 +492,9 @@ RETURNING *;
   } finally {
     client.release();
   }
-};
+}
 
-exports.getNamingFormat = async (req, res) => {
+export async function getNamingFormat(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -554,15 +554,15 @@ exports.getNamingFormat = async (req, res) => {
         keysToCamelCase(insertResult.rows[0]),
         "Default naming format created successfully.",
       );
-    } else {
-      await client.query("COMMIT");
-
-      return successResponse(
-        res,
-        keysToCamelCase(result.rows[0]),
-        "Naming format retrieved successfully.",
-      );
     }
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows[0]),
+      "Naming format retrieved successfully.",
+    );
+
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error getting naming format:", err);
@@ -570,4 +570,4 @@ exports.getNamingFormat = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
-exports.createSupplierDocument = async (req, res) => {
+export async function createSupplierDocument(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -163,9 +163,9 @@ exports.createSupplierDocument = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSupplierDocuments = async (req, res) => {
+export async function getAllSupplierDocuments(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -226,9 +226,9 @@ exports.getAllSupplierDocuments = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSupplierDocument = async (req, res) => {
+export async function updateSupplierDocument(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -302,13 +302,15 @@ exports.updateSupplierDocument = async (req, res) => {
 
     const oldData = supplierDocCheck.rows[0];
 
-    let updateQuery = `UPDATE supplier_documents SET `;
+    let updateQuery = "UPDATE supplier_documents SET ";
     const updateValues = [];
     let i = 1;
 
     const updateImageField = async (fieldName, newValue, oldValue) => {
       if (newValue !== null) {
-        if (oldValue) await deleteFromS3(oldValue);
+        if (oldValue) {
+          await deleteFromS3(oldValue);
+        }
         updateQuery += `${fieldName} = $${i}, `;
         updateValues.push(newValue);
         i++;
@@ -366,4 +368,4 @@ exports.updateSupplierDocument = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

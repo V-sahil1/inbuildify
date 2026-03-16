@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const costTypes = ["included", "fixed", "variable"];
 const costOptions = ["none", "tba", "tbc"];
@@ -83,8 +83,8 @@ const createMasterPriceListCategoryItemSchema = Joi.object({
         Joi.number(),
         Joi.boolean(),
         Joi.array().items(Joi.any()),
-        Joi.object()
-      )
+        Joi.object(),
+      ),
     )
     .default({})
     .messages({
@@ -153,7 +153,7 @@ const deleteMasterPriceListCategoryItemSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createMasterPriceListCategoryItemSchema,
   updateMasterPriceListCategoryItemSchema,
   getMasterPriceListCategoryItemsByCategoryIdSchema,

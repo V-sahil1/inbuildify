@@ -1,26 +1,21 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createTask,
-  getAllTasks,
-  deleteTask,
-  updateTask,
-} = require("./task.controller.js");
-const {
+import { createTask, getAllTasks, deleteTask, updateTask } from "./task.controller.js";
+import {
   createTaskSchema,
   getAllTaskSchema,
   deleteTaskSchema,
   updateTaskParamsSchema,
   updateTaskSchema,
-} = require("./task.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
+} from "./task.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -57,4 +52,4 @@ router.put(
   updateTask,
 );
 
-module.exports = router;
+export default router;

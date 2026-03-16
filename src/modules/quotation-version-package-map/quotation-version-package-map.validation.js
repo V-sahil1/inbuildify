@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPackageMapSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
@@ -25,7 +25,7 @@ const deletePackageMapParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPackageMapSchema,
   getPackageMapsByVersionSchema,
   deletePackageMapParamsSchema,

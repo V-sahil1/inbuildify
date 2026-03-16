@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Reusable rules
 const nameRule = Joi.string().min(2).max(100).trim().required().messages({
@@ -119,7 +119,7 @@ const resendOtpSchema = Joi.object({
   email: emailRule,
 });
 
-module.exports = {
+export default {
   registerRootSchema,
   loginUserSchema,
   verifyEmailSchema,

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createJobCommissionSettingSchema = Joi.object({
   define_outgoing_commission: Joi.boolean().default(false),
@@ -17,7 +17,7 @@ const updateJobCommissionSettingSchema = Joi.object({
   define_incoming_commission: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createJobCommissionSettingSchema,
   updateJobCommissionSettingParamsSchema,
   updateJobCommissionSettingSchema,

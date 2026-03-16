@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createTemplateEmailSignatureSchema = Joi.object({
   include_email_signature: Joi.boolean().default(false),
@@ -26,7 +26,7 @@ const updateTemplateEmailSignatureSchema = Joi.object({
   return value;
 }, "Custom logic validation");
 
-module.exports = {
+export default {
   createTemplateEmailSignatureSchema,
   updateTemplateEmailSignatureSchema,
 };

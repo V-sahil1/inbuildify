@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorGroupSchema = Joi.object({
   name: Joi.string()
@@ -82,7 +82,7 @@ const deleteColorGroupSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorGroupSchema,
   getAllColorGroupsSchema,
   getColorGroupByIdSchema,

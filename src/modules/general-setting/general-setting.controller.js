@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createGeneralSetting = async (req, res) => {
+export async function createGeneralSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -105,9 +105,9 @@ exports.createGeneralSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateGeneralSettings = async (req, res) => {
+export async function updateGeneralSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -200,7 +200,7 @@ exports.updateGeneralSettings = async (req, res) => {
     }
 
     if (currentProtection === true && finalProtection === false) {
-      fields.push(`pdf_password = NULL`);
+      fields.push("pdf_password = NULL");
     }
 
     if (round_of_cost !== undefined) {
@@ -256,9 +256,9 @@ exports.updateGeneralSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserGeneralSettings = async (req, res) => {
+export async function getUserGeneralSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -291,4 +291,4 @@ exports.getUserGeneralSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

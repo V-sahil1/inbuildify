@@ -1,19 +1,13 @@
-const getPool = require("../../config/database");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const sendEmail = require("../../helper/sendMail");
-const { upsertCompany } = require("../company/company.service");
-const { seedBuilderDefaults } = require("../../seeder/seed-builder-defaults");
-const {
-  generateOtp,
-  generateAccessToken,
-  generateRefreshToken,
-} = require("../../utils/common");
+import crypto from "crypto";
 
-const { encrypt, decrypt } = require("../../utils/crypto.util");
+import jwt from "jsonwebtoken";
 
-
-
+import getPool from "../../config/database";
+import sendEmail from "../../helper/sendMail";
+import { upsertCompany } from "../company/company.service";
+import { seedBuilderDefaults } from "../../seeder/seed-builder-defaults";
+import { generateOtp, generateAccessToken, generateRefreshToken, decrypt as base64Decrypt } from "../../utils/common";
+import { encrypt, decrypt } from "../../utils/crypto.util";
 
 // REGISTER ROOT USER
 async function registerRoot({ name, email, password, role_id }) {
@@ -25,7 +19,7 @@ async function registerRoot({ name, email, password, role_id }) {
 
     // Check if root already exists
     const rootCheck = await client.query(
-      `SELECT users_id FROM users WHERE LOWER(email) = $1`,
+      "SELECT users_id FROM users WHERE LOWER(email) = $1",
       [lowerEmail],
     );
 
@@ -40,10 +34,9 @@ async function registerRoot({ name, email, password, role_id }) {
 
     // Create builder
     const builderRes = await client.query(
-      `INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id`,
+      "INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id",
       [name, lowerEmail],
     );
-  
 
     const builder_id = builderRes.rows[0].builder_id;
 
@@ -81,7 +74,7 @@ async function registerRoot({ name, email, password, role_id }) {
       email_signature_logo: null,
       company_logo: null,
     };
-    //create and update api 
+    //create and update api
     const companyResult = await upsertCompany(builder_id, defaultCompanyPayload, client);
     const company_id = companyResult?.companyId || null;
 
@@ -252,12 +245,12 @@ async function login({ email, login_id, password }) {
     if (email) {
       const lowerEmail = email.toLowerCase();
       userRes = await client.query(
-        `SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE`,
+        "SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE",
         [lowerEmail],
       );
     } else if (login_id) {
       userRes = await client.query(
-        `SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE`,
+        "SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE",
         [login_id],
       );
     } else {
@@ -288,7 +281,6 @@ async function login({ email, login_id, password }) {
     } catch (decryptError) {
       // Try fallback for old Base64 encryption
       try {
-        const { decrypt: base64Decrypt } = require("../../utils/common");
         decryptedPassword = base64Decrypt(user.password);
       } catch (fallbackError) {
         console.error(
@@ -301,13 +293,13 @@ async function login({ email, login_id, password }) {
     //for wrong password incress failed_attempts count
     if (decryptedPassword !== password) {
       await client.query(
-        `UPDATE users SET failed_attempts = failed_attempts + 1 WHERE users_id = $1`,
+        "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE users_id = $1",
         [user.users_id],
       );
-      //set_locked as true for too many attempt 
+      //set_locked as true for too many attempt
       if (user.failed_attempts + 1 >= 5) {
         await client.query(
-          `UPDATE users SET is_locked = true WHERE users_id = $1`,
+          "UPDATE users SET is_locked = true WHERE users_id = $1",
           [user.users_id],
         );
       }
@@ -317,7 +309,7 @@ async function login({ email, login_id, password }) {
 
     // RESET FAILED ATTEMPTS
     await client.query(
-      `UPDATE users SET failed_attempts = 0 WHERE users_id = $1`,
+      "UPDATE users SET failed_attempts = 0 WHERE users_id = $1",
       [user.users_id],
     );
 
@@ -382,7 +374,7 @@ async function forgotPassword(email) {
     const lowerEmail = email.toLowerCase();
 
     const userRes = await client.query(
-      `SELECT users_id FROM users WHERE LOWER(email) = $1`,
+      "SELECT users_id FROM users WHERE LOWER(email) = $1",
       [lowerEmail],
     );
 
@@ -483,9 +475,7 @@ async function refreshToken(refreshToken) {
   }
 }
 
-
-
-module.exports = {
+export default {
   login,
   registerRoot,
   verifyEmail,

@@ -1,27 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createSupplierType,
   getAllSupplierType,
   deleteSupplierType,
   updateSupplierType,
   toggleActiveStatus,
-} = require("./supplier-type.controller.js");
-const {
+} from "./supplier-type.controller.js";
+import {
   createSuppllierTypeSchema,
   getAllSupllierTypeSchema,
   deleteSupplierTypeSchema,
   updateSupplierTypeParamsSchema,
   updateSupplierTypeSchema,
-} = require("./supplier-type.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./supplier-type.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -57,4 +56,4 @@ router.put(
   validateRequest(updateSupplierTypeParamsSchema, REQUEST_SOURCE.PARAMS),
   toggleActiveStatus,
 );
-module.exports = router;
+export default router;

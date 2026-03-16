@@ -23,8 +23,8 @@ async function seedQuotationSettings({ company_id, builder_id, created_by, clien
       30, 0, $3, $3
     )
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedQuotationSettings };
+export default { seedQuotationSettings };

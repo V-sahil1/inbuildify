@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorItemCustomFieldSchema = Joi.object({
   color_item: Joi.string().uuid().required().messages({
@@ -67,7 +67,7 @@ const updateColorItemCustomFieldSchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-module.exports = {
+export default {
   createColorItemCustomFieldSchema,
   updateColorItemCustomFieldSchema,
 };

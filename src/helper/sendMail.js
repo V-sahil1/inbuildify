@@ -1,4 +1,4 @@
-const nodemailer = require("nodemailer");
+import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
   service: "Gmail",
@@ -14,7 +14,7 @@ const sendEmail = async (to, subject, text) => {
     const linkRegex = /(https?:\/\/[^\s]+)/g;
     const htmlContent = text.replace(
       linkRegex,
-      '<a href="$1" style="color: #007bff; text-decoration: none;">$1</a>',
+      "<a href=\"$1\" style=\"color: #007bff; text-decoration: none;\">$1</a>",
     );
 
     const mailOptions = {
@@ -45,18 +45,18 @@ const sendEmail = async (to, subject, text) => {
         messageId: info.messageId,
         accepted: info.accepted,
       };
-    } else {
-      console.error("Email was not accepted by any recipient");
-      return {
-        success: false,
-        message: "Email was not accepted",
-        info: info.response,
-      };
     }
+    console.error("Email was not accepted by any recipient");
+    return {
+      success: false,
+      message: "Email was not accepted",
+      info: info.response,
+    };
+
   } catch (error) {
     console.error("Error sending email:", error.message);
     throw error;
   }
 };
 
-module.exports = sendEmail;
+export default sendEmail;

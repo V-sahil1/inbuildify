@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createCustomSectionSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
@@ -38,7 +38,7 @@ const customSectionIdParamsSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createCustomSectionSchema,
   getCustomSectionsByVersionSchema,
   updateCustomSectionSchema,

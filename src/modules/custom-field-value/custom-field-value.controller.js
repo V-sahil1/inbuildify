@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createCustomFieldValue = async (req, res) => {
+export async function createCustomFieldValue(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -28,7 +28,7 @@ exports.createCustomFieldValue = async (req, res) => {
        WHERE custom_field_id = $1 
          AND builder_id = $2
          AND company_id = $3`,
-      [custom_field_id, builderId, companyId]
+      [custom_field_id, builderId, companyId],
     );
 
     if (fieldCheck.rowCount === 0) {
@@ -36,7 +36,7 @@ exports.createCustomFieldValue = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Custom field does not exist or does not belong to this builder."
+        "Custom field does not exist or does not belong to this builder.",
       );
     }
 
@@ -48,7 +48,7 @@ exports.createCustomFieldValue = async (req, res) => {
        AND custom_field_id = $2 
        AND is_active = true`,
 
-        [builderId, custom_field_id]
+        [builderId, custom_field_id],
       );
 
       if (customFieldCheck.rowCount === 0) {
@@ -63,7 +63,7 @@ exports.createCustomFieldValue = async (req, res) => {
        WHERE lead_id = $1 
          AND builder_id = $2 
          AND is_deleted = false`,
-      [record_id, builderId]
+      [record_id, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -77,7 +77,7 @@ exports.createCustomFieldValue = async (req, res) => {
        WHERE record_id = $1 
          AND custom_field_id = $2 
          AND builder_id = $3`,
-      [record_id, custom_field_id, builderId]
+      [record_id, custom_field_id, builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -85,7 +85,7 @@ exports.createCustomFieldValue = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Custom field value already exists for this record."
+        "Custom field value already exists for this record.",
       );
     }
 
@@ -135,7 +135,7 @@ exports.createCustomFieldValue = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field value created successfully."
+      "Custom field value created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -143,14 +143,14 @@ exports.createCustomFieldValue = async (req, res) => {
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err?.message || "Internal Server Error"
+      err?.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllCustomFieldValue = async (req, res) => {
+export async function getAllCustomFieldValue(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -208,7 +208,7 @@ exports.getAllCustomFieldValue = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Custom field values fetched successfully."
+      "Custom field values fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching custom field values:", error);
@@ -216,9 +216,9 @@ exports.getAllCustomFieldValue = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteCustomFieldValue = async (req, res) => {
+export async function deleteCustomFieldValue(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -248,7 +248,7 @@ exports.deleteCustomFieldValue = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Custom field value not found or does not belong to this builder."
+        "Custom field value not found or does not belong to this builder.",
       );
     }
 
@@ -263,7 +263,7 @@ exports.deleteCustomFieldValue = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Custom field value deleted successfully."
+      "Custom field value deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -272,9 +272,9 @@ exports.deleteCustomFieldValue = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateCustomFieldValue = async (req, res) => {
+export async function updateCustomFieldValue(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -308,7 +308,7 @@ exports.updateCustomFieldValue = async (req, res) => {
       SELECT * FROM custom_field_value 
       WHERE custom_field_value_id = $1 AND builder_id = $2;
       `,
-      [custom_field_value_id, builderId]
+      [custom_field_value_id, builderId],
     );
 
     if (existingRecord.rowCount === 0) {
@@ -316,7 +316,7 @@ exports.updateCustomFieldValue = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Custom field value not found or does not belong to this builder."
+        "Custom field value not found or does not belong to this builder.",
       );
     }
 
@@ -327,7 +327,7 @@ exports.updateCustomFieldValue = async (req, res) => {
          WHERE custom_field_id = $1 
            AND builder_id = $2
            AND company_id = $3`,
-        [custom_field_id, builderId, companyId]
+        [custom_field_id, builderId, companyId],
       );
 
       if (fieldCheck.rowCount === 0) {
@@ -335,7 +335,7 @@ exports.updateCustomFieldValue = async (req, res) => {
         return errorResponse(
           res,
           404,
-          "Custom field does not exist or does not belong to this builder."
+          "Custom field does not exist or does not belong to this builder.",
         );
       }
 
@@ -345,7 +345,7 @@ exports.updateCustomFieldValue = async (req, res) => {
          WHERE builder_id = $1 
            AND custom_field_id = $2 
            AND is_active = true`,
-        [builderId, custom_field_id]
+        [builderId, custom_field_id],
       );
 
       if (customFieldCheck.rowCount === 0) {
@@ -361,7 +361,7 @@ exports.updateCustomFieldValue = async (req, res) => {
          WHERE lead_id = $1 
            AND builder_id = $2 
            AND is_deleted = false`,
-        [record_id, builderId]
+        [record_id, builderId],
       );
 
       if (leadCheck.rowCount === 0) {
@@ -384,7 +384,7 @@ exports.updateCustomFieldValue = async (req, res) => {
         AND builder_id = $3
         AND custom_field_value_id != $4;
         `,
-        [nextRecordId, nextFieldId, builderId, custom_field_value_id]
+        [nextRecordId, nextFieldId, builderId, custom_field_value_id],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -392,7 +392,7 @@ exports.updateCustomFieldValue = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "This custom_field_id already contains value for this record_id."
+          "This custom_field_id already contains value for this record_id.",
         );
       }
     }
@@ -450,7 +450,7 @@ exports.updateCustomFieldValue = async (req, res) => {
     fields.push(`company_id = $${index++}`);
     values.push(companyId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     if (fields.length === 1) {
       await client.query("ROLLBACK");
@@ -472,7 +472,7 @@ exports.updateCustomFieldValue = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Custom field value updated successfully."
+      "Custom field value updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -481,4 +481,4 @@ exports.updateCustomFieldValue = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

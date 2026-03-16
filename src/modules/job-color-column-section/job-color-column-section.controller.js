@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import { deleteFromS3 } from "../../utils/s3Upload";
 
-exports.createJobColorColumnSection = async (req, res) => {
+export async function createJobColorColumnSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -110,9 +110,9 @@ exports.createJobColorColumnSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getJobColorColumnSections = async (req, res) => {
+export async function getJobColorColumnSections(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -188,9 +188,9 @@ exports.getJobColorColumnSections = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobColorColumnSection = async (req, res) => {
+export async function deleteJobColorColumnSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -278,9 +278,9 @@ exports.deleteJobColorColumnSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobColorColumnSection = async (req, res) => {
+export async function updateJobColorColumnSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -289,7 +289,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
     const companyId = req.user?.company_id;
     const { job_color_column_section_id } = req.params;
 
-    let { section_name, sort_order } = req.body;
+    const { section_name, sort_order } = req.body;
     const attachments = req.body.image ?? req.body.attachments;
 
     if (!job_color_column_section_id) {
@@ -335,7 +335,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
     const existingSection = sectionResult.rows[0];
 
     const oldSortOrder = existingSection.sort_order;
-    let newSortOrder = sort_order;
+    const newSortOrder = sort_order;
 
     if (newSortOrder !== undefined && newSortOrder !== null) {
       const maxSortQuery = `
@@ -441,7 +441,7 @@ exports.updateJobColorColumnSection = async (req, res) => {
       values.push(newSortOrder);
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_color_column_sections
@@ -468,4 +468,4 @@ exports.updateJobColorColumnSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

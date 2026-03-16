@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createPackagePriceListItemMap = async (req, res) => {
+export async function createPackagePriceListItemMap(req, res) {
   const builderId = req.user?.builder_id;
 
   const { package_id, price_list_item_id } = req.body;
@@ -23,7 +23,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
     }
 
     const pkgCheck = await client.query(
-      `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
+      "SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2",
       [package_id, builderId],
     );
 
@@ -37,7 +37,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
     }
 
     const pkgActiveCheck = await client.query(
-      `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true`,
+      "SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true",
       [package_id, builderId],
     );
 
@@ -47,7 +47,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
     }
 
     const itemCheck = await client.query(
-      `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2`,
+      "SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2",
       [price_list_item_id, builderId],
     );
 
@@ -61,7 +61,7 @@ exports.createPackagePriceListItemMap = async (req, res) => {
     }
 
     const itemActiveCheck = await client.query(
-      `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'`,
+      "SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'",
       [price_list_item_id, builderId],
     );
 
@@ -112,9 +112,9 @@ exports.createPackagePriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPackagePriceListItemMap = async (req, res) => {
+export async function getAllPackagePriceListItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -172,9 +172,9 @@ exports.getAllPackagePriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPackagePricelistItemByPackageId = async (req, res) => {
+export async function getPackagePricelistItemByPackageId(req, res) {
   const { package_id } = req.params;
   const builderId = req.user?.builder_id;
 
@@ -224,9 +224,9 @@ exports.getPackagePricelistItemByPackageId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePackagePricelistItemMapMap = async (req, res) => {
+export async function deletePackagePricelistItemMapMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -253,7 +253,7 @@ exports.deletePackagePricelistItemMapMap = async (req, res) => {
       );
     }
 
-    const deleteQuery = `DELETE FROM package_pricelist_item_map WHERE id = $1`;
+    const deleteQuery = "DELETE FROM package_pricelist_item_map WHERE id = $1";
     await client.query(deleteQuery, [id]);
 
     await client.query("COMMIT");
@@ -270,9 +270,9 @@ exports.deletePackagePricelistItemMapMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePackagePriceListItemMap = async (req, res) => {
+export async function updatePackagePriceListItemMap(req, res) {
   const { id } = req.params;
   const builderId = req.user?.builder_id;
 
@@ -320,7 +320,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
 
     if (package_id) {
       const pkgCheck = await client.query(
-        `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2`,
+        "SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2",
         [package_id, builderId],
       );
 
@@ -334,7 +334,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
       }
 
       const pkgActiveCheck = await client.query(
-        `SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true`,
+        "SELECT package_id FROM package WHERE package_id = $1 AND builder_id = $2 AND status = true",
         [package_id, builderId],
       );
 
@@ -350,7 +350,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
 
     if (price_list_item_id) {
       const itemCheck = await client.query(
-        `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2`,
+        "SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2",
         [price_list_item_id, builderId],
       );
 
@@ -364,7 +364,7 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
       }
 
       const itemActiveCheck = await client.query(
-        `SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'`,
+        "SELECT price_list_item_id FROM price_list_item WHERE price_list_item_id = $1 AND builder_id = $2 AND status = 'active'",
         [price_list_item_id, builderId],
       );
 
@@ -432,4 +432,4 @@ exports.updatePackagePriceListItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

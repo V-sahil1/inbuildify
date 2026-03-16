@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSurveyQuestionSchema = Joi.object({
   survey_template_id: Joi.string()
@@ -104,7 +104,7 @@ const updateSurveyTemplateQuestionSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createSurveyQuestionSchema,
   getAllSurveyTemplateQuestionSchema,
   deleteSurveyTemplateQuestionSchema,

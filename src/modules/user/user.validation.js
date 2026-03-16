@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Common rules
 const nameRule = Joi.string()
@@ -159,7 +159,7 @@ const getUsersSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-module.exports = {
+export default {
   createUserSchema,
   updateUserSchema,
   resetPasswordSchema,

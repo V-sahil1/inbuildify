@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllColorItemsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
@@ -375,7 +375,7 @@ const getColorItemsWithoutCategorySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   getAllColorItemsSchema,
   getColorItemsWithoutCategorySchema,
   getColorItemByIdSchema,

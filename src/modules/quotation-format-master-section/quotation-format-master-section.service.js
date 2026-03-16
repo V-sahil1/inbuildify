@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 // ============================================================
 //        MASTER SECTION CRUD OPERATIONS
@@ -17,7 +17,7 @@ async function createMasterSection(currentUser, payload) {
     const builderId = currentUser.builder_id;
 
     const duplicateCheck = await client.query(
-      `SELECT master_section_id FROM master_section WHERE master_name = $1 AND ((company_id = $2 AND company_id IS NOT NULL) OR (builder_id = $3 AND builder_id IS NOT NULL))`,
+      "SELECT master_section_id FROM master_section WHERE master_name = $1 AND ((company_id = $2 AND company_id IS NOT NULL) OR (builder_id = $3 AND builder_id IS NOT NULL))",
       [master_name, companyId, builderId],
     );
 
@@ -30,7 +30,7 @@ async function createMasterSection(currentUser, payload) {
     }
 
     const { rows } = await client.query(
-      `INSERT INTO master_section (company_id, builder_id, master_name, status, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      "INSERT INTO master_section (company_id, builder_id, master_name, status, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
       [
         companyId,
         builderId,
@@ -70,7 +70,7 @@ async function getMasterSections(currentUser, filters = {}) {
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (ms.company_id = $1 OR ms.builder_id = $2)";
-  let values = [userCompanyId, userBuilderId];
+  const values = [userCompanyId, userBuilderId];
   let paramIndex = 3;
 
   if (search) {
@@ -123,7 +123,7 @@ async function getMasterSectionById(currentUser, masterSectionId) {
   const userBuilderId = currentUser.builder_id;
 
   const { rows } = await pool.query(
-    `SELECT ms.master_section_id, ms.company_id, ms.builder_id, ms.master_name, ms.status, ms.created_by, ms.updated_by, ms.created_at, ms.updated_at, cu.name AS created_by_name, uu.name AS updated_by_name, COALESCE(c.name, b.name) AS organization_name FROM master_section ms LEFT JOIN users cu ON cu.users_id = ms.created_by LEFT JOIN users uu ON uu.users_id = ms.updated_by LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE ms.master_section_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+    "SELECT ms.master_section_id, ms.company_id, ms.builder_id, ms.master_name, ms.status, ms.created_by, ms.updated_by, ms.created_at, ms.updated_at, cu.name AS created_by_name, uu.name AS updated_by_name, COALESCE(c.name, b.name) AS organization_name FROM master_section ms LEFT JOIN users cu ON cu.users_id = ms.created_by LEFT JOIN users uu ON uu.users_id = ms.updated_by LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE ms.master_section_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
     [masterSectionId, userCompanyId, userBuilderId],
   );
 
@@ -164,7 +164,7 @@ async function updateMasterSection(currentUser, masterSectionId, payload) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT master_section_id, company_id, builder_id, master_name FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+      "SELECT master_section_id, company_id, builder_id, master_name FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3)",
       [masterSectionId, userCompanyId, userBuilderId],
     );
 
@@ -180,7 +180,7 @@ async function updateMasterSection(currentUser, masterSectionId, payload) {
 
     if (master_name && master_name !== existing.master_name) {
       const duplicateCheck = await client.query(
-        `SELECT master_section_id FROM master_section WHERE master_name = $1 AND master_section_id != $2 AND ((company_id = $3 AND company_id IS NOT NULL) OR (builder_id = $4 AND builder_id IS NOT NULL))`,
+        "SELECT master_section_id FROM master_section WHERE master_name = $1 AND master_section_id != $2 AND ((company_id = $3 AND company_id IS NOT NULL) OR (builder_id = $4 AND builder_id IS NOT NULL))",
         [
           master_name,
           masterSectionId,
@@ -258,7 +258,7 @@ async function deleteMasterSection(currentUser, masterSectionId) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT master_section_id FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+      "SELECT master_section_id FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3)",
       [masterSectionId, userCompanyId, userBuilderId],
     );
 
@@ -305,7 +305,7 @@ async function createMasterSectionHeader(currentUser, payload) {
     const userBuilderId = currentUser.builder_id;
 
     const masterSectionCheck = await client.query(
-      `SELECT master_section_id, company_id, builder_id FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true`,
+      "SELECT master_section_id, company_id, builder_id FROM master_section WHERE master_section_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true",
       [master_section, userCompanyId, userBuilderId],
     );
 
@@ -330,13 +330,13 @@ async function createMasterSectionHeader(currentUser, payload) {
     let sortOrder = sort_order;
     if (sortOrder === undefined || sortOrder === null) {
       const maxSortOrder = await client.query(
-        `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort_order FROM master_section_header WHERE master_section = $1`,
+        "SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort_order FROM master_section_header WHERE master_section = $1",
         [master_section],
       );
       sortOrder = maxSortOrder.rows[0].next_sort_order;
     } else {
       const maxAllowedQuery = await client.query(
-        `SELECT COUNT(*)::int as total_headers FROM master_section_header WHERE master_section = $1`,
+        "SELECT COUNT(*)::int as total_headers FROM master_section_header WHERE master_section = $1",
         [master_section],
       );
       const maxAllowed = maxAllowedQuery.rows[0].total_headers + 1;
@@ -360,7 +360,7 @@ async function createMasterSectionHeader(currentUser, payload) {
     }
 
     const { rows } = await client.query(
-      `INSERT INTO master_section_header (master_section, heading_name, effective_start_date, effective_end_date, sort_order, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      "INSERT INTO master_section_header (master_section, heading_name, effective_start_date, effective_end_date, sort_order, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
       [
         master_section,
         heading_name,
@@ -400,7 +400,7 @@ async function getMasterSectionHeaders(currentUser, filters = {}) {
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (ms.company_id = $1 OR ms.builder_id = $2)";
-  let values = [userCompanyId, userBuilderId];
+  const values = [userCompanyId, userBuilderId];
   let paramIndex = 3;
 
   if (master_section) {
@@ -457,7 +457,7 @@ async function getMasterSectionHeaderById(currentUser, headerId) {
   const userBuilderId = currentUser.builder_id;
 
   const { rows } = await pool.query(
-    `SELECT msh.master_section_header_id, msh.master_section, msh.heading_name, msh.effective_start_date, msh.effective_end_date, msh.sort_order, msh.status, msh.created_at, msh.updated_at, ms.master_name, COALESCE(c.name, b.name) AS organization_name FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+    "SELECT msh.master_section_header_id, msh.master_section, msh.heading_name, msh.effective_start_date, msh.effective_end_date, msh.sort_order, msh.status, msh.created_at, msh.updated_at, ms.master_name, COALESCE(c.name, b.name) AS organization_name FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
     [headerId, userCompanyId, userBuilderId],
   );
 
@@ -502,7 +502,7 @@ async function updateMasterSectionHeader(currentUser, headerId, payload) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT msh.master_section_header_id, msh.master_section, msh.heading_name, msh.sort_order, ms.company_id, ms.builder_id FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+      "SELECT msh.master_section_header_id, msh.master_section, msh.heading_name, msh.sort_order, ms.company_id, ms.builder_id FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
       [headerId, userCompanyId, userBuilderId],
     );
 
@@ -550,7 +550,7 @@ async function updateMasterSectionHeader(currentUser, headerId, payload) {
 
     if (sort_order !== undefined) {
       const maxAllowedQuery = await client.query(
-        `SELECT COUNT(*)::int as total_headers FROM master_section_header WHERE master_section = $1`,
+        "SELECT COUNT(*)::int as total_headers FROM master_section_header WHERE master_section = $1",
         [masterSectionId],
       );
       const maxAllowed = maxAllowedQuery.rows[0].total_headers;
@@ -580,18 +580,18 @@ async function updateMasterSectionHeader(currentUser, headerId, payload) {
 
     if (sort_order !== undefined && sort_order !== existingSortOrder) {
       await client.query(
-        `UPDATE master_section_header SET sort_order = 999999 WHERE master_section_header_id = $1`,
+        "UPDATE master_section_header SET sort_order = 999999 WHERE master_section_header_id = $1",
         [headerId],
       );
 
       if (sort_order > existingSortOrder) {
         await client.query(
-          `UPDATE master_section_header SET sort_order = sort_order - 1 WHERE master_section = $1 AND sort_order > $2 AND sort_order <= $3`,
+          "UPDATE master_section_header SET sort_order = sort_order - 1 WHERE master_section = $1 AND sort_order > $2 AND sort_order <= $3",
           [masterSectionId, existingSortOrder, sort_order],
         );
       } else {
         await client.query(
-          `UPDATE master_section_header SET sort_order = sort_order + 1 WHERE master_section = $1 AND sort_order >= $2 AND sort_order < $3`,
+          "UPDATE master_section_header SET sort_order = sort_order + 1 WHERE master_section = $1 AND sort_order >= $2 AND sort_order < $3",
           [masterSectionId, sort_order, existingSortOrder],
         );
       }
@@ -633,7 +633,7 @@ async function deleteMasterSectionHeader(currentUser, headerId) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT msh.master_section_header_id, msh.master_section, msh.sort_order FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+      "SELECT msh.master_section_header_id, msh.master_section, msh.sort_order FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
       [headerId, userCompanyId, userBuilderId],
     );
 
@@ -696,7 +696,7 @@ async function createMasterSectionItem(currentUser, payload) {
     const userBuilderId = currentUser.builder_id;
 
     const headerCheck = await client.query(
-      `SELECT msh.master_section_header_id, ms.company_id, ms.builder_id FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+      "SELECT msh.master_section_header_id, ms.company_id, ms.builder_id FROM master_section_header msh INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msh.master_section_header_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
       [master_section_header_id, userCompanyId, userBuilderId],
     );
 
@@ -722,13 +722,13 @@ async function createMasterSectionItem(currentUser, payload) {
     let sortOrder = sort_order;
     if (sortOrder === undefined || sortOrder === null) {
       const maxSortOrder = await client.query(
-        `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort_order FROM master_section_item WHERE master_section_header_id = $1`,
+        "SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort_order FROM master_section_item WHERE master_section_header_id = $1",
         [master_section_header_id],
       );
       sortOrder = maxSortOrder.rows[0].next_sort_order;
     } else {
       const maxAllowedQuery = await client.query(
-        `SELECT COUNT(*)::int as total_items FROM master_section_item WHERE master_section_header_id = $1`,
+        "SELECT COUNT(*)::int as total_items FROM master_section_item WHERE master_section_header_id = $1",
         [master_section_header_id],
       );
       const maxAllowed = maxAllowedQuery.rows[0].total_items + 1;
@@ -755,7 +755,7 @@ async function createMasterSectionItem(currentUser, payload) {
     }
 
     const { rows } = await client.query(
-      `INSERT INTO master_section_item (master_section_header_id, item_name, effective_start_date, effective_end_date, sort_order, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      "INSERT INTO master_section_item (master_section_header_id, item_name, effective_start_date, effective_end_date, sort_order, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
       [
         master_section_header_id,
         item_name,
@@ -801,7 +801,7 @@ async function getMasterSectionItems(currentUser, filters = {}) {
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (ms.company_id = $1 OR ms.builder_id = $2)";
-  let values = [userCompanyId, userBuilderId];
+  const values = [userCompanyId, userBuilderId];
   let paramIndex = 3;
 
   if (master_section_header_id) {
@@ -859,7 +859,7 @@ async function getMasterSectionItemById(currentUser, itemId) {
   const userBuilderId = currentUser.builder_id;
 
   const { rows } = await pool.query(
-    `SELECT msi.master_section_item_id, msi.master_section_header_id, msi.item_name, msi.effective_start_date, msi.effective_end_date, msi.sort_order, msi.status, msi.created_at, msi.updated_at, msh.heading_name, ms.master_name, COALESCE(c.name, b.name) AS organization_name FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+    "SELECT msi.master_section_item_id, msi.master_section_header_id, msi.item_name, msi.effective_start_date, msi.effective_end_date, msi.sort_order, msi.status, msi.created_at, msi.updated_at, msh.heading_name, ms.master_name, COALESCE(c.name, b.name) AS organization_name FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section LEFT JOIN company c ON c.company_id = ms.company_id LEFT JOIN builder b ON b.builder_id = ms.builder_id WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
     [itemId, userCompanyId, userBuilderId],
   );
 
@@ -905,7 +905,7 @@ async function updateMasterSectionItem(currentUser, itemId, payload) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT msi.master_section_item_id, msi.item_name, ms.company_id, ms.builder_id FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+      "SELECT msi.master_section_item_id, msi.item_name, ms.company_id, ms.builder_id FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
       [itemId, userCompanyId, userBuilderId],
     );
 
@@ -949,7 +949,7 @@ async function updateMasterSectionItem(currentUser, itemId, payload) {
 
     if (sort_order !== undefined) {
       const currentItemQuery = await client.query(
-        `SELECT msi.sort_order, msi.master_section_header_id FROM master_section_item msi WHERE msi.master_section_item_id = $1`,
+        "SELECT msi.sort_order, msi.master_section_header_id FROM master_section_item msi WHERE msi.master_section_item_id = $1",
         [itemId],
       );
 
@@ -1024,7 +1024,7 @@ async function deleteMasterSectionItem(currentUser, itemId) {
     const userBuilderId = currentUser.builder_id;
 
     const existingCheck = await client.query(
-      `SELECT msi.master_section_item_id, msi.master_section_header_id, msi.sort_order FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)`,
+      "SELECT msi.master_section_item_id, msi.master_section_header_id, msi.sort_order FROM master_section_item msi INNER JOIN master_section_header msh ON msh.master_section_header_id = msi.master_section_header_id INNER JOIN master_section ms ON ms.master_section_id = msh.master_section WHERE msi.master_section_item_id = $1 AND (ms.company_id = $2 OR ms.builder_id = $3)",
       [itemId, userCompanyId, userBuilderId],
     );
 
@@ -1065,7 +1065,7 @@ async function deleteMasterSectionItem(currentUser, itemId) {
   }
 }
 
-module.exports = {
+export default {
   // Master Section
   createMasterSection,
   getMasterSections,

@@ -1,19 +1,18 @@
-const {
+import {
   getSettingsService,
   upsertSettingsService,
   getOhsListService,
   createOhsListItemService,
   updateOhsListItemService,
   deleteOhsListItemService,
-} = require("./construction-ohs.service");
-
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+} from "./construction-ohs.service";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 /* -----------------------------
    GET Settings
 ------------------------------ */
-exports.getOhsSettings = async (req, res) => {
+export async function getOhsSettings(req, res) {
   try {
     const user = req.user;
 
@@ -23,12 +22,12 @@ exports.getOhsSettings = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}
 
 /* -----------------------------
    UPSERT Settings
 ------------------------------ */
-exports.upsertOhsSettings = async (req, res) => {
+export async function upsertOhsSettings(req, res) {
   try {
     const user = req.user;
 
@@ -38,12 +37,12 @@ exports.upsertOhsSettings = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}
 
 /* -----------------------------
    LIST items
 ------------------------------ */
-exports.getOhsList = async (req, res) => {
+export async function getOhsList(req, res) {
   try {
     const user = req.user;
     const filters = req.query; // Get query parameters for filtering
@@ -54,12 +53,12 @@ exports.getOhsList = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}
 
 /* -----------------------------
    CREATE list item
 ------------------------------ */
-exports.createOhsListItem = async (req, res) => {
+export async function createOhsListItem(req, res) {
   try {
     const user = req.user;
 
@@ -69,12 +68,12 @@ exports.createOhsListItem = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}
 
 /* -----------------------------
    UPDATE list item
 ------------------------------ */
-exports.updateOhsListItem = async (req, res) => {
+export async function updateOhsListItem(req, res) {
   try {
     const user = req.user;
     const { id } = req.params;
@@ -85,12 +84,12 @@ exports.updateOhsListItem = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}
 
 /* -----------------------------
    DELETE list item
 ------------------------------ */
-exports.deleteOhsListItem = async (req, res) => {
+export async function deleteOhsListItem(req, res) {
   try {
     const user = req.user;
     const { id } = req.params;
@@ -101,4 +100,4 @@ exports.deleteOhsListItem = async (req, res) => {
   } catch (e) {
     return errorResponse(res, 400, e.message);
   }
-};
+}

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createDrive = async (req, res) => {
+export async function createDrive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -23,7 +23,7 @@ exports.createDrive = async (req, res) => {
       SELECT drive_id FROM drive 
       WHERE name = $1 AND (company_id = $2 OR builder_id = $3)
       `,
-      [name, company_id, builder_id]
+      [name, company_id, builder_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -47,14 +47,14 @@ exports.createDrive = async (req, res) => {
         builder_id || null,
         name,
         user_id,
-        user_id
-      ]
+        user_id,
+      ],
     );
 
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Drive created successfully"
+      "Drive created successfully",
     );
   } catch (error) {
     console.error("Error creating drive:", error);
@@ -62,9 +62,9 @@ exports.createDrive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getDrives = async (req, res) => {
+export async function getDrives(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -86,7 +86,7 @@ exports.getDrives = async (req, res) => {
       FROM drive d
       WHERE d.company_id = $1 OR d.builder_id = $2
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     const total = parseInt(countResult.rows[0].total);
@@ -104,12 +104,12 @@ exports.getDrives = async (req, res) => {
       ORDER BY d.created_at DESC
       LIMIT $3 OFFSET $4
       `,
-      [company_id, builder_id, limitNum, offset]
+      [company_id, builder_id, limitNum, offset],
     );
 
     const paginationInfo = {
       currentPage: pageNum,
-      totalPages: totalPages,
+      totalPages,
       totalItems: total,
       itemsPerPage: limitNum,
     };
@@ -118,9 +118,9 @@ exports.getDrives = async (req, res) => {
       res,
       {
         drives: keysToCamelCase(result.rows),
-        pagination: paginationInfo
+        pagination: paginationInfo,
       },
-      "Drives fetched successfully"
+      "Drives fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching drives:", error);
@@ -128,9 +128,9 @@ exports.getDrives = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getDriveById = async (req, res) => {
+export async function getDriveById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -152,7 +152,7 @@ exports.getDriveById = async (req, res) => {
       LEFT JOIN users u ON u.users_id = d.created_by
       WHERE d.drive_id = $1 AND (d.company_id = $2 OR d.builder_id = $3)
       `,
-      [drive_id, company_id, builder_id]
+      [drive_id, company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -162,7 +162,7 @@ exports.getDriveById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Drive fetched successfully"
+      "Drive fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching drive:", error);
@@ -170,9 +170,9 @@ exports.getDriveById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateDrive = async (req, res) => {
+export async function updateDrive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -194,7 +194,7 @@ exports.updateDrive = async (req, res) => {
       SELECT drive_id FROM drive 
       WHERE drive_id = $1 AND (company_id = $2 OR builder_id = $3)
       `,
-      [drive_id, company_id, builder_id]
+      [drive_id, company_id, builder_id],
     );
 
     if (checkResult.rowCount === 0) {
@@ -206,7 +206,7 @@ exports.updateDrive = async (req, res) => {
       SELECT drive_id FROM drive 
       WHERE name = $1 AND (company_id = $2 OR builder_id = $3) AND drive_id != $4
       `,
-      [name, company_id, builder_id, drive_id]
+      [name, company_id, builder_id, drive_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -220,13 +220,13 @@ exports.updateDrive = async (req, res) => {
       WHERE drive_id = $3
       RETURNING *
       `,
-      [name, user_id, drive_id]
+      [name, user_id, drive_id],
     );
 
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Drive updated successfully"
+      "Drive updated successfully",
     );
   } catch (error) {
     console.error("Error updating drive:", error);
@@ -234,9 +234,9 @@ exports.updateDrive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteDrive = async (req, res) => {
+export async function deleteDrive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -253,7 +253,7 @@ exports.deleteDrive = async (req, res) => {
       SELECT drive_id FROM drive 
       WHERE drive_id = $1 AND (company_id = $2 OR builder_id = $3)
       `,
-      [drive_id, company_id, builder_id]
+      [drive_id, company_id, builder_id],
     );
 
     if (checkResult.rowCount === 0) {
@@ -265,13 +265,13 @@ exports.deleteDrive = async (req, res) => {
       DELETE FROM drive 
       WHERE drive_id = $1
       `,
-      [drive_id]
+      [drive_id],
     );
 
     return successResponse(
       res,
       null,
-      "Drive deleted successfully"
+      "Drive deleted successfully",
     );
   } catch (error) {
     console.error("Error deleting drive:", error);
@@ -279,4 +279,4 @@ exports.deleteDrive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

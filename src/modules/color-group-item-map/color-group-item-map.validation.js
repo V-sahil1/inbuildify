@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createColorGroupItemMapSchema = Joi.object({
   color_group_id: Joi.string().uuid().required().messages({
@@ -43,7 +43,7 @@ const deleteColorGroupItemMapSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorGroupItemMapSchema,
   getAllColorGroupItemMapsSchema,
   deleteColorGroupItemMapSchema,

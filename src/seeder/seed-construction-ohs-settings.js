@@ -7,7 +7,7 @@ async function seedConstructionOhsSettings({ company_id, builder_id, created_by,
     `SELECT construction_ohs_settings_id FROM construction_ohs_settings
      WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL)
      LIMIT 1`,
-    [company_id, builder_id]
+    [company_id, builder_id],
   );
 
   if (existing.rowCount === 0) {
@@ -17,9 +17,9 @@ async function seedConstructionOhsSettings({ company_id, builder_id, created_by,
         signature_required, minimum_audits,
         created_by, updated_by
       ) VALUES ($1, $2, false, 0, $3, $3)`,
-      [company_id, builder_id, created_by]
+      [company_id, builder_id, created_by],
     );
   }
 }
 
-module.exports = { seedConstructionOhsSettings };
+export default { seedConstructionOhsSettings };

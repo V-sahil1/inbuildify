@@ -1,24 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createHouseFeature,
   getAllHouseFeatures,
   getHouseFeatureById,
   updateHouseFeature,
   deleteHouseFeature,
-} = require("./house-feature.controller");
-const {
+} from "./house-feature.controller";
+import {
   createHouseFeatureSchema,
   updateHouseFeatureSchema,
   getHouseFeatureByIdSchema,
   deleteHouseFeatureSchema,
   getAllHouseFeaturesSchema,
-} = require("./house-feature.validation");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
+} from "./house-feature.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
 
 router.post(
   "/",
@@ -63,4 +65,4 @@ router.delete(
   deleteHouseFeature,
 );
 
-module.exports = router;
+export default router;

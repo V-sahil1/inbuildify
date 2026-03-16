@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createFunctionalitySchema = Joi.object({
   screen_id: Joi.string().uuid().required().messages({
@@ -53,7 +53,7 @@ const getFunctionalitiesByScreenSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createFunctionalitySchema,
   getFunctionalitiesSchema,
   deleteFunctionalitySchema,

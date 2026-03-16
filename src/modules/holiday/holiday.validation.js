@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createHolidaySchema = Joi.object({
   state: Joi.array()
@@ -91,7 +91,8 @@ const updateHolidaySchema = Joi.object({
     .optional(),
   status: Joi.boolean().optional(),
 });
-module.exports = {
+
+export default {
   createHolidaySchema,
   getAllHolidaySchema,
   deleteHolidaySchema,

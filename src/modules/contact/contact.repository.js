@@ -1,22 +1,22 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 /* ============================================================
         GET CONTACT LIST (pagination + search)
   ============================================================ */
 async function getContacts({ builderId, search, is_active }) {
   const pool = getPool();
-  let whereConditions = [];
-  let queryParams = [];
+  const whereConditions = [];
+  const queryParams = [];
   let paramIndex = 1;
 
   // Build WHERE conditions
   whereConditions.push(`u.builder_id = $${paramIndex++}`);
   queryParams.push(builderId);
 
-  whereConditions.push(`u.is_deleted = FALSE`);
+  whereConditions.push("u.is_deleted = FALSE");
 
-  whereConditions.push(`LOWER(r.name) = 'contact'`);
+  whereConditions.push("LOWER(r.name) = 'contact'");
 
   if (search) {
     whereConditions.push(`(
@@ -212,7 +212,9 @@ async function updateContact(contactId, data) {
   try {
     const keys = Object.keys(data).filter((k) => data[k] !== undefined);
 
-    if (keys.length === 0) return;
+    if (keys.length === 0) {
+      return;
+    }
 
     let index = 1;
     const setClauses = keys.map((k) => `${k} = $${index++}`);
@@ -281,7 +283,7 @@ async function softDeleteContact(contactId) {
   );
 }
 
-module.exports = {
+export default {
   getContacts,
   getContactById,
   createContact,

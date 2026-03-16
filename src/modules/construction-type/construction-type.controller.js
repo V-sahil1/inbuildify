@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createConstructionType = async (req, res) => {
+export async function createConstructionType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -21,7 +21,7 @@ exports.createConstructionType = async (req, res) => {
 
     if (builder) {
       const builderCheck = await client.query(
-        `SELECT builder_id FROM builder WHERE builder_id = $1`,
+        "SELECT builder_id FROM builder WHERE builder_id = $1",
         [builder],
       );
       if (builderCheck.rowCount === 0) {
@@ -51,7 +51,9 @@ exports.createConstructionType = async (req, res) => {
       );
     }
 
-    if (sort_order == null) sort_order = 1;
+    if (sort_order == null) {
+      sort_order = 1;
+    }
 
     const {
       rows: [{ max_sort_order }],
@@ -188,9 +190,9 @@ GROUP BY ct.construction_type_id, b.builder_id;
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionTypes = async (req, res) => {
+export async function getAllConstructionTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -202,10 +204,10 @@ exports.getAllConstructionTypes = async (req, res) => {
     let values = [];
 
     if (builder) {
-      whereClause = `WHERE ct.builder = $1 AND ct.builder_id = $2`;
+      whereClause = "WHERE ct.builder = $1 AND ct.builder_id = $2";
       values = [builder, loggedInBuilderId];
     } else {
-      whereClause = `WHERE ct.builder_id = $1`;
+      whereClause = "WHERE ct.builder_id = $1";
       values = [loggedInBuilderId];
     }
 
@@ -260,9 +262,9 @@ exports.getAllConstructionTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionType = async (req, res) => {
+export async function deleteConstructionType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -328,9 +330,9 @@ exports.deleteConstructionType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionType = async (req, res) => {
+export async function updateConstructionType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -344,7 +346,7 @@ exports.updateConstructionType = async (req, res) => {
       return errorResponse(res, 400, "construction_type_id is required.");
     }
 
-    let { types_name, start_construction_days, sort_order, dwelling_type } =
+    const { types_name, start_construction_days, sort_order, dwelling_type } =
       req.body;
 
     const existingResult = await client.query(
@@ -514,7 +516,7 @@ exports.updateConstructionType = async (req, res) => {
 
     updateFields.push(`updated_by = $${idx++}`);
     updateValues.push(userId);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `
@@ -573,4 +575,4 @@ exports.updateConstructionType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,14 +1,15 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-const { getJobProcessStageFunctionalities } = require("./job-process-stage-functionality.controller");
+import { getJobProcessStageFunctionalities } from "./job-process-stage-functionality.controller";
 
 router.get("/", getJobProcessStageFunctionalities);
 
-module.exports = router;
+export default router;

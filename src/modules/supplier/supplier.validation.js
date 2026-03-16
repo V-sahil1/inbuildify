@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSupplierSchema = Joi.object({
   supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
@@ -293,7 +293,8 @@ const updateSupplierSchema = Joi.object({
     .allow(null, "")
     .optional(),
 });
-module.exports = {
+
+export default {
   createSupplierSchema,
   getAllSupplierSchema,
   deleteSupplierSchema,

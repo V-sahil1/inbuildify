@@ -3,30 +3,30 @@
  * Called from registerRoot in auth.service.js within the same transaction.
  */
 
-const { seedGeneralSettings } = require("./seed-general-settings");
-const { seedSalesModuleSettings } = require("./seed-sales-module-settings");
-const { seedQuotationSettings } = require("./seed-quotation-settings");
-const { seedHouseLandPackageSettings } = require("./seed-house-land-package-settings");
-const { seedJobSettings } = require("./seed-job-settings");
-const { seedJobColorSettings } = require("./seed-job-color-settings");
-const { seedJobWorkflowSettings } = require("./seed-job-workflow-settings");
-const { seedJobInvoiceSettings } = require("./seed-job-invoice-settings");
-const { seedJobVariationSettings } = require("./seed-job-variation-settings");
-const { seedJobCommissionSettings } = require("./seed-job-commission-settings");
-const { seedMaintenanceSettings } = require("./seed-maintenance-settings");
-const { seedConstructionSettings } = require("./seed-construction-settings");
-const { seedPasswordPolicy } = require("./seed-password-policy");
-const { seedPortalSettings } = require("./seed-portal-settings");
-const { seedIntegrationSettings } = require("./seed-integration-settings");
-const { seedTemplateEmailSignature } = require("./seed-template-email-signature");
-const { seedSchedulerSettings } = require("./seed-scheduler-settings");
-const { seedConstructionEtsRecharge } = require("./seed-construction-ets-recharge");
-const { seedConstructionOhsSettings } = require("./seed-construction-ohs-settings");
-const { seedRecalculateDate } = require("./seed-recalculate-date");
-const { seedDocumentFolderMapping } = require("./seed-document-folder-mapping");
-const { seedDocumentFileNamingFormat } = require("./seed-document-file-naming-format");
-const { seedTemplateEmail } = require("./seed-template-email");
-const { seedInitialPdfTemplates } = require("./template-pdf.seed");
+import { seedGeneralSettings } from "./seed-general-settings";
+import { seedSalesModuleSettings } from "./seed-sales-module-settings";
+import { seedQuotationSettings } from "./seed-quotation-settings";
+import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings";
+import { seedJobSettings } from "./seed-job-settings";
+import { seedJobColorSettings } from "./seed-job-color-settings";
+import { seedJobWorkflowSettings } from "./seed-job-workflow-settings";
+import { seedJobInvoiceSettings } from "./seed-job-invoice-settings";
+import { seedJobVariationSettings } from "./seed-job-variation-settings";
+import { seedJobCommissionSettings } from "./seed-job-commission-settings";
+import { seedMaintenanceSettings } from "./seed-maintenance-settings";
+import { seedConstructionSettings } from "./seed-construction-settings";
+import { seedPasswordPolicy } from "./seed-password-policy";
+import { seedPortalSettings } from "./seed-portal-settings";
+import { seedIntegrationSettings } from "./seed-integration-settings";
+import { seedTemplateEmailSignature } from "./seed-template-email-signature";
+import { seedSchedulerSettings } from "./seed-scheduler-settings";
+import { seedConstructionEtsRecharge } from "./seed-construction-ets-recharge";
+import { seedConstructionOhsSettings } from "./seed-construction-ohs-settings";
+import { seedRecalculateDate } from "./seed-recalculate-date";
+import { seedDocumentFolderMapping } from "./seed-document-folder-mapping";
+import { seedDocumentFileNamingFormat } from "./seed-document-file-naming-format";
+import { seedTemplateEmail } from "./seed-template-email";
+import { seedInitialPdfTemplates } from "./template-pdf.seed";
 
 /**
  * Seeds all default settings for a newly registered builder.
@@ -118,4 +118,4 @@ async function seedBuilderDefaults({ company_id, builder_id, created_by, client 
   console.log("✅ All default settings seeded for builder:", builder_id);
 }
 
-module.exports = { seedBuilderDefaults };
+export default { seedBuilderDefaults };

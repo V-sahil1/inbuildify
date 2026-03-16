@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createScreen = async (req, res) => {
+export async function createScreen(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -27,7 +27,7 @@ exports.createScreen = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Screen with the same name already exists"
+        "Screen with the same name already exists",
       );
     }
 
@@ -48,7 +48,7 @@ exports.createScreen = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Screen created successfully."
+      "Screen created successfully.",
     );
   } catch (error) {
     console.error("Error creating screen:", error);
@@ -56,9 +56,9 @@ exports.createScreen = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getScreens = async (req, res) => {
+export async function getScreens(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -74,7 +74,7 @@ exports.getScreens = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(dataResult.rows),
-      "Screens fetched successfully."
+      "Screens fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching screens:", error);
@@ -82,9 +82,9 @@ exports.getScreens = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteScreen = async (req, res) => {
+export async function deleteScreen(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -106,7 +106,7 @@ exports.deleteScreen = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Screen not found or you are not authorized to delete this screen"
+        "Screen not found or you are not authorized to delete this screen",
       );
     }
 
@@ -124,9 +124,9 @@ exports.deleteScreen = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateScreen = async (req, res) => {
+export async function updateScreen(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -149,7 +149,7 @@ exports.updateScreen = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Screen not found or you are not authorized to update this screen"
+        "Screen not found or you are not authorized to update this screen",
       );
     }
 
@@ -171,7 +171,7 @@ exports.updateScreen = async (req, res) => {
       res,
       result.rows[0],
       "Screen updated successfully.",
-      200
+      200,
     );
   } catch (error) {
     console.error("Error updating screen:", error);
@@ -180,7 +180,7 @@ exports.updateScreen = async (req, res) => {
       return errorResponse(
         res,
         409,
-        "Screen with this name already exists for this builder/company."
+        "Screen with this name already exists for this builder/company.",
       );
     }
 
@@ -188,4 +188,4 @@ exports.updateScreen = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

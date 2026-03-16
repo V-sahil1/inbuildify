@@ -1,28 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createTemplateEmail,
   updateTemplateEmail,
   deleteTemplateEmail,
   updateTemplateEmailIsActive,
-  getTemplateEmails
-} = require("./template-email.controller.js");
-const {
+  getTemplateEmails,
+} from "./template-email.controller.js";
+import {
   createTemplateEmailSchema,
   getAllTemplateEmailSchema,
   updateTemplateEmailParamsSchema,
   updateTemplateEmailSchem,
   deleteTemplateEmailSchema,
   updateTemplateEmailIsActiveSchema,
-} = require("./template-email.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./template-email.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,30 +30,30 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createTemplateEmailSchema, REQUEST_SOURCE.BODY),
-  createTemplateEmail
+  createTemplateEmail,
 );
 
 router.get(
   "/",
-  getTemplateEmails
+  getTemplateEmails,
 );
 
 router.put(
   "/:id",
   validateRequest(updateTemplateEmailParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateTemplateEmailSchem, REQUEST_SOURCE.BODY),
-  updateTemplateEmail
+  updateTemplateEmail,
 );
 
 router.delete(
   "/:template_email_id",
   validateRequest(deleteTemplateEmailSchema, REQUEST_SOURCE.PARAMS),
-  deleteTemplateEmail
+  deleteTemplateEmail,
 );
 
 router.put(
   "/is-active/:id",
   validateRequest(updateTemplateEmailParamsSchema, REQUEST_SOURCE.PARAMS),
-  updateTemplateEmailIsActive
+  updateTemplateEmailIsActive,
 );
-module.exports = router;
+export default router;

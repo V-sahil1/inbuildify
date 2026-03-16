@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.getAllComplianceTypes = async (req, res) => {
+export async function getAllComplianceTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -18,7 +18,7 @@ exports.getAllComplianceTypes = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Compliance types fetched successfully."
+      "Compliance types fetched successfully.",
     );
   } catch (error) {
     console.error("Get All Compliance Types Error:", error);
@@ -26,4 +26,4 @@ exports.getAllComplianceTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

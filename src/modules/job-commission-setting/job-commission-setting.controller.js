@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
-exports.createJobCommissionSettings = async (req, res) => {
+export async function createJobCommissionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -21,7 +21,7 @@ exports.createJobCommissionSettings = async (req, res) => {
         FROM job_commission_settings
         WHERE builder_id = $1 OR company_id = $2
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rows.length > 0) {
@@ -29,7 +29,7 @@ exports.createJobCommissionSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Commission settings already exist for this builder or company."
+        "Commission settings already exist for this builder or company.",
       );
     }
 
@@ -59,7 +59,7 @@ exports.createJobCommissionSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job commission settings created successfully."
+      "Job commission settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -68,9 +68,9 @@ exports.createJobCommissionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobCommissionSettings = async (req, res) => {
+export async function updateJobCommissionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -83,7 +83,7 @@ exports.updateJobCommissionSettings = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -100,7 +100,7 @@ exports.updateJobCommissionSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No commission setting found for this user."
+        "No commission setting found for this user.",
       );
     }
 
@@ -125,7 +125,7 @@ exports.updateJobCommissionSettings = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_commission_settings 
@@ -145,7 +145,7 @@ exports.updateJobCommissionSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Job commission settings updated successfully."
+      "Job commission settings updated successfully.",
     );
   } catch (err) {
     console.error("Error updating job commission settings:", err);
@@ -153,9 +153,9 @@ exports.updateJobCommissionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobCommissionSettings = async (req, res) => {
+export async function getUserJobCommissionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -170,7 +170,7 @@ exports.getUserJobCommissionSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -185,14 +185,14 @@ exports.getUserJobCommissionSettings = async (req, res) => {
         VALUES ($1, $2, $3, $3)
         RETURNING define_outgoing_commission, define_incoming_commission;
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job commission settings fetched successfully"
+      "Job commission settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching job commission settings:", error);
@@ -200,4 +200,4 @@ exports.getUserJobCommissionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const validConditions = ["site_fall", "land_size", "corner_block", "land_fill"];
 
@@ -46,12 +46,10 @@ const conditionSchema = Joi.object({
         "range_start and range_end are not allowed when condition_name is corner_block",
       );
     }
-  } else {
-    if (range_start === undefined || range_end === undefined) {
-      return helpers.message(
-        "range_start and range_end are required for this condition",
-      );
-    }
+  } else if (range_start === undefined || range_end === undefined) {
+    return helpers.message(
+      "range_start and range_end are required for this condition",
+    );
   }
 
   return value;
@@ -248,7 +246,7 @@ const updatePriceListItemSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-module.exports = {
+export default {
   createPriceListItemSchema,
   getAllPriceListItemSchema,
   deletePriceListItemSchema,

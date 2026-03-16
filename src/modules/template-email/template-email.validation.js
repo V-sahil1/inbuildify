@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createTemplateEmailSchema = Joi.object({
   name: Joi.string()
@@ -86,7 +86,7 @@ const updateTemplateEmailIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createTemplateEmailSchema,
   getAllTemplateEmailSchema,
   updateTemplateEmailParamsSchema,

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createSalesProccessSchema = Joi.object({
   name: Joi.string()
@@ -34,7 +34,7 @@ const updateSalesProcessSchema = Joi.object({
   is_default: Joi.boolean().default(false),
 });
 
-module.exports = {
+export default {
   createSalesProccessSchema,
   deleteSalesProcessSchema,
   updateSalesProcessIdParamsSchema,

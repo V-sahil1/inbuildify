@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createRoleTypeSchema = Joi.object({
   type_name: Joi.string().trim().max(100).required(),
@@ -42,7 +42,7 @@ const getAllRoletypeschema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createRoleTypeSchema,
   getRoleTypeSchema,
   getAllRoletypeschema,

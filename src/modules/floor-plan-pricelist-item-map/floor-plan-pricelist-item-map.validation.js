@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createFloorPlanPricelistItemMapValidation = Joi.object({
   floor_plan_id: Joi.string().uuid().required().messages({
@@ -60,7 +60,7 @@ const queryValidation = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createFloorPlanPricelistItemMapValidation,
   updateFloorPlanPricelistItemMapValidation,
   getFloorPlanPricelistItemMapByIdValidation,

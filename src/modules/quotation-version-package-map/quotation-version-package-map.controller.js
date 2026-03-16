@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { errorResponse, successResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
 
 // Create package map
-exports.createPackageMap = async (req, res) => {
+export async function createPackageMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -26,7 +26,7 @@ exports.createPackageMap = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [quotation_version_id, companyId, builderId]
+      [quotation_version_id, companyId, builderId],
     );
 
     if (versionCheck.rowCount === 0) {
@@ -43,7 +43,7 @@ exports.createPackageMap = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [package_id, companyId, builderId]
+      [package_id, companyId, builderId],
     );
 
     if (packageCheck.rowCount === 0) {
@@ -54,7 +54,7 @@ exports.createPackageMap = async (req, res) => {
     const duplicateCheck = await client.query(
       `SELECT id FROM quotation_version_package_map
        WHERE quotation_version_id = $1 AND package_id = $2 LIMIT 1`,
-      [quotation_version_id, package_id]
+      [quotation_version_id, package_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -66,13 +66,13 @@ exports.createPackageMap = async (req, res) => {
        (quotation_version_id, package_id) 
        VALUES ($1, $2) 
        RETURNING *`,
-      [quotation_version_id, package_id]
+      [quotation_version_id, package_id],
     );
 
     // Fetch the package cost to include in response
     const packageData = await client.query(
-      `SELECT cost FROM package WHERE package_id = $1`,
-      [package_id]
+      "SELECT cost FROM package WHERE package_id = $1",
+      [package_id],
     );
 
     const responseData = {
@@ -87,10 +87,10 @@ exports.createPackageMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // Get all packages by quotation version id
-exports.getPackagesByVersionId = async (req, res) => {
+export async function getPackagesByVersionId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -113,7 +113,7 @@ exports.getPackagesByVersionId = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [quotation_version_id, companyId, builderId]
+      [quotation_version_id, companyId, builderId],
     );
 
     if (versionCheck.rowCount === 0) {
@@ -126,13 +126,13 @@ exports.getPackagesByVersionId = async (req, res) => {
        LEFT JOIN package p ON m.package_id = p.package_id
        WHERE m.quotation_version_id = $1
        ORDER BY m.created_at ASC`,
-      [quotation_version_id]
+      [quotation_version_id],
     );
 
     return successResponse(
       res,
       result.rows.map(row => keysToCamelCase(row)),
-      "Package maps fetched successfully"
+      "Package maps fetched successfully",
     );
   } catch (error) {
     console.error("Get package maps error:", error);
@@ -140,10 +140,10 @@ exports.getPackagesByVersionId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
 // Delete package map
-exports.deletePackageMap = async (req, res) => {
+export async function deletePackageMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -167,7 +167,7 @@ exports.deletePackageMap = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, companyId, builderId]
+      [id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -180,7 +180,7 @@ exports.deletePackageMap = async (req, res) => {
 
     await client.query(
       "DELETE FROM quotation_version_package_map WHERE id = $1",
-      [id]
+      [id],
     );
 
     return successResponse(res, null, "Package map deleted successfully");
@@ -190,4 +190,4 @@ exports.deletePackageMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

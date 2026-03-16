@@ -1,4 +1,4 @@
-const quotationFormatMasterSectionService = require("./quotation-format-master-section.service");
+import quotationFormatMasterSectionService from "./quotation-format-master-section.service";
 
 // ============================================================
 //        MASTER SECTION CONTROLLERS
@@ -312,7 +312,7 @@ async function deleteMasterSectionItem(req, res) {
   }
 }
 
-module.exports = {
+export default {
   // Master Section
   createMasterSection,
   getMasterSections,

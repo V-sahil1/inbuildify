@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const addressRepo = require("../../repositories/address.repository");
+import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response";
+import { keysToCamelCase } from "../../utils/common";
+import addressRepo from "../../repositories/address.repository";
 
-exports.createProperty = async (req, res) => {
+export async function createProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -39,7 +39,7 @@ exports.createProperty = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       )`,
-      [leads_id, companyId, builderId]
+      [leads_id, companyId, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -47,8 +47,8 @@ exports.createProperty = async (req, res) => {
     }
 
     const existing = await client.query(
-      `SELECT property_id, address_id FROM property WHERE leads_id = $1`,
-      [leads_id]
+      "SELECT property_id, address_id FROM property WHERE leads_id = $1",
+      [leads_id],
     );
 
     let addressId = null;
@@ -60,9 +60,9 @@ exports.createProperty = async (req, res) => {
     let result;
     if (existing.rowCount > 0) {
       return errorResponse(res, 400, "Property already exists for this lead. Only one property is allowed per lead.");
-    } else {
-      result = await client.query(
-        `INSERT INTO property (
+    }
+    result = await client.query(
+      `INSERT INTO property (
           leads_id, address_id, lot_no, street_no, estate_name, title_status,
           title_date, compaction_report, land_type, width_m, depth_m,
           total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
@@ -72,26 +72,25 @@ exports.createProperty = async (req, res) => {
           CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
         )
         RETURNING *`,
-        [
-          leads_id,
-          addressId,
-          lot_no,
-          street_no,
-          estate_name,
-          title_status,
-          title_date,
-          compaction_report,
-          land_type || "REGULAR",
-          width_m,
-          depth_m,
-          total_size_m2,
-          site_fall_mm,
-          land_fill_mm,
-          bush_fire,
-          corner_block
-        ]
-      );
-    }
+      [
+        leads_id,
+        addressId,
+        lot_no,
+        street_no,
+        estate_name,
+        title_status,
+        title_date,
+        compaction_report,
+        land_type || "REGULAR",
+        width_m,
+        depth_m,
+        total_size_m2,
+        site_fall_mm,
+        land_fill_mm,
+        bush_fire,
+        corner_block,
+      ],
+    );
 
     // Fetch the updated property object with its nested address schema
     const selectQuery = await client.query(`
@@ -117,7 +116,7 @@ exports.createProperty = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property created successfully"
+      "Property created successfully",
     );
   } catch (error) {
     console.error("Error creating property:", error);
@@ -125,9 +124,9 @@ exports.createProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPropertyByLeadId = async (req, res) => {
+export async function getPropertyByLeadId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -174,7 +173,7 @@ exports.getPropertyByLeadId = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property fetched successfully"
+      "Property fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching property:", error);
@@ -182,9 +181,9 @@ exports.getPropertyByLeadId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateProperty = async (req, res) => {
+export async function updateProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -206,7 +205,7 @@ exports.updateProperty = async (req, res) => {
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
       )`,
-      [property_id, companyId, builderId]
+      [property_id, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -274,7 +273,7 @@ exports.updateProperty = async (req, res) => {
       return errorResponse(res, 400, "No valid fields to update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateValues.push(property_id);
 
     const updateSql = `
@@ -309,7 +308,7 @@ exports.updateProperty = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property updated successfully"
+      "Property updated successfully",
     );
   } catch (error) {
     console.error("Error updating property:", error);
@@ -317,9 +316,9 @@ exports.updateProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllProperties = async (req, res) => {
+export async function getAllProperties(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -333,8 +332,8 @@ exports.getAllProperties = async (req, res) => {
 
     const { search } = req.query;
 
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     whereConditions.push(`(
@@ -392,7 +391,7 @@ exports.getAllProperties = async (req, res) => {
     return successResponse(
       res,
       formattedData,
-      "Properties fetched successfully"
+      "Properties fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching properties:", error);
@@ -400,9 +399,9 @@ exports.getAllProperties = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteProperty = async (req, res) => {
+export async function deleteProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -427,7 +426,7 @@ exports.deleteProperty = async (req, res) => {
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
       )`,
-      [property_id, companyId, builderId]
+      [property_id, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -437,10 +436,10 @@ exports.deleteProperty = async (req, res) => {
 
     const addressId = existing.rows[0].address_id;
 
-    await client.query(`DELETE FROM property WHERE property_id = $1`, [property_id]);
+    await client.query("DELETE FROM property WHERE property_id = $1", [property_id]);
 
     if (addressId) {
-      await client.query(`DELETE FROM address WHERE address_id = $1`, [addressId]);
+      await client.query("DELETE FROM address WHERE address_id = $1", [addressId]);
     }
 
     await client.query("COMMIT");
@@ -453,4 +452,4 @@ exports.deleteProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

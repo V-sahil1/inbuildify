@@ -1,24 +1,23 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createQuotationSettings,
   getQuotationSettings,
   updateQuotationSettings,
   getQuotationSetting,
-} = require("./quotation-setting.controller.js");
-const {
+} from "./quotation-setting.controller.js";
+import {
   createQuotationSettingSchems,
   updateQuotationSettingParamsSchema,
   updateQuotationSettingSchema,
-} = require("./quotation-setting.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./quotation-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -27,7 +26,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createQuotationSettingSchems, REQUEST_SOURCE.BODY),
-  createQuotationSettings
+  createQuotationSettings,
 );
 
 router.get("/fetch", getQuotationSetting);
@@ -38,7 +37,7 @@ router.put(
   "/:quotation_settings_id",
   validateRequest(updateQuotationSettingParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateQuotationSettingSchema, REQUEST_SOURCE.BODY),
-  updateQuotationSettings
+  updateQuotationSettings,
 );
 
-module.exports = router;
+export default router;

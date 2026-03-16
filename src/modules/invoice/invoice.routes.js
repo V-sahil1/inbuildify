@@ -1,25 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createInvoice,
   getInvoicesByLead,
   getInvoiceById,
   updateInvoice,
   deleteInvoice,
-} = require("./invoice.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-
-const {
+} from "./invoice.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import {
   createInvoiceSchema,
   getInvoiceByIdSchema,
   getInvoicesByLeadSchema,
   updateInvoiceSchema,
-} = require("./invoice.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./invoice.validation";
+import { REQUEST_SOURCE } from "../../config/constants";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,32 +28,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createInvoiceSchema, REQUEST_SOURCE.BODY),
-  createInvoice
+  createInvoice,
 );
 
 router.get(
   "/lead/:leads_id",
   validateRequest(getInvoicesByLeadSchema, REQUEST_SOURCE.PARAMS),
-  getInvoicesByLead
+  getInvoicesByLead,
 );
 
 router.get(
   "/:invoice_id",
   validateRequest(getInvoiceByIdSchema, REQUEST_SOURCE.PARAMS),
-  getInvoiceById
+  getInvoiceById,
 );
 
 router.put(
   "/:invoice_id",
   validateRequest(getInvoiceByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateInvoiceSchema, REQUEST_SOURCE.BODY),
-  updateInvoice
+  updateInvoice,
 );
 
 router.delete(
   "/:invoice_id",
   validateRequest(getInvoiceByIdSchema, REQUEST_SOURCE.PARAMS),
-  deleteInvoice
+  deleteInvoice,
 );
 
-module.exports = router;
+export default router;

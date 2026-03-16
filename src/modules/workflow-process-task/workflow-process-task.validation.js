@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const getAllWorkFlowProcessTaskSchema = Joi.object({
   limit: Joi.number().optional().default(25).max(25),
@@ -20,7 +20,7 @@ const deleteWorkFlowProcessTaskSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   getAllWorkFlowProcessTaskSchema,
   deleteWorkFlowProcessTaskSchema,
 };

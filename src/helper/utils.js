@@ -1,4 +1,4 @@
-module.exports = function isAuthorized(roles, requiredRoles) {
+export default function isAuthorized(roles, requiredRoles) {
   console.log("►►► ~ requiredRoles:", requiredRoles);
   const rolesArray =
     typeof roles === "string"
@@ -7,4 +7,4 @@ module.exports = function isAuthorized(roles, requiredRoles) {
   console.log("►►► ~ isAuthorized ~ rolesArray:", rolesArray);
 
   return rolesArray?.some((role) => requiredRoles.includes(role));
-};
+}

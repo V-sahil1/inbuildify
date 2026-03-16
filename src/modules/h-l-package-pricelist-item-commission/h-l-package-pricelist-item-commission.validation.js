@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const createPriceListItemMapSchema = Joi.object({
   house_land_package_id: Joi.string().uuid().required().messages({
@@ -49,7 +49,7 @@ const createPackageCommissionMapSchema = Joi.object({
   }),
   job_commission_id: Joi.alternatives().try(
     Joi.string().uuid(),
-    Joi.array().items(Joi.string().uuid())
+    Joi.array().items(Joi.string().uuid()),
   ).required().messages({
     "alternatives.match": "job_commission_id must be a valid UUID or an array of UUIDs",
     "any.required": "job_commission_id is required",
@@ -62,7 +62,7 @@ const updatePackageCommissionMapSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPriceListItemMapSchema,
   updatePriceListItemMapSchema,
   getPriceListItemMapsSchema,

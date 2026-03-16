@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database";
+import { keysToCamelCase } from "../../utils/common";
 
 /**
  * CREATE FLOOR PLAN FACADE MAP
@@ -110,7 +110,7 @@ async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (fp.company_id = $1 OR fp.builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (floor_plan_id) {
@@ -233,7 +233,7 @@ async function deleteFloorPlanFacadeMap(currentUser, id) {
   }
 }
 
-module.exports = {
+export default {
   createFloorPlanFacadeMap,
   getFloorPlanFacadeMaps,
   deleteFloorPlanFacadeMap,

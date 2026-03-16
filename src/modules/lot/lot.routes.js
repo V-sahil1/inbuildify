@@ -1,24 +1,19 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-  createLot,
-  getAllLots,
-  getLotById,
-  updateLot,
-  deleteLot,
-} = require("./lot.controller");
-const {
+import { createLot, getAllLots, getLotById, updateLot, deleteLot } from "./lot.controller";
+import {
   createLotSchema,
   updateLotSchema,
   getLotByIdSchema,
   deleteLotSchema,
   getAllLotsSchema,
-} = require("./lot.validation");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const authMiddleware = require("../../middleware/authMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
+} from "./lot.validation";
+import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import authMiddleware from "../../middleware/authMiddleware";
+import { REQUEST_SOURCE } from "../../config/constants";
+import roleMiddleware from "../../middleware/roleMiddleware";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -55,4 +50,4 @@ router.delete(
   deleteLot,
 );
 
-module.exports = router;
+export default router;

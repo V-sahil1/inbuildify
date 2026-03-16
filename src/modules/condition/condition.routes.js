@@ -1,12 +1,13 @@
-const express = require('express');
+import express from "express";
+
 const router = express.Router();
-const { getConditions } = require('./condition.controller');
-const authMiddleware = require('../../middleware/authMiddleware');
-const roleMiddleware = require('../../middleware/roleMiddleware');
+import { getConditions } from "./condition.controller";
+import authMiddleware from "../../middleware/authMiddleware";
+import roleMiddleware from "../../middleware/roleMiddleware";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
 router.get("/conditions", getConditions);
 
-module.exports = router;
+export default router;
