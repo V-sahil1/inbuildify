@@ -1,4 +1,4 @@
-const contactRepository = require("../../repositories/contact.repository");
+const contactRepository = require("./contact.repository");
 const userRepository = require("../user/user.repository");
 const addressRepository = require("../../repositories/address.repository");
 const tokenRepository = require("../../repositories/token.repository");

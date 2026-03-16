@@ -1,5 +1,5 @@
-const getPool = require("../config/database");
-const { keysToCamelCase } = require("../utils/common");
+const getPool = require("../../config/database");
+const { keysToCamelCase } = require("../../utils/common");
 
 /* ============================================================
         GET CONTACT LIST (pagination + search)

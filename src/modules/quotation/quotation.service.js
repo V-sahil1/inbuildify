@@ -1,5 +1,5 @@
-const quotationRepository = require("../../repositories/quotation.repository");
-const leadsRepository = require("../../repositories/leads.repository");
+const quotationRepository = require("./quotation.repository");
+const leadsRepository = require("../lead/leads.repository");
 const { generateDynamicReferenceNumber } = require("../../utils/common");
 const getPool = require("../../config/database");
 

@@ -4,7 +4,7 @@ const { keysToCamelCase } = require("../../utils/common");
 const {
   getCompanyByBuilderId,
   upsertCompany,
-} = require("../../services/company.service");
+} = require("./company.service");
 
 exports.getCompany = async (req, res) => {
   const pool = getPool();

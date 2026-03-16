@@ -1,4 +1,4 @@
-const leadsRepository = require("../../repositories/leads.repository");
+const leadsRepository = require("./leads.repository");
 const { successResponse, errorResponse } = require("../../helper/response");
 const { generateDynamicReferenceNumber } = require("../../utils/common");
 const getPool = require("../../config/database");

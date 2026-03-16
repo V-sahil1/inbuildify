@@ -1,5 +1,5 @@
-const invoiceRepository = require("../../repositories/invoice.repository");
-const leadsRepository = require("../../repositories/leads.repository");
+const invoiceRepository = require("./invoice.repository");
+const leadsRepository = require("../lead/leads.repository");
 
 class InvoiceService {
   async createInvoice(invoiceData, builderId, companyId) {

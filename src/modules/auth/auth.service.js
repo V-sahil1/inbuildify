@@ -2,7 +2,7 @@ const getPool = require("../../config/database");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../../helper/sendMail");
-const { upsertCompany } = require("../../services/company.service");
+const { upsertCompany } = require("../company/company.service");
 const { seedBuilderDefaults } = require("../../seeder/seed-builder-defaults");
 const {
   generateOtp,

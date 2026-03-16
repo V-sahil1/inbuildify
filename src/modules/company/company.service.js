@@ -1,7 +1,7 @@
-const getPool = require("../config/database");
-const addressRepo = require("../repositories/address.repository");
+const getPool = require("../../config/database");
+const addressRepo = require("../../repositories/address.repository");
 
-const { keysToCamelCase } = require("../utils/common");
+const { keysToCamelCase } = require("../../utils/common");
 
 async function getCompanyByBuilderId(builderId, client) {
   const result = await client.query(
