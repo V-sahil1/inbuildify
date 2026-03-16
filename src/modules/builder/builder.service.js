@@ -5,7 +5,7 @@ const {
   BUILDER_UPDATE_FIELDS,
   INSURER_UPDATE_FIELDS,
 } = require("../../constants/updateFields");
-const { upsertAddress } = require("../../services/address.service");
+const { upsertAddress } = require("./address.service");
 
 async function upsertBuilder(builderId, payload, logoUrl) {
   const pool = getPool();

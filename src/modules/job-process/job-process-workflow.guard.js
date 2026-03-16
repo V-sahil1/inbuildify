@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+const getPool = require("../../config/database");
 
 async function ensureWorkflowStageByStageId(stageId) {
   const pool = getPool();

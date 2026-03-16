@@ -1,5 +1,5 @@
-const { buildDynamicUpdate } = require("../utils/buildDynamicUpdate");
-const { ADDRESS_UPDATE_FIELDS } = require("../constants/updateFields");
+const { buildDynamicUpdate } = require("../../utils/buildDynamicUpdate");
+const { ADDRESS_UPDATE_FIELDS } = require("../../constants/updateFields");
 
 async function upsertAddress(client, existingAddressId, addressPayload) {
   if (!addressPayload) return null;

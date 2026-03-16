@@ -4,9 +4,9 @@ const { keysToCamelCase } = require("../../utils/common");
 
 // Services
 
-const stageService = require("../../services/job-process-stage.service");
+const stageService = require("./job-process-stage.service");
 
-const taskService = require("../../services/job-process-task.service");
+const taskService = require("./job-process-task.service");
 
 /* =========================================================
 
