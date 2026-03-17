@@ -30,21 +30,6 @@ class LeadsService {
         };
       }
 
-      const existingLeadByName = await leadsRepository.checkDuplicateName(
-        leadData.name,
-        builderId,
-        userId
-      );
-
-      if (existingLeadByName) {
-        return {
-          success: false,
-          nameExists: true,
-          message: "A lead with this name already exists",
-          existingLead: existingLeadByName,
-        };
-      }
-
       // Validate leadSourceId if provided
       if (leadData.lead_source_id) {
         const leadSourceValidation = await this.validateLeadSource(
@@ -226,6 +211,12 @@ class LeadsService {
             message: hlpValidation.message,
           };
         }
+      }
+
+      // Auto-update status to 'Working' if current status is 'New'
+      // and user is not explicitly updating the status in this request
+      if (existingLead.status === "New" && !leadData.status) {
+        leadData.status = "Working";
       }
 
       const leadDataWithUpdatedBy = {
@@ -603,6 +594,29 @@ class LeadsService {
       };
     }
   }
+
+  async removeHLPackage(leadId, options, builderId, companyId) {
+    try {
+      const { remove_hl_package_lot_quotation } = options;
+      await leadsRepository.removeHLPData(
+        leadId,
+        remove_hl_package_lot_quotation,
+        builderId,
+        companyId
+      );
+
+      return {
+        success: true,
+        message: "House Land Package removed successfully",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async syncPropertyDetailFromHLP(leadId, houseLandPackageId) {
     const pool = getPool();
     const client = await pool.connect();

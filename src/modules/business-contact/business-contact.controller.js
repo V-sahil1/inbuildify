@@ -140,6 +140,11 @@ exports.createBusinessContact = async (req, res) => {
       acn_number,
     ]);
 
+    await client.query(
+      `UPDATE leads SET status = 'Working', updated_at = NOW() WHERE leads_id = $1 AND status = 'New'`,
+      [leads_id]
+    );
+
     await client.query("COMMIT");
 
     const transformed = keysToCamelCase(result.rows[0]);

@@ -142,8 +142,20 @@ class LeadsRepository {
         [lead.leads_id]
       );
 
+      let leadSourceName = null;
+      if (lead_source_id) {
+        const sourceResult = await client.query(
+          "SELECT name FROM lead_source WHERE lead_source_id = $1",
+          [lead_source_id]
+        );
+        if (sourceResult.rowCount > 0) {
+          leadSourceName = sourceResult.rows[0].name;
+        }
+      }
+
       return {
         ...keysToCamelCase(lead),
+        leadSourceName: leadSourceName,
         leadContacts: keysToCamelCase(contactsResult.rows),
       };
     } catch (error) {
@@ -169,11 +181,8 @@ class LeadsRepository {
       }
 
       query += ` LIMIT 1`;
-
-      console.log("Checking duplicate with name:", name, "builderId:", builderId, "createdBy:", createdBy);
       
       const result = await client.query(query, values);
-      console.log("Duplicate check result:", result.rowCount);
       return result.rowCount > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();

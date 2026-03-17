@@ -137,10 +137,10 @@ const updateLeadSchema = Joi.object({
 
 const updateLeadStatusSchema = Joi.object({
   status: Joi.string()
-    .valid("New", "Working", "Qualified", "Closed")
+    .valid("New", "Working", "Convert")
     .required()
     .messages({
-      "any.only": "Status must be one of: New, Working, Qualified, Closed",
+      "any.only": "Status must be one of: New, Working, Convert",
       "any.required": "Status is required",
     }),
 });
@@ -165,7 +165,7 @@ const getAllLeadsQuerySchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
   status: Joi.string()
-    .valid("New", "Working", "Qualified", "Closed")
+    .valid("New", "Working", "Convert")
     .optional(),
 
   rating: Joi.string().valid("Hot", "Warm", "Cold", "None").optional(),
