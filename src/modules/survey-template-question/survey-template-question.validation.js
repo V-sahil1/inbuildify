@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createSurveyQuestionSchema = Joi.object({
+export const createSurveyQuestionSchema = Joi.object({
   survey_template_id: Joi.string()
     .uuid({ version: "uuidv4" })
     .required()
@@ -42,7 +42,7 @@ const createSurveyQuestionSchema = Joi.object({
   }),
 });
 
-const getAllSurveyTemplateQuestionSchema = Joi.object({
+export const getAllSurveyTemplateQuestionSchema = Joi.object({
   survey_template_id: Joi.string().uuid().optional().messages({
     "string.guid": "Survey template ID must be a valid UUID",
   }),
@@ -60,21 +60,21 @@ const getAllSurveyTemplateQuestionSchema = Joi.object({
   }),
 });
 
-const deleteSurveyTemplateQuestionSchema = Joi.object({
+export const deleteSurveyTemplateQuestionSchema = Joi.object({
   survey_question_id: Joi.string().uuid().required().messages({
     "string.guid": "Survey template question ID must be a valid UUID",
     "any.required": "Survey template question ID is required",
   }),
 });
 
-const updateSurveyTemplateQuestionParamsSchema = Joi.object({
+export const updateSurveyTemplateQuestionParamsSchema = Joi.object({
   survey_question_id: Joi.string().uuid().required().messages({
     "string.guid": "Survey template question ID must be a valid UUID",
     "any.required": "Survey template question ID is required",
   }),
 });
 
-const updateSurveyTemplateQuestionSchema = Joi.object({
+export const updateSurveyTemplateQuestionSchema = Joi.object({
   description: Joi.string().trim().optional().messages({
     "string.empty": "description cannot be empty",
   }),

@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 
-import pgConfig from "../config/pg";
+import pgConfig from "../config/pg.js";
 
 let poolClient;
 

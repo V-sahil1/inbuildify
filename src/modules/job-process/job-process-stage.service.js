@@ -1,10 +1,10 @@
-import getPool from "../../config/database";
-import { ensureWorkflowStageByStageId } from "./job-process-workflow.guard";
+import getPool from "../../config/database.js";
+import { ensureWorkflowStageByStageId } from "./job-process-workflow.guard.js";
 
 /**
  * CREATE STAGE
  */
-async function createStage(companyId, builderId, payload) {
+export async function createStage(companyId, builderId, payload) {
   const pool = getPool();
   const duplicateCheck = await pool.query(
     `
@@ -130,7 +130,7 @@ async function createStage(companyId, builderId, payload) {
 /**
  * UPDATE STAGE
  */
-async function updateStage(stageId, payload, builderId, companyId) {
+export async function updateStage(stageId, payload, builderId, companyId) {
   const pool = getPool();
   const checkQuery = await pool.query(
     `
@@ -308,7 +308,7 @@ async function updateStage(stageId, payload, builderId, companyId) {
 /**
  * DELETE STAGE
  */
-async function deleteStage(stageId, builderId) {
+export async function deleteStage(stageId, builderId) {
   const pool = getPool();
 
   const checkQuery = await pool.query(
@@ -336,7 +336,7 @@ async function deleteStage(stageId, builderId) {
   ]);
 }
 
-async function createSubStage(stageId, payload) {
+export async function createSubStage(stageId, payload) {
   await ensureWorkflowStageByStageId(stageId);
 
   const pool = getPool();
@@ -436,7 +436,7 @@ async function createSubStage(stageId, payload) {
   }
 }
 
-async function updateSubStage(subStageId, payload, builderId, companyId) {
+export async function updateSubStage(subStageId, payload, builderId, companyId) {
   const pool = getPool();
 
   const client = await pool.connect();
@@ -579,7 +579,7 @@ async function updateSubStage(subStageId, payload, builderId, companyId) {
   }
 }
 
-async function deleteSubStage(subStageId, builderId, companyId, taskId = null) {
+export async function deleteSubStage(subStageId, builderId, companyId, taskId = null) {
   const pool = getPool();
 
   const client = await pool.connect();
@@ -787,7 +787,7 @@ async function handleAllTaskRelocation(
   }
 }
 
-async function getJobProcess(companyId, builderId) {
+export async function getJobProcess(companyId, builderId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -919,7 +919,7 @@ async function getJobProcess(companyId, builderId) {
   return Array.from(stageMap.values());
 }
 
-async function getStages(companyId, builderId) {
+export async function getStages(companyId, builderId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -963,7 +963,7 @@ async function getStages(companyId, builderId) {
   }));
 }
 
-async function getSubStages(stageId) {
+export async function getSubStages(stageId) {
   const pool = getPool();
 
   const workflowCheck = await pool.query(
@@ -998,7 +998,7 @@ async function getSubStages(stageId) {
   return rows;
 }
 
-async function getStageFunctionalities() {
+export async function getStageFunctionalities() {
   const pool = getPool();
 
   const { rows } = await pool.query(

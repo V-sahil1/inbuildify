@@ -1,18 +1,18 @@
 import Joi from "joi";
 
-const createJobCommissionSettingSchema = Joi.object({
+export const createJobCommissionSettingSchema = Joi.object({
   define_outgoing_commission: Joi.boolean().default(false),
   define_incoming_commission: Joi.boolean().default(false),
 });
 
-const updateJobCommissionSettingParamsSchema = Joi.object({
+export const updateJobCommissionSettingParamsSchema = Joi.object({
   job_commission_settings_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateJobCommissionSettingSchema = Joi.object({
+export const updateJobCommissionSettingSchema = Joi.object({
   define_outgoing_commission: Joi.boolean().optional(),
   define_incoming_commission: Joi.boolean().optional(),
 });

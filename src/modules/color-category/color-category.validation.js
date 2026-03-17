@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createColorCategorySchema = Joi.object({
+export const createColorCategorySchema = Joi.object({
   color_id: Joi.string().uuid().required().messages({
     "string.guid": "Color ID must be a valid UUID",
     "any.required": "Color ID is required",
@@ -39,7 +39,7 @@ const createColorCategorySchema = Joi.object({
   }),
 });
 
-const updateColorCategorySchema = Joi.object({
+export const updateColorCategorySchema = Joi.object({
   category_name: Joi.string()
     .trim()
     .min(2)
@@ -77,14 +77,14 @@ const updateColorCategorySchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-const paramsIdSchema = Joi.object({
+export const paramsIdSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const copyColorCategorySchema = Joi.object({
+export const copyColorCategorySchema = Joi.object({
   color_id: Joi.string().uuid().required().messages({
     "string.guid": "Color ID must be a valid UUID",
     "any.required": "Color ID is required",

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createUserGroupSchema = Joi.object({
+export const createUserGroupSchema = Joi.object({
   users_id: Joi.array()
     .items(Joi.string().uuid())
     .default([])
@@ -18,7 +18,7 @@ const createUserGroupSchema = Joi.object({
     "boolean.base": "is_active must be a boolean value (true/false).",
   }),
 });
-const getAllUserGroupSchema = Joi.object({
+export const getAllUserGroupSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({
@@ -35,14 +35,14 @@ const getAllUserGroupSchema = Joi.object({
   }),
 });
 
-const updateUserGroupParamsSchema = Joi.object({
+export const updateUserGroupParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": " ID must be a valid UUID",
     "any.required": " ID is required",
   }),
 });
 
-const updateUserGroupSchema = Joi.object({
+export const updateUserGroupSchema = Joi.object({
   name: Joi.string().trim().max(100).optional().messages({
     "string.max": "Group name must be at most 100 characters long.",
   }),

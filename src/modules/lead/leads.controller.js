@@ -1,5 +1,5 @@
-import leadsService from "./leads.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import leadsService from "./leads.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 export async function createLead(req, res) {
   try {

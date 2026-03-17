@@ -7,18 +7,18 @@ import {
   getLotPackagesByHlPackageIdSchema,
   deleteHlPackageLotPackageMapSchema,
   getAllHlPackageLotPackageMapsSchema,
-} from "./hl-package-lot-package-map.validation";
+} from "./hl-package-lot-package-map.validation.js";
 import {
   createHlPackageLotPackageMap,
   getLotPackagesByHlPackageId,
   deleteHlPackageLotPackageMap,
   getAllHlPackageLotPackageMaps,
-} from "./hl-package-lot-package-map.controller";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./hl-package-lot-package-map.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createConstructionChecklistPredecessorValidation = Joi.object({
+export const createConstructionChecklistPredecessorValidation = Joi.object({
   construction_checklist_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction checklist ID must be a valid UUID",
     "any.required": "Construction checklist ID is required",
@@ -16,7 +16,7 @@ const createConstructionChecklistPredecessorValidation = Joi.object({
   }),
 });
 
-const updateConstructionChecklistPredecessorValidation = Joi.object({
+export const updateConstructionChecklistPredecessorValidation = Joi.object({
   predecessor_checklist_id: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "Predecessor checklist ID must be a valid UUID",
   }),
@@ -28,14 +28,14 @@ const updateConstructionChecklistPredecessorValidation = Joi.object({
   }),
 }).min(1);
 
-const getConstructionChecklistPredecessorByIdValidation = Joi.object({
+export const getConstructionChecklistPredecessorByIdValidation = Joi.object({
   construction_checklist_predecessor_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction checklist predecessor ID must be a valid UUID",
     "any.required": "Construction checklist predecessor ID is required",
   }),
 });
 
-const queryValidation = Joi.object({
+export const queryValidation = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.integer": "Page must be an integer",
     "number.min": "Page must be at least 1",

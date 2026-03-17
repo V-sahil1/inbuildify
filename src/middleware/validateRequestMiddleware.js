@@ -1,6 +1,6 @@
-import validationMessageFormatterHelper from "../utils/validationMessageFormatterHelper";
-import { UNPROCESSABLE_ENTITY, NOT_ACCEPTABLE } from "../utils/errors";
-import { REQUEST_SOURCE } from "../config/constants";
+import validationMessageFormatterHelper from "../utils/validationMessageFormatterHelper.js";
+import ERRORS from "../utils/errors.js";
+import { REQUEST_SOURCE } from "../config/constants.js";
 
 export function validateRequest(schema, source = REQUEST_SOURCE.BODY) {
   const middleware = (req, res, next) => {

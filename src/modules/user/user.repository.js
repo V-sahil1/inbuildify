@@ -1,5 +1,5 @@
-import getPool from "../../config/database";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /**
  * USER REPOSITORY
@@ -11,7 +11,7 @@ import { keysToCamelCase } from "../../utils/common";
         BASIC FINDERS
   ============================================================ */
 
-async function findByEmail(email) {
+export async function findByEmail(email) {
   const pool = getPool();
   const res = await pool.query(
     "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
@@ -24,7 +24,7 @@ async function findByEmail(email) {
   return null;
 }
 
-async function findByLoginId(loginId) {
+export async function findByLoginId(loginId) {
   const pool = getPool();
   const res = await pool.query("SELECT * FROM users WHERE login_id = $1", [
     loginId,
@@ -36,7 +36,7 @@ async function findByLoginId(loginId) {
   return null;
 }
 
-async function getBasicUser(userId) {
+export async function getBasicUser(userId) {
   const pool = getPool();
   const res = await pool.query(
     `
@@ -63,7 +63,7 @@ async function getBasicUser(userId) {
         USER LISTING
   ============================================================ */
 
-async function getUsers({ builderId, page, limit, search, role, role_id }) {
+export async function getUsers({ builderId, page, limit, search, role, role_id }) {
   const pool = getPool();
   const offset = (page - 1) * limit;
 
@@ -177,7 +177,7 @@ async function getUsers({ builderId, page, limit, search, role, role_id }) {
         GET ALL USERS (NO PAGINATION)
   ============================================================ */
 
-async function getAllUsers({ builderId, search, role, role_id, is_active }) {
+export async function getAllUsers({ builderId, search, role, role_id, is_active }) {
   const pool = getPool();
 
   const searchFilter = search ? `%${search}%` : "%";
@@ -279,7 +279,7 @@ async function getAllUsers({ builderId, search, role, role_id, is_active }) {
         GET PROFILE (JOIN BUILDER + ADDRESS)
   ============================================================ */
 
-async function getProfile(userId) {
+export async function getProfile(userId) {
   const pool = getPool();
   const res = await pool.query(
     `
@@ -310,7 +310,7 @@ async function getProfile(userId) {
         CREATE USER
   ============================================================ */
 
-async function createUser(data) {
+export async function createUser(data) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -400,7 +400,7 @@ async function createUser(data) {
         UPDATE USER (DYNAMIC UPDATE BUILDER)
   ============================================================ */
 
-async function updateUser(userId, data) {
+export async function updateUser(userId, data) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -434,7 +434,7 @@ async function updateUser(userId, data) {
         SOFT DELETE USER
   ============================================================ */
 
-async function softDeleteUser(userId) {
+export async function softDeleteUser(userId) {
   const pool = getPool();
   await pool.query(
     `
@@ -450,7 +450,7 @@ async function softDeleteUser(userId) {
         PHOTO & SIGNATURE
   ============================================================ */
 
-async function updatePhoto(userId, url) {
+export async function updatePhoto(userId, url) {
   const pool = getPool();
   await pool.query(
     `
@@ -462,7 +462,7 @@ async function updatePhoto(userId, url) {
   );
 }
 
-async function updateSignature(userId, url) {
+export async function updateSignature(userId, url) {
   const pool = getPool();
   await pool.query(
     `
@@ -478,7 +478,7 @@ async function updateSignature(userId, url) {
         PASSWORD RESET
   ============================================================ */
 
-async function updatePassword(userId, encryptedPassword, askNextLogin) {
+export async function updatePassword(userId, encryptedPassword, askNextLogin) {
   const pool = getPool();
   await pool.query(
     `
@@ -496,7 +496,7 @@ async function updatePassword(userId, encryptedPassword, askNextLogin) {
         UPDATE NEXT LOGIN PASSWORD CHANGE
   ============================================================ */
 
-async function updateNextLoginPasswordChange(userId, askNextLogin) {
+export async function updateNextLoginPasswordChange(userId, askNextLogin) {
   const pool = getPool();
   await pool.query(
     `
@@ -513,7 +513,7 @@ async function updateNextLoginPasswordChange(userId, askNextLogin) {
         CHANGE LOGIN ID
   ============================================================ */
 
-async function updateLoginId(userId, newLoginId) {
+export async function updateLoginId(userId, newLoginId) {
   const pool = getPool();
   await pool.query(
     `
@@ -529,7 +529,7 @@ async function updateLoginId(userId, newLoginId) {
         ACTIVE / LOCK STATUS
   ============================================================ */
 
-async function updateActiveStatus(userId, isActive) {
+export async function updateActiveStatus(userId, isActive) {
   const pool = getPool();
   await pool.query(
     `
@@ -541,7 +541,7 @@ async function updateActiveStatus(userId, isActive) {
   );
 }
 
-async function updateLockStatus(userId, isLocked) {
+export async function updateLockStatus(userId, isLocked) {
   const pool = getPool();
   await pool.query(
     `
@@ -557,7 +557,7 @@ async function updateLockStatus(userId, isLocked) {
     BUILDER MANAGEMENT
 ============================================================ */
 
-async function getUserBuilder(userId) {
+export async function getUserBuilder(userId) {
   const pool = getPool();
   const res = await pool.query(
     `
@@ -570,7 +570,7 @@ async function getUserBuilder(userId) {
   return res.rows[0] || null;
 }
 
-async function setUserBuilder(userId, builderId) {
+export async function setUserBuilder(userId, builderId) {
   const pool = getPool();
   await pool.query(
     `

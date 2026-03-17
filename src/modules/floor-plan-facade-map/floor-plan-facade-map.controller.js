@@ -1,5 +1,5 @@
-import floorPlanFacadeMapService from "./floor-plan-facade-map.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import floorPlanFacadeMapService from "./floor-plan-facade-map.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 /* ---------------------------
    CREATE FLOOR PLAN FACADE MAP
@@ -74,3 +74,9 @@ export async function deleteFloorPlanFacadeMap(req, res) {
     );
   }
 }
+
+export default {
+  createFloorPlanFacadeMap,
+  getFloorPlanFacadeMaps,
+  deleteFloorPlanFacadeMap,
+};

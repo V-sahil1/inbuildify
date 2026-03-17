@@ -1,6 +1,6 @@
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase, encrypt, decrypt } from "../../utils/common";
-import getPool from "../../config/database";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase, encrypt, decrypt } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 export async function createUserPasswordHistory(req, res) {
   const pool = getPool();

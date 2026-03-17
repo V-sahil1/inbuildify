@@ -14,7 +14,7 @@ const stringRule = Joi.string().trim().messages({
   "string.empty": "Field cannot be empty",
 });
 
-const createLotPackageSchema = Joi.object({
+export const createLotPackageSchema = Joi.object({
   lot_id: uuidRule.messages({
     "any.required": "lot_id is required",
     "string.guid": "lot_id must be a valid UUID",
@@ -44,7 +44,7 @@ const createLotPackageSchema = Joi.object({
   }),
 });
 
-const updateLotPackageSchema = Joi.object({
+export const updateLotPackageSchema = Joi.object({
   package_name: stringRule.max(255).optional().messages({
     "string.max": "Package name must not exceed 255 characters",
   }),
@@ -68,15 +68,15 @@ const updateLotPackageSchema = Joi.object({
   }),
 });
 
-const getLotPackageByIdSchema = Joi.object({
+export const getLotPackageByIdSchema = Joi.object({
   lot_package_id: uuidRule,
 });
 
-const deleteLotPackageSchema = Joi.object({
+export const deleteLotPackageSchema = Joi.object({
   lot_package_id: uuidRule,
 });
 
-const getAllLotPackagesSchema = Joi.object({
+export const getAllLotPackagesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
   lot_id: optionalUuidRule,

@@ -1,16 +1,16 @@
-import contactRepository from "./contact.repository";
-import userRepository from "../user/user.repository";
-import addressRepository from "../../repositories/address.repository";
-import tokenRepository from "../../repositories/token.repository";
-import emailService from "../../service/email.service";
-import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util";
-import { encrypt } from "../../utils/common";
-import getPool from "../../config/database";
+import contactRepository from "./contact.repository.js";
+import userRepository from "../user/user.repository.js";
+import addressRepository from "../../repositories/address.repository.js";
+import tokenRepository from "../../repositories/token.repository.js";
+import emailService from "../../service/email.service.js";
+import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
+import { encrypt } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 /* ------------------------------------------------------------
       LIST CONTACTS
   ------------------------------------------------------------ */
-async function getContacts(currentUser, query) {
+export async function getContacts(currentUser, query) {
   const builderId = currentUser.builder_id;
 
   const search = query.search || "";
@@ -26,7 +26,7 @@ async function getContacts(currentUser, query) {
 /* ------------------------------------------------------------
       GET ONE CONTACT
   ------------------------------------------------------------ */
-async function getContactById(currentUser, contact_id) {
+export async function getContactById(currentUser, contact_id) {
   const contact = await contactRepository.getContactById(
     currentUser.builder_id,
     contact_id,
@@ -44,7 +44,7 @@ async function getContactById(currentUser, contact_id) {
 /* ------------------------------------------------------------
       CREATE CONTACT
   ------------------------------------------------------------ */
-async function createContact(currentUser, body) {
+export async function createContact(currentUser, body) {
   const builderId = currentUser.builder_id;
 
   const {
@@ -137,7 +137,7 @@ async function createContact(currentUser, body) {
 /* ------------------------------------------------------------
       UPDATE CONTACT
   ------------------------------------------------------------ */
-async function updateContact(currentUser, contact_id, body) {
+export async function updateContact(currentUser, contact_id, body) {
   const builderId = currentUser.builder_id;
 
   const existing = await contactRepository.getContactById(
@@ -209,7 +209,7 @@ async function updateContact(currentUser, contact_id, body) {
 /* ------------------------------------------------------------
       DELETE CONTACT (soft delete)
   ------------------------------------------------------------ */
-async function deleteContact(currentUser, contact_id) {
+export async function deleteContact(currentUser, contact_id) {
   const builderId = currentUser.builder_id;
 
   const contact = await contactRepository.getContactById(builderId, contact_id);
@@ -227,7 +227,7 @@ async function deleteContact(currentUser, contact_id) {
 /* ------------------------------------------------------------
       CONVERT CONTACT → USER
   ------------------------------------------------------------ */
-async function convertContactToUser(currentUser, contact_id, body) {
+export async function convertContactToUser(currentUser, contact_id, body) {
   const { role_id } = body;
 
   const builderId = currentUser.builder_id;

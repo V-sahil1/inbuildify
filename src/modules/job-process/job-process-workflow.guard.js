@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
+import getPool from "../../config/database.js";
 
-async function ensureWorkflowStageByStageId(stageId) {
+export async function ensureWorkflowStageByStageId(stageId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `
@@ -18,7 +18,7 @@ async function ensureWorkflowStageByStageId(stageId) {
   }
 }
 
-async function ensureWorkflowStageBySubStageId(subStageId) {
+export async function ensureWorkflowStageBySubStageId(subStageId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `

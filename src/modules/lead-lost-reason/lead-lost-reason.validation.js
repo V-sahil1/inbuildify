@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createLeadLostReasonSchema = Joi.object({
+export const createLeadLostReasonSchema = Joi.object({
   lost_reason: Joi.string()
     .trim()
     .max(255)
@@ -19,7 +19,7 @@ const createLeadLostReasonSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-const getAllLeadLostReasonsSchema = Joi.object({
+export const getAllLeadLostReasonsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -34,21 +34,21 @@ const getAllLeadLostReasonsSchema = Joi.object({
   }),
 });
 
-const deleteLeadLostReasonSchema = Joi.object({
+export const deleteLeadLostReasonSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Lead lost reasonID must be a valid UUID",
     "any.required": "Lead lost reason ID is required",
   }),
 });
 
-const updateLeadLostReasonParamsSchema = Joi.object({
+export const updateLeadLostReasonParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Lead lost reasonID must be a valid UUID",
     "any.required": "Lead lost reason ID is required",
   }),
 });
 
-const updateLeadLostReasonSchema = Joi.object({
+export const updateLeadLostReasonSchema = Joi.object({
   lost_reason: Joi.string()
     .trim()
     .max(255)
@@ -64,7 +64,7 @@ const updateLeadLostReasonSchema = Joi.object({
   }),
 });
 
-const updateLeadLostReasonIsActiveSchema = Joi.object({
+export const updateLeadLostReasonIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 

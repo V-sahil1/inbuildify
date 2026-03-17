@@ -1,7 +1,7 @@
 /**
  * Seed default construction_ets_recharge for a new builder
  */
-async function seedConstructionEtsRecharge({ company_id, builder_id, created_by, client }) {
+export async function seedConstructionEtsRecharge({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO construction_ets_recharge (
       company_id, builder_id,

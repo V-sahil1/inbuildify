@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createColorGroupSchema = Joi.object({
+export const createColorGroupSchema = Joi.object({
   name: Joi.string()
     .required()
     .trim()
@@ -14,7 +14,7 @@ const createColorGroupSchema = Joi.object({
     }),
 });
 
-const getAllColorGroupsSchema = Joi.object({
+export const getAllColorGroupsSchema = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -37,7 +37,7 @@ const getAllColorGroupsSchema = Joi.object({
   }),
 });
 
-const getColorGroupByIdSchema = Joi.object({
+export const getColorGroupByIdSchema = Joi.object({
   colorGroupId: Joi.string().uuid().required().messages({
     "any.required": "Color group ID is required",
     "string.uuid": "Color group ID must be a valid UUID",
@@ -45,7 +45,7 @@ const getColorGroupByIdSchema = Joi.object({
   }),
 });
 
-const updateColorGroupParamsSchema = Joi.object({
+export const updateColorGroupParamsSchema = Joi.object({
   colorGroupId: Joi.string().uuid().required().messages({
     "any.required": "Color group ID is required",
     "string.uuid": "Color group ID must be a valid UUID",
@@ -53,7 +53,7 @@ const updateColorGroupParamsSchema = Joi.object({
   }),
 });
 
-const updateColorGroupSchema = Joi.object({
+export const updateColorGroupSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -74,7 +74,7 @@ const updateColorGroupSchema = Joi.object({
     "object.min": "At least one field is required to update",
   });
 
-const deleteColorGroupSchema = Joi.object({
+export const deleteColorGroupSchema = Joi.object({
   colorGroupId: Joi.string().uuid().required().messages({
     "any.required": "Color group ID is required",
     "string.uuid": "Color group ID must be a valid UUID",

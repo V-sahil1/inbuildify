@@ -12,10 +12,10 @@ import {
   createWorkflowProcessTask,
   updateWorkflowProcessTask,
   deleteWorkflowProcessTask,
-} from "./workflow-process.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+} from "./workflow-process.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   getAllWorkFlowProcessSchema,
   createWorkFlowProcessSchema,
@@ -26,9 +26,9 @@ import {
   createWorkflowProcessTaskSchema,
   updateWorkflowProcessTaskSchema,
   deleteWorkflowProcessTaskSchema,
-} from "./workflow-process.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
-import { createUpload, handleMulterError } from "../../utils/s3Upload";
+} from "./workflow-process.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobWorkflowSettingSchema = Joi.object({
+export const createJobWorkflowSettingSchema = Joi.object({
   show_all_tasks_to_all_roles: Joi.boolean().default(false),
   include_weekend_date: Joi.boolean().default(false),
   include_holiday_date: Joi.boolean().default(false),
@@ -9,14 +9,14 @@ const createJobWorkflowSettingSchema = Joi.object({
     Joi.boolean().default(false),
 });
 
-const updateJobWorkflowSettingParamsSchema = Joi.object({
+export const updateJobWorkflowSettingParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "job workflow id must be a valid UUID",
     "any.required": " job workflow od is required",
   }),
 });
 
-const updateJobWorkflowSettingSchema = Joi.object({
+export const updateJobWorkflowSettingSchema = Joi.object({
   show_all_tasks_to_all_roles: Joi.boolean().default(false),
   include_weekend_date: Joi.boolean().default(false),
   include_holiday_date: Joi.boolean().default(false),

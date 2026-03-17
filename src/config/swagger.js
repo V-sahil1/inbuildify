@@ -1,4 +1,4 @@
-import { REQUEST_SOURCE } from "../config/constants";
+import { REQUEST_SOURCE } from "../config/constants.js";
 
 // Default example values for Swagger
 function getDefaultExample(type) {

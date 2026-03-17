@@ -1,5 +1,5 @@
-import getPool from "../../config/database";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 class InvoiceRepository {
   constructor() {

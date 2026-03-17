@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createActionSchema = {
+export const createActionSchema = {
   params: Joi.object({
     lead_id: Joi.string().uuid().required().messages({
       "string.guid": "Lead ID must be a valid UUID",
@@ -69,7 +69,7 @@ const createActionSchema = {
   }),
 };
 
-const updateActionSchema = {
+export const updateActionSchema = {
   params: Joi.object({
     action_id: Joi.string().uuid().required().messages({
       "string.guid": "Action ID must be a valid UUID",
@@ -134,7 +134,7 @@ const updateActionSchema = {
   }),
 };
 
-const getActionSchema = {
+export const getActionSchema = {
   params: Joi.object({
     lead_id: Joi.string().uuid().required().messages({
       "string.guid": "Lead ID must be a valid UUID",

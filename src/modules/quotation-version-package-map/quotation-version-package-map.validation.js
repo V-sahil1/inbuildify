@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createPackageMapSchema = Joi.object({
+export const createPackageMapSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
@@ -11,14 +11,14 @@ const createPackageMapSchema = Joi.object({
   }),
 });
 
-const getPackageMapsByVersionSchema = Joi.object({
+export const getPackageMapsByVersionSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
   }),
 });
 
-const deletePackageMapParamsSchema = Joi.object({
+export const deletePackageMapParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Package Map ID must be a valid UUID",
     "any.required": "Package Map ID is required",

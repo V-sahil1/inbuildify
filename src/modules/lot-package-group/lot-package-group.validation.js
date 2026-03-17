@@ -10,32 +10,32 @@ const stringRule = Joi.string().trim().messages({
   "string.empty": "Field cannot be empty",
 });
 
-const createLotPackageGroupSchema = Joi.object({
+export const createLotPackageGroupSchema = Joi.object({
   group_name: stringRule.max(255).required().messages({
     "any.required": "Group name is required",
     "string.max": "Group name must not exceed 255 characters",
   }),
 });
 
-const updateLotPackageGroupSchema = Joi.object({
+export const updateLotPackageGroupSchema = Joi.object({
   group_name: stringRule.max(255).required().messages({
     "any.required": "Group name is required",
     "string.max": "Group name must not exceed 255 characters",
   }),
 });
 
-const getLotPackageGroupByIdSchema = Joi.object({
+export const getLotPackageGroupByIdSchema = Joi.object({
   lot_package_group_id: uuidRule,
 });
 
-const deleteLotPackageGroupSchema = Joi.object({
+export const deleteLotPackageGroupSchema = Joi.object({
   lot_package_group_id: uuidRule.messages({
     "string.guid": "Lot package group ID must be a valid UUID",
     "any.required": "Lot package group ID is required",
   }),
 });
 
-const getAllLotPackageGroupsSchema = Joi.object({
+export const getAllLotPackageGroupsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
   search: Joi.string().trim().optional().allow(""),

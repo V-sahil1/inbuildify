@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createSalesProccessSchema = Joi.object({
+export const createSalesProccessSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -10,21 +10,21 @@ const createSalesProccessSchema = Joi.object({
   is_default: Joi.boolean().default(false),
 });
 
-const deleteSalesProcessSchema = Joi.object({
+export const deleteSalesProcessSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Sales process ID must be a valid UUID",
     "any.required": "Sales process ID is required",
   }),
 });
 
-const updateSalesProcessIdParamsSchema = Joi.object({
+export const updateSalesProcessIdParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Sales process ID must be a valid UUID",
     "any.required": "Sales process ID is required",
   }),
 });
 
-const updateSalesProcessSchema = Joi.object({
+export const updateSalesProcessSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)

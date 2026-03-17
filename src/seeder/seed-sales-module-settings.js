@@ -1,7 +1,7 @@
 /**
  * Seed default sales_module_settings for a new builder
  */
-async function seedSalesModuleSettings({ company_id, builder_id, created_by, client }) {
+export async function seedSalesModuleSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO sales_module_settings (
       company_id, builder_id,

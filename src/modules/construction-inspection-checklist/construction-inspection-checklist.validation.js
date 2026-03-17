@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createConstructionInspectionChecklistSchema = Joi.object({
+export const createConstructionInspectionChecklistSchema = Joi.object({
   builder: Joi.string().uuid().allow(null),
   construction_type_id: Joi.string().uuid().allow(null),
   construction_stage_id: Joi.string().uuid().allow(null),
@@ -12,14 +12,14 @@ const createConstructionInspectionChecklistSchema = Joi.object({
   add_all_existing_jobs: Joi.boolean().default(true),
 });
 
-const getConstructionInspectionChecklistsSchema = Joi.object({
+export const getConstructionInspectionChecklistsSchema = Joi.object({
   construction_type_id: Joi.string().uuid().optional(),
   construction_stage_id: Joi.string().uuid().optional(),
   field_name: Joi.string().valid("checklist", "section").optional(),
   builder: Joi.string().uuid().optional(),
 });
 
-const updateConstructionInspectionChecklistSchema = Joi.object({
+export const updateConstructionInspectionChecklistSchema = Joi.object({
   builder: Joi.string().uuid().allow(null).optional(),
   construction_type_id: Joi.string().uuid().allow(null).optional(),
   construction_stage_id: Joi.string().uuid().allow(null).optional(),
@@ -31,14 +31,14 @@ const updateConstructionInspectionChecklistSchema = Joi.object({
   add_all_existing_jobs: Joi.boolean().optional(),
 });
 
-const deleteConstructionInspectionChecklistSchema = Joi.object({
+export const deleteConstructionInspectionChecklistSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateExistingJobsSchema = Joi.object({
+export const updateExistingJobsSchema = Joi.object({
   add_all_existing_jobs: Joi.boolean().required().messages({
     "boolean.base": "add_all_existing_jobs must be a boolean",
     "any.required": "add_all_existing_jobs is required",

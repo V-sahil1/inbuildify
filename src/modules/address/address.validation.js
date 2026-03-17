@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createAddressSchema = Joi.object({
+export const createAddressSchema = Joi.object({
   country_id: Joi.string().uuid().allow(null).optional(),
   state_id: Joi.string().uuid().allow(null).optional(),
   address_line1: Joi.string()

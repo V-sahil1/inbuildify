@@ -8,13 +8,13 @@ import {
   getColorItemCustomFieldById,
   updateColorItemCustomField,
   deleteColorItemCustomField,
-} from "./color-item-custom-field.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import { createColorItemCustomFieldSchema, updateColorItemCustomFieldSchema } from "./color-item-custom-field.validation";
+} from "./color-item-custom-field.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createColorItemCustomFieldSchema, updateColorItemCustomFieldSchema } from "./color-item-custom-field.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

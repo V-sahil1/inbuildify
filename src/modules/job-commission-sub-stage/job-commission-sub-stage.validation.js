@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobCommissionSubStageSchema = Joi.object({
+export const createJobCommissionSubStageSchema = Joi.object({
   job_commission_id: Joi.string().uuid().required().messages({
     "any.required": "job_commission_id is required",
     "string.guid": "job_commission_id must be a valid UUID",
@@ -52,7 +52,7 @@ const createJobCommissionSubStageSchema = Joi.object({
   }),
 });
 
-const getAllJobCommissionSubStageSchema = Joi.object({
+export const getAllJobCommissionSubStageSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -67,14 +67,14 @@ const getAllJobCommissionSubStageSchema = Joi.object({
   }),
 });
 
-const getJobCommissionSubStagesByCommissionIdSchema = Joi.object({
+export const getJobCommissionSubStagesByCommissionIdSchema = Joi.object({
   job_commission_id: Joi.string().uuid().required().messages({
     "string.guid": "Job commission id must be a valid UUID",
     "any.required": "Job commission id is required",
   }),
 });
 
-const getJobCommissionSubStagesByCommissionSchema = Joi.object({
+export const getJobCommissionSubStagesByCommissionSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -89,21 +89,21 @@ const getJobCommissionSubStagesByCommissionSchema = Joi.object({
   }),
 });
 
-const deleteJobCommissionSubStageSchema = Joi.object({
+export const deleteJobCommissionSubStageSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Job commission id must be a valid UUID",
     "any.required": "Job commission id is required",
   }),
 });
 
-const updateJobCommissionSubStageParamsSchema = Joi.object({
+export const updateJobCommissionSubStageParamsSchema = Joi.object({
   job_commission_sub_stage_id: Joi.string().uuid().required().messages({
     "string.guid": "Job commission id must be a valid UUID",
     "any.required": "Job commission id is required",
   }),
 });
 
-const updateJobCommissionSubStageSchema = Joi.object({
+export const updateJobCommissionSubStageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)

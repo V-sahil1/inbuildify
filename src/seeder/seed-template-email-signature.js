@@ -1,7 +1,7 @@
 /**
  * Seed default template_email_signature for a new builder
  */
-async function seedTemplateEmailSignature({ company_id, builder_id, created_by, client }) {
+export async function seedTemplateEmailSignature({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO template_email_signature (
       company_id, builder_id,

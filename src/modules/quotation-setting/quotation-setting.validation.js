@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createQuotationSettingSchems = Joi.object({
+export const createQuotationSettingSchems = Joi.object({
   allow_save_as_new_version: Joi.boolean().default(false),
   mandatory_contact_details: Joi.boolean().default(false),
   mandatory_dwelling_type: Joi.boolean().default(false),
@@ -40,14 +40,14 @@ const createQuotationSettingSchems = Joi.object({
   }),
 });
 
-const updateQuotationSettingParamsSchema = Joi.object({
+export const updateQuotationSettingParamsSchema = Joi.object({
   quotation_settings_id: Joi.string().uuid().required().messages({
     "string.guid": "quotation setting ID must be a valid UUID",
     "any.required": "quotation setting ID is required",
   }),
 });
 
-const updateQuotationSettingSchema = Joi.object({
+export const updateQuotationSettingSchema = Joi.object({
   allow_save_as_new_version: Joi.boolean().optional(),
   mandatory_contact_details: Joi.boolean().optional(),
   mandatory_dwelling_type: Joi.boolean().optional(),

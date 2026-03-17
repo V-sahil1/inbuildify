@@ -1,7 +1,7 @@
 /**
  * Seed default maintenance_settings for a new builder
  */
-async function seedMaintenanceSettings({ company_id, builder_id, created_by, client }) {
+export async function seedMaintenanceSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO maintenance_settings (
       company_id, builder_id,

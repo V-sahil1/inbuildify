@@ -1,7 +1,7 @@
-import getPool from "../../config/database";
-import { seedInitialPdfTemplates } from "../../seeder/template-pdf.seed";
-import { deleteFromS3 } from "../../utils/s3Upload";
-import { getFormatValidationSchema } from "./template-pdf.validation";
+import getPool from "../../config/database.js";
+import { seedInitialPdfTemplates } from "../../seeder/template-pdf.seed.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { getFormatValidationSchema } from "./template-pdf.validation.js";
 
 function mergeTemplateImages(base, payload) {
   const result = { ...base };
@@ -24,7 +24,7 @@ function resolveScope(user) {
   };
 }
 
-async function createTemplatePdf(user, payload) {
+export async function createTemplatePdf(user, payload) {
   const pool = getPool();
 
   const templateJson = mergeTemplateImages({}, payload);
@@ -62,7 +62,7 @@ const formatTypeMap = {
   maintenance_format: "Maintenance Format",
 };
 
-function normalizeFormatType(type) {
+export function normalizeFormatType(type) {
   if (!type) {
     return null;
   }
@@ -86,7 +86,7 @@ function normalizeFormatType(type) {
   return null;
 }
 
-async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
+export async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
   const pool = getPool();
   const existing = await getTemplatePdfById(user, templatePdfId);
   if (!existing) {
@@ -130,7 +130,7 @@ async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
   return result.rows[0];
 }
 
-async function getTemplatePdfById(user, templatePdfId) {
+export async function getTemplatePdfById(user, templatePdfId) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -150,7 +150,7 @@ async function getTemplatePdfById(user, templatePdfId) {
   return result.rows[0] || null;
 }
 
-async function getTemplatePdfList(user) {
+export async function getTemplatePdfList(user) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -189,7 +189,7 @@ async function getTemplatePdfList(user) {
   return result.rows;
 }
 
-async function deleteTemplatePdf(user, templatePdfId) {
+export async function deleteTemplatePdf(user, templatePdfId) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 

@@ -2,15 +2,15 @@ import crypto from "crypto";
 
 import jwt from "jsonwebtoken";
 
-import getPool from "../../config/database";
-import sendEmail from "../../helper/sendMail";
-import { upsertCompany } from "../company/company.service";
-import { seedBuilderDefaults } from "../../seeder/seed-builder-defaults";
-import { generateOtp, generateAccessToken, generateRefreshToken, decrypt as base64Decrypt } from "../../utils/common";
-import { encrypt, decrypt } from "../../utils/crypto.util";
+import getPool from "../../config/database.js";
+import sendEmail from "../../helper/sendMail.js";
+import { upsertCompany } from "../company/company.service.js";
+import { seedBuilderDefaults } from "../../seeder/seed-builder-defaults.js";
+import { generateOtp, generateAccessToken, generateRefreshToken, decrypt as base64Decrypt } from "../../utils/common.js";
+import { encrypt, decrypt } from "../../utils/crypto.util.js";
 
 // REGISTER ROOT USER
-async function registerRoot({ name, email, password, role_id }) {
+export async function registerRoot({ name, email, password, role_id }) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -100,7 +100,7 @@ async function registerRoot({ name, email, password, role_id }) {
 }
 
 // VERIFY EMAIL
-async function verifyEmail({ email, otp }) {
+export async function verifyEmail({ email, otp }) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -175,7 +175,7 @@ async function sendVerificationEmail(
 }
 
 // RESEND OTP
-async function resendOtp(email) {
+export async function resendOtp(email) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -236,7 +236,7 @@ async function resendOtp(email) {
 }
 
 // LOGIN
-async function login({ email, login_id, password }) {
+export async function login({ email, login_id, password }) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -350,7 +350,7 @@ async function login({ email, login_id, password }) {
 }
 
 // LOGOUT
-async function logout(user) {
+export async function logout(user) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -366,7 +366,7 @@ async function logout(user) {
 }
 
 // FORGOT PASSWORD
-async function forgotPassword(email) {
+export async function forgotPassword(email) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -399,7 +399,7 @@ async function forgotPassword(email) {
 }
 
 // RESET PASSWORD
-async function resetPassword({ email, resetPasswordToken, password }) {
+export async function resetPassword({ email, resetPasswordToken, password }) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -438,7 +438,7 @@ async function resetPassword({ email, resetPasswordToken, password }) {
 }
 
 // REFRESH TOKEN
-async function refreshToken(refreshToken) {
+export async function refreshToken(refreshToken) {
   let decoded;
 
   try {

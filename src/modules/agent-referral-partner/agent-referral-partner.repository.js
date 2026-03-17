@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
+import getPool from "../../config/database.js";
 
-async function createAgentReferralPartner(data, client = getPool()) {
+export async function createAgentReferralPartner(data, client = getPool()) {
   const {
     company_id,
     builder_id,
@@ -41,7 +41,7 @@ async function createAgentReferralPartner(data, client = getPool()) {
   return result.rows[0];
 }
 
-async function getAgentReferralPartnerById(partnerId, client = getPool()) {
+export async function getAgentReferralPartnerById(partnerId, client = getPool()) {
   const result = await client.query(
     `SELECT 
       arp.*,
@@ -59,7 +59,7 @@ async function getAgentReferralPartnerById(partnerId, client = getPool()) {
   return result.rows[0] || null;
 }
 
-async function getAgentReferralPartnersByBuilder(
+export async function getAgentReferralPartnersByBuilder(
   builderId,
   query,
   client = getPool(),
@@ -129,7 +129,7 @@ async function getAgentReferralPartnersByBuilder(
   };
 }
 
-async function getAgentReferralPartnersByCompany(
+export async function getAgentReferralPartnersByCompany(
   companyId,
   query,
   client = getPool(),
@@ -199,7 +199,7 @@ async function getAgentReferralPartnersByCompany(
   };
 }
 
-async function updateAgentReferralPartner(partnerId, data, client = getPool()) {
+export async function updateAgentReferralPartner(partnerId, data, client = getPool()) {
   const {
     address_id,
     account_name,
@@ -240,7 +240,7 @@ async function updateAgentReferralPartner(partnerId, data, client = getPool()) {
   return result.rows[0] || null;
 }
 
-async function deleteAgentReferralPartner(partnerId, client = getPool()) {
+export async function deleteAgentReferralPartner(partnerId, client = getPool()) {
   // First, get the partner record to find the associated user_id
   const partnerResult = await client.query(
     "SELECT user_id FROM agent_referral_partner WHERE agent_referral_partner_id = $1",
@@ -268,7 +268,7 @@ async function deleteAgentReferralPartner(partnerId, client = getPool()) {
   return result.rows[0] || null;
 }
 
-async function getAgentReferralPartnerByEmail(email, client = getPool()) {
+export async function getAgentReferralPartnerByEmail(email, client = getPool()) {
   const result = await client.query(
     `SELECT arp.* FROM agent_referral_partner arp
      INNER JOIN users u ON arp.user_id = u.users_id 

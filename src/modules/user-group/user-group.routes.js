@@ -7,18 +7,18 @@ import {
   getAllUserGroups,
   updateUserGroup,
   updateUserGroupIsActive,
-} from "./user-group.controller";
+} from "./user-group.controller.js";
 import {
   createUserGroupSchema,
   getAllUserGroupSchema,
   updateUserGroupParamsSchema,
   updateUserGroupSchema,
-} from "./user-group.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
+} from "./user-group.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
-import { REQUEST_SOURCE } from "../../config/constants";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

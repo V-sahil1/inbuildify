@@ -1,7 +1,7 @@
 /**
  * Seed default scheduler_settings for a new builder
  */
-async function seedSchedulerSettings({ company_id, builder_id, created_by, client }) {
+export async function seedSchedulerSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO scheduler_settings (
       company_id, builder_id,

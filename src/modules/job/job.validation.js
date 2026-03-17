@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const convertOpportunitySchema = {
+export const convertOpportunitySchema = {
   params: Joi.object({
     opportunity_id: Joi.string().uuid().required().messages({
       "string.guid": "Opportunity ID must be a valid UUID",

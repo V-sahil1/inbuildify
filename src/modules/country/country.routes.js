@@ -1,9 +1,9 @@
 import express from "express";
 
 const router = express.Router();
-import { getCountries } from "./country.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
+import { getCountries } from "./country.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

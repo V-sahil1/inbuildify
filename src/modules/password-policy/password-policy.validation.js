@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const cretePasswordPolicySchema = Joi.object({
+export const cretePasswordPolicySchema = Joi.object({
   expires_in_days: Joi.number()
     .integer()
     .min(1)
@@ -60,14 +60,14 @@ const cretePasswordPolicySchema = Joi.object({
   }),
 });
 
-const updatePasswordPolicyIdParamsSchema = Joi.object({
+export const updatePasswordPolicyIdParamsSchema = Joi.object({
   password_policy_id: Joi.string().uuid().required().messages({
     "string.guid": "Role ID must be a valid UUID",
     "any.required": "Role ID is required",
   }),
 });
 
-const updatePasswordPolicySchema = Joi.object({
+export const updatePasswordPolicySchema = Joi.object({
   expires_in_days: Joi.number()
     .integer()
     .min(1)
@@ -127,7 +127,7 @@ const updatePasswordPolicySchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-const updatePasswordPolicyIsActiveSchema = Joi.object({
+export const updatePasswordPolicyIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 

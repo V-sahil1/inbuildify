@@ -1,6 +1,6 @@
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import { upsertBuilder as upsertBuilderService, getBuilderProfile, getAllBuilders as getAllBuildersService } from "./builder.service";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { upsertBuilder as upsertBuilderService, getBuilderProfile, getAllBuilders as getAllBuildersService } from "./builder.service.js";
 
 export async function upsertBuilder(req, res) {
   try {

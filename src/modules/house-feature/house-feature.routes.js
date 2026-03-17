@@ -8,19 +8,19 @@ import {
   getHouseFeatureById,
   updateHouseFeature,
   deleteHouseFeature,
-} from "./house-feature.controller";
+} from "./house-feature.controller.js";
 import {
   createHouseFeatureSchema,
   updateHouseFeatureSchema,
   getHouseFeatureByIdSchema,
   deleteHouseFeatureSchema,
   getAllHouseFeaturesSchema,
-} from "./house-feature.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+} from "./house-feature.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 
 router.post(
   "/",

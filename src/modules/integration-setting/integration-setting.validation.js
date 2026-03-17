@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createIntegrationSettingsSchema = Joi.object({
+export const createIntegrationSettingsSchema = Joi.object({
   automatically_send_welcome_email: Joi.boolean().optional(),
   rea_hl_enabled: Joi.boolean().optional(),
   canibuild_enabled: Joi.boolean().optional(),
@@ -20,7 +20,7 @@ const createIntegrationSettingsSchema = Joi.object({
   }),
 });
 
-const updateIntegrationSettingSchema = Joi.object({
+export const updateIntegrationSettingSchema = Joi.object({
   automatically_send_welcome_email: Joi.boolean().optional(),
   rea_hl_enabled: Joi.boolean().optional(),
   canibuild_enabled: Joi.boolean().optional(),

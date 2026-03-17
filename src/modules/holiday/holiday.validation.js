@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createHolidaySchema = Joi.object({
+export const createHolidaySchema = Joi.object({
   state: Joi.array()
     .items(Joi.string().guid({ version: "uuidv4" }))
     .optional()
@@ -17,7 +17,7 @@ const createHolidaySchema = Joi.object({
     .required(),
 });
 
-const getAllHolidaySchema = Joi.object({
+export const getAllHolidaySchema = Joi.object({
   state: Joi.string()
     .custom((value, helpers) => {
       const parts = value.split(",").map((v) => v.trim());
@@ -60,21 +60,21 @@ const getAllHolidaySchema = Joi.object({
   }),
 });
 
-const deleteHolidaySchema = Joi.object({
+export const deleteHolidaySchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "holiday ID must be a valid UUID",
     "any.required": "holiday ID is required",
   }),
 });
 
-const updateHolidayParamsSchema = Joi.object({
+export const updateHolidayParamsSchema = Joi.object({
   holiday_id: Joi.string().uuid().required().messages({
     "string.guid": "holiday ID must be a valid UUID",
     "any.required": "holiday ID is required",
   }),
 });
 
-const updateHolidaySchema = Joi.object({
+export const updateHolidaySchema = Joi.object({
   state: Joi.array()
     .items(Joi.string().guid({ version: "uuidv4" }))
     .optional()

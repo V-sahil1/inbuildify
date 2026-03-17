@@ -1,7 +1,7 @@
-import errorResponse from "../helper/response";
+import errorResponse from "../helper/response.js";
 import { ERROR_MESSAGES, isValidRole } from "../config/constants.js";
 import isAuthorized from "../helper/utils.js";
-import getPool from "../config/database";
+import getPool from "../config/database.js";
 
 const roleMiddleware = async (req, res, next) => {
   try {

@@ -8,18 +8,18 @@ import {
   getContractorById,
   updateContractor,
   deleteContractor,
-} from "./contractor.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+} from "./contractor.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createContractorSchema,
   getContractorByIdSchema,
   updateContractorParamsSchema,
   updateContractorSchema,
   deleteContractorSchema,
-} from "./contractor.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./contractor.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

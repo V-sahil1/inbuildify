@@ -8,15 +8,15 @@ import {
   getTemplatePdfById,
   getTemplatePdfList,
   deleteTemplatePdf,
-} from "./template-pdf.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import { createTemplatePdfSchema } from "./template-pdf.validation";
-import { createUpload, handleMulterError } from "../../utils/s3Upload";
-import parseFormDataJson from "../../middleware/parseFormDataJson";
+} from "./template-pdf.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createTemplatePdfSchema } from "./template-pdf.validation.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import parseFormDataJson from "../../middleware/parseFormDataJson.js";
 
 const upload = createUpload("pdf-template-assets");
 

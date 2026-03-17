@@ -1,7 +1,7 @@
 /**
  * Seed default recalculate_date for a new builder
  */
-async function seedRecalculateDate({ company_id, builder_id, created_by, client }) {
+export async function seedRecalculateDate({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO recalculate_date (
       company_id, builder_id,

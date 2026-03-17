@@ -8,17 +8,17 @@ import {
   getInclusionPackageById,
   updateInclusionPackage,
   deleteInclusionPackage,
-} from "./inclusion-package.controller";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+} from "./inclusion-package.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createInclusionPackageSchema,
   updateInclusionPackageSchema,
   inclusionPackageIdSchema,
-} from "./inclusion-package.validation";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./inclusion-package.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

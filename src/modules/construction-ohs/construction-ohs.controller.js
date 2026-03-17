@@ -5,9 +5,9 @@ import {
   createOhsListItemService,
   updateOhsListItemService,
   deleteOhsListItemService,
-} from "./construction-ohs.service";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+} from "./construction-ohs.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /* -----------------------------
    GET Settings

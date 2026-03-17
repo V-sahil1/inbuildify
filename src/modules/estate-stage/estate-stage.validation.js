@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createEstateStageSchema = Joi.object({
+export const createEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
@@ -21,7 +21,7 @@ const createEstateStageSchema = Joi.object({
   }),
 });
 
-const getALLEstateStageSchema = Joi.object({
+export const getALLEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().optional().messages({
     "string.guid": "estate ID must be a valid UUID",
   }),
@@ -39,21 +39,21 @@ const getALLEstateStageSchema = Joi.object({
   }),
 });
 
-const deleteEstateStageSchema = Joi.object({
+export const deleteEstateStageSchema = Joi.object({
   estate_stage_id: Joi.string().uuid().required().messages({
     "string.guid": "estate stage ID must be a valid UUID",
     "any.required": "estate stage ID is required",
   }),
 });
 
-const updateEstateStageParamsSchema = Joi.object({
+export const updateEstateStageParamsSchema = Joi.object({
   estate_stage_id: Joi.string().uuid().required().messages({
     "string.guid": "estate stage ID must be a valid UUID",
     "any.required": "estate stage ID is required",
   }),
 });
 
-const updsteEstateStageSchema = Joi.object({
+export const updsteEstateStageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)

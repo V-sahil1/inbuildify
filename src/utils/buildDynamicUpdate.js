@@ -1,4 +1,4 @@
-function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
+export function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
   const sets = [];
   const values = [idValue];
   let paramIndex = 2;

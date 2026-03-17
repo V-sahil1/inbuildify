@@ -1,7 +1,7 @@
-import agentReferralPartnerService from "./agent-referral-partner.service";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import getPool from "../../config/database";
+import agentReferralPartnerService from "./agent-referral-partner.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 export async function createAgentReferralPartner(req, res) {
   const pool = getPool();
@@ -145,3 +145,11 @@ export async function deleteAgentReferralPartner(req, res) {
     client.release();
   }
 }
+
+export default {
+  createAgentReferralPartner,
+  getAgentReferralPartnerById,
+  getAgentReferralPartners,
+  updateAgentReferralPartner,
+  deleteAgentReferralPartner,
+};

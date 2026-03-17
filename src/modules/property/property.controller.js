@@ -1,7 +1,7 @@
-import getPool from "../../config/database";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import addressRepo from "../../repositories/address.repository";
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import addressRepo from "../../repositories/address.repository.js";
 
 export async function createProperty(req, res) {
   const pool = getPool();

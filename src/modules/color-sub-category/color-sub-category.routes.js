@@ -8,18 +8,18 @@ import {
   createColorSubCategory,
   updateColorSubCategory,
   deleteColorSubCategory,
-} from "./color-sub-category.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+} from "./color-sub-category.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   getAllColorSubCategoriesSchema,
   getAllColorSubCategoriesParamsSchema,
   createColorSubCategorySchema,
   updateColorSubCategorySchema,
   colorSubCategoryIdParamSchema,
-} from "./color-sub-category.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./color-sub-category.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

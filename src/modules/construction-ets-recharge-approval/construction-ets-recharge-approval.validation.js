@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createConstructionEtsRechargeApprovalValidation = Joi.object({
+export const createConstructionEtsRechargeApprovalValidation = Joi.object({
   role_id: Joi.string().uuid().required().messages({
     "string.uuid": "Role ID must be a valid UUID",
     "any.required": "Role ID is required",
@@ -11,7 +11,7 @@ const createConstructionEtsRechargeApprovalValidation = Joi.object({
   }),
 });
 
-const updateConstructionEtsRechargeApprovalValidation = Joi.object({
+export const updateConstructionEtsRechargeApprovalValidation = Joi.object({
   role_id: Joi.string().uuid().optional().messages({
     "string.uuid": "Role ID must be a valid UUID",
   }),
@@ -20,14 +20,14 @@ const updateConstructionEtsRechargeApprovalValidation = Joi.object({
   }),
 }).min(1);
 
-const getConstructionEtsRechargeApprovalByIdValidation = Joi.object({
+export const getConstructionEtsRechargeApprovalByIdValidation = Joi.object({
   construction_ets_recharge_approval_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction ETS recharge approval ID must be a valid UUID",
     "any.required": "Construction ETS recharge approval ID is required",
   }),
 });
 
-const queryValidation = Joi.object({
+export const queryValidation = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.integer": "Page must be an integer",
     "number.min": "Page must be at least 1",

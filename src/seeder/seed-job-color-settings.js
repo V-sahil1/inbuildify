@@ -1,7 +1,7 @@
 /**
  * Seed default job_color_settings for a new builder
  */
-async function seedJobColorSettings({ company_id, builder_id, created_by, client }) {
+export async function seedJobColorSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO job_color_settings (
       company_id, builder_id,

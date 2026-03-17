@@ -45,7 +45,7 @@ const contractorIdRule = Joi.string().uuid().messages({
 });
 
 // Create contractor validation
-const createContractorSchema = Joi.object({
+export const createContractorSchema = Joi.object({
   name: nameRule.required(),
   email: emailRule.required(),
   phone: phoneRule.required(),
@@ -54,12 +54,12 @@ const createContractorSchema = Joi.object({
 });
 
 // Get contractor by ID validation (params)
-const getContractorByIdSchema = Joi.object({
+export const getContractorByIdSchema = Joi.object({
   id: contractorIdRule.required(),
 });
 
 // Update contractor validation
-const updateContractorSchema = Joi.object({
+export const updateContractorSchema = Joi.object({
   name: nameRule.optional(),
   phone: phoneRule.optional(),
   address: addressRule.optional(),
@@ -69,12 +69,12 @@ const updateContractorSchema = Joi.object({
 });
 
 // Update contractor params validation
-const updateContractorParamsSchema = Joi.object({
+export const updateContractorParamsSchema = Joi.object({
   id: contractorIdRule.required(),
 });
 
 // Delete contractor validation (params)
-const deleteContractorSchema = Joi.object({
+export const deleteContractorSchema = Joi.object({
   id: contractorIdRule.required(),
 });
 

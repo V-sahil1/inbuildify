@@ -1,30 +1,30 @@
 import Joi from "joi";
 
-const createLocationSchema = Joi.object({
+export const createLocationSchema = Joi.object({
   name: Joi.string().trim().max(150).required(),
   status: Joi.boolean().default(true),
 });
 
-const getAllLocationSchema = Joi.object({
+export const getAllLocationSchema = Joi.object({
   name: Joi.string().trim().max(150).optional(),
   status: Joi.boolean().optional(),
 });
 
-const deleteLocationSchema = Joi.object({
+export const deleteLocationSchema = Joi.object({
   location_id: Joi.string().uuid().required().messages({
     "string.guid": "location ID must be a valid UUID",
     "any.required": "location ID is required",
   }),
 });
 
-const updateLocationParamsSchema = Joi.object({
+export const updateLocationParamsSchema = Joi.object({
   location_id: Joi.string().uuid().required().messages({
     "string.guid": "location ID must be a valid UUID",
     "any.required": "location ID is required",
   }),
 });
 
-const updateLocationShema = Joi.object({
+export const updateLocationShema = Joi.object({
   name: Joi.string().trim().max(150).optional(),
   status: Joi.boolean().optional(),
 });

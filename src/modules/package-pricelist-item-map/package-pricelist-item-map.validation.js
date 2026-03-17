@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createPriceListItemMapSchema = Joi.object({
+export const createPriceListItemMapSchema = Joi.object({
   package_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
@@ -11,7 +11,7 @@ const createPriceListItemMapSchema = Joi.object({
   }),
 });
 
-const getAllPackagePriceListItemMapSchema = Joi.object({
+export const getAllPackagePriceListItemMapSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -26,28 +26,28 @@ const getAllPackagePriceListItemMapSchema = Joi.object({
   }),
 });
 
-const getPackagePricelistItemByPackageIdSchema = Joi.object({
+export const getPackagePricelistItemByPackageIdSchema = Joi.object({
   package_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
   }),
 });
 
-const deletePackagePricelistItemMapMapSchema = Joi.object({
+export const deletePackagePricelistItemMapMapSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Package pricelist item ID must be a valid UUID",
     "any.required": "Package pricelist item ID is required",
   }),
 });
 
-const updateackagePricelistItemMapParamsSchema = Joi.object({
+export const updateackagePricelistItemMapParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Package pricelist item ID must be a valid UUID",
     "any.required": "Package pricelist item ID is required",
   }),
 });
 
-const updatePriceListItemMapSchema = Joi.object({
+export const updatePriceListItemMapSchema = Joi.object({
   package_id: Joi.string().uuid().optional().messages({
     "string.guid": "Package ID must be a valid UUID",
   }),

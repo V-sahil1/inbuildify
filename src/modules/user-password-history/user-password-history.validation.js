@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createUserPasswordHistorySchema = Joi.object({
+export const createUserPasswordHistorySchema = Joi.object({
   old_password: Joi.string().min(6).max(255).required().messages({
     "any.required": "Password is required",
     "string.base": "Password must be a string",
@@ -10,7 +10,7 @@ const createUserPasswordHistorySchema = Joi.object({
   }),
 });
 
-const getAllUserPasswordHistorySchema = Joi.object({
+export const getAllUserPasswordHistorySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -25,21 +25,21 @@ const getAllUserPasswordHistorySchema = Joi.object({
   }),
 });
 
-const deleteUserPasswordHistorySchema = Joi.object({
+export const deleteUserPasswordHistorySchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "history ID must be a valid UUID",
     "any.required": "history ID is required",
   }),
 });
 
-const getUserPasswordHistoryByIdSchema = Joi.object({
+export const getUserPasswordHistoryByIdSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "history ID must be a valid UUID",
     "any.required": "history ID is required",
   }),
 });
 
-const deleteUserPasswordHistoryByUserIdSchema = Joi.object({
+export const deleteUserPasswordHistoryByUserIdSchema = Joi.object({
   user_id: Joi.string().uuid().required().messages({
     "string.guid": "user ID must be a valid UUID",
     "any.required": "user ID is required",

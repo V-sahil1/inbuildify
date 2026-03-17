@@ -1,6 +1,6 @@
-import sendEmail from "../helper/sendMail";
+import sendEmail from "../helper/sendMail.js";
 
-async function sendPasswordEmail(email, loginId, password) {
+export async function sendPasswordEmail(email, loginId, password) {
   try {
     const subject = "Your Login Credentials";
     const text = `
@@ -19,7 +19,7 @@ Please log in and change your password if required.
   }
 }
 
-async function sendLoginIdEmail(email, loginId) {
+export async function sendLoginIdEmail(email, loginId) {
   try {
     const subject = "Your Login ID Has Changed";
     const text = `

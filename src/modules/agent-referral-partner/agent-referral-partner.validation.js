@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createAgentReferralPartnerSchema = Joi.object({
+export const createAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
     address_line1: Joi.string()
       .min(2)
@@ -123,7 +123,7 @@ const createAgentReferralPartnerSchema = Joi.object({
   }),
 });
 
-const updateAgentReferralPartnerSchema = Joi.object({
+export const updateAgentReferralPartnerSchema = Joi.object({
   address: Joi.object({
     address_line1: Joi.string()
       .min(2)
@@ -239,7 +239,7 @@ const updateAgentReferralPartnerSchema = Joi.object({
   }),
 });
 
-const getAgentReferralPartnerSchema = Joi.object({
+export const getAgentReferralPartnerSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -264,7 +264,7 @@ const getAgentReferralPartnerSchema = Joi.object({
   }),
 });
 
-const paramsIdSchema = Joi.object({
+export const paramsIdSchema = Joi.object({
   partner_id: Joi.string().uuid().required().messages({
     "string.guid": "agent ID must be a valid UUID",
     "any.required": "agent ID is required",

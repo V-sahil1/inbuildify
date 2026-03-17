@@ -1,19 +1,19 @@
 import express from "express";
 
 const router = express.Router();
-import { createLot, getAllLots, getLotById, updateLot, deleteLot } from "./lot.controller";
+import { createLot, getAllLots, getLotById, updateLot, deleteLot } from "./lot.controller.js";
 import {
   createLotSchema,
   updateLotSchema,
   getLotByIdSchema,
   deleteLotSchema,
   getAllLotsSchema,
-} from "./lot.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+} from "./lot.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

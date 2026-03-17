@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createEstateFeatureSchema = Joi.object({
+export const createEstateFeatureSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
@@ -12,7 +12,7 @@ const createEstateFeatureSchema = Joi.object({
     .required(),
 });
 
-const getAllEstateFeatureSchema = Joi.object({
+export const getAllEstateFeatureSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -27,20 +27,20 @@ const getAllEstateFeatureSchema = Joi.object({
   }),
 });
 
-const getEstateFeatureByEstateIdSchema = Joi.object({
+export const getEstateFeatureByEstateIdSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
 });
 
-const deleteEstateFeatureSchema = Joi.object({
+export const deleteEstateFeatureSchema = Joi.object({
   estate_feature_id: Joi.string().uuid().required().messages({
     "string.guid": "estate feature ID must be a valid UUID",
     "any.required": "estate feature ID is required",
   }),
 });
 
-const updateEstateFeatureSchema = Joi.object({
+export const updateEstateFeatureSchema = Joi.object({
   feature_name: Joi.string()
     .trim()
     .min(2)
@@ -55,7 +55,7 @@ const updateEstateFeatureSchema = Joi.object({
     }),
 });
 
-const updateEstateFeatureParamsSchema = Joi.object({
+export const updateEstateFeatureParamsSchema = Joi.object({
   estate_feature_id: Joi.string().uuid().required().messages({
     "string.guid": "estate feature ID must be a valid UUID",
     "any.required": "estate feature ID is required",

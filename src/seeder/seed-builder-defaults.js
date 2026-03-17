@@ -3,30 +3,30 @@
  * Called from registerRoot in auth.service.js within the same transaction.
  */
 
-import { seedGeneralSettings } from "./seed-general-settings";
-import { seedSalesModuleSettings } from "./seed-sales-module-settings";
-import { seedQuotationSettings } from "./seed-quotation-settings";
-import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings";
-import { seedJobSettings } from "./seed-job-settings";
-import { seedJobColorSettings } from "./seed-job-color-settings";
-import { seedJobWorkflowSettings } from "./seed-job-workflow-settings";
-import { seedJobInvoiceSettings } from "./seed-job-invoice-settings";
-import { seedJobVariationSettings } from "./seed-job-variation-settings";
-import { seedJobCommissionSettings } from "./seed-job-commission-settings";
-import { seedMaintenanceSettings } from "./seed-maintenance-settings";
-import { seedConstructionSettings } from "./seed-construction-settings";
-import { seedPasswordPolicy } from "./seed-password-policy";
-import { seedPortalSettings } from "./seed-portal-settings";
-import { seedIntegrationSettings } from "./seed-integration-settings";
-import { seedTemplateEmailSignature } from "./seed-template-email-signature";
-import { seedSchedulerSettings } from "./seed-scheduler-settings";
-import { seedConstructionEtsRecharge } from "./seed-construction-ets-recharge";
-import { seedConstructionOhsSettings } from "./seed-construction-ohs-settings";
-import { seedRecalculateDate } from "./seed-recalculate-date";
-import { seedDocumentFolderMapping } from "./seed-document-folder-mapping";
-import { seedDocumentFileNamingFormat } from "./seed-document-file-naming-format";
-import { seedTemplateEmail } from "./seed-template-email";
-import { seedInitialPdfTemplates } from "./template-pdf.seed";
+import { seedGeneralSettings } from "./seed-general-settings.js";
+import { seedSalesModuleSettings } from "./seed-sales-module-settings.js";
+import { seedQuotationSettings } from "./seed-quotation-settings.js";
+import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings.js";
+import { seedJobSettings } from "./seed-job-settings.js";
+import { seedJobColorSettings } from "./seed-job-color-settings.js";
+import { seedJobWorkflowSettings } from "./seed-job-workflow-settings.js";
+import { seedJobInvoiceSettings } from "./seed-job-invoice-settings.js";
+import { seedJobVariationSettings } from "./seed-job-variation-settings.js";
+import { seedJobCommissionSettings } from "./seed-job-commission-settings.js";
+import { seedMaintenanceSettings } from "./seed-maintenance-settings.js";
+import { seedConstructionSettings } from "./seed-construction-settings.js";
+import { seedPasswordPolicy } from "./seed-password-policy.js";
+import { seedPortalSettings } from "./seed-portal-settings.js";
+import { seedIntegrationSettings } from "./seed-integration-settings.js";
+import { seedTemplateEmailSignature } from "./seed-template-email-signature.js";
+import { seedSchedulerSettings } from "./seed-scheduler-settings.js";
+import { seedConstructionEtsRecharge } from "./seed-construction-ets-recharge.js";
+import { seedConstructionOhsSettings } from "./seed-construction-ohs-settings.js";
+import { seedRecalculateDate } from "./seed-recalculate-date.js";
+import { seedDocumentFolderMapping } from "./seed-document-folder-mapping.js";
+import { seedDocumentFileNamingFormat } from "./seed-document-file-naming-format.js";
+import { seedTemplateEmail } from "./seed-template-email.js";
+import { seedInitialPdfTemplates } from "./template-pdf.seed.js";
 
 /**
  * Seeds all default settings for a newly registered builder.
@@ -38,7 +38,7 @@ import { seedInitialPdfTemplates } from "./template-pdf.seed";
  * @param {string} params.created_by - users_id of the root user
  * @param {Object} params.client - pg client (within a transaction)
  */
-async function seedBuilderDefaults({ company_id, builder_id, created_by, client }) {
+export async function seedBuilderDefaults({ company_id, builder_id, created_by, client }) {
   const ctx = { company_id, builder_id, created_by, client };
 
   console.log("🌱 Seeding default settings for builder:", builder_id);

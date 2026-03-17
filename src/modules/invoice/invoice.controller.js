@@ -1,5 +1,5 @@
-import invoiceService from "./invoice.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import invoiceService from "./invoice.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 export async function createInvoice(req, res) {
   try {

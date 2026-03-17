@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
-import { errorResponse, successResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 // Create package map
 export async function createPackageMap(req, res) {
@@ -191,3 +191,9 @@ export async function deletePackageMap(req, res) {
     client.release();
   }
 }
+
+export default {
+  createPackageMap,
+  getPackagesByVersionId,
+  deletePackageMap,
+};

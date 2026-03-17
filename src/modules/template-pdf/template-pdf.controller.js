@@ -1,7 +1,7 @@
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import templatePdfService from "./template-pdf.service";
-import { getFormatValidationSchema } from "./template-pdf.validation";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import templatePdfService from "./template-pdf.service.js";
+import { getFormatValidationSchema } from "./template-pdf.validation.js";
 
 export async function createTemplatePdf(req, res) {
   try {

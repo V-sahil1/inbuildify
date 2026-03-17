@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createRecalculateDateSchema = Joi.object({
+export const createRecalculateDateSchema = Joi.object({
   recalculate_workflow_job_estimated_dates: Joi.boolean().default(false),
   recalculate_construction_job_estimated_dates: Joi.boolean().default(false),
   capture_reason_rebooking_and_rebooking_email: Joi.boolean().default(false),
@@ -12,7 +12,7 @@ const createRecalculateDateSchema = Joi.object({
   recalculate_confirmed_booking_dates: Joi.boolean().default(false),
 });
 
-const updateRecalculateDateSchema = Joi.object({
+export const updateRecalculateDateSchema = Joi.object({
   recalculate_workflow_job_estimated_dates: Joi.boolean().optional(),
   recalculate_construction_job_estimated_dates: Joi.boolean().optional(),
   capture_reason_rebooking_and_rebooking_email: Joi.boolean().optional(),

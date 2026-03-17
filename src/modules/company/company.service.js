@@ -1,8 +1,8 @@
-import getPool from "../../config/database";
-import addressRepo from "../../repositories/address.repository";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import addressRepo from "../../repositories/address.repository.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-async function getCompanyByBuilderId(builderId, client) {
+export async function getCompanyByBuilderId(builderId, client) {
   const result = await client.query(
     `SELECT c.*, a.address_line1, a.address_line2, a.city, a.state_id, a.country_id, a.zip_code 
      FROM company c 
@@ -54,7 +54,7 @@ async function getCompanyByBuilderId(builderId, client) {
   return keysToCamelCase(company);
 }
 
-async function upsertCompany(builderId, payload, client) {
+export async function upsertCompany(builderId, payload, client) {
   const existingCompany = await getCompanyByBuilderId(builderId, client);
 
   // Handle address object

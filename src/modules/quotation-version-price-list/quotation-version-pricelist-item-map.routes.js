@@ -13,7 +13,7 @@ import {
   updatePricelistItemMapSchema,
   idParamsSchema,
 } from "./quotation-version-pricelist-item-map.validation.js";
-import controller from "./quotation-version-pricelist-item-map.controller.js";
+import { createPricelistItemMap, getPricelistItemsByVersionId, updatePricelistItemMap, deletePricelistItemMap } from "./quotation-version-pricelist-item-map.controller.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -22,13 +22,13 @@ router.post(
   "/",
   camelToSnakeMiddleware,
   validateRequest(createPricelistItemMapSchema, REQUEST_SOURCE.BODY),
-  controller.createPricelistItemMap,
+  createPricelistItemMap,
 );
 
 router.get(
   "/:quotation_version_id",
   validateRequest(getByVersionParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getPricelistItemsByVersionId,
+  getPricelistItemsByVersionId,
 );
 
 router.put(
@@ -36,13 +36,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(idParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePricelistItemMapSchema, REQUEST_SOURCE.BODY),
-  controller.updatePricelistItemMap,
+  updatePricelistItemMap,
 );
 
 router.delete(
   "/:id",
   validateRequest(idParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deletePricelistItemMap,
+  deletePricelistItemMap,
 );
 
 export default router;

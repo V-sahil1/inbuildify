@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createDocumentFileNamingRuleSchema = Joi.object({
+export const createDocumentFileNamingRuleSchema = Joi.object({
   file_type: Joi.string()
     .trim()
     .min(2)
@@ -25,7 +25,7 @@ const createDocumentFileNamingRuleSchema = Joi.object({
     }),
 });
 
-const getAllDocumentFileNamingRulesSchema = Joi.object({
+export const getAllDocumentFileNamingRulesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -40,21 +40,21 @@ const getAllDocumentFileNamingRulesSchema = Joi.object({
   }),
 });
 
-const deleteDocumentFileNamingRuleSchema = Joi.object({
+export const deleteDocumentFileNamingRuleSchema = Joi.object({
   document_file_naming_rule_id: Joi.string().uuid().required().messages({
     "string.guid": "Document file naming rule ID must be a valid UUID",
     "any.required": "Document file naming rule ID is required",
   }),
 });
 
-const updateDocumentFileNamingRuleParamsSchema = Joi.object({
+export const updateDocumentFileNamingRuleParamsSchema = Joi.object({
   document_file_naming_rule_id: Joi.string().uuid().required().messages({
     "string.guid": "Document file naming rule ID must be a valid UUID",
     "any.required": "Document file naming rule ID is required",
   }),
 });
 
-const updateDocumentFileNamingRuleSchema = Joi.object({
+export const updateDocumentFileNamingRuleSchema = Joi.object({
   file_type: Joi.string()
     .trim()
     .min(2)
@@ -78,7 +78,7 @@ const updateDocumentFileNamingRuleSchema = Joi.object({
     }),
 });
 
-const updateNamingFormatSchema = Joi.object({
+export const updateNamingFormatSchema = Joi.object({
   naming_format: Joi.string().trim().max(255).required().messages({
     "string.base": "Naming format must be a string.",
     "string.empty": "Naming format is required.",

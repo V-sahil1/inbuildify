@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobCommissionSchema = Joi.object({
+export const createJobCommissionSchema = Joi.object({
   commission_type: Joi.string().valid("outgoing", "incoming").required(),
   name: Joi.string()
     .min(2)
@@ -71,7 +71,7 @@ const createJobCommissionSchema = Joi.object({
   }),
 });
 
-const getAllJobCommissionsSchema = Joi.object({
+export const getAllJobCommissionsSchema = Joi.object({
   commission_type: Joi.string().trim().max(50).valid("incoming", "outgoing"),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
@@ -87,21 +87,21 @@ const getAllJobCommissionsSchema = Joi.object({
   }),
 });
 
-const deleteJobCommissionSchema = Joi.object({
+export const deleteJobCommissionSchema = Joi.object({
   job_commission_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateJobCommissionParamsSchema = Joi.object({
+export const updateJobCommissionParamsSchema = Joi.object({
   job_commission_id: Joi.string().uuid().required().messages({
     "string.guid": "Job commission ID must be a valid UUID",
     "any.required": "Job commission ID is required",
   }),
 });
 
-const updateJobCommissionSchema = Joi.object({
+export const updateJobCommissionSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)

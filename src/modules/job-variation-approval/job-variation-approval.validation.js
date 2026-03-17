@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobVariationApprovalSchema = Joi.object({
+export const createJobVariationApprovalSchema = Joi.object({
   role_id: Joi.string().uuid().required().messages({
     "string.guid": "Role ID must be a valid UUID",
     "any.required": "Role ID is required",
@@ -12,7 +12,7 @@ const createJobVariationApprovalSchema = Joi.object({
   }),
 });
 
-const getJobVariationApprovalsSchema = Joi.object({
+export const getJobVariationApprovalsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -32,14 +32,14 @@ const getJobVariationApprovalsSchema = Joi.object({
     }),
 });
 
-const deleteJobVariationApprovalSchema = Joi.object({
+export const deleteJobVariationApprovalSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Job variation approval ID must be a valid UUID",
     "any.required": "Job variation approval ID is required",
   }),
 });
 
-const updateJobVariationApprovalSchema = Joi.object({
+export const updateJobVariationApprovalSchema = Joi.object({
   role_id: Joi.string().uuid().optional().messages({
     "string.guid": "Role ID must be a valid UUID",
   }),
@@ -53,7 +53,7 @@ const updateJobVariationApprovalSchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-const updateJobVariationApprovalParamsSchema = Joi.object({
+export const updateJobVariationApprovalParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Job variation approval ID must be a valid UUID",
     "any.required": "Job variation approval ID is required",

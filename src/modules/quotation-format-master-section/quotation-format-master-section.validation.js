@@ -4,7 +4,7 @@ import Joi from "joi";
 //        MASTER SECTION VALIDATION SCHEMAS
 // ============================================================
 
-const createMasterSectionSchema = Joi.object({
+export const createMasterSectionSchema = Joi.object({
   master_name: Joi.string().min(2).max(255).required().messages({
     "string.empty": "Master name is required.",
     "string.min": "Master name must be at least 2 characters.",
@@ -16,7 +16,7 @@ const createMasterSectionSchema = Joi.object({
   }),
 });
 
-const updateMasterSectionSchema = Joi.object({
+export const updateMasterSectionSchema = Joi.object({
   master_name: Joi.string().min(2).max(255).optional().messages({
     "string.empty": "Master name cannot be empty.",
     "string.min": "Master name must be at least 2 characters.",
@@ -31,7 +31,7 @@ const updateMasterSectionSchema = Joi.object({
     "object.min": "At least one field must be provided for update.",
   });
 
-const getMasterSectionSchema = Joi.object({
+export const getMasterSectionSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -51,7 +51,7 @@ const getMasterSectionSchema = Joi.object({
   }),
 });
 
-const paramsMasterSectionIdSchema = Joi.object({
+export const paramsMasterSectionIdSchema = Joi.object({
   master_section_id: Joi.string().uuid().required().messages({
     "string.guid": "Master section ID must be a valid UUID",
     "any.required": "Master section ID is required",
@@ -62,7 +62,7 @@ const paramsMasterSectionIdSchema = Joi.object({
 //        MASTER SECTION HEADER VALIDATION SCHEMAS
 // ============================================================
 
-const createMasterSectionHeaderSchema = Joi.object({
+export const createMasterSectionHeaderSchema = Joi.object({
   master_section: Joi.string().uuid().required().messages({
     "string.guid": "Master section must be a valid UUID",
     "any.required": "Master section is required",
@@ -103,7 +103,7 @@ const createMasterSectionHeaderSchema = Joi.object({
       "Effective start date cannot be after effective end date",
   });
 
-const updateMasterSectionHeaderSchema = Joi.object({
+export const updateMasterSectionHeaderSchema = Joi.object({
   heading_name: Joi.string().min(2).max(255).optional().messages({
     "string.empty": "Heading name cannot be empty.",
     "string.min": "Heading name must be at least 2 characters.",
@@ -143,7 +143,7 @@ const updateMasterSectionHeaderSchema = Joi.object({
       "Effective start date cannot be after effective end date",
   });
 
-const getMasterSectionHeaderSchema = Joi.object({
+export const getMasterSectionHeaderSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -166,7 +166,7 @@ const getMasterSectionHeaderSchema = Joi.object({
   }),
 });
 
-const paramsHeaderIdSchema = Joi.object({
+export const paramsHeaderIdSchema = Joi.object({
   header_id: Joi.string().uuid().required().messages({
     "string.guid": "Header ID must be a valid UUID",
     "any.required": "Header ID is required",
@@ -177,7 +177,7 @@ const paramsHeaderIdSchema = Joi.object({
 //        MASTER SECTION ITEM VALIDATION SCHEMAS
 // ============================================================
 
-const createMasterSectionItemSchema = Joi.object({
+export const createMasterSectionItemSchema = Joi.object({
   master_section_header_id: Joi.string().uuid().required().messages({
     "string.guid": "Master section header must be a valid UUID",
     "any.required": "Master section header is required",
@@ -218,7 +218,7 @@ const createMasterSectionItemSchema = Joi.object({
       "Effective start date cannot be after effective end date",
   });
 
-const updateMasterSectionItemSchema = Joi.object({
+export const updateMasterSectionItemSchema = Joi.object({
   item_name: Joi.string().min(2).max(2000).optional().messages({
     "string.empty": "Item name cannot be empty.",
     "string.min": "Item name must be at least 2 characters.",
@@ -258,7 +258,7 @@ const updateMasterSectionItemSchema = Joi.object({
       "Effective start date cannot be after effective end date",
   });
 
-const getMasterSectionItemSchema = Joi.object({
+export const getMasterSectionItemSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -281,7 +281,7 @@ const getMasterSectionItemSchema = Joi.object({
   }),
 });
 
-const paramsItemIdSchema = Joi.object({
+export const paramsItemIdSchema = Joi.object({
   item_id: Joi.string().uuid().required().messages({
     "string.guid": "Item ID must be a valid UUID",
     "any.required": "Item ID is required",

@@ -19,7 +19,7 @@ const imageRule = Joi.alternatives()
   )
   .optional();
 
-const createSupplierContactSchema = Joi.object({
+export const createSupplierContactSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
@@ -33,7 +33,7 @@ const createSupplierContactSchema = Joi.object({
   induction_pack_image: imageRule.optional().allow(null, ""),
 });
 
-const getAllSupplierDocumentSchema = Joi.object({
+export const getAllSupplierDocumentSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -48,14 +48,14 @@ const getAllSupplierDocumentSchema = Joi.object({
   }),
 });
 
-const updateSupplierDocumentParamsSchema = Joi.object({
+export const updateSupplierDocumentParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier document ID must be a valid UUID",
     "any.required": "Supplier document ID is required",
   }),
 });
 
-const updateSupplierDocumentSchema = Joi.object({
+export const updateSupplierDocumentSchema = Joi.object({
   induction_pack_received: Joi.boolean(),
   work_cover_image: imageRule.optional().allow(null, ""),
   pl_insurance_image: imageRule.optional().allow(null, ""),

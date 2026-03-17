@@ -8,7 +8,7 @@ const valueRule = Joi.string().max(255).optional().allow(null, "").messages({
   "string.max": "value must be less than or equal to 255 characters.",
 });
 
-const createIntegrationCustomFieldItemSchema = Joi.object({
+export const createIntegrationCustomFieldItemSchema = Joi.object({
   header1_id: headerRule,
   header2_id: headerRule,
 
@@ -28,7 +28,7 @@ const createIntegrationCustomFieldItemSchema = Joi.object({
   }),
 });
 
-const getAllIntegrationCustomFieldItemSchema = Joi.object({
+export const getAllIntegrationCustomFieldItemSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -43,21 +43,21 @@ const getAllIntegrationCustomFieldItemSchema = Joi.object({
   }),
 });
 
-const deleteIntegrationCustomFieldItemSchema = Joi.object({
+export const deleteIntegrationCustomFieldItemSchema = Joi.object({
   integration_custom_field_item_id: Joi.string().uuid().required().messages({
     "string.guid": "integration custom field item ID must be a valid UUID",
     "any.required": "integration custom field item ID is required",
   }),
 });
 
-const updateIntegrationCustomFieldParamsSchema = Joi.object({
+export const updateIntegrationCustomFieldParamsSchema = Joi.object({
   integration_custom_field_item_id: Joi.string().uuid().required().messages({
     "string.guid": "integration custom field item ID must be a valid UUID",
     "any.required": "integration custom field item ID is required",
   }),
 });
 
-const updateIntegrationCustoFieldItemSchema = Joi.object({
+export const updateIntegrationCustoFieldItemSchema = Joi.object({
   header1_id: headerRule,
   header2_id: headerRule,
 
@@ -74,7 +74,7 @@ const updateIntegrationCustoFieldItemSchema = Joi.object({
   }),
 });
 
-const updateIntegrationCustomFieldItemIsActiveSchema = Joi.object({
+export const updateIntegrationCustomFieldItemIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 

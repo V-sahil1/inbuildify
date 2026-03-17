@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
-import { errorResponse, successResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 export async function createFloorPlanPricelistItemMap(req, res) {
   const pool = getPool();

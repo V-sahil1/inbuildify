@@ -1,7 +1,7 @@
 /**
  * Seed default construction_ohs_settings for a new builder
  */
-async function seedConstructionOhsSettings({ company_id, builder_id, created_by, client }) {
+export async function seedConstructionOhsSettings({ company_id, builder_id, created_by, client }) {
   // Check if a row already exists for this builder
   const existing = await client.query(
     `SELECT construction_ohs_settings_id FROM construction_ohs_settings

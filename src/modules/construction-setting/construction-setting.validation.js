@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createConstructionSettingSchema = Joi.object({
+export const createConstructionSettingSchema = Joi.object({
   suppliers_tradies_madatory_to_complete_checklist:
     Joi.boolean().default(false),
   allow_checklist_even_supplier_tradies_not_responded:
@@ -53,7 +53,7 @@ const createConstructionSettingSchema = Joi.object({
     }),
 });
 
-const updateConstructionSettingSchema = Joi.object({
+export const updateConstructionSettingSchema = Joi.object({
   suppliers_tradies_madatory_to_complete_checklist: Joi.boolean().optional(),
   allow_checklist_even_supplier_tradies_not_responded: Joi.boolean().optional(),
   show_warning_when_supplier_trade_booked_same_day_for_checklist:

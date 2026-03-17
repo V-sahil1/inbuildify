@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createPackageSchema = Joi.object({
+export const createPackageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -41,7 +41,7 @@ const createPackageSchema = Joi.object({
   allow_remove_package_items: Joi.boolean().optional().default(true),
 });
 
-const getAllPackagesSchema = Joi.object({
+export const getAllPackagesSchema = Joi.object({
   name: Joi.string().max(200).optional(),
   status: Joi.boolean().optional(),
   cost: Joi.number()
@@ -83,13 +83,13 @@ const getAllPackagesSchema = Joi.object({
   }),
 });
 
-const updatePackageParamsSchema = Joi.object({
+export const updatePackageParamsSchema = Joi.object({
   package_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
   }),
 });
-const updatePackageSchema = Joi.object({
+export const updatePackageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -130,7 +130,7 @@ const updatePackageSchema = Joi.object({
   allow_remove_package_items: Joi.boolean().optional(),
 });
 
-const deletePackageSchema = Joi.object({
+export const deletePackageSchema = Joi.object({
   package_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",

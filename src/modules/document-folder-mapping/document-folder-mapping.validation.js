@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const getAllDocumentFolderMappingsSchema = Joi.object({
+export const getAllDocumentFolderMappingsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -15,7 +15,7 @@ const getAllDocumentFolderMappingsSchema = Joi.object({
   }),
 });
 
-const updateDocumentFolderMappingSchema = Joi.object({
+export const updateDocumentFolderMappingSchema = Joi.object({
   signed_quotation: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "Signed quotation folder ID must be a valid UUID",
   }),

@@ -1,7 +1,7 @@
-import getPool from "../../config/database";
-import { errorResponse, successResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import { deleteFromS3 } from "../../utils/s3Upload";
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
 export async function createFloorPlan(req, res) {
   const {

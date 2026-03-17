@@ -1,7 +1,7 @@
 /**
  * Seed default document_file_naming_format for a new builder
  */
-async function seedDocumentFileNamingFormat({ company_id, builder_id, created_by, client }) {
+export async function seedDocumentFileNamingFormat({ company_id, builder_id, created_by, client }) {
   // document_file_naming_format has no unique constraint on (company_id, builder_id)
   const existing = await client.query(
     `SELECT document_file_naming_format_id FROM document_file_naming_format

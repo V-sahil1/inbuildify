@@ -2,7 +2,13 @@ import express from "express";
 
 const router = express.Router();
 
-import driveController from "./drive.controller.js";
+import {
+  createDrive,
+  getDrives,
+  getDriveById,
+  updateDrive,
+  deleteDrive,
+} from "./drive.controller.js";
 import {
   createDriveSchema,
   updateIdParamsSchema,
@@ -19,14 +25,14 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post("/", validateRequest(createDriveSchema, REQUEST_SOURCE.BODY), driveController.createDrive);
+router.post("/", validateRequest(createDriveSchema, REQUEST_SOURCE.BODY), createDrive);
 
-router.get("/", validateRequest(getAllDriveSchema, REQUEST_SOURCE.QUERY), driveController.getDrives);
+router.get("/", validateRequest(getAllDriveSchema, REQUEST_SOURCE.QUERY), getDrives);
 
-router.get("/:drive_id", driveController.getDriveById);
+router.get("/:drive_id", getDriveById);
 
-router.put("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), validateRequest(updateDriveSchema, REQUEST_SOURCE.BODY), driveController.updateDrive);
+router.put("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), validateRequest(updateDriveSchema, REQUEST_SOURCE.BODY), updateDrive);
 
-router.delete("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), driveController.deleteDrive);
+router.delete("/:drive_id", validateRequest(updateIdParamsSchema, REQUEST_SOURCE.PARAMS), deleteDrive);
 
 export default router;

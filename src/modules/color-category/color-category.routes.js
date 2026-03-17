@@ -10,18 +10,18 @@ import {
   updateColorCategory,
   deleteColorCategory,
   copyColorCategory,
-} from "./color-category.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./color-category.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 import {
   createColorCategorySchema,
   updateColorCategorySchema,
   paramsIdSchema,
   copyColorCategorySchema,
-} from "./color-category.validation";
+} from "./color-category.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

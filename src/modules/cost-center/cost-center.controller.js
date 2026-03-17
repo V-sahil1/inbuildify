@@ -1,4 +1,4 @@
-import costCenterService from "./cost-center.service";
+import costCenterService from "./cost-center.service.js";
 
 /**
  * CREATE COST CENTER

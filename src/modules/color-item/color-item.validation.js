@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const getAllColorItemsSchema = Joi.object({
+export const getAllColorItemsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -58,7 +58,7 @@ const getAllColorItemsSchema = Joi.object({
     }),
 });
 
-const getColorItemByIdSchema = Joi.object({
+export const getColorItemByIdSchema = Joi.object({
   color_item_id: Joi.string().uuid().required().messages({
     "any.required": "Color item ID is required",
     "string.uuid": "Color item ID must be a valid UUID",
@@ -66,7 +66,7 @@ const getColorItemByIdSchema = Joi.object({
   }),
 });
 
-const createColorItemSchema = Joi.object({
+export const createColorItemSchema = Joi.object({
   default_image_index: Joi.number().integer().optional(),
   item_name: Joi.string()
     .trim()
@@ -188,7 +188,7 @@ const createColorItemSchema = Joi.object({
   }),
 });
 
-const updateColorItemSchema = Joi.object({
+export const updateColorItemSchema = Joi.object({
   default_image_index: Joi.number().integer().optional(),
 
   item_name: Joi.string()
@@ -306,7 +306,7 @@ const updateColorItemSchema = Joi.object({
   .min(1)
   .message({ "object.min": "At least one field is required to update" });
 
-const deleteColorItemSchema = Joi.object({
+export const deleteColorItemSchema = Joi.object({
   color_item_id: Joi.string().uuid().required().messages({
     "any.required": "Color item ID is required",
     "string.uuid": "Color item ID must be a valid UUID",
@@ -314,7 +314,7 @@ const deleteColorItemSchema = Joi.object({
   }),
 });
 
-const deleteImageFieldSchema = Joi.object({
+export const deleteImageFieldSchema = Joi.object({
   field_name: Joi.string()
     .max(255)
     .valid("color_image", "specification")
@@ -327,7 +327,7 @@ const deleteImageFieldSchema = Joi.object({
   index: Joi.number().integer().optional(),
 });
 
-const colorItemMoveSchema = Joi.object({
+export const colorItemMoveSchema = Joi.object({
   color_id: Joi.string().uuid().required().messages({
     "any.required": "Color ID is required",
     "string.uuid": "Color ID must be a valid UUID",
@@ -341,7 +341,7 @@ const colorItemMoveSchema = Joi.object({
   }),
 });
 
-const copyColorItemSchema = Joi.object({
+export const copyColorItemSchema = Joi.object({
   color_id: Joi.string().uuid().required().messages({
     "any.required": "Color ID is required",
     "string.uuid": "Color ID must be a valid UUID",
@@ -368,7 +368,7 @@ const copyColorItemSchema = Joi.object({
   }),
 });
 
-const getColorItemsWithoutCategorySchema = Joi.object({
+export const getColorItemsWithoutCategorySchema = Joi.object({
   color_group_id: Joi.string().uuid().optional().messages({
     "string.uuid": "color group ID must be a valid UUID",
     "string.guid": "color group ID must be a valid UUID",

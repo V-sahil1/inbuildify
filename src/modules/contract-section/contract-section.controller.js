@@ -1,7 +1,7 @@
-import getPool from "../../config/database";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import { deleteFromS3 } from "../../utils/s3Upload";
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
 export async function createContractSection(req, res) {
   const pool = getPool();

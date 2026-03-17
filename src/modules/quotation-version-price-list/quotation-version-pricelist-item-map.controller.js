@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
-import { errorResponse, successResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 // Ownership check helper - returns version row or null
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
@@ -291,3 +291,4 @@ export async function deletePricelistItemMap(req, res) {
     client.release();
   }
 }
+

@@ -1,5 +1,5 @@
-import getPool from "../../config/database";
-import { ensureWorkflowStageBySubStageId } from "./job-process-workflow.guard";
+import getPool from "../../config/database.js";
+import { ensureWorkflowStageBySubStageId } from "./job-process-workflow.guard.js";
 
 /**
  * CREATE TASK + DEPENDENCIES
@@ -1323,3 +1323,16 @@ export async function getAllTasksOnly(builderId, companyId) {
 
   return Array.from(taskMap.values());
 }
+
+export default {
+  createTaskService,
+  updateTask,
+  deleteTask,
+  getTasks,
+  updateSubTask,
+  deleteSubTask,
+  getSubTasks,
+  getAllJobTasks,
+  getAllTasksOnly,
+  deleteTaskDependency,
+};

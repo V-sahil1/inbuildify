@@ -138,3 +138,20 @@ export var deleteTaskDependencySchema = Joi.object({
   task_id: uuid.required(),
   predecessor_task_id: uuid.required(),
 });
+
+export default {
+  stageParamsSchema,
+  createStageSchema,
+  updateStageSchema,
+  deleteSubStageSchema,
+  subStageParamsSchema,
+  createSubStageSchema,
+  updateSubStageSchema,
+  taskParamsSchema,
+  createTaskSchema,
+  updateTaskSchema,
+  subTaskParamsSchema,
+  createSubTaskSchema,
+  updateSubTaskSchema,
+  deleteTaskDependencySchema,
+};

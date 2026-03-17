@@ -1,5 +1,5 @@
-import invoiceRepository from "./invoice.repository";
-import leadsRepository from "../lead/leads.repository";
+import invoiceRepository from "./invoice.repository.js";
+import leadsRepository from "../lead/leads.repository.js";
 
 class InvoiceService {
   async createInvoice(invoiceData, builderId, companyId) {

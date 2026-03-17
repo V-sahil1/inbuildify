@@ -1,7 +1,7 @@
 /**
  * Seed default job_variation_settings for a new builder
  */
-async function seedJobVariationSettings({ company_id, builder_id, created_by, client }) {
+export async function seedJobVariationSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO job_variation_settings (
       company_id, builder_id,

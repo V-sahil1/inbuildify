@@ -4,9 +4,9 @@ import multer from "multer";
 import multerS3 from "multer-s3";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-import { allowedFileData } from "./common";
+import { allowedFileData } from "./common.js";
 
-const s3Client = new S3Client({
+export const s3Client = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -80,7 +80,7 @@ const wrapMulter = (upload) => {
   return upload;
 };
 
-const createUpload = (folderName = "uploads") =>
+export const createUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
@@ -107,7 +107,7 @@ const createUpload = (folderName = "uploads") =>
     },
   }));
 
-const deleteFromS3 = async (fileUrl) => {
+export const deleteFromS3 = async (fileUrl) => {
   if (!fileUrl) {
     return;
   }
@@ -129,7 +129,7 @@ const deleteFromS3 = async (fileUrl) => {
   }
 };
 
-const createPdfUpload = (folderName = "pdfs") =>
+export const createPdfUpload = (folderName = "pdfs") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
@@ -156,7 +156,7 @@ const createPdfUpload = (folderName = "pdfs") =>
     },
   }));
 
-const createImageOrPdfUpload = (folderName = "uploads") =>
+export const createImageOrPdfUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
@@ -224,7 +224,7 @@ const createImageOrPdfUpload = (folderName = "uploads") =>
     },
   }));
 
-const handleMulterError = (error, req, res, next) => {
+export const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       // Check if this is from the new imageOrPdfUpload function

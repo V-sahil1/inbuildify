@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobSettingsSchema = Joi.object({
+export const createJobSettingsSchema = Joi.object({
   auto_move_to_maintenance: Joi.boolean().optional(),
   auto_mark_completed: Joi.boolean().optional(),
   auto_archive_after_completion: Joi.boolean().optional(),
@@ -19,7 +19,7 @@ const createJobSettingsSchema = Joi.object({
   report_include_date: Joi.boolean().optional(),
 });
 
-const updateJobSettingSchema = Joi.object({
+export const updateJobSettingSchema = Joi.object({
   auto_move_to_maintenance: Joi.boolean().optional(),
   auto_mark_completed: Joi.boolean().optional(),
   auto_archive_after_completion: Joi.boolean().optional(),

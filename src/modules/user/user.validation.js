@@ -32,7 +32,7 @@ const uuidRule = Joi.string()
 /* ---------------------------
    CREATE USER
 ---------------------------- */
-const createUserSchema = Joi.object({
+export const createUserSchema = Joi.object({
   name: nameRule,
   email: emailRule,
   login_id: loginIdRule.optional(),
@@ -106,7 +106,7 @@ const createUserSchema = Joi.object({
 /* ---------------------------
    UPDATE USER
 ---------------------------- */
-const updateUserSchema = createUserSchema
+export const updateUserSchema = createUserSchema
   .fork(["name", "email", "role_id"], (schema) => schema.optional())
   .fork(
     [
@@ -131,7 +131,7 @@ const updateUserSchema = createUserSchema
 /* ---------------------------
    RESET PASSWORD
 ---------------------------- */
-const resetPasswordSchema = Joi.object({
+export const resetPasswordSchema = Joi.object({
   password_auto_generated: Joi.boolean().required(),
   manual_password: Joi.string().allow(null, ""),
   next_login_password_change: Joi.boolean().optional(),
@@ -142,7 +142,7 @@ const resetPasswordSchema = Joi.object({
 /* ---------------------------
    CHANGE LOGIN ID
 ---------------------------- */
-const changeLoginIdSchema = Joi.object({
+export const changeLoginIdSchema = Joi.object({
   new_login_id: loginIdRule.required(),
   email_login_id: Joi.boolean().optional(),
 });
@@ -150,7 +150,7 @@ const changeLoginIdSchema = Joi.object({
 /* ---------------------------
    GET USERS
 ---------------------------- */
-const getUsersSchema = Joi.object({
+export const getUsersSchema = Joi.object({
   page: Joi.number().min(1).default(1),
   limit: Joi.number().min(1).max(100).default(25),
   search: Joi.string().allow("", null),

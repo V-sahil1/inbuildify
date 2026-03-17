@@ -2,7 +2,7 @@
  * Seed default template_email records for a new builder.
  * Inserts standard email templates (password reset, invite, quote, message, payment).
  */
-async function seedTemplateEmail({ company_id, builder_id, created_by, client }) {
+export async function seedTemplateEmail({ company_id, builder_id, created_by, client }) {
   const templates = [
     {
       name: "Password Reset",

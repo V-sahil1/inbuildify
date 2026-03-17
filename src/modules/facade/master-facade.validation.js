@@ -56,7 +56,7 @@ const booleanFilterRule = Joi.string().valid("true", "false").messages({
   "any.only": "Boolean filter must be one of: true, false",
 });
 
-const createMasterFacadeSchema = Joi.object({
+export const createMasterFacadeSchema = Joi.object({
   location_id: Joi.string().uuid().optional().messages({
     "string.guid": "Invalid location_id.",
   }),
@@ -110,11 +110,11 @@ const createMasterFacadeSchema = Joi.object({
   }),
 });
 
-const getMasterFacadeByIdSchema = Joi.object({
+export const getMasterFacadeByIdSchema = Joi.object({
   id: facadeIdRule.required(),
 });
 
-const getMasterFacadesSchema = Joi.object({
+export const getMasterFacadesSchema = Joi.object({
   name: Joi.string().max(150).optional(),
   range_id: Joi.string().optional(),
   dwelling_type_id: Joi.string().optional(),
@@ -131,7 +131,7 @@ const getMasterFacadesSchema = Joi.object({
   limit: limitRule,
 });
 
-const updateMasterFacadeSchema = Joi.object({
+export const updateMasterFacadeSchema = Joi.object({
   location_id: Joi.string().uuid().optional().messages({
     "string.guid": "Invalid location_id.",
   }),
@@ -188,11 +188,11 @@ const updateMasterFacadeSchema = Joi.object({
     "object.min": "At least one field is required to update",
   });
 
-const updateMasterFacadeParamsSchema = Joi.object({
+export const updateMasterFacadeParamsSchema = Joi.object({
   facade_id: facadeIdRule.required(),
 });
 
-const deleteMasterFacadeSchema = Joi.object({
+export const deleteMasterFacadeSchema = Joi.object({
   facade_id: facadeIdRule.required(),
 });
 

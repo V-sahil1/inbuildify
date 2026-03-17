@@ -1,7 +1,7 @@
-import AuthService from "./auth.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import AuthService from "./auth.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
-async function registerRoot(req, res) {
+export async function registerRoot(req, res) {
   try {
     const data = await AuthService.registerRoot(req.body);
     return successResponse(res, data, "Root user registered. OTP sent.");
@@ -10,7 +10,7 @@ async function registerRoot(req, res) {
   }
 }
 
-async function verifyEmail(req, res) {
+export async function verifyEmail(req, res) {
   try {
     await AuthService.verifyEmail(req.body);
     return successResponse(res, null, "Email verified successfully.");
@@ -19,7 +19,7 @@ async function verifyEmail(req, res) {
   }
 }
 
-async function resendOtp(req, res) {
+export async function resendOtp(req, res) {
   try {
     const data = await AuthService.resendOtp(req.body.email);
     return successResponse(res, data, "OTP resent successfully.");
@@ -28,7 +28,7 @@ async function resendOtp(req, res) {
   }
 }
 
-async function login(req, res) {
+export async function login(req, res) {
   try {
     const data = await AuthService.login(req.body);
     return successResponse(res, data, "Login successful.");
@@ -37,7 +37,7 @@ async function login(req, res) {
   }
 }
 
-async function forgotPassword(req, res) {
+export async function forgotPassword(req, res) {
   try {
     await AuthService.forgotPassword(req.body.email);
     return successResponse(res, null, "Password reset email sent.");
@@ -46,7 +46,7 @@ async function forgotPassword(req, res) {
   }
 }
 
-async function resetPassword(req, res) {
+export async function resetPassword(req, res) {
   try {
     await AuthService.resetPassword(req.body);
     return successResponse(res, null, "Password reset successfully.");
@@ -55,7 +55,7 @@ async function resetPassword(req, res) {
   }
 }
 
-async function refreshToken(req, res) {
+export async function refreshToken(req, res) {
   try {
     const data = await AuthService.refreshToken(req.body.refreshToken);
     return successResponse(res, data, "Access token refreshed.");
@@ -64,7 +64,7 @@ async function refreshToken(req, res) {
   }
 }
 
-async function logout(req, res) {
+export async function logout(req, res) {
   try {
     await AuthService.logout(req.user);
     return successResponse(res, null, "Logged out successfully.");

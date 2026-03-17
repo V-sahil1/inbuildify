@@ -1,12 +1,12 @@
-import agentReferralPartnerRepo from "./agent-referral-partner.repository";
-import addressRepo from "../../repositories/address.repository";//need to change path
-import { keysToCamelCase } from "../../utils/common";
-import { encrypt } from "../../utils/crypto.util";
-import { generateStrongPassword } from "../../utils/password.util";
-import getPool from "../../config/database";
-import { sendPasswordEmail } from "../../service/email.service";
+import agentReferralPartnerRepo from "./agent-referral-partner.repository.js";
+import addressRepo from "../../repositories/address.repository.js";//need to change path
+import { keysToCamelCase } from "../../utils/common.js";
+import { encrypt } from "../../utils/crypto.util.js";
+import { generateStrongPassword } from "../../utils/password.util.js";
+import getPool from "../../config/database.js";
+import { sendPasswordEmail } from "../../service/email.service.js";
 
-async function createAgentReferralPartner(currentUser, body, client) {
+export async function createAgentReferralPartner(currentUser, body, client) {
   const {
     address,
     user,
@@ -199,7 +199,7 @@ async function createAgentReferralPartner(currentUser, body, client) {
   }
 }
 
-async function getAgentReferralPartnerById(partnerId) {
+export async function getAgentReferralPartnerById(partnerId) {
   const partner =
     await agentReferralPartnerRepo.getAgentReferralPartnerById(partnerId);
   if (!partner) {
@@ -208,7 +208,7 @@ async function getAgentReferralPartnerById(partnerId) {
   return keysToCamelCase(partner);
 }
 
-async function transformAgentReferralPartnerResponse(partner) {
+export async function transformAgentReferralPartnerResponse(partner) {
   const transformed = keysToCamelCase(partner);
 
   // Fetch detailed user data if userId exists
@@ -302,7 +302,7 @@ async function transformAgentReferralPartnerResponse(partner) {
   return response;
 }
 
-async function getAgentReferralPartners(currentUser, query) {
+export async function getAgentReferralPartners(currentUser, query) {
   let result;
 
   if (currentUser.company_id) {
@@ -423,7 +423,7 @@ async function getAgentReferralPartners(currentUser, query) {
   };
 }
 
-async function updateAgentReferralPartner(
+export async function updateAgentReferralPartner(
   currentUser,
   partnerId,
   body,
@@ -731,7 +731,7 @@ async function updateAgentReferralPartner(
   return keysToCamelCase(partner);
 }
 
-async function deleteAgentReferralPartner(currentUser, partnerId, client) {
+export async function deleteAgentReferralPartner(currentUser, partnerId, client) {
   const existingPartner =
     await agentReferralPartnerRepo.getAgentReferralPartnerById(
       partnerId,

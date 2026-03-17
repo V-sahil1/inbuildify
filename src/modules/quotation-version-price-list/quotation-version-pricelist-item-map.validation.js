@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createPricelistItemMapSchema = Joi.object({
+export const createPricelistItemMapSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
@@ -19,14 +19,14 @@ const createPricelistItemMapSchema = Joi.object({
   }),
 });
 
-const getByVersionParamsSchema = Joi.object({
+export const getByVersionParamsSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
   }),
 });
 
-const updatePricelistItemMapSchema = Joi.object({
+export const updatePricelistItemMapSchema = Joi.object({
   quantity: Joi.number().min(0.01).optional().messages({
     "number.base": "Quantity must be a number",
     "number.min": "Quantity must be greater than 0",
@@ -36,7 +36,7 @@ const updatePricelistItemMapSchema = Joi.object({
   }),
 });
 
-const idParamsSchema = Joi.object({
+export const idParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",

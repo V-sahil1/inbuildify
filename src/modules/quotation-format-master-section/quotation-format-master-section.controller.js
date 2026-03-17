@@ -1,10 +1,10 @@
-import quotationFormatMasterSectionService from "./quotation-format-master-section.service";
+import quotationFormatMasterSectionService from "./quotation-format-master-section.service.js";
 
 // ============================================================
 //        MASTER SECTION CONTROLLERS
 // ============================================================
 
-async function createMasterSection(req, res) {
+export async function createMasterSection(req, res) {
   try {
     const currentUser = req.user;
     const payload = req.body;
@@ -24,7 +24,7 @@ async function createMasterSection(req, res) {
   }
 }
 
-async function getMasterSections(req, res) {
+export async function getMasterSections(req, res) {
   try {
     const currentUser = req.user;
     const filters = req.query;
@@ -44,7 +44,7 @@ async function getMasterSections(req, res) {
   }
 }
 
-async function getMasterSectionById(req, res) {
+export async function getMasterSectionById(req, res) {
   try {
     const currentUser = req.user;
     const { master_section_id } = req.params;
@@ -64,7 +64,7 @@ async function getMasterSectionById(req, res) {
   }
 }
 
-async function updateMasterSection(req, res) {
+export async function updateMasterSection(req, res) {
   try {
     const currentUser = req.user;
     const { master_section_id } = req.params;
@@ -85,7 +85,7 @@ async function updateMasterSection(req, res) {
   }
 }
 
-async function deleteMasterSection(req, res) {
+export async function deleteMasterSection(req, res) {
   try {
     const currentUser = req.user;
     const { master_section_id } = req.params;
@@ -108,7 +108,7 @@ async function deleteMasterSection(req, res) {
 //        MASTER SECTION HEADER CONTROLLERS
 // ============================================================
 
-async function createMasterSectionHeader(req, res) {
+export async function createMasterSectionHeader(req, res) {
   try {
     const currentUser = req.user;
     const payload = req.body;
@@ -128,7 +128,7 @@ async function createMasterSectionHeader(req, res) {
   }
 }
 
-async function getMasterSectionHeaders(req, res) {
+export async function getMasterSectionHeaders(req, res) {
   try {
     const currentUser = req.user;
     const filters = req.query;
@@ -148,7 +148,7 @@ async function getMasterSectionHeaders(req, res) {
   }
 }
 
-async function getMasterSectionHeaderById(req, res) {
+export async function getMasterSectionHeaderById(req, res) {
   try {
     const currentUser = req.user;
     const { header_id } = req.params;
@@ -168,7 +168,7 @@ async function getMasterSectionHeaderById(req, res) {
   }
 }
 
-async function updateMasterSectionHeader(req, res) {
+export async function updateMasterSectionHeader(req, res) {
   try {
     const currentUser = req.user;
     const { header_id } = req.params;
@@ -189,7 +189,7 @@ async function updateMasterSectionHeader(req, res) {
   }
 }
 
-async function deleteMasterSectionHeader(req, res) {
+export async function deleteMasterSectionHeader(req, res) {
   try {
     const currentUser = req.user;
     const { header_id } = req.params;
@@ -212,7 +212,7 @@ async function deleteMasterSectionHeader(req, res) {
 //        MASTER SECTION ITEM CONTROLLERS
 // ============================================================
 
-async function createMasterSectionItem(req, res) {
+export async function createMasterSectionItem(req, res) {
   try {
     const currentUser = req.user;
     const payload = req.body;
@@ -232,7 +232,7 @@ async function createMasterSectionItem(req, res) {
   }
 }
 
-async function getMasterSectionItems(req, res) {
+export async function getMasterSectionItems(req, res) {
   try {
     const currentUser = req.user;
     const filters = req.query;
@@ -252,7 +252,7 @@ async function getMasterSectionItems(req, res) {
   }
 }
 
-async function getMasterSectionItemById(req, res) {
+export async function getMasterSectionItemById(req, res) {
   try {
     const currentUser = req.user;
     const { item_id } = req.params;
@@ -272,7 +272,7 @@ async function getMasterSectionItemById(req, res) {
   }
 }
 
-async function updateMasterSectionItem(req, res) {
+export async function updateMasterSectionItem(req, res) {
   try {
     const currentUser = req.user;
     const { item_id } = req.params;
@@ -293,7 +293,7 @@ async function updateMasterSectionItem(req, res) {
   }
 }
 
-async function deleteMasterSectionItem(req, res) {
+export async function deleteMasterSectionItem(req, res) {
   try {
     const currentUser = req.user;
     const { item_id } = req.params;

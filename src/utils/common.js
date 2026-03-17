@@ -1,13 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 
-import { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } from "../config/constants";
+import { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } from "../config/constants.js";
 
-const generateRequestId = () => {
+export const generateRequestId = () => {
   return uuidv4();
 };
 
-const checkRequiredFields = (bodyFields, requiredFields) => {
+export const checkRequiredFields = (bodyFields, requiredFields) => {
   console.log(
     "🚀 ~ common.js:2 ~ checkRequiredFields ~ bodyFields:",
     bodyFields,
@@ -19,27 +19,27 @@ const checkRequiredFields = (bodyFields, requiredFields) => {
   return requiredFields.every((field) => bodyFields.includes(field));
 };
 
-const checkValidEmail = (email) => {
+export const checkValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-const generateOtp = () => {
+export const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000);
 };
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-const generateAccessToken = (userId) => {
+export const generateAccessToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1d" });
 };
 
-const generateRefreshToken = (userId) => {
+export const generateRefreshToken = (userId) => {
   return jwt.sign({ userId }, JWT_REFRESH_SECRET, { expiresIn: "1d" });
 };
 
-const decrypt = (encryptedText) => {
+export const decrypt = (encryptedText) => {
   if (encryptedText == null || encryptedText === "") {
     return "";
   }
@@ -48,7 +48,7 @@ const decrypt = (encryptedText) => {
   return buffer.toString("utf8");
 };
 
-const encrypt = (text) => {
+export const encrypt = (text) => {
   if (text == null || text === "") {
     return "";
   }
@@ -64,7 +64,7 @@ function toCamelCase(str) {
   return str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
 }
 
-function keysToSnakeCase(obj) {
+export function keysToSnakeCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
   } if (Array.isArray(obj)) {
@@ -80,7 +80,7 @@ function keysToSnakeCase(obj) {
   return obj;
 }
 
-function keysToCamelCase(obj) {
+export function keysToCamelCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
   } if (Array.isArray(obj)) {
@@ -96,14 +96,14 @@ function keysToCamelCase(obj) {
   return obj;
 }
 
-function allowedFileData() {
+export function allowedFileData() {
   return {
     types: ALLOWED_FILE_TYPES,
     size: ALLOWED_FILE_SIZE,
   };
 }
 
-const generateDynamicReferenceNumber = async ({
+export const generateDynamicReferenceNumber = async ({
   prefix,
   tableName,
   client,

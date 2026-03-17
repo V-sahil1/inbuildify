@@ -2,9 +2,9 @@ import express from "express";
 
 const router = express.Router();
 
-import { getSalesProcessStageFunctionalities } from "./sales-process-stage-functionality.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
+import { getSalesProcessStageFunctionalities } from "./sales-process-stage-functionality.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

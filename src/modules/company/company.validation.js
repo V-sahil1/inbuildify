@@ -53,7 +53,7 @@ const addressSchema = Joi.object({
   }),
 });
 
-const upsertCompanySchema = Joi.object({
+export const upsertCompanySchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)

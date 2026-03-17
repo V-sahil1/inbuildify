@@ -1,10 +1,10 @@
-import getPool from "../../config/database";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /* ============================================================
         GET CONTACT LIST (pagination + search)
   ============================================================ */
-async function getContacts({ builderId, search, is_active }) {
+export async function getContacts({ builderId, search, is_active }) {
   const pool = getPool();
   const whereConditions = [];
   const queryParams = [];
@@ -69,7 +69,7 @@ async function getContacts({ builderId, search, is_active }) {
 /* ============================================================
         GET CONTACT BY ID
   ============================================================ */
-async function getContactById(builderId, contact_id) {
+export async function getContactById(builderId, contact_id) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -110,7 +110,7 @@ async function getContactById(builderId, contact_id) {
 /* ============================================================
         CREATE CONTACT
   ============================================================ */
-async function createContact(data) {
+export async function createContact(data) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -205,7 +205,7 @@ async function createContact(data) {
 /* ============================================================
         UPDATE CONTACT (dynamic update)
   ============================================================ */
-async function updateContact(contactId, data) {
+export async function updateContact(contactId, data) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -271,7 +271,7 @@ async function updateContact(contactId, data) {
 /* ============================================================
         SOFT DELETE CONTACT
   ============================================================ */
-async function softDeleteContact(contactId) {
+export async function softDeleteContact(contactId) {
   const pool = getPool();
   await pool.query(
     `

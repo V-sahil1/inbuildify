@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobColorCoulmnSchema = Joi.object({
+export const createJobColorCoulmnSchema = Joi.object({
   column_name: Joi.string()
     .trim()
     .min(2)
@@ -19,7 +19,7 @@ const createJobColorCoulmnSchema = Joi.object({
   width: Joi.number().integer().optional().allow(null),
 });
 
-const getJobColorColumnSchema = Joi.object({
+export const getJobColorColumnSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -34,14 +34,14 @@ const getJobColorColumnSchema = Joi.object({
   }),
 });
 
-const updateJobColorColumnParamsSchema = Joi.object({
+export const updateJobColorColumnParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Job color column id must be a valid UUID",
     "any.required": "Job color column id is required",
   }),
 });
 
-const updateJobColorColumnSchema = Joi.object({
+export const updateJobColorColumnSchema = Joi.object({
   column_name: Joi.string()
     .trim()
     .min(2)

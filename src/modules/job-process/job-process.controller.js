@@ -1,10 +1,10 @@
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 // Services
 
-import stageService from "./job-process-stage.service";
-import taskService from "./job-process-task.service";
+import stageService from "./job-process-stage.service.js";
+import taskService from "./job-process-task.service.js";
 
 /* =========================================================
 
@@ -366,3 +366,26 @@ export async function deleteTaskDependency(req, res) {
     return errorResponse(res, 400, err.message);
   }
 }
+
+export default {
+  createStage,
+  updateStage,
+  deleteStage,
+  getStages,
+  createSubStage,
+  updateSubStage,
+  deleteSubStage,
+  getSubStages,
+  createTask,
+  updateTask,
+  deleteTask,
+  getTasks,
+  createSubTask,
+  updateSubTask,
+  deleteSubTask,
+  getSubTasks,
+  getJobProcess,
+  getAllJobTasks,
+  getAllTasksOnly,
+  deleteTaskDependency,
+};

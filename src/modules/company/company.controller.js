@@ -1,7 +1,7 @@
-import getPool from "../../config/database";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
-import { getCompanyByBuilderId, upsertCompany as upsertCompanyService } from "./company.service";
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { getCompanyByBuilderId, upsertCompany as upsertCompanyService } from "./company.service.js";
 
 export async function getCompany(req, res) {
   const pool = getPool();

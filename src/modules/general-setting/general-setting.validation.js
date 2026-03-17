@@ -7,7 +7,7 @@ const allowedShowReferenceValues = [
   "hide_document_id_and_job_id",
 ];
 
-const createGeneralSettigSchema = Joi.object({
+export const createGeneralSettigSchema = Joi.object({
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 
@@ -45,7 +45,7 @@ const createGeneralSettigSchema = Joi.object({
   job_id_label: Joi.string().max(100).allow(null, "").optional(),
 });
 
-const updateGeneralSettingsSchema = Joi.object({
+export const updateGeneralSettingsSchema = Joi.object({
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 

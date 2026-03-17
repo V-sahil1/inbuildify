@@ -1,7 +1,7 @@
 /**
  * Seed default job_workflow_settings for a new builder
  */
-async function seedJobWorkflowSettings({ company_id, builder_id, created_by, client }) {
+export async function seedJobWorkflowSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO job_workflow_settings (
       company_id, builder_id,

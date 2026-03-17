@@ -1,7 +1,7 @@
 /**
  * Seed default house_land_package_settings for a new builder
  */
-async function seedHouseLandPackageSettings({ company_id, builder_id, created_by, client }) {
+export async function seedHouseLandPackageSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO house_land_package_settings (
       company_id, builder_id,

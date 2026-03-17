@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createChecklistItemSchema = Joi.object({
+export const createChecklistItemSchema = Joi.object({
   construction_type_id: Joi.string().uuid().required().messages({
     "any.required": "construction type ID is required",
     "string.guid": "construction type ID must be a valid UUID",
@@ -32,7 +32,7 @@ const createChecklistItemSchema = Joi.object({
   }),
 });
 
-const getAllChecklistItemSchema = Joi.object({
+export const getAllChecklistItemSchema = Joi.object({
   sortOrder: Joi.string()
     .valid("asc", "desc")
     .insensitive()
@@ -56,28 +56,28 @@ const getAllChecklistItemSchema = Joi.object({
   }),
 });
 
-const getChecklistItemsByChecklistIdSchema = Joi.object({
+export const getChecklistItemsByChecklistIdSchema = Joi.object({
   checklist_id: Joi.string().uuid().required().messages({
     "string.guid": "checklist ID must be a valid UUID",
     "any.required": "checklist ID is required",
   }),
 });
 
-const deleteChecklistItemSchema = Joi.object({
+export const deleteChecklistItemSchema = Joi.object({
   checklist_item_id: Joi.string().uuid().required().messages({
     "string.guid": "checklist item ID must be a valid UUID",
     "any.required": "checklist item ID is required",
   }),
 });
 
-const updateChecklistItemParamsSchema = Joi.object({
+export const updateChecklistItemParamsSchema = Joi.object({
   checklist_item_id: Joi.string().uuid().required().messages({
     "string.guid": "checklist item ID must be a valid UUID",
     "any.required": "checklist item ID is required",
   }),
 });
 
-const updateChecklistItemSchema = Joi.object({
+export const updateChecklistItemSchema = Joi.object({
   checklist_id: Joi.string().uuid().optional().messages({
     "string.guid": "Checklist ID must be a valid UUID",
   }),

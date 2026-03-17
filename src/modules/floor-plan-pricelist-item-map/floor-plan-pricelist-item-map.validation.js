@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createFloorPlanPricelistItemMapValidation = Joi.object({
+export const createFloorPlanPricelistItemMapValidation = Joi.object({
   floor_plan_id: Joi.string().uuid().required().messages({
     "string.uuid": "Floor plan ID must be a valid UUID",
     "any.required": "Floor plan ID is required",
@@ -20,7 +20,7 @@ const createFloorPlanPricelistItemMapValidation = Joi.object({
   }),
 });
 
-const updateFloorPlanPricelistItemMapValidation = Joi.object({
+export const updateFloorPlanPricelistItemMapValidation = Joi.object({
   include_default: Joi.boolean().optional().messages({
     "boolean.base": "Include default must be a boolean",
   }),
@@ -29,14 +29,14 @@ const updateFloorPlanPricelistItemMapValidation = Joi.object({
   }),
 }).min(1);
 
-const getFloorPlanPricelistItemMapByIdValidation = Joi.object({
+export const getFloorPlanPricelistItemMapByIdValidation = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.uuid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const queryValidation = Joi.object({
+export const queryValidation = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.integer": "Page must be an integer",
     "number.min": "Page must be at least 1",

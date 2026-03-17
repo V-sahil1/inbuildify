@@ -1,7 +1,7 @@
-import leadsRepository from "./leads.repository";
-import { successResponse, errorResponse } from "../../helper/response";
-import { generateDynamicReferenceNumber } from "../../utils/common";
-import getPool from "../../config/database";
+import leadsRepository from "./leads.repository.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { generateDynamicReferenceNumber } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 class LeadsService {
   async createLead(

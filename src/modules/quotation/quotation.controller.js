@@ -1,5 +1,5 @@
-import quotationService from "./quotation.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import quotationService from "./quotation.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 export async function createQuotation(req, res) {
   try {
@@ -206,3 +206,13 @@ export async function compareQuotationVersions(req, res) {
     return errorResponse(res, 500, "Internal server error");
   }
 }
+
+export default {
+  createQuotation,
+  getQuotationsByLeadId,
+  getQuotationVersions,
+  updateQuotationVersion,
+  deleteQuotation,
+  duplicateQuotationVersion,
+  compareQuotationVersions,
+};

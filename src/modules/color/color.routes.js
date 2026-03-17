@@ -2,13 +2,13 @@ import express from "express";
 
 const router = express.Router();
 
-import { createColor, getColors, getColorById, updateColor, deleteColor, copyColor } from "./color.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import { createColorSchema, updateColorSchema, copyColorSchema } from "./color.validation";
+import { createColor, getColors, getColorById, updateColor, deleteColor, copyColor } from "./color.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createColorSchema, updateColorSchema, copyColorSchema } from "./color.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

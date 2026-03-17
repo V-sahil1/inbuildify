@@ -1,4 +1,5 @@
-import { replace } from "lodash";
+import pkg from "lodash";
+const { replace } = pkg;
 
 export default (validationMessageArray) => {
   return validationMessageArray.reduce((obj, item) => {

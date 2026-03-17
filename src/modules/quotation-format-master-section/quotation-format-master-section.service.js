@@ -1,5 +1,5 @@
-import getPool from "../../config/database";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 // ============================================================
 //        MASTER SECTION CRUD OPERATIONS
@@ -62,7 +62,7 @@ async function createMasterSection(currentUser, payload) {
   }
 }
 
-async function getMasterSections(currentUser, filters = {}) {
+export async function getMasterSections(currentUser, filters = {}) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -117,7 +117,7 @@ async function getMasterSections(currentUser, filters = {}) {
   };
 }
 
-async function getMasterSectionById(currentUser, masterSectionId) {
+export async function getMasterSectionById(currentUser, masterSectionId) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -152,7 +152,7 @@ async function getMasterSectionById(currentUser, masterSectionId) {
   };
 }
 
-async function updateMasterSection(currentUser, masterSectionId, payload) {
+export async function updateMasterSection(currentUser, masterSectionId, payload) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -248,7 +248,7 @@ async function updateMasterSection(currentUser, masterSectionId, payload) {
   }
 }
 
-async function deleteMasterSection(currentUser, masterSectionId) {
+export async function deleteMasterSection(currentUser, masterSectionId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -392,7 +392,7 @@ async function createMasterSectionHeader(currentUser, payload) {
   }
 }
 
-async function getMasterSectionHeaders(currentUser, filters = {}) {
+export async function getMasterSectionHeaders(currentUser, filters = {}) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -451,7 +451,7 @@ async function getMasterSectionHeaders(currentUser, filters = {}) {
   };
 }
 
-async function getMasterSectionHeaderById(currentUser, headerId) {
+export async function getMasterSectionHeaderById(currentUser, headerId) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -485,7 +485,7 @@ async function getMasterSectionHeaderById(currentUser, headerId) {
   };
 }
 
-async function updateMasterSectionHeader(currentUser, headerId, payload) {
+export async function updateMasterSectionHeader(currentUser, headerId, payload) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -623,7 +623,7 @@ async function updateMasterSectionHeader(currentUser, headerId, payload) {
   }
 }
 
-async function deleteMasterSectionHeader(currentUser, headerId) {
+export async function deleteMasterSectionHeader(currentUser, headerId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -787,7 +787,7 @@ async function createMasterSectionItem(currentUser, payload) {
   }
 }
 
-async function getMasterSectionItems(currentUser, filters = {}) {
+export async function getMasterSectionItems(currentUser, filters = {}) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -853,7 +853,7 @@ async function getMasterSectionItems(currentUser, filters = {}) {
   };
 }
 
-async function getMasterSectionItemById(currentUser, itemId) {
+export async function getMasterSectionItemById(currentUser, itemId) {
   const pool = getPool();
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
@@ -888,7 +888,7 @@ async function getMasterSectionItemById(currentUser, itemId) {
   };
 }
 
-async function updateMasterSectionItem(currentUser, itemId, payload) {
+export async function updateMasterSectionItem(currentUser, itemId, payload) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1014,7 +1014,7 @@ async function updateMasterSectionItem(currentUser, itemId, payload) {
   }
 }
 
-async function deleteMasterSectionItem(currentUser, itemId) {
+export async function deleteMasterSectionItem(currentUser, itemId) {
   const pool = getPool();
   const client = await pool.connect();
 

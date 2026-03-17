@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 // Generate strong password
-function generateStrongPassword(length = 12) {
+export function generateStrongPassword(length = 12) {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
   const digits = "0123456789";
@@ -24,7 +24,7 @@ function generateStrongPassword(length = 12) {
 }
 
 // Validate password security policy
-function validatePasswordPolicy(password) {
+export function validatePasswordPolicy(password) {
   return (
     typeof password === "string" &&
     password.length >= 8 &&

@@ -11,7 +11,7 @@ import {
   resetPassword,
   refreshToken,
   logout,
-} from "./auth.controller";
+} from "./auth.controller.js";
 import {
   registerRootSchema,
   verifyEmailSchema,
@@ -20,12 +20,12 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   refreshTokenSchema,
-} from "./auth.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+} from "./auth.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 
 // AUTH ROUTES
 router.post(

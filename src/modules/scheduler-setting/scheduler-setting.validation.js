@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createSchedulerSettingsSchema = Joi.object({
+export const createSchedulerSettingsSchema = Joi.object({
   receiver_of_replies: Joi.array()
     .items(Joi.string().guid({ version: "uuidv4" }))
     .optional()
@@ -9,7 +9,7 @@ const createSchedulerSettingsSchema = Joi.object({
     }),
 });
 
-const updateSchedulerSettingSchema = Joi.object({
+export const updateSchedulerSettingSchema = Joi.object({
   receiver_of_replies: Joi.array()
     .items(Joi.string().guid({ version: "uuidv4" }))
     .optional()

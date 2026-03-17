@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createFunctionalitySchema = Joi.object({
+export const createFunctionalitySchema = Joi.object({
   screen_id: Joi.string().uuid().required().messages({
     "string.guid": "Screen ID must be a valid UUID",
     "any.required": "Screen ID is required",
@@ -10,7 +10,7 @@ const createFunctionalitySchema = Joi.object({
   }),
 });
 
-const getFunctionalitiesSchema = Joi.object({
+export const getFunctionalitiesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -25,28 +25,28 @@ const getFunctionalitiesSchema = Joi.object({
   }),
 });
 
-const deleteFunctionalitySchema = Joi.object({
+export const deleteFunctionalitySchema = Joi.object({
   functionality_id: Joi.string().uuid().required().messages({
     "string.guid": "functionality ID must be a valid UUID",
     "any.required": "functionality ID is required",
   }),
 });
 
-const updateFunctionalityParamsSchema = Joi.object({
+export const updateFunctionalityParamsSchema = Joi.object({
   functionality_id: Joi.string().uuid().required().messages({
     "string.guid": "functionality ID must be a valid UUID",
     "any.required": "functionality ID is required",
   }),
 });
 
-const updateFunctionalitySchema = Joi.object({
+export const updateFunctionalitySchema = Joi.object({
   screen_id: Joi.string().uuid().optional().messages({
     "string.guid": "Screen ID must be a valid UUID",
   }),
   name: Joi.string().max(150).optional(),
 });
 
-const getFunctionalitiesByScreenSchema = Joi.object({
+export const getFunctionalitiesByScreenSchema = Joi.object({
   screenId: Joi.string().uuid().required().messages({
     "string.guid": "screen ID must be a valid UUID",
     "any.required": "screen ID is required",

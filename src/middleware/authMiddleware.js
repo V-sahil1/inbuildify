@@ -2,8 +2,8 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 
-import getPool from "../config/database";
-import { errorResponse } from "../helper/response";
+import getPool from "../config/database.js";
+import { errorResponse } from "../helper/response.js";
 
 dotenv.config({ quiet: true });
 

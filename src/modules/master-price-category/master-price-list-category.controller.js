@@ -1,6 +1,6 @@
-import getPool from "../../config/database";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 export async function getAllMasterPriceListCategories(req, res) {
   const pool = getPool();

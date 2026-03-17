@@ -1,13 +1,13 @@
 import Joi from "joi";
 
-const createDriveSchema = Joi.object({
+export const createDriveSchema = Joi.object({
   name: Joi.string().required().messages({
     "string.empty": "Name is required",
     "any.required": "Name is required",
   }),
 });
 
-const getAllDriveSchema = Joi.object({
+export const getAllDriveSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -22,13 +22,13 @@ const getAllDriveSchema = Joi.object({
   }),
 });
 
-const updateIdParamsSchema = Joi.object({
+export const updateIdParamsSchema = Joi.object({
   drive_id: Joi.string().uuid().required().messages({
     "string.guid": "drive id must be a valid UUID",
     "any.required": "drive id is required",
   }),
 });
-const updateDriveSchema = Joi.object({
+export const updateDriveSchema = Joi.object({
   name: Joi.string().required().messages({
     "string.empty": "Name is required",
     "any.required": "Name is required",

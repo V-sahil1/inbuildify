@@ -1,6 +1,6 @@
-import getPool from "../config/database";
-import pdfTemplates from "../templates/pdf-template.json";
-import { keysToCamelCase, keysToSnakeCase } from "../utils/common";
+import getPool from "../config/database.js";
+import pdfTemplates from "../templates/pdf-template.json" with { type: "json" };
+import { keysToCamelCase, keysToSnakeCase } from "../utils/common.js";
 
 /**
  * Convert camelCase key to Title Case
@@ -25,7 +25,7 @@ function keyToTitle(key) {
  * - Creates one row per format
  * - Safe to run multiple times
  */
-async function seedInitialPdfTemplates({
+export async function seedInitialPdfTemplates({
   company_id = null,
   builder_id = null,
   created_by,

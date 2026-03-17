@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const updateSalesModuleSettingSchema = Joi.object({
+export const updateSalesModuleSettingSchema = Joi.object({
   allow_duplicate_leads: Joi.boolean().optional(),
   send_email_on_new_lead: Joi.boolean().optional(),
   show_common_folders: Joi.boolean().optional(),

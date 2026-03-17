@@ -23,7 +23,7 @@ const booleanRule = Joi.boolean().optional().messages({
   "boolean.base": "Must be a boolean value",
 });
 
-const createLotSchema = Joi.object({
+export const createLotSchema = Joi.object({
   leads_id: optionalUuidRule.messages({
     "string.guid": "Leads ID must be a valid UUID",
   }),
@@ -93,7 +93,7 @@ const createLotSchema = Joi.object({
   total_size_m2: numericRule.min(0).optional().allow(null),
 });
 
-const updateLotSchema = Joi.object({
+export const updateLotSchema = Joi.object({
   estate_id: optionalUuidRule.messages({
     "string.guid": "Estate ID must be a valid UUID",
   }),
@@ -155,15 +155,15 @@ const updateLotSchema = Joi.object({
   total_size_m2: numericRule.min(0).optional().allow(null),
 });
 
-const getLotByIdSchema = Joi.object({
+export const getLotByIdSchema = Joi.object({
   lot_id: uuidRule,
 });
 
-const deleteLotSchema = Joi.object({
+export const deleteLotSchema = Joi.object({
   lot_id: uuidRule,
 });
 
-const getAllLotsSchema = Joi.object({
+export const getAllLotsSchema = Joi.object({
   lot_number: stringRule.max(255).optional().allow(""),
   price: Joi.alternatives().try(Joi.number(), Joi.string()).optional().allow(null, ""),
   size: Joi.alternatives().try(Joi.number(), Joi.string()).optional().allow(null, ""),

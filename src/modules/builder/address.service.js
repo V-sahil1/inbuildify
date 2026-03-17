@@ -1,7 +1,7 @@
-import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate";
-import { ADDRESS_UPDATE_FIELDS } from "../../constants/updateFields";
+import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate.js";
+import { ADDRESS_UPDATE_FIELDS } from "../../constants/updateFields.js";
 
-async function upsertAddress(client, existingAddressId, addressPayload) {
+export async function upsertAddress(client, existingAddressId, addressPayload) {
   if (!addressPayload) {
     return null;
   }

@@ -1,4 +1,4 @@
-import getPool from "../config/database";
+import getPool from "../config/database.js";
 
 const seedServices = async () => {
   const pool = await getPool();

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobInvoiceStagePaymentSchema = Joi.object({
+export const createJobInvoiceStagePaymentSchema = Joi.object({
   description: Joi.string()
     .trim()
     .min(2)
@@ -31,7 +31,7 @@ const createJobInvoiceStagePaymentSchema = Joi.object({
   }),
 });
 
-const getAllJobInvoiceStagePaymentSchema = Joi.object({
+export const getAllJobInvoiceStagePaymentSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -46,21 +46,21 @@ const getAllJobInvoiceStagePaymentSchema = Joi.object({
   }),
 });
 
-const deleteJobInvoiceStagePaymentSchema = Joi.object({
+export const deleteJobInvoiceStagePaymentSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "job invoice stage payment ID must be a valid UUID",
     "any.required": "job invoice stage payment ID is required",
   }),
 });
 
-const updateJobInvoiceStagePaymentParamsSchema = Joi.object({
+export const updateJobInvoiceStagePaymentParamsSchema = Joi.object({
   job_invoice_stage_payment_id: Joi.string().uuid().required().messages({
     "string.guid": "job invoice stage payment ID must be a valid UUID",
     "any.required": "job invoice stage payment ID is required",
   }),
 });
 
-const updateJobInvoiceStagePaymentSchema = Joi.object({
+export const updateJobInvoiceStagePaymentSchema = Joi.object({
   description: Joi.string()
     .trim()
     .min(2)

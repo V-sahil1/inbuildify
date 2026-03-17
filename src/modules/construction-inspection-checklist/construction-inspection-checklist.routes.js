@@ -8,19 +8,19 @@ import {
   updateConstructionInspectionChecklist,
   deleteConstructionInspectionChecklist,
   getConstructionInspectionChecklistById,
-} from "./construction-inspection-checklist.controller";
+} from "./construction-inspection-checklist.controller.js";
 import {
   createConstructionInspectionChecklistSchema,
   getConstructionInspectionChecklistsSchema,
   updateConstructionInspectionChecklistSchema,
   deleteConstructionInspectionChecklistSchema,
   updateExistingJobsSchema,
-} from "./construction-inspection-checklist.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import caseConverterMiddleware from "../../middleware/caseConverterMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./construction-inspection-checklist.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import caseConverterMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createBusinessContactSchema = Joi.object({
+export const createBusinessContactSchema = Joi.object({
   leads_id: Joi.string().uuid().allow(null).optional(),
   contact_type: Joi.string()
     .valid("company", "conveyancer", "mortgage_broker", "financer")
@@ -21,20 +21,20 @@ const createBusinessContactSchema = Joi.object({
   acn_number: Joi.string().min(9).max(9).allow(null, "").optional(),
 });
 
-const getAllBusinessContactsSchema = Joi.object({
+export const getAllBusinessContactsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
 });
 
-const getBusinessContactByIdSchema = Joi.object({
+export const getBusinessContactByIdSchema = Joi.object({
   business_contact_id: Joi.string().uuid().required(),
 });
 
-const getBusinessContactsByLeadsIdSchema = Joi.object({
+export const getBusinessContactsByLeadsIdSchema = Joi.object({
   leads_id: Joi.string().uuid().required(),
 });
 
-const updateBusinessContactSchema = Joi.object({
+export const updateBusinessContactSchema = Joi.object({
   name: Joi.string().min(2).max(255).optional(),
   email: Joi.string().email().allow(null, "").optional(),
   phone: Joi.string().max(20).allow(null, "").optional(),
@@ -48,7 +48,7 @@ const updateBusinessContactSchema = Joi.object({
   acn_number: Joi.string().min(9).max(9).allow(null, "").optional(),
 });
 
-const deleteBusinessContactSchema = Joi.object({
+export const deleteBusinessContactSchema = Joi.object({
   business_contact_id: Joi.string().uuid().required(),
 });
 

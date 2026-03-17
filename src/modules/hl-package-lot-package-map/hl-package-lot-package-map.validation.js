@@ -9,7 +9,7 @@ const optionalUuidRule = Joi.string().uuid().optional().allow(null).messages({
   "string.guid": "ID must be a valid UUID",
 });
 
-const createHlPackageLotPackageMapSchema = Joi.object({
+export const createHlPackageLotPackageMapSchema = Joi.object({
   house_land_package_id: uuidRule.messages({
     "string.guid": "House land package ID must be a valid UUID",
     "any.required": "House land package ID is required",
@@ -20,21 +20,21 @@ const createHlPackageLotPackageMapSchema = Joi.object({
   }),
 }).required();
 
-const getLotPackagesByHlPackageIdSchema = Joi.object({
+export const getLotPackagesByHlPackageIdSchema = Joi.object({
   house_land_package_id: uuidRule.messages({
     "string.guid": "House land package ID must be a valid UUID",
     "any.required": "House land package ID is required",
   }),
 });
 
-const deleteHlPackageLotPackageMapSchema = Joi.object({
+export const deleteHlPackageLotPackageMapSchema = Joi.object({
   id: uuidRule.messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const getAllHlPackageLotPackageMapsSchema = Joi.object({
+export const getAllHlPackageLotPackageMapsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional().allow(null).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

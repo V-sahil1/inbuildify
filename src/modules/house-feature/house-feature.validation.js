@@ -14,7 +14,7 @@ const stringRule = Joi.string().trim().messages({
   "string.empty": "Field cannot be empty",
 });
 
-const createHouseFeatureSchema = Joi.object({
+export const createHouseFeatureSchema = Joi.object({
   name: stringRule.max(255).required().messages({
     "any.required": "Name is required",
     "string.max": "Name must not exceed 255 characters",
@@ -26,7 +26,7 @@ const createHouseFeatureSchema = Joi.object({
   builder_id: optionalUuidRule,
 });
 
-const updateHouseFeatureSchema = Joi.object({
+export const updateHouseFeatureSchema = Joi.object({
   name: stringRule.max(255).optional().messages({
     "string.max": "Name must not exceed 255 characters",
   }),
@@ -37,15 +37,15 @@ const updateHouseFeatureSchema = Joi.object({
   builder_id: optionalUuidRule,
 });
 
-const getHouseFeatureByIdSchema = Joi.object({
+export const getHouseFeatureByIdSchema = Joi.object({
   house_feature_id: uuidRule,
 });
 
-const deleteHouseFeatureSchema = Joi.object({
+export const deleteHouseFeatureSchema = Joi.object({
   house_feature_id: uuidRule,
 });
 
-const getAllHouseFeaturesSchema = Joi.object({
+export const getAllHouseFeaturesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createAppointmentSchema = Joi.object({
+export const createAppointmentSchema = Joi.object({
   title: Joi.string()
     .min(2)
     .max(255)
@@ -45,7 +45,7 @@ const createAppointmentSchema = Joi.object({
   }),
 });
 
-const getAllAppointmentSchema = Joi.object({
+export const getAllAppointmentSchema = Joi.object({
   title: Joi.string().max(255).optional(),
 
   date: Joi.date().optional(),
@@ -70,21 +70,21 @@ const getAllAppointmentSchema = Joi.object({
   }),
 });
 
-const deleteAppointmentSchema = Joi.object({
+export const deleteAppointmentSchema = Joi.object({
   appointment_id: Joi.string().uuid().required().messages({
     "string.guid": "appointment ID must be a valid UUID",
     "any.required": "appointment ID is required",
   }),
 });
 
-const updateAppointmentParamsSchema = Joi.object({
+export const updateAppointmentParamsSchema = Joi.object({
   appointment_id: Joi.string().uuid().required().messages({
     "string.guid": "appointment ID must be a valid UUID",
     "any.required": "appointment ID is required",
   }),
 });
 
-const updateAppointmentSchema = Joi.object({
+export const updateAppointmentSchema = Joi.object({
   title: Joi.string()
     .min(2)
     .max(255)

@@ -60,7 +60,7 @@ const addressJsonRule = Joi.object({
     CREATE CONTACT
 ============================================================ */
 
-const createContactSchema = Joi.object({
+export const createContactSchema = Joi.object({
   name: nameRule,
   email: emailRule,
   phone: phoneRule,
@@ -74,7 +74,7 @@ const createContactSchema = Joi.object({
     UPDATE CONTACT
 ============================================================ */
 
-const updateContactSchema = Joi.object({
+export const updateContactSchema = Joi.object({
   name: nameRule.optional(),
   email: emailRule.optional(),
   phone: phoneRule.optional(),
@@ -88,7 +88,7 @@ const updateContactSchema = Joi.object({
     CONVERT CONTACT → USER
 ============================================================ */
 
-const convertContactSchema = Joi.object({
+export const convertContactSchema = Joi.object({
   role_id: uuidRule.required().messages({
     "any.required": "Role ID is required to convert a contact into a user.",
   }),
@@ -98,7 +98,7 @@ const convertContactSchema = Joi.object({
     GET CONTACT LIST
 ============================================================ */
 
-const getContactsSchema = Joi.object({
+export const getContactsSchema = Joi.object({
   search: Joi.string().allow("", null).max(100).messages({
     "string.max": "Search term cannot exceed 100 characters",
   }),

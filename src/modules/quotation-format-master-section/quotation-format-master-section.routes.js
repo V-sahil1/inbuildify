@@ -2,10 +2,26 @@ import express from "express";
 
 const router = express.Router();
 
-import quotationFormatMasterSectionController from "./quotation-format-master-section.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
+import {
+  createMasterSection,
+  getMasterSections,
+  getMasterSectionById,
+  updateMasterSection,
+  deleteMasterSection,
+  createMasterSectionHeader,
+  getMasterSectionHeaders,
+  getMasterSectionHeaderById,
+  updateMasterSectionHeader,
+  deleteMasterSectionHeader,
+  createMasterSectionItem,
+  getMasterSectionItems,
+  getMasterSectionItemById,
+  updateMasterSectionItem,
+  deleteMasterSectionItem,
+} from "./quotation-format-master-section.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import {
   createMasterSectionSchema,
   updateMasterSectionSchema,
@@ -19,9 +35,9 @@ import {
   updateMasterSectionItemSchema,
   getMasterSectionItemSchema,
   paramsItemIdSchema,
-} from "./quotation-format-master-section.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./quotation-format-master-section.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -34,32 +50,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/master-section",
   validateRequest(createMasterSectionSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.createMasterSection,
+  createMasterSection,
 );
 
 router.get(
   "/master-section",
   validateRequest(getMasterSectionSchema, REQUEST_SOURCE.QUERY),
-  quotationFormatMasterSectionController.getMasterSections,
+  getMasterSections,
 );
 
 router.get(
   "/master-section/:master_section_id",
   validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.getMasterSectionById,
+  getMasterSectionById,
 );
 
 router.put(
   "/master-section/:master_section_id",
   validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateMasterSectionSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.updateMasterSection,
+  updateMasterSection,
 );
 
 router.delete(
   "/master-section/:master_section_id",
   validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.deleteMasterSection,
+  deleteMasterSection,
 );
 
 // ============================================================
@@ -69,32 +85,32 @@ router.delete(
 router.post(
   "/master-section-header",
   validateRequest(createMasterSectionHeaderSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.createMasterSectionHeader,
+  createMasterSectionHeader,
 );
 
 router.get(
   "/master-section-header",
   validateRequest(getMasterSectionHeaderSchema, REQUEST_SOURCE.QUERY),
-  quotationFormatMasterSectionController.getMasterSectionHeaders,
+  getMasterSectionHeaders,
 );
 
 router.get(
   "/master-section-header/:header_id",
   validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.getMasterSectionHeaderById,
+  getMasterSectionHeaderById,
 );
 
 router.put(
   "/master-section-header/:header_id",
   validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateMasterSectionHeaderSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.updateMasterSectionHeader,
+  updateMasterSectionHeader,
 );
 
 router.delete(
   "/master-section-header/:header_id",
   validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.deleteMasterSectionHeader,
+  deleteMasterSectionHeader,
 );
 
 // ============================================================
@@ -104,32 +120,32 @@ router.delete(
 router.post(
   "/master-section-item",
   validateRequest(createMasterSectionItemSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.createMasterSectionItem,
+  createMasterSectionItem,
 );
 
 router.get(
   "/master-section-item",
   validateRequest(getMasterSectionItemSchema, REQUEST_SOURCE.QUERY),
-  quotationFormatMasterSectionController.getMasterSectionItems,
+  getMasterSectionItems,
 );
 
 router.get(
   "/master-section-item/:item_id",
   validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.getMasterSectionItemById,
+  getMasterSectionItemById,
 );
 
 router.put(
   "/master-section-item/:item_id",
   validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateMasterSectionItemSchema, REQUEST_SOURCE.BODY),
-  quotationFormatMasterSectionController.updateMasterSectionItem,
+  updateMasterSectionItem,
 );
 
 router.delete(
   "/master-section-item/:item_id",
   validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
-  quotationFormatMasterSectionController.deleteMasterSectionItem,
+  deleteMasterSectionItem,
 );
 
 export default router;

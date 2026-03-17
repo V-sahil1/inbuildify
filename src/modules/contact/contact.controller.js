@@ -1,5 +1,5 @@
-import contactService from "./contact.service";
-import { successResponse, errorResponse } from "../../helper/response";
+import contactService from "./contact.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 export async function getContacts(req, res) {
   try {

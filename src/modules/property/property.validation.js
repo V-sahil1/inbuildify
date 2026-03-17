@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createPropertySchema = Joi.object({
+export const createPropertySchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Leads ID must be a valid UUID",
     "any.required": "Leads ID is required",
@@ -61,7 +61,7 @@ const createPropertySchema = Joi.object({
   corner_block: Joi.boolean().default(false),
 });
 
-const updatePropertySchema = Joi.object({
+export const updatePropertySchema = Joi.object({
   address: Joi.object({
     address_line1: Joi.string()
       .max(255)
@@ -108,25 +108,25 @@ const updatePropertySchema = Joi.object({
   corner_block: Joi.boolean().optional(),
 });
 
-const getPropertyByLeadSchema = Joi.object({
+export const getPropertyByLeadSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
     "any.required": "Lead ID is required",
   }),
 });
 
-const updatePropertyParamSchema = Joi.object({
+export const updatePropertyParamSchema = Joi.object({
   property_id: Joi.string().uuid().required().messages({
     "string.guid": "Property ID must be a valid UUID",
     "any.required": "Property ID is required",
   }),
 });
 
-const getAllPropertiesSchema = Joi.object({
+export const getAllPropertiesSchema = Joi.object({
   search: Joi.string().allow("", null).optional(),
 });
 
-const deletePropertySchema = Joi.object({
+export const deletePropertySchema = Joi.object({
   property_id: Joi.string().uuid().required().messages({
     "string.guid": "Property ID must be a valid UUID",
     "any.required": "Property ID is required",

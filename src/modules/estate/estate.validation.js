@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createEstateSchema = Joi.object({
+export const createEstateSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)
@@ -45,7 +45,7 @@ const createEstateSchema = Joi.object({
   featured: Joi.boolean().default(false),
 });
 
-const getAllEstateSchema = Joi.object({
+export const getAllEstateSchema = Joi.object({
   name: Joi.string().max(150).optional(),
   status: Joi.boolean().optional(),
   location: Joi.string().max(150).optional().messages({
@@ -67,21 +67,21 @@ const getAllEstateSchema = Joi.object({
   }),
 });
 
-const deleteEstateSchema = Joi.object({
+export const deleteEstateSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID",
     "any.required": "estate ID is required",
   }),
 });
 
-const updateEstateParamsSchema = Joi.object({
+export const updateEstateParamsSchema = Joi.object({
   estate_id: Joi.string().uuid().optional().messages({
     "string.guid": "estate ID must be a valid UUID",
     "any.required": "estate ID is required",
   }),
 });
 
-const updateEstateSchema = Joi.object({
+export const updateEstateSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)

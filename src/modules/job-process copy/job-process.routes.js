@@ -2,13 +2,13 @@ import express from "express";
 
 const router = express.Router();
 
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
-import controller from "./job-process.controller";
-import validation from "../job-process/job-process.validation";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import controller from "./job-process.controller.js";
+import validation from "../job-process/job-process.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

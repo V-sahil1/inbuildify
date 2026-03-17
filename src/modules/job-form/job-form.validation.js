@@ -113,7 +113,7 @@ const drivewayValidValues = ["by_client", "by_builder"];
 const connectionValidValues = ["nbn", "opticom"];
 
 // Schemas
-const createJobFormSchema = Joi.object({
+export const createJobFormSchema = Joi.object({
   leads_id: optionalUuidRule,
   street_name: stringRule.max(255).required(),
   land_developer: stringRule.max(255).optional().allow(""),
@@ -249,7 +249,7 @@ const createJobFormSchema = Joi.object({
   special_job_notes: stringRule.max(500).optional().allow(""),
 });
 
-const updateJobFormSchema = Joi.object({
+export const updateJobFormSchema = Joi.object({
   street_name: stringRule.max(255).optional(),
   land_developer: stringRule.max(255).optional().allow(""),
   council: stringRule.max(255).optional().allow(""),
@@ -384,19 +384,19 @@ const updateJobFormSchema = Joi.object({
   special_job_notes: stringRule.max(500).optional().allow(""),
 });
 
-const getJobFormByIdSchema = Joi.object({
+export const getJobFormByIdSchema = Joi.object({
   leads_id: uuidRule,
 });
 
-const deleteJobFormSchema = Joi.object({
+export const deleteJobFormSchema = Joi.object({
   job_form_id: uuidRule,
 });
 
-const updateJobFormParamsSchema = Joi.object({
+export const updateJobFormParamsSchema = Joi.object({
   job_form_id: uuidRule,
 });
 
-const getAllJobFormsSchema = Joi.object({
+export const getAllJobFormsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

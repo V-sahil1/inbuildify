@@ -22,23 +22,23 @@ const serviceIdRule = Joi.string().uuid().messages({
   "any.required": "Service ID is required",
 });
 
-const createServiceSchema = Joi.object({
+export const createServiceSchema = Joi.object({
   service: serviceRule.required(),
 });
 
-const getServiceByIdSchema = Joi.object({
+export const getServiceByIdSchema = Joi.object({
   service_id: serviceIdRule.required(),
 });
 
-const updateServiceSchema = Joi.object({
+export const updateServiceSchema = Joi.object({
   service: serviceRule.required(),
 });
 
-const updateServiceParamsSchema = Joi.object({
+export const updateServiceParamsSchema = Joi.object({
   service_id: serviceIdRule.required(),
 });
 
-const deleteServiceSchema = Joi.object({
+export const deleteServiceSchema = Joi.object({
   service_id: serviceIdRule.required(),
 });
 

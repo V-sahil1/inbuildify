@@ -4,7 +4,7 @@ import Joi from "joi";
    SETTINGS VALIDATION
 ======================== */
 
-const upsertSettingsSchema = Joi.object({
+export const upsertSettingsSchema = Joi.object({
   signature_required: Joi.boolean().optional(),
   minimum_audits: Joi.number().integer().min(0).optional(),
 });
@@ -13,7 +13,7 @@ const upsertSettingsSchema = Joi.object({
    LIST ITEM VALIDATION
 ======================== */
 
-const createListItemSchema = Joi.object({
+export const createListItemSchema = Joi.object({
   field_type: Joi.string().max(20).valid("category", "item").required(),
   description: Joi.string()
     .min(2)
@@ -25,7 +25,7 @@ const createListItemSchema = Joi.object({
   add_defaults: Joi.boolean().optional(),
 });
 
-const updateListItemSchema = Joi.object({
+export const updateListItemSchema = Joi.object({
   description: Joi.string()
     .min(2)
     .max(500)
@@ -39,7 +39,7 @@ const updateListItemSchema = Joi.object({
   add_defaults: Joi.boolean().optional(),
 }).min(1);
 
-const getListItemChema = Joi.object({
+export const getListItemChema = Joi.object({
   id: Joi.string().uuid().optional(),
   field_type: Joi.string().max(20).valid("category", "item").optional(),
 });

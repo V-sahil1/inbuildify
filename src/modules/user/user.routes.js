@@ -2,20 +2,20 @@ import express from "express";
 
 const router = express.Router();
 
-import userController from "./user.controller";
-import { createUpload, handleMulterError } from "../../utils/s3Upload";
+import userController from "./user.controller.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 import {
   createUserSchema,
   updateUserSchema,
   resetPasswordSchema,
   changeLoginIdSchema,
   getUsersSchema,
-} from "./user.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./user.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 const uploadPhoto = createUpload("users/photo");
 const uploadSignature = createUpload("users/signature");

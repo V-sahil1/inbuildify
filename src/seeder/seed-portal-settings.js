@@ -1,7 +1,7 @@
 /**
  * Seed default portal_settings for a new builder
  */
-async function seedPortalSettings({ company_id, builder_id, created_by, client }) {
+export async function seedPortalSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO portal_settings (
       company_id, builder_id,

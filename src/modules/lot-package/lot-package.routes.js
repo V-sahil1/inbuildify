@@ -8,19 +8,19 @@ import {
   getLotPackageByIdSchema,
   deleteLotPackageSchema,
   getAllLotPackagesSchema,
-} from "./lot-package.validation";
+} from "./lot-package.validation.js";
 import {
   createLotPackage,
   getAllLotPackages,
   getLotPackageById,
   updateLotPackage,
   deleteLotPackage,
-} from "./lot-package.controller";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./lot-package.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

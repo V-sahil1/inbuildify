@@ -1,11 +1,11 @@
-import getPool from "../config/database";
+import getPool from "../config/database.js";
 
 /**
  * Create or update address
  * If addressId = null → INSERT
  * Else → UPDATE
  */
-async function createOrUpdateAddress(addressId, data) {
+export async function createOrUpdateAddress(addressId, data) {
   const pool = getPool();
 
   const { address_line1, address_line2, city, zip_code, country_id, state_id } =

@@ -1,4 +1,4 @@
-import getPool from "../config/database";
+import getPool from "../config/database.js";
 
 const seedEmailTemplates = async () => {
   const pool = await getPool();

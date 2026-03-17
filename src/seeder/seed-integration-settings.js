@@ -1,7 +1,7 @@
 /**
  * Seed default integration_settings for a new builder
  */
-async function seedIntegrationSettings({ company_id, builder_id, created_by, client }) {
+export async function seedIntegrationSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO integration_settings (
       company_id, builder_id,

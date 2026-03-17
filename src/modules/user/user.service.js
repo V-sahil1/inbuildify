@@ -1,16 +1,16 @@
-import userRepo from "./user.repository";
-import addressRepo from "../../repositories/address.repository";
-import builderRepo from "../../repositories/builder.repository";
-import tokenRepo from "../../repositories/token.repository";
-import { deleteFromS3 } from "../../utils/s3Upload";
-import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util";
-import { sendPasswordEmail, sendLoginIdEmail } from "../../service/email.service";
-import { encrypt } from "../../utils/crypto.util";
+import userRepo from "./user.repository.js";
+import addressRepo from "../../repositories/address.repository.js";
+import builderRepo from "../../repositories/builder.repository.js";
+import tokenRepo from "../../repositories/token.repository.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
+import { sendPasswordEmail, sendLoginIdEmail } from "../../service/email.service.js";
+import { encrypt } from "../../utils/crypto.util.js";
 
 /* ----------------------------------------
       GET ALL USERS FOR CURRENT BUILDER
   ---------------------------------------- */
-async function getUsers(currentUser, query) {
+export async function getUsers(currentUser, query) {
   const builderId = currentUser.builder_id;
   console.log(query);
   const { search = "", role = "", role_id = "", is_active } = query;
@@ -31,7 +31,7 @@ async function getUsers(currentUser, query) {
 /* ----------------------------------------
       GET OWN PROFILE
   ---------------------------------------- */
-async function getProfile(userId) {
+export async function getProfile(userId) {
   const profile = await userRepo.getProfile(userId);
   if (!profile) {
     throw { status: 404, message: "User not found." };
@@ -42,7 +42,7 @@ async function getProfile(userId) {
 /* ----------------------------------------
       GET BASIC USER
   ---------------------------------------- */
-async function getBasicUser(userId) {
+export async function getBasicUser(userId) {
   const user = await userRepo.getBasicUser(userId);
   return user;
 }
@@ -50,7 +50,7 @@ async function getBasicUser(userId) {
 /* ----------------------------------------
         CREATE USER (ADMIN UI)
   ---------------------------------------- */
-async function createUser(currentUser, body, files) {
+export async function createUser(currentUser, body, files) {
   const {
     name,
     email,
@@ -278,7 +278,7 @@ async function createUser(currentUser, body, files) {
 /* ----------------------------------------
             UPDATE USER
   ---------------------------------------- */
-async function updateUser(currentUser, userId, body, files) {
+export async function updateUser(currentUser, userId, body, files) {
   /* --------------------------
         ROOT USER PROTECTION
     --------------------------- */
@@ -524,7 +524,7 @@ async function updateUser(currentUser, userId, body, files) {
 /* ----------------------------------------
             SOFT DELETE USER
   ---------------------------------------- */
-async function deleteUser(currentUser, userId) {
+export async function deleteUser(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -542,7 +542,7 @@ async function deleteUser(currentUser, userId) {
 /* ----------------------------------------
             RESET PASSWORD
   ---------------------------------------- */
-async function resetPassword(currentUser, userId, body) {
+export async function resetPassword(currentUser, userId, body) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -652,7 +652,7 @@ async function resetPassword(currentUser, userId, body) {
 /* ----------------------------------------
             CHANGE LOGIN ID
   ---------------------------------------- */
-async function changeLoginId(currentUser, userId, body) {
+export async function changeLoginId(currentUser, userId, body) {
   const { new_login_id, email_login_id } = body;
 
   if (!/^[A-Za-z0-9._@-]+$/.test(new_login_id)) {
@@ -687,7 +687,7 @@ async function changeLoginId(currentUser, userId, body) {
 /* ----------------------------------------
             ACTIVE / INACTIVE
   ---------------------------------------- */
-async function toggleActive(currentUser, userId) {
+export async function toggleActive(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -706,7 +706,7 @@ async function toggleActive(currentUser, userId) {
 /* ----------------------------------------
             LOCK / UNLOCK USER
   ---------------------------------------- */
-async function toggleLock(currentUser, userId) {
+export async function toggleLock(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -730,7 +730,7 @@ async function toggleLock(currentUser, userId) {
 /* ----------------------------------------
             PHOTO UPDATE
   ---------------------------------------- */
-async function updatePhoto(currentUser, userId, file) {
+export async function updatePhoto(currentUser, userId, file) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -752,7 +752,7 @@ async function updatePhoto(currentUser, userId, file) {
 /* ----------------------------------------
             SIGNATURE UPDATE
   ---------------------------------------- */
-async function updateSignature(currentUser, userId, file) {
+export async function updateSignature(currentUser, userId, file) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -774,7 +774,7 @@ async function updateSignature(currentUser, userId, file) {
 /* ----------------------------------------
             DELETE PHOTO
   ---------------------------------------- */
-async function deletePhoto(currentUser, userId) {
+export async function deletePhoto(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {
@@ -793,7 +793,7 @@ async function deletePhoto(currentUser, userId) {
 /* ----------------------------------------
             DELETE SIGNATURE
   ---------------------------------------- */
-async function deleteSignature(currentUser, userId) {
+export async function deleteSignature(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
   if (!user) {

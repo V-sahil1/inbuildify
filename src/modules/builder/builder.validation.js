@@ -90,7 +90,7 @@ const insurerSchema = Joi.object({
   }),
 });
 
-const upsertBuilderSchema = Joi.object({
+export const upsertBuilderSchema = Joi.object({
   company_id: Joi.string().uuid().messages({
     "string.guid": "Company ID must be a valid UUID",
     "any.required": "Company ID is required",

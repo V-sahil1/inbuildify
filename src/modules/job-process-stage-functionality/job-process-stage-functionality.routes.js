@@ -2,13 +2,13 @@ import express from "express";
 
 const router = express.Router();
 
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-import { getJobProcessStageFunctionalities } from "./job-process-stage-functionality.controller";
+import { getJobProcessStageFunctionalities } from "./job-process-stage-functionality.controller.js";
 
 router.get("/", getJobProcessStageFunctionalities);
 

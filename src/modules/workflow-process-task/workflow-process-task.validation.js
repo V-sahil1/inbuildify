@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const getAllWorkFlowProcessTaskSchema = Joi.object({
+export const getAllWorkFlowProcessTaskSchema = Joi.object({
   limit: Joi.number().optional().default(25).max(25),
   offset: Joi.number().optional().default(0).max(25),
   workflow_process_id: Joi.string().uuid().required().messages({
@@ -13,7 +13,7 @@ const getAllWorkFlowProcessTaskSchema = Joi.object({
   }),
 });
 
-const deleteWorkFlowProcessTaskSchema = Joi.object({
+export const deleteWorkFlowProcessTaskSchema = Joi.object({
   action_id: Joi.string().uuid().required().messages({
     "string.guid": "Action ID must be a valid UUID",
     "any.required": "Action ID is required",

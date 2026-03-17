@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createColorTypeSchema = Joi.object({
+export const createColorTypeSchema = Joi.object({
   color_type_name: Joi.string()
     .trim()
     .min(2)
@@ -17,7 +17,7 @@ const createColorTypeSchema = Joi.object({
     }),
 });
 
-const updateColorTypeSchema = Joi.object({
+export const updateColorTypeSchema = Joi.object({
   color_type_name: Joi.string()
     .trim()
     .min(2)
@@ -37,7 +37,7 @@ const updateColorTypeSchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-const paramsIdSchema = Joi.object({
+export const paramsIdSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",

@@ -2,17 +2,17 @@ import express from "express";
 
 const router = express.Router();
 
-import floorPlanFacadeMapController from "./floor-plan-facade-map.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+import floorPlanFacadeMapController from "./floor-plan-facade-map.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createFloorPlanFacadeMapSchema,
   getFloorPlanFacadeMapsSchema,
   deleteFloorPlanFacadeMapSchema,
-} from "./floor-plan-facade-map.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./floor-plan-facade-map.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.post(
   "/",

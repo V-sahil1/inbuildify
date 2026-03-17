@@ -1,6 +1,6 @@
-import userService from "./user.service";
-import { successResponse, errorResponse } from "../../helper/response";
-import { keysToCamelCase } from "../../utils/common";
+import userService from "./user.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 export async function getUsers(req, res) {
   try {
@@ -311,3 +311,19 @@ export async function deleteSignature(req, res) {
     return errorResponse(res, err.status || 500, err.message);
   }
 }
+
+export default {
+  getUsers,
+  getProfile,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetPassword,
+  changeLoginId,
+  toggleActive,
+  toggleLock,
+  updatePhoto,
+  deletePhoto,
+  updateSignature,
+  deleteSignature,
+};

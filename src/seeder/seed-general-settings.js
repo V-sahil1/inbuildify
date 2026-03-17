@@ -1,7 +1,7 @@
 /**
  * Seed default general_settings for a new builder
  */
-async function seedGeneralSettings({ company_id, builder_id, created_by, client }) {
+export async function seedGeneralSettings({ company_id, builder_id, created_by, client }) {
   // general_settings has no unique constraint on (company_id, builder_id)
   const existing = await client.query(
     `SELECT id FROM general_settings

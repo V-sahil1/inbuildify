@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createDwellingTypeSchema = Joi.object({
+export const createDwellingTypeSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -10,7 +10,7 @@ const createDwellingTypeSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const updateDwellingTypeSchema = {
+export const updateDwellingTypeSchema = {
   params: Joi.object({
     dwelling_type_id: Joi.string().uuid().required().messages({
       "string.guid": "Dwelling type ID must be a valid UUID",
@@ -27,7 +27,7 @@ const updateDwellingTypeSchema = {
   }),
 };
 
-const deleteDwellingTypeSchema = {
+export const deleteDwellingTypeSchema = {
   params: Joi.object({
     dwelling_type_id: Joi.string().uuid().required().messages({
       "string.guid": "Dwelling type ID must be a valid UUID",
@@ -36,14 +36,14 @@ const deleteDwellingTypeSchema = {
   }),
 };
 
-const updateDwellingTypeParamsScehma = Joi.object({
+export const updateDwellingTypeParamsScehma = Joi.object({
   dwelling_type_id: Joi.string().uuid().required().messages({
     "string.guid": "Dwelling type ID must be a valid UUID",
     "any.required": "Dwelling type ID is required",
   }),
 });
 
-const updateDwellingTypeActiveSchema = Joi.object({
+export const updateDwellingTypeActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 

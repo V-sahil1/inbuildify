@@ -1,12 +1,12 @@
 import express from "express";
 
 const router = express.Router();
-import { createOpportunity } from "./opportunities.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import { createOpportunitySchema } from "./opportunity.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+import { createOpportunity } from "./opportunities.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { createOpportunitySchema } from "./opportunity.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

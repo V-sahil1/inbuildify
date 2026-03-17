@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createJobColorSettingSchema = Joi.object({
+export const createJobColorSettingSchema = Joi.object({
   hide_color_item_images: Joi.boolean().default(false),
   hide_color_item_price: Joi.boolean().default(false),
   exit_color_code: Joi.boolean().default(false),
@@ -8,7 +8,7 @@ const createJobColorSettingSchema = Joi.object({
   header_text: Joi.string().trim().max(500).optional(),
 });
 
-const updateJobColorSettingSchema = Joi.object({
+export const updateJobColorSettingSchema = Joi.object({
   hide_color_item_images: Joi.boolean().default(false),
   hide_color_item_price: Joi.boolean().default(false),
   exit_color_code: Joi.boolean().default(false),

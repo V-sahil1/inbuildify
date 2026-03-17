@@ -1,7 +1,7 @@
-import quotationRepository from "./quotation.repository";
-import leadsRepository from "../lead/leads.repository";
-import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common";
-import getPool from "../../config/database";
+import quotationRepository from "./quotation.repository.js";
+import leadsRepository from "../lead/leads.repository.js";
+import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {

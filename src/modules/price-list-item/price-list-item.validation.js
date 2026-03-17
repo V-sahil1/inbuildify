@@ -55,7 +55,7 @@ const conditionSchema = Joi.object({
   return value;
 });
 
-const createPriceListItemSchema = Joi.object({
+export const createPriceListItemSchema = Joi.object({
   conditions: Joi.array().items(conditionSchema).max(4).optional(),
   price_list_id: Joi.string().uuid().required().messages({
     "any.required": "price_list_id is required",
@@ -123,7 +123,7 @@ const createPriceListItemSchema = Joi.object({
   additional_item: Joi.boolean().default(false).optional(),
 });
 
-const getAllPriceListItemSchema = Joi.object({
+export const getAllPriceListItemSchema = Joi.object({
   status: Joi.string().valid("active", "inactive").max(20).optional(),
 
   cost_option: Joi.string().valid("none", "tba", "tbc").max(50).optional(),
@@ -171,21 +171,21 @@ const getAllPriceListItemSchema = Joi.object({
   }),
 });
 
-const deletePriceListItemSchema = Joi.object({
+export const deletePriceListItemSchema = Joi.object({
   priceListItemId: Joi.string().uuid().required().messages({
     "string.guid": "Price list item ID must be a valid UUID",
     "any.required": "Price list item ID is required",
   }),
 });
 
-const updatePriceListItemSParamschema = Joi.object({
+export const updatePriceListItemSParamschema = Joi.object({
   price_list_item_id: Joi.string().uuid().required().messages({
     "string.guid": "Price list item ID must be a valid UUID",
     "any.required": "Price list item ID is required",
   }),
 });
 
-const updatePriceListItemSchema = Joi.object({
+export const updatePriceListItemSchema = Joi.object({
   item_description: Joi.string()
     .optional()
     .trim()

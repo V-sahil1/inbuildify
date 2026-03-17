@@ -1,7 +1,7 @@
 /**
  * Seed default document_folder_mapping for a new builder
  */
-async function seedDocumentFolderMapping({ company_id, builder_id, created_by, client }) {
+export async function seedDocumentFolderMapping({ company_id, builder_id, created_by, client }) {
   // document_folder_mapping has no unique constraint on (company_id, builder_id)
   const existing = await client.query(
     `SELECT document_folder_mapping_id FROM document_folder_mapping

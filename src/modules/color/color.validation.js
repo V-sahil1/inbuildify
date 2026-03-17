@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createColorSchema = Joi.object({
+export const createColorSchema = Joi.object({
   color_name: Joi.string()
     .trim()
     .min(2)
@@ -20,7 +20,7 @@ const createColorSchema = Joi.object({
   }),
 });
 
-const updateColorSchema = Joi.object({
+export const updateColorSchema = Joi.object({
   color_name: Joi.string()
     .trim()
     .min(2)
@@ -39,7 +39,7 @@ const updateColorSchema = Joi.object({
   }),
 });
 
-const copyColorSchema = Joi.object({
+export const copyColorSchema = Joi.object({
   color_name: Joi.string()
     .trim()
     .min(2)

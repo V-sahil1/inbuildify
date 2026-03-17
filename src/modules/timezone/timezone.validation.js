@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const getAllTimezoneSchema = Joi.object({
+export const getAllTimezoneSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

@@ -8,18 +8,18 @@ import {
   getInvoiceById,
   updateInvoice,
   deleteInvoice,
-} from "./invoice.controller";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
+} from "./invoice.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createInvoiceSchema,
   getInvoiceByIdSchema,
   getInvoicesByLeadSchema,
   updateInvoiceSchema,
-} from "./invoice.validation";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./invoice.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

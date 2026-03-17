@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createSchedulerEmailSchema = Joi.object({
+export const createSchedulerEmailSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -36,7 +36,7 @@ const createSchedulerEmailSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const getAllSchedulerEmailSchema = Joi.object({
+export const getAllSchedulerEmailSchema = Joi.object({
   is_active: Joi.boolean().optional(),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
@@ -52,25 +52,25 @@ const getAllSchedulerEmailSchema = Joi.object({
   }),
 });
 
-const deleteSchedulerEmailSchema = Joi.object({
+export const deleteSchedulerEmailSchema = Joi.object({
   scheduler_email_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const getSchedulerEmailSchema = Joi.object({
+export const getSchedulerEmailSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-const updateSchedulerEmailParamsSchema = Joi.object({
+export const updateSchedulerEmailParamsSchema = Joi.object({
   scheduler_email_id: Joi.string().uuid().required().messages({
     "string.guid": "scheduler email ID must be a valid UUID",
     "any.required": "scheduler email ID is required",
   }),
 });
 
-const updateSchedulerEmailSchema = Joi.object({
+export const updateSchedulerEmailSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)

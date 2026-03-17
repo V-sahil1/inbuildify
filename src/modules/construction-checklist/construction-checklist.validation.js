@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createConstructionChecklistValidation = Joi.object({
+export const createConstructionChecklistValidation = Joi.object({
   name: Joi.string()
     .min(2)
     .max(255)
@@ -74,7 +74,7 @@ const createConstructionChecklistValidation = Joi.object({
   }),
 });
 
-const updateConstructionChecklistValidation = Joi.object({
+export const updateConstructionChecklistValidation = Joi.object({
   name: Joi.string()
     .min(2)
     .max(255)
@@ -154,14 +154,14 @@ const updateConstructionChecklistValidation = Joi.object({
   }),
 }).min(1);
 
-const getConstructionChecklistByIdValidation = Joi.object({
+export const getConstructionChecklistByIdValidation = Joi.object({
   construction_checklist_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction checklist ID must be a valid UUID",
     "any.required": "Construction checklist ID is required",
   }),
 });
 
-const queryValidation = Joi.object({
+export const queryValidation = Joi.object({
 
   name: Joi.string().max(255).optional().messages({
     "string.base": "Name must be a string",

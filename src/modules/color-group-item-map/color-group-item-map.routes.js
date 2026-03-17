@@ -2,17 +2,17 @@ import express from "express";
 
 const router = express.Router();
 
-import { createColorGroupItemMap, getAllColorGroupItemMaps, deleteColorGroupItemMap } from "./color-group-item-map.controller";
+import { createColorGroupItemMap, getAllColorGroupItemMaps, deleteColorGroupItemMap } from "./color-group-item-map.controller.js";
 import {
   createColorGroupItemMapSchema,
   getAllColorGroupItemMapsSchema,
   deleteColorGroupItemMapSchema,
-} from "./color-group-item-map.validation";
-import { validateRequest } from "../../middleware/validateRequestMiddleware";
-import authMiddleware from "../../middleware/authMiddleware";
-import roleMiddleware from "../../middleware/roleMiddleware";
-import caseConverterMiddleware from "../../middleware/caseConverterMiddleware";
-import { REQUEST_SOURCE } from "../../config/constants";
+} from "./color-group-item-map.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import caseConverterMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);

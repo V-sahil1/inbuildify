@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const createTemplateEmailSchema = Joi.object({
+export const createTemplateEmailSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -34,7 +34,7 @@ const createTemplateEmailSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const getAllTemplateEmailSchema = Joi.object({
+export const getAllTemplateEmailSchema = Joi.object({
   name: Joi.string().max(200).optional(),
   type: Joi.string().max(100).valid("standard", "customized").optional(),
   page: Joi.number().integer().min(1).default(1).messages({
@@ -51,14 +51,14 @@ const getAllTemplateEmailSchema = Joi.object({
   }),
 });
 
-const updateTemplateEmailParamsSchema = Joi.object({
+export const updateTemplateEmailParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "template email ID must be a valid UUID",
     "any.required": "template email ID is required",
   }),
 });
 
-const updateTemplateEmailSchem = Joi.object({
+export const updateTemplateEmailSchem = Joi.object({
   subject: Joi.string().allow(null, "").max(255).optional(),
   email_content: Joi.string().optional(),
   additional_recipient_users: Joi.array()
@@ -75,14 +75,14 @@ const updateTemplateEmailSchem = Joi.object({
     }),
 });
 
-const deleteTemplateEmailSchema = Joi.object({
+export const deleteTemplateEmailSchema = Joi.object({
   template_email_id: Joi.string().uuid().required().messages({
     "string.guid": "template email ID must be a valid UUID",
     "any.required": "template email ID is required",
   }),
 });
 
-const updateTemplateEmailIsActiveSchema = Joi.object({
+export const updateTemplateEmailIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 

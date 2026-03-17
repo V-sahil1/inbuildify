@@ -1,10 +1,10 @@
-import getPool from "../../config/database";
-import { deleteFromS3 } from "../../utils/s3Upload";
-import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate";
-import { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } from "../../constants/updateFields";
-import { upsertAddress } from "./address.service";
+import getPool from "../../config/database.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate.js";
+import { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } from "../../constants/updateFields.js";
+import { upsertAddress } from "./address.service.js";
 
-async function upsertBuilder(builderId, payload, logoUrl) {
+export async function upsertBuilder(builderId, payload, logoUrl) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -162,7 +162,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
   }
 }
 
-async function getBuilderProfile(builderId) {
+export async function getBuilderProfile(builderId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -205,7 +205,7 @@ async function getBuilderProfile(builderId) {
   }
 }
 
-async function getAllBuilders() {
+export async function getAllBuilders() {
   const pool = getPool();
   const client = await pool.connect();
 
