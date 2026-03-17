@@ -11,6 +11,7 @@ const {
   assignLead,
   forceCreateLead,
   convertLeadToOpportunity,
+  removeHLPackage
 } = require("./leads.controller.js");
 const authMiddleware = require("../../middleware/authMiddleware.js");
 const roleMiddleware = require("../../middleware/roleMiddleware.js");
@@ -24,6 +25,7 @@ const {
   assignLeadSchema,
   getAllLeadsQuerySchema,
   convertLeadToOpportunitySchema,
+  removeHLPackageSchema
 } = require("./leads.validation.js");
 const { REQUEST_SOURCE } = require("../../config/constants.js");
 
@@ -100,6 +102,12 @@ router.post(
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(convertLeadToOpportunitySchema, REQUEST_SOURCE.BODY),
   convertLeadToOpportunity,
+);
+router.delete(
+  "/:leads_id/hl-package",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(removeHLPackageSchema, REQUEST_SOURCE.BODY),
+  removeHLPackage,
 );
 
 module.exports = router;

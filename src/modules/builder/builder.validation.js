@@ -122,8 +122,14 @@ const upsertBuilderSchema = Joi.object({
     "string.min": "Registration number must be at least 10 characters long",
     "string.max": "Registration number must not exceed 100 characters",
   }),
-  registered_building_practitioner: Joi.boolean(),
-  practitioner_reg_no: Joi.string().min(2).max(100).allow(null, ""),
+ registered_building_practitioner: Joi.string().min(2).max(255).allow(null, "").messages({
+    "string.min": "Registered building practitioner must be at least 2 characters long",
+    "string.max": "Registered building practitioner must not exceed 255 characters",
+  }),
+  practitioner_reg_no: Joi.string().min(2).max(100).allow(null, "").messages({
+    "string.min": "Practitioner registration number must be at least 2 characters long",
+    "string.max": "Practitioner registration number must not exceed 100 characters",
+  }),
   licensed_builder_name: Joi.string()
     .min(2)
     .max(150)

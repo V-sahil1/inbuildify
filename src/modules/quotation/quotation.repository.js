@@ -1,6 +1,7 @@
 const getPool = require("../../config/database");
 const { keysToCamelCase } = require("../../utils/common");
 
+
 class QuotationRepository {
   constructor() {
     this.pool = getPool();
@@ -28,6 +29,8 @@ class QuotationRepository {
               json_build_object(
                 'quotation_version_id', qv.quotation_version_id,
                 'quotation_version_no', qv.quotation_version_no,
+                'is_approve', qv.is_approve,
+                'sketch_number', qv.sketch_number,
                 'location_id', qv.location_id,
                 'location_name', l.name,
                 'range_id', qv.range_id,
@@ -38,13 +41,19 @@ class QuotationRepository {
                 'floor_plan_name', fp.name,
                 'facade_id', qv.facade_id,
                 'facade_name', f.name,
-                'is_approve', qv.is_approve,
-                'sketch_number', qv.sketch_number,
+                'packages', (
+                  SELECT COALESCE(json_agg(json_build_object(
+                    'package_id', p.package_id,
+                    'name', p.name,
+                    'cost', p.cost
+                  )), '[]'::json)
+                  FROM package p
+                  WHERE p.package_id = ANY(qv.package_id)
+                ),
                 'total_package_cost', COALESCE(
                   (SELECT SUM(p.cost)
-                   FROM quotation_version_package_map qvpm
-                   JOIN package p ON qvpm.package_id = p.package_id
-                   WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                   FROM package p
+                   WHERE p.package_id = ANY(qv.package_id)), 0
                 ),
                 'total_pricelist_cost', COALESCE(
                   (SELECT SUM(total_price)
@@ -54,9 +63,8 @@ class QuotationRepository {
                 'grand_total_cost', (
                   COALESCE(
                     (SELECT SUM(p.cost)
-                     FROM quotation_version_package_map qvpm
-                     JOIN package p ON qvpm.package_id = p.package_id
-                     WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                     FROM package p
+                     WHERE p.package_id = ANY(qv.package_id)), 0
                   ) + COALESCE(
                     (SELECT SUM(total_price)
                      FROM quotation_version_pricelist_item_map qvpim
@@ -196,8 +204,9 @@ class QuotationRepository {
               dwelling_type_id,
               floor_plan_id,
               facade_id,
-              is_approve
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
+              is_approve,
+              package_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8)
           RETURNING *
       `;
 
@@ -209,6 +218,7 @@ class QuotationRepository {
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
         sourceVersion.facade_id,
+        sourceVersion.package_id,
       ];
 
       const newVersionResult = await client.query(
@@ -231,19 +241,7 @@ class QuotationRepository {
         sourceVersionId,
       ]);
 
-      // 4. Copy Package Map
-      const copyPackageMapQuery = `
-          INSERT INTO quotation_version_package_map (
-              quotation_version_id, package_id
-          )
-          SELECT $1, package_id
-          FROM quotation_version_package_map
-          WHERE quotation_version_id = $2
-      `;
-      await client.query(copyPackageMapQuery, [
-        newVersion.quotation_version_id,
-        sourceVersionId,
-      ]);
+      // 4. (Removed Package Map - now handled in the array copying)
 
       // 5. Copy Pricelist Item Map (removed custom fields as discussed)
       const copyPricelistItemMapQuery = `
@@ -267,17 +265,15 @@ class QuotationRepository {
     } finally {
       client.release();
     }
-  }
-  async getVersionsByQuotationId(quotationId) {
+  }async getVersionsByQuotationId(quotationId) {
     const client = await this.pool.connect();
     try {
       const query = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
-          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
-          qv.sketch_number, qv.created_at, qv.updated_at,
-          l.name as location_name,
-          r.name as range_name,
-          dt.name as dwelling_type_name,
+          qv.is_approve, qv.sketch_number,
+          qv.location_id, l.name as location_name,
+          qv.range_id, r.name as range_name,
+          qv.dwelling_type_id, dt.name as dwelling_type_name,
           (
             SELECT json_build_object(
               'name', fp.name,
@@ -316,11 +312,19 @@ class QuotationRepository {
             )
             FROM facade f WHERE f.facade_id = qv.facade_id
           ) as facade,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'package_id', p.package_id,
+              'name', p.name,
+              'cost', p.cost
+            )), '[]'::json)
+            FROM package p
+            WHERE p.package_id = ANY(qv.package_id)
+          ) as packages,
           COALESCE(
             (SELECT SUM(p.cost)
-             FROM quotation_version_package_map qvpm
-             JOIN package p ON qvpm.package_id = p.package_id
-             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+             FROM package p
+             WHERE p.package_id = ANY(qv.package_id)), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
@@ -330,9 +334,8 @@ class QuotationRepository {
           (
             COALESCE(
               (SELECT SUM(p.cost)
-               FROM quotation_version_package_map qvpm
-               JOIN package p ON qvpm.package_id = p.package_id
-               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+               FROM package p
+               WHERE p.package_id = ANY(qv.package_id)), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
                FROM quotation_version_pricelist_item_map qvpim
@@ -340,19 +343,28 @@ class QuotationRepository {
             )
           ) as grand_total_cost,
           leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
+          leads.property_detail_id as lead_property_detail_id,
           (
-            SELECT COALESCE(json_agg(json_build_object(
+       SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts
+          ) as lead_contacts,
+          qv.created_at, qv.updated_at
         FROM quotation_version qv
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
@@ -376,6 +388,7 @@ class QuotationRepository {
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
+        "package_id",
       ];
 
       const updateFields = [];
@@ -409,11 +422,10 @@ class QuotationRepository {
       // Fetch the updated version with lead lot_id and contacts
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
-          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
-          qv.sketch_number, qv.created_at, qv.updated_at,
-          l.name as location_name,
-          r.name as range_name,
-          dt.name as dwelling_type_name,
+          qv.is_approve, qv.sketch_number,
+          qv.location_id, l.name as location_name,
+          qv.range_id, r.name as range_name,
+          qv.dwelling_type_id, dt.name as dwelling_type_name,
           (
             SELECT json_build_object(
               'name', fp.name,
@@ -452,20 +464,39 @@ class QuotationRepository {
             )
             FROM facade f WHERE f.facade_id = qv.facade_id
           ) as facade,
-          leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
           (
             SELECT COALESCE(json_agg(json_build_object(
+              'package_id', p.package_id,
+              'name', p.name,
+              'cost', p.cost
+            )), '[]'::json)
+            FROM package p
+            WHERE p.package_id = ANY(qv.package_id)
+          ) as packages,
+          leads.leads_id as lead_id,
+          leads.property_detail_id as lead_property_detail_id,
+          (
+           SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts
+          ) as lead_contacts,
+          qv.created_at, qv.updated_at,
+          qv.created_at, qv.updated_at
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
@@ -481,9 +512,7 @@ class QuotationRepository {
     } finally {
       client.release();
     }
-  }
-
-  async getQuotationVersionDetailsById(versionId) {
+  }async getQuotationVersionDetailsById(versionId) {
     const client = await this.pool.connect();
     try {
       const enrichQuery = `
@@ -531,11 +560,19 @@ class QuotationRepository {
             )
             FROM facade f WHERE f.facade_id = qv.facade_id
           ) as facade,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'package_id', p.package_id,
+              'name', p.name,
+              'cost', p.cost
+            )), '[]'::json)
+            FROM package p
+            WHERE p.package_id = ANY(qv.package_id)
+          ) as packages,
           COALESCE(
             (SELECT SUM(p.cost)
-             FROM quotation_version_package_map qvpm
-             JOIN package p ON qvpm.package_id = p.package_id
-             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+             FROM package p
+             WHERE p.package_id = ANY(qv.package_id)), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
@@ -545,9 +582,8 @@ class QuotationRepository {
           (
             COALESCE(
               (SELECT SUM(p.cost)
-               FROM quotation_version_package_map qvpm
-               JOIN package p ON qvpm.package_id = p.package_id
-               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+               FROM package p
+               WHERE p.package_id = ANY(qv.package_id)), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
                FROM quotation_version_pricelist_item_map qvpim
@@ -555,19 +591,28 @@ class QuotationRepository {
             )
           ) as grand_total_cost,
           leads.leads_id as lead_id,
-          leads.lot_id as lead_lot_id,
+          leads.property_detail_id as lead_property_detail_id,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
-              'contact_id', lcm.contact_id,
-              'name', u.name,
-              'email', u.email,
-              'phone', u.phone
+              'users_id', u.users_id,
+              'address', jsonb_build_object(
+                'address_line1', a.address_line1,
+                'address_line2', a.address_line2,
+                'city', a.city,
+                'zip_code', a.zip_code,
+                'country_id', a.country_id,
+                'state_id', a.state_id
+              ),
+              'phone', u.phone,
+              'email', u.email
             )), '[]'::json)
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
+            LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts
+          ) as lead_contacts,
+          qv.created_at, qv.updated_at
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
@@ -594,9 +639,8 @@ class QuotationRepository {
           f.name as facade_name,
           COALESCE(
             (SELECT SUM(p.cost)
-             FROM quotation_version_package_map qvpm
-             JOIN package p ON qvpm.package_id = p.package_id
-             WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+             FROM package p
+             WHERE p.package_id = ANY(qv.package_id)), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
@@ -606,9 +650,8 @@ class QuotationRepository {
           (
             COALESCE(
               (SELECT SUM(p.cost)
-               FROM quotation_version_package_map qvpm
-               JOIN package p ON qvpm.package_id = p.package_id
-               WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+               FROM package p
+               WHERE p.package_id = ANY(qv.package_id)), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
                FROM quotation_version_pricelist_item_map qvpim
@@ -626,10 +669,10 @@ class QuotationRepository {
 
       // 2. Packages
       const packagesQuery = `
-        SELECT qvpm.id, qvpm.package_id, p.name as package_name, p.cost as package_cost
-        FROM quotation_version_package_map qvpm
-        JOIN package p ON qvpm.package_id = p.package_id
-        WHERE qvpm.quotation_version_id = $1
+        SELECT p.package_id, p.name as package_name, p.cost as package_cost
+        FROM quotation_version qv
+        JOIN package p ON p.package_id = ANY(qv.package_id)
+        WHERE qv.quotation_version_id = $1
         ORDER BY p.name ASC
       `;
       const packagesResult = await client.query(packagesQuery, [versionId]);
@@ -639,7 +682,7 @@ class QuotationRepository {
       const pricelistItemsQuery = `
         SELECT qvpim.id, qvpim.price_list_item_id, 
           pli.item_description, pli.price_list_id,
-          pl.name as price_list_name,
+          pl.name as price_list_name, pli.cost as item_cost,                
           qvpim.quantity, qvpim.total_price, qvpim.note
         FROM quotation_version_pricelist_item_map qvpim
         JOIN price_list_item pli ON qvpim.price_list_item_id = pli.price_list_item_id
@@ -665,6 +708,23 @@ class QuotationRepository {
     try {
       const query = `DELETE FROM quotation WHERE quotation_id = $1 RETURNING *`;
       const result = await client.query(query, [quotationId]);
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      // Find the version explicitly to ensure ownership and that the version exists
+      const query = `
+        UPDATE quotation_version
+        SET package_id = array_remove(package_id, $2::uuid)
+        WHERE quotation_version_id = $1
+        RETURNING *
+      `;
+      const result = await client.query(query, [versionId, packageId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();

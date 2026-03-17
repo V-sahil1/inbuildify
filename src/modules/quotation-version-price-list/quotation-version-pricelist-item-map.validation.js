@@ -9,10 +9,9 @@ const createPricelistItemMapSchema = Joi.object({
     "string.guid": "Price List Item ID must be a valid UUID",
     "any.required": "Price List Item ID is required",
   }),
-  quantity: Joi.number().min(0.01).required().messages({
+  quantity: Joi.number().min(0.01).optional().messages({
     "number.base": "Quantity must be a number",
     "number.min": "Quantity must be greater than 0",
-    "any.required": "Quantity is required",
   }),
   note: Joi.string().max(500).optional().allow(null, "").messages({
     "string.max": "Note must not exceed 500 characters",

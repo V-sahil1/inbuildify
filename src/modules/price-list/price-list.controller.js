@@ -599,7 +599,7 @@ exports.updatePriceList = async (req, res) => {
 
     if (location) {
       const locationCheck = await client.query(
-        `SELECT 1 FROM location WHERE location_id = $1 AND status = 'active'`,
+        `SELECT 1 FROM location WHERE location_id = $1 AND status = true`,
         [location],
       );
 

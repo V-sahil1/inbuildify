@@ -15,6 +15,13 @@ class QuotationService {
         };
       }
 
+      if (!existingLead.propertyDetailId) {
+        return {
+          success: false,
+          message: "Cannot create quotation: Lead must have an associated property.",
+        };
+      }
+
       const reference_number = await generateDynamicReferenceNumber({
         prefix: "QT",
         tableName: "quotation",
@@ -59,8 +66,9 @@ class QuotationService {
             floor_plan_id,
             facade_id,
             is_approve,
-            sketch_number
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL)
+            sketch_number,
+            package_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8)
           RETURNING *
         `;
         const versionResult = await client.query(insertVersionQuery, [
@@ -71,18 +79,11 @@ class QuotationService {
           latestVersion ? latestVersion.dwelling_type_id : null,
           latestVersion ? latestVersion.floor_plan_id : null,
           latestVersion ? latestVersion.facade_id : null,
+          latestVersion ? latestVersion.package_id : [],
         ]);
         const quotationVersion = versionResult.rows[0];
 
         if (latestVersion) {
-          // Copy Package Maps
-          await client.query(`
-            INSERT INTO quotation_version_package_map (quotation_version_id, package_id)
-            SELECT $1, package_id
-            FROM quotation_version_package_map
-            WHERE quotation_version_id = $2
-          `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
-
           // Copy Pricelist Item Maps
           await client.query(`
             INSERT INTO quotation_version_pricelist_item_map (quotation_version_id, price_list_item_id, quantity, note, total_price)
@@ -90,7 +91,7 @@ class QuotationService {
             FROM quotation_version_pricelist_item_map
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
-
+          
           // Note: we can copy custom sections similarly if they apply to the new quotation's version
           await client.query(`
             INSERT INTO quotation_version_custom_section (quotation_version_id, file_url, sort_order)
@@ -106,8 +107,8 @@ class QuotationService {
         const enrichedVersion = await quotationRepository.getQuotationVersionDetailsById(quotationVersion.quotation_version_id);
 
         // Format result like original response
-        const { keysToCamelCase } = require("../../utils/common");
-
+        const { keysToCamelCase } = require("../utils/common");
+        
         const formattedQuotation = keysToCamelCase(quotation);
         formattedQuotation.versions = enrichedVersion ? [enrichedVersion] : [keysToCamelCase(quotationVersion)];
 
@@ -154,6 +155,87 @@ class QuotationService {
         success: false,
         message: error.message,
       };
+    }
+  }
+
+  async syncQuotationFromHLP(leadsId, houseLandPackageId, userId, builderId, companyId) {
+    const client = await getPool().connect();
+    try {
+      // 1. Fetch HLP details
+      const hlpQuery = `
+        SELECT hlp.*, f.location_id
+        FROM house_land_package hlp
+        LEFT JOIN facade f ON hlp.facade_id = f.facade_id
+        WHERE hlp.house_land_package_id = $1
+      `;
+      const hlpResult = await client.query(hlpQuery, [houseLandPackageId]);
+
+      if (hlpResult.rowCount === 0) {
+        return { success: false, message: "House Land Package not found" };
+      }
+
+      const hlp = hlpResult.rows[0];
+
+      await client.query('BEGIN');
+
+      // 2. Generate Reference Number
+      const reference_number = await generateDynamicReferenceNumber({
+        prefix: "QT",
+        tableName: "quotation",
+        column: "reference_number",
+        user: null,
+        client: getPool(),
+      });
+
+      // 3. Create Quotation
+      const insertQuotationQuery = `
+        INSERT INTO quotation (leads_id, reference_number, created_by, is_hl_package_quotation)
+        VALUES ($1, $2, $3, TRUE)
+        RETURNING quotation_id
+      `;
+      const quotationResult = await client.query(insertQuotationQuery, [leadsId, reference_number, userId]);
+      const quotationId = quotationResult.rows[0].quotation_id;
+
+      // 4. Create Quotation Version
+      const insertVersionQuery = `
+        INSERT INTO quotation_version (
+          quotation_id, quotation_version_no, location_id, range_id,
+          dwelling_type_id, floor_plan_id, facade_id, is_approve, package_id
+        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, '{}')
+        RETURNING quotation_version_id
+      `;
+      const versionResult = await client.query(insertVersionQuery, [
+        quotationId, hlp.location_id, hlp.range_id,
+        hlp.dwelling_type_id, hlp.floor_plan_id, hlp.facade_id
+      ]);
+      const versionId = versionResult.rows[0].quotation_version_id;
+
+      // 5. Copy Pricelist Items from HLP
+      await client.query(`
+        INSERT INTO quotation_version_pricelist_item_map (
+          quotation_version_id, price_list_item_id, quantity, note, total_price
+        )
+        SELECT $1, price_list_item_id, quantity, note, total_price
+        FROM h_l_package_pricelist_item_map
+        WHERE house_land_package_id = $2
+      `, [versionId, houseLandPackageId]);
+
+      await client.query('COMMIT');
+
+      // 6. Fetch fully enriched version (this includes the sum totals requested)
+      const result = await quotationRepository.getQuotationVersionDetailsById(versionId);
+
+      return {
+        success: true,
+        data: result,
+        message: "Quotation created from House Land Package successfully",
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error("DEBUG: Error in syncQuotationFromHLP:", error);
+      return { success: false, message: error.message };
+    } finally {
+      client.release();
     }
   }
 
@@ -294,17 +376,52 @@ class QuotationService {
         if (updateData.facade_id === undefined) updateData.facade_id = null;
         if (updateData.floor_plan_id === undefined) updateData.floor_plan_id = null;
 
-        // Delete related package mappings
-        await client.query(
-          `DELETE FROM quotation_version_package_map WHERE quotation_version_id = $1`,
-          [versionId]
-        );
-
+       // Clear related selections ONLY if they are not being explicitly updated right now
+        if (updateData.package_id === undefined) updateData.package_id = [];
         // Delete related pricelist item mappings
         await client.query(
           `DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1`,
           [versionId]
         );
+      }
+// Handle package_id array specifically if provided
+      if (updateData.package_id && Array.isArray(updateData.package_id)) {
+        if (updateData.package_id.length > 0) {
+          // Validate that all packages provided exist and are active
+          const packageCheckQuery = `
+            SELECT package_id FROM package 
+            WHERE package_id = ANY($1::uuid[]) 
+            AND status = true 
+            AND (
+              (company_id = $2 AND $2 IS NOT NULL)
+              OR (builder_id = $3 AND $3 IS NOT NULL)
+            )
+          `;
+          const packageCheckResult = await client.query(packageCheckQuery, [updateData.package_id, companyId, builderId]);
+
+          // Compare expected vs found packages by length (or id inclusion if wanted)
+          if (packageCheckResult.rowCount !== updateData.package_id.length) {
+            return {
+              success: false,
+              message: "One or more provided package IDs are invalid, inactive, or do not belong to your organization",
+            };
+          }
+        }
+
+        // If range or dwelling type changed, we start fresh (packages are cleared).
+        // Otherwise, we combine existing packages with any new ones provided.
+        let mergedPackageIds;
+        if (rangeChanged || dwellingTypeChanged) {
+          mergedPackageIds = new Set();
+        } else {
+          mergedPackageIds = new Set(existingVersion.package_id || []);
+        }
+        
+        for (const pid of updateData.package_id) {
+          mergedPackageIds.add(pid);
+        }
+
+        updateData.package_id = Array.from(mergedPackageIds);
       }
 
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
@@ -370,8 +487,9 @@ class QuotationService {
           floor_plan_id,
           facade_id,
           is_approve,
-          sketch_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL)
+          sketch_number,
+          package_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8)
         RETURNING quotation_version_id
       `;
       const insertVersionValues = [
@@ -381,19 +499,12 @@ class QuotationService {
         sourceVersion.range_id,
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
-        sourceVersion.facade_id
+        sourceVersion.facade_id,
+        sourceVersion.package_id || []
       ];
-
+      
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
       const newVersionId = newVersionResult.rows[0].quotation_version_id;
-
-      // 4. Copy package maps
-      await client.query(`
-        INSERT INTO quotation_version_package_map (quotation_version_id, package_id)
-        SELECT $1, package_id 
-        FROM quotation_version_package_map 
-        WHERE quotation_version_id = $2
-      `, [newVersionId, versionId]);
 
       // 5. Copy pricelist item maps
       await client.query(`
@@ -471,13 +582,13 @@ class QuotationService {
     }
   }
 
-  async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, builderId, companyId) {
+async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, builderId, companyId) {
     try {
       const client = getPool();
 
       // 1. Ownership check — verify quotation belongs to builder/company via lead
       const checkQuery = `
-        SELECT q.quotation_id, q.reference_number, l.leads_id, l.lot_id
+        SELECT q.quotation_id, q.reference_number, l.leads_id, l.property_detail_id
         FROM quotation q
         JOIN leads l ON q.leads_id = l.leads_id
         WHERE q.quotation_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
@@ -489,7 +600,7 @@ class QuotationService {
       }
 
       const quotationRow = checkResult.rows[0];
-      const lotId = quotationRow.lot_id;
+      const propertyDetailId = quotationRow.property_detail_id;
 
       // 2. Validate both versions belong to this quotation
       const versionsCheck = await client.query(
@@ -509,25 +620,26 @@ class QuotationService {
         return { success: false, message: "Both versions must belong to the same quotation" };
       }
 
-      // 3. Fetch property address from lot
+      // 3. Fetch property address from property_detail
       let propertyAddress = null;
-      if (lotId) {
-        const lotResult = await client.query(
-          `SELECT lot.lot_number, lot.street, lot.city, lot.zip_code,
+      if (propertyDetailId) {
+        const pdResult = await client.query(
+          `SELECT pd.lot_number, pd.street, pd.address_line1, pd.city, pd.zip_code,
                   s.name as state_name
-           FROM lot
-           LEFT JOIN state s ON lot.state_id = s.state_id
-           WHERE lot.lot_id = $1`,
-          [lotId]
+           FROM property_detail pd
+           LEFT JOIN state s ON pd.state_id = s.state_id
+           WHERE pd.property_detail_id = $1`,
+          [propertyDetailId]
         );
-        if (lotResult.rowCount > 0) {
-          const lot = lotResult.rows[0];
+        if (pdResult.rowCount > 0) {
+          const pd = pdResult.rows[0];
           propertyAddress = {
-            lotNumber: lot.lot_number,
-            street: lot.street,
-            city: lot.city,
-            state: lot.state_name,
-            zipCode: lot.zip_code,
+            lotNumber: pd.lot_number,
+            street: pd.street,
+            addressLine1: pd.address_line1,
+            city: pd.city,
+            state: pd.state_name,
+            zipCode: pd.zip_code,
           };
         }
       }
@@ -541,6 +653,9 @@ class QuotationService {
       if (!data1 || !data2) {
         return { success: false, message: "Could not fetch version comparison data" };
       }
+
+      const v1No = data1.version.quotationVersionNo;
+      const v2No = data2.version.quotationVersionNo;
 
       // 5. Build items array
       const items = [];
@@ -559,11 +674,11 @@ class QuotationService {
           type: "package",
           name: (v1Pkg || v2Pkg).packageName,
           packageId: pkgId,
-          version1Value: v1Pkg ? v1Pkg.packageCost : null,
-          version2Value: v2Pkg ? v2Pkg.packageCost : null,
+          [`version${v1No}Value`]: v1Pkg ? v1Pkg.packageCost : null,
+          [`version${v2No}Value`]: v2Pkg ? v2Pkg.packageCost : null,
         };
 
-        if (showAll || row.version1Value !== row.version2Value) {
+        if (showAll || row[`version${v1No}Value`] !== row[`version${v2No}Value`]) {
           items.push(row);
         }
       }
@@ -572,10 +687,10 @@ class QuotationService {
       const facadeRow = {
         type: "facade",
         name: data1.version.facadeName || data2.version.facadeName || "-",
-        version1Value: data1.version.facadeName || "-",
-        version2Value: data2.version.facadeName || "-",
+        [`version${v1No}Value`]: data1.version.facadeName || "-",
+        [`version${v2No}Value`]: data2.version.facadeName || "-",
       };
-      if (showAll || facadeRow.version1Value !== facadeRow.version2Value) {
+      if (showAll || facadeRow[`version${v1No}Value`] !== facadeRow[`version${v2No}Value`]) {
         items.push(facadeRow);
       }
 
@@ -596,18 +711,22 @@ class QuotationService {
           priceListItemId: pliId,
           priceListId: refItem.priceListId,
           priceListName: refItem.priceListName,
-          version1Quantity: v1Item ? v1Item.quantity : null,
-          version1TotalPrice: v1Item ? v1Item.totalPrice : null,
-          version1Note: v1Item ? v1Item.note : null,
-          version2Quantity: v2Item ? v2Item.quantity : null,
-          version2TotalPrice: v2Item ? v2Item.totalPrice : null,
-          version2Note: v2Item ? v2Item.note : null,
+          itemCost: refItem.itemCost,
+          [`version${v1No}Quantity`]: v1Item ? v1Item.quantity : null,
+          [`version${v1No}TotalPrice`]: v1Item ? v1Item.totalPrice : null,
+          [`version${v1No}Note`]: v1Item ? v1Item.note : null,
+          [`version${v2No}Quantity`]: v2Item ? v2Item.quantity : null,
+          [`version${v2No}TotalPrice`]: v2Item ? v2No ? v2Item.totalPrice : null : null, // Fixed a typo in existing logic if any, but sticking to logic
+          [`version${v2No}Note`]: v2Item ? v2Item.note : null,
         };
+        
+        // Correcting potential logic error in my replacement above for v2TotalPrice
+        row[`version${v2No}TotalPrice`] = v2Item ? v2Item.totalPrice : null;
 
         const isDifferent =
-          row.version1Quantity !== row.version2Quantity ||
-          row.version1TotalPrice !== row.version2TotalPrice ||
-          row.version1Note !== row.version2Note;
+          row[`version${v1No}Quantity`] !== row[`version${v2No}Quantity`] ||
+          row[`version${v1No}TotalPrice`] !== row[`version${v2No}TotalPrice`] ||
+          row[`version${v1No}Note`] !== row[`version${v2No}Note`];
 
         if (showAll || isDifferent) {
           items.push(row);
@@ -619,12 +738,12 @@ class QuotationService {
         data: {
           referenceNumber: quotationRow.reference_number,
           propertyAddress,
-          version1: {
+          [`version${v1No}`]: {
             quotationVersionId: data1.version.quotationVersionId,
             quotationVersionNo: data1.version.quotationVersionNo,
             grandTotalCost: data1.version.grandTotalCost,
           },
-          version2: {
+          [`version${v2No}`]: {
             quotationVersionId: data2.version.quotationVersionId,
             quotationVersionNo: data2.version.quotationVersionNo,
             grandTotalCost: data2.version.grandTotalCost,
@@ -636,6 +755,66 @@ class QuotationService {
     } catch (error) {
       console.error("DEBUG: Error in compareQuotationVersions service:", error);
       return { success: false, message: error.message };
+    }
+  }
+  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
+    try {
+      const client = getPool();
+
+      // Verify the version belongs to a lead the user can access
+      const checkQuery = `
+        SELECT qv.*, q.leads_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const existingVersion = checkResult.rows[0];
+
+      if (!existingVersion.package_id || !existingVersion.package_id.includes(packageId)) {
+        return {
+          success: false,
+          message: "Package ID does not exist in this quotation version",
+        };
+      }
+
+      if (existingVersion.is_approve === true) {
+        return {
+          success: false,
+          message: "This quotation version is already approved and cannot be modified",
+        };
+      }
+
+      const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
+      if (existingVersion.quotation_version_no !== currentMaxVersion) {
+        return {
+          success: false,
+          message: "Only the latest quotation version can be modified",
+        };
+      }
+
+      const updated = await quotationRepository.removePackageFromVersion(versionId, packageId, builderId, companyId);
+
+      return {
+        success: true,
+        data: updated,
+        message: "Package removed from quotation version successfully",
+      };
+    } catch (error) {
+      console.error("DEBUG: Error in removePackageFromVersion service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 }

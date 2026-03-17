@@ -4,7 +4,6 @@ const { S3Client } = require("@aws-sdk/client-s3");
 const path = require("path");
 const { allowedFileData } = require("./common");
 const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
-
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
@@ -86,9 +85,8 @@ const createUpload = (folderName = "uploads") =>
       bucket: process.env.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const filename = `${folderName}/${uniqueSuffix}${path.extname(
-          file.originalname,
-        )}`;
+        const originalName = file.originalname.replace(/\s+/g, "_");
+        const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
       metadata: function (req, file, cb) {
@@ -133,9 +131,8 @@ const createPdfUpload = (folderName = "pdfs") =>
       bucket: process.env.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const filename = `${folderName}/${uniqueSuffix}${path.extname(
-          file.originalname,
-        )}`;
+        const originalName = file.originalname.replace(/\s+/g, "_");
+        const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
       metadata: function (req, file, cb) {
@@ -160,9 +157,8 @@ const createImageOrPdfUpload = (folderName = "uploads") =>
       bucket: process.env.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const filename = `${folderName}/${uniqueSuffix}${path.extname(
-          file.originalname,
-        )}`;
+        const originalName = file.originalname.replace(/\s+/g, "_");
+        const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
       metadata: function (req, file, cb) {

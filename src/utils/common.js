@@ -32,13 +32,16 @@ const generateOtp = () => {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-
 const generateAccessToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1d" });
+  return jwt.sign({ userId }, JWT_SECRET, {
+    expiresIn: process.env.JWT_SECRET_EXPIRATION || "1d",
+  });
 };
 
 const generateRefreshToken = (userId) => {
-  return jwt.sign({ userId }, JWT_REFRESH_SECRET, { expiresIn: "1d" });
+  return jwt.sign({ userId }, JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_SECRET_EXPIRATION || "7d",
+  });
 };
 
 const decrypt = (encryptedText) => {

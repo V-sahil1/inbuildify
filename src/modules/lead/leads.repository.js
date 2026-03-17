@@ -27,26 +27,32 @@ class LeadsRepository {
         assignee_id,
         created_by,
         reference_number,
+        house_land_package_id,
+        property_detail_id,
       } = leadData;
 
-      const query = `
+      await client.query("BEGIN");
+
+      // 1. Insert lead
+      const leadQuery = `
         INSERT INTO leads (
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
-          face_to_face, purpose, assignee_id, created_by, updated_by, reference_number
+          face_to_face, purpose, assignee_id, created_by, updated_by, reference_number,
+          house_land_package_id, property_detail_id
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
         ) RETURNING *
       `;
 
-      const values = [
+      const leadValues = [
         company_id,
         builder_id,
         name,
         email,
         phone,
         notes,
-        send_letter === true || send_letter === "true" ? true : false, // Ensure proper boolean
+        send_letter === true || send_letter === "true" ? true : false,
         lead_source_id,
         status,
         rating,
@@ -58,16 +64,80 @@ class LeadsRepository {
         created_by,
         created_by,
         reference_number,
+        house_land_package_id,
+        property_detail_id,
       ];
 
-      const result = await client.query(query, values);
-      const lead = result.rows[0];
+      const leadResult = await client.query(leadQuery, leadValues);
+      const lead = leadResult.rows[0];
 
-      // Fetch mapped contacts
+      // 2. Auto-create/find contact
+      // Check if a user with this email already exists for this builder
+      const contactCheckQuery = `
+        SELECT users_id FROM users 
+        WHERE email = $1 AND builder_id = $2 AND is_deleted = false 
+        LIMIT 1
+      `;
+      const contactCheckResult = await client.query(contactCheckQuery, [email, builder_id]);
+
+      let contactId;
+      if (contactCheckResult.rowCount === 0) {
+        // Find role_id for "Contact"
+        const roleResult = await client.query(
+          "SELECT role_id FROM role WHERE name = 'Contact' LIMIT 1"
+        );
+        
+        if (roleResult.rowCount === 0) {
+          throw new Error("Contact role not found in database");
+        }
+        
+        const roleId = roleResult.rows[0].role_id;
+
+        // Create new contact
+        const contactInsertQuery = `
+          INSERT INTO users (
+            builder_id, name, email, phone, role_id, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+          RETURNING users_id
+        `;
+        const contactInsertResult = await client.query(contactInsertQuery, [
+          builder_id, name, email, phone, roleId
+        ]);
+        contactId = contactInsertResult.rows[0].users_id;
+      } else {
+        contactId = contactCheckResult.rows[0].users_id;
+      }
+
+      // 3. Map lead to contact
+      // Check if mapping already exists (unlikely for new lead, but safe for force-create)
+      const mapCheckResult = await client.query(
+        "SELECT id FROM leads_contact_map WHERE leads_id = $1 AND contact_id = $2",
+        [lead.leads_id, contactId]
+      );
+
+      if (mapCheckResult.rowCount === 0) {
+        await client.query(
+          "INSERT INTO leads_contact_map (leads_id, contact_id) VALUES ($1, $2)",
+          [lead.leads_id, contactId]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // 4. Fetch mapped contacts for response
       const contactsResult = await client.query(
-        `SELECT lcm.id, lcm.contact_id, u.name, u.email, u.phone
+        `SELECT lcm.id, lcm.contact_id as users_id, u.name, u.email, u.phone,
+                jsonb_build_object(
+                  'address_line1', a.address_line1,
+                  'address_line2', a.address_line2,
+                  'city', a.city,
+                  'zip_code', a.zip_code,
+                  'country_id', a.country_id,
+                  'state_id', a.state_id
+                ) AS address
          FROM leads_contact_map lcm
          JOIN users u ON lcm.contact_id = u.users_id
+         LEFT JOIN address a ON u.address_id = a.address_id
          WHERE lcm.leads_id = $1`,
         [lead.leads_id]
       );
@@ -76,11 +146,13 @@ class LeadsRepository {
         ...keysToCamelCase(lead),
         leadContacts: keysToCamelCase(contactsResult.rows),
       };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
     } finally {
       client.release();
     }
   }
-
   async checkDuplicateName(name, builderId, createdBy, excludeLeadId = null) {
     const client = await this.pool.connect();
     try {
@@ -241,7 +313,7 @@ class LeadsRepository {
     }
   }
 
-  async getLeadById(leadId, builderId, companyId) {
+async getLeadById(leadId, builderId, companyId) {
     const client = await this.pool.connect();
     try {
       const query = `
@@ -269,7 +341,7 @@ class LeadsRepository {
             WHERE lcm.leads_id = l.leads_id
           ) as lead_contacts,
 
-          -- Lot details
+          -- Lot details (via property_detail)
           (
             SELECT json_build_object(
               'lot_id', lot.lot_id,
@@ -285,12 +357,18 @@ class LeadsRepository {
               'depth_m', lot.depth_m,
               'price', lot.price,
               'total_size_m2', lot.total_size_m2,
+              'site_fall_mm', lot.site_fall_mm,
+              'land_fill_mm', lot.land_fill_mm,
+              'state_id', lot.state_id,
+              'state_name', (SELECT s.name FROM state s WHERE s.state_id = lot.state_id LIMIT 1),
               'estate_id', lot.estate_id,
               'estate_name', (SELECT e.name FROM estate e WHERE e.estate_id = lot.estate_id LIMIT 1),
               'estate_stage_id', lot.estate_stage_id,
               'estate_stage_name', (SELECT es.name FROM estate_stages es WHERE es.estate_stage_id = lot.estate_stage_id LIMIT 1)
             )
-            FROM lot WHERE lot.lot_id = l.lot_id LIMIT 1
+            FROM lot
+            JOIN property_detail pd ON pd.lot_id = lot.lot_id
+            WHERE pd.property_detail_id = l.property_detail_id LIMIT 1
           ) as lot_details,
 
           -- House land package details
@@ -325,9 +403,8 @@ class LeadsRepository {
                   'sketch_number', qv.sketch_number,
                   'total_package_cost', COALESCE(
                     (SELECT SUM(p.cost)
-                     FROM quotation_version_package_map qvpm
-                     JOIN package p ON qvpm.package_id = p.package_id
-                     WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                     FROM package p
+                     WHERE p.package_id = ANY(qv.package_id)), 0
                   ),
                   'total_pricelist_cost', COALESCE(
                     (SELECT SUM(total_price)
@@ -337,9 +414,8 @@ class LeadsRepository {
                   'grand_total_cost', (
                     COALESCE(
                       (SELECT SUM(p.cost)
-                       FROM quotation_version_package_map qvpm
-                       JOIN package p ON qvpm.package_id = p.package_id
-                       WHERE qvpm.quotation_version_id = qv.quotation_version_id), 0
+                       FROM package p
+                       WHERE p.package_id = ANY(qv.package_id)), 0
                     ) + COALESCE(
                       (SELECT SUM(total_price)
                        FROM quotation_version_pricelist_item_map qvpim
@@ -348,11 +424,10 @@ class LeadsRepository {
                   ),
                   'package_maps', (
                     SELECT COALESCE(json_agg(json_build_object(
-                      'id', qpm.id,
-                      'package_id', qpm.package_id,
-                      'package_name', (SELECT pk.name FROM package pk WHERE pk.package_id = qpm.package_id LIMIT 1)
+                      'package_id', p.package_id,
+                      'package_name', p.name
                     )), '[]'::json)
-                    FROM quotation_version_package_map qpm WHERE qpm.quotation_version_id = qv.quotation_version_id
+                    FROM package p WHERE p.package_id = ANY(qv.package_id)
                   ),
                   'pricelist_item_maps', (
                     SELECT COALESCE(json_agg(json_build_object(
@@ -672,6 +747,64 @@ class LeadsRepository {
       client.release();
     }
   }
+  async removeHLPData(leadsId, removeExtras, builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1. Get current lead data to find property_detail_id
+      const leadQuery = `SELECT property_detail_id FROM leads WHERE leads_id = $1 AND builder_id = $2`;
+      const leadRes = await client.query(leadQuery, [leadsId, builderId]);
+      
+      if (leadRes.rowCount === 0) {
+        throw new Error("Lead not found");
+      }
+
+      const { property_detail_id } = leadRes.rows[0];
+
+      // 2. Clear house_land_package_id
+      await client.query(
+        `UPDATE leads SET house_land_package_id = NULL, updated_at = NOW() WHERE leads_id = $1`,
+        [leadsId]
+      );
+
+      if (removeExtras) {
+        // 3. Handle Property Detail removal
+        if (property_detail_id) {
+          const pdQuery = `SELECT is_hl_package_lot FROM property_detail WHERE property_detail_id = $1`;
+          const pdRes = await client.query(pdQuery, [property_detail_id]);
+          
+          if (pdRes.rowCount > 0 && pdRes.rows[0].is_hl_package_lot === true) {
+            // Detach from lead first
+            await client.query(
+              `UPDATE leads SET property_detail_id = NULL WHERE leads_id = $1`,
+              [leadsId]
+            );
+            // Delete the auto-created lot
+            await client.query(
+              `DELETE FROM property_detail WHERE property_detail_id = $1`,
+              [property_detail_id]
+            );
+          }
+        }
+
+        // 4. Delete auto-created quotations
+        await client.query(
+          `DELETE FROM quotation WHERE leads_id = $1 AND is_hl_package_quotation = TRUE`,
+          [leadsId]
+        );
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
+
 
 module.exports = new LeadsRepository();

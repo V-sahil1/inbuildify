@@ -51,9 +51,12 @@ class InvoiceRepository {
 
       const lead = leadResult.rows[0];
 
-      // 2. Enforce that Invoices can only be created for Converted Leads
-      if (lead.status !== 'Convert') {
-        throw new Error("Cannot create an invoice for a lead that has not been converted to an opportunity");
+    // 2. Enforce that Invoices can only be created if a Quotation exists
+      const quotationCheckQuery = `SELECT 1 FROM quotation WHERE leads_id = $1 LIMIT 1`;
+      const quotationCheckResult = await client.query(quotationCheckQuery, [leads_id]);
+
+      if (quotationCheckResult.rowCount === 0) {
+        throw new Error("Cannot create an invoice for a lead that does not have a quotation");
       }
 
       // 3. Insert Invoice
