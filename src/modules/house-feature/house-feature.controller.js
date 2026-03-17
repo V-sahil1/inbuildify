@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createHouseFeature = async (req, res) => {
+export async function createHouseFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -60,9 +60,9 @@ exports.createHouseFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllHouseFeatures = async (req, res) => {
+export async function getAllHouseFeatures(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -77,8 +77,8 @@ exports.getAllHouseFeatures = async (req, res) => {
     const { page = 1, limit = 25, company_id, builder_id, search } = req.query;
 
     const offset = (page - 1) * limit;
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     if (company_id) {
@@ -143,9 +143,9 @@ exports.getAllHouseFeatures = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getHouseFeatureById = async (req, res) => {
+export async function getHouseFeatureById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -184,9 +184,9 @@ exports.getHouseFeatureById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateHouseFeature = async (req, res) => {
+export async function updateHouseFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -241,7 +241,7 @@ exports.updateHouseFeature = async (req, res) => {
       return errorResponse(res, 400, "No valid fields to update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateFields.push(`updated_by = $${paramIndex++}`);
     updateValues.push(userId);
 
@@ -268,9 +268,9 @@ exports.updateHouseFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteHouseFeature = async (req, res) => {
+export async function deleteHouseFeature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -313,4 +313,4 @@ exports.deleteHouseFeature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

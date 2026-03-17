@@ -1,7 +1,7 @@
-const leadsService = require("./leads.service");
-const { successResponse, errorResponse } = require("../../helper/response");
+import leadsService from "./leads.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
-exports.createLead = async (req, res) => {
+export async function createLead(req, res) {
   try {
     const userId = req.user?.users_id;
     const builderId = req.user?.builder_id;
@@ -31,26 +31,26 @@ exports.createLead = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else if (result.emailExists) {
+    } if (result.emailExists) {
       return errorResponse(res, 409, result.message, {
         emailExists: true,
         existingLead: result.existingLead,
       });
-    } else if (result.nameExists) {
+    } if (result.nameExists) {
       return errorResponse(res, 409, result.message, {
         nameExists: true,
         existingLead: result.existingLead,
       });
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Create lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.forceCreateLead = async (req, res) => {
+export async function forceCreateLead(req, res) {
   try {
     const userId = req.user?.users_id;
     const builderId = req.user?.builder_id;
@@ -74,16 +74,16 @@ exports.forceCreateLead = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Force create lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.getAllLeads = async (req, res) => {
+export async function getAllLeads(req, res) {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
@@ -108,16 +108,16 @@ exports.getAllLeads = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Get all leads error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.getLeadById = async (req, res) => {
+export async function getLeadById(req, res) {
   try {
     const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -131,16 +131,16 @@ exports.getLeadById = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 404, result.message);
     }
+    return errorResponse(res, 404, result.message);
+
   } catch (error) {
     console.error("Get lead by ID error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.updateLead = async (req, res) => {
+export async function updateLead(req, res) {
   try {
     const { leads_id } = req.params;
     const userId = req.user?.users_id;
@@ -165,16 +165,16 @@ exports.updateLead = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Update lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.deleteLead = async (req, res) => {
+export async function deleteLead(req, res) {
   try {
     const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -188,16 +188,16 @@ exports.deleteLead = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, null, "Lead deleted successfully");
-    } else {
-      return errorResponse(res, 404, result.message);
     }
+    return errorResponse(res, 404, result.message);
+
   } catch (error) {
     console.error("Delete lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.convertLeadToOpportunity = async (req, res) => {
+export async function convertLeadToOpportunity(req, res) {
   try {
     const { leads_id } = req.params;
     const { opportunity_notes } = req.body;
@@ -212,21 +212,21 @@ exports.convertLeadToOpportunity = async (req, res) => {
       leads_id,
       opportunity_notes,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, 201, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Convert lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.getLeadStats = async (req, res) => {
+export async function getLeadStats(req, res) {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
@@ -239,21 +239,22 @@ exports.getLeadStats = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Get lead stats error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.updateLeadStatus = async (req, res) => {
+export async function updateLeadStatus(req, res) {
   try {
     const { leads_id } = req.params;
     const { status } = req.body;
     const userId = req.user?.users_id;
     const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
     if (!userId || !builderId) {
       return errorResponse(
@@ -272,21 +273,21 @@ exports.updateLeadStatus = async (req, res) => {
       status,
       userId,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Update lead status error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.assignLead = async (req, res) => {
+export async function assignLead(req, res) {
   try {
     const { leads_id } = req.params;
     const { assigneeId } = req.body;
@@ -314,16 +315,16 @@ exports.assignLead = async (req, res) => {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Assign lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
 };
 
-exports.removeHLPackage = async (req, res) => {
+export const removeHLPackage = async (req, res) => {
   try {
     const { leads_id } = req.params;
     const { remove_hl_package_lot_quotation } = req.body;

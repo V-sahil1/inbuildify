@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createClientTypeSchema = Joi.object({
+export const createClientTypeSchema = Joi.object({
   client_type: Joi.string()
     .trim()
     .min(2)
@@ -20,7 +20,7 @@ const createClientTypeSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-const getAllClientTypeSchema = Joi.object({
+export const getAllClientTypeSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -35,21 +35,21 @@ const getAllClientTypeSchema = Joi.object({
   }),
 });
 
-const deleteClientTypeSchema = Joi.object({
+export const deleteClientTypeSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": " ID must be a valid UUID",
     "any.required": " ID is required",
   }),
 });
 
-const updateClientTypeParamsSchema = Joi.object({
+export const updateClientTypeParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": " ID must be a valid UUID",
     "any.required": " ID is required",
   }),
 });
 
-const updateClientTypeSchema = Joi.object({
+export const updateClientTypeSchema = Joi.object({
   client_type: Joi.string()
     .trim()
     .min(2)
@@ -66,10 +66,11 @@ const updateClientTypeSchema = Joi.object({
   }),
 });
 
-const updateClientTypeIsActiveSchema = Joi.object({
+export const updateClientTypeIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createClientTypeSchema,
   getAllClientTypeSchema,
   deleteClientTypeSchema,

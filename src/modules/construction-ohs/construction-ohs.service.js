@@ -1,4 +1,4 @@
-const getPool = require("../../config/database");
+import getPool from "../../config/database.js";
 
 function resolveScope(user) {
   return {
@@ -10,7 +10,7 @@ function resolveScope(user) {
 /* -----------------------------
    GET OHS Settings
 ------------------------------ */
-exports.getSettingsService = async (user) => {
+export async function getSettingsService(user) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -38,12 +38,12 @@ exports.getSettingsService = async (user) => {
   }
 
   return result.rows[0];
-};
+}
 
 /* -----------------------------
    UPSERT Settings
 ------------------------------ */
-exports.upsertSettingsService = async (user, payload) => {
+export async function upsertSettingsService(user, payload) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -97,7 +97,7 @@ exports.upsertSettingsService = async (user, payload) => {
 
   updateFields.push(`updated_by = $${paramIndex++}`);
   updateValues.push(user.users_id);
-  updateFields.push(`updated_at = NOW()`);
+  updateFields.push("updated_at = NOW()");
 
   updateFields.push(`construction_ohs_settings_id = $${paramIndex}`);
   updateValues.push(existing.rows[0].construction_ohs_settings_id);
@@ -113,12 +113,12 @@ exports.upsertSettingsService = async (user, payload) => {
   );
 
   return updated.rows[0];
-};
+}
 
 /* -----------------------------
    GET LIST
 ------------------------------ */
-exports.getOhsListService = async (user, filters = {}) => {
+export async function getOhsListService(user, filters = {}) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
   const { field_type, id } = filters;
@@ -165,7 +165,7 @@ exports.getOhsListService = async (user, filters = {}) => {
     FROM construction_ohs_list
     WHERE (company_id = $1 OR builder_id = $2)
   `;
-  let queryParams = [company_id, builder_id];
+  const queryParams = [company_id, builder_id];
   let paramIndex = 3;
 
   if (id) {
@@ -194,17 +194,17 @@ exports.getOhsListService = async (user, filters = {}) => {
     paramIndex++;
   }
 
-  query += ` ORDER BY sort_order ASC`;
+  query += " ORDER BY sort_order ASC";
 
   const rows = await pool.query(query, queryParams);
 
   return rows.rows;
-};
+}
 
 /* -----------------------------
    CREATE list item
 ------------------------------ */
-exports.createOhsListItemService = async (user, payload) => {
+export async function createOhsListItemService(user, payload) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -337,12 +337,12 @@ exports.createOhsListItemService = async (user, payload) => {
   );
 
   return result.rows[0];
-};
+}
 
 /* -----------------------------
    UPDATE list item
 ------------------------------ */
-exports.updateOhsListItemService = async (user, id, payload) => {
+export async function updateOhsListItemService(user, id, payload) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -357,7 +357,9 @@ exports.updateOhsListItemService = async (user, id, payload) => {
     [id, company_id, builder_id, user.users_id],
   );
 
-  if (existing.rowCount === 0) throw new Error("OHS list item not found");
+  if (existing.rowCount === 0) {
+    throw new Error("OHS list item not found");
+  }
 
   if (payload.field_type) {
     throw new Error("Cannot update field_type");
@@ -418,22 +420,22 @@ exports.updateOhsListItemService = async (user, id, payload) => {
 
         const shiftDownParams = existingRecord.parent_id
           ? [
-              existingSortOrder,
-              payload.sort_order,
-              id,
-              company_id,
-              builder_id,
-              user.users_id,
-              existingRecord.parent_id,
-            ]
+            existingSortOrder,
+            payload.sort_order,
+            id,
+            company_id,
+            builder_id,
+            user.users_id,
+            existingRecord.parent_id,
+          ]
           : [
-              existingSortOrder,
-              payload.sort_order,
-              id,
-              company_id,
-              builder_id,
-              user.users_id,
-            ];
+            existingSortOrder,
+            payload.sort_order,
+            id,
+            company_id,
+            builder_id,
+            user.users_id,
+          ];
 
         await pool.query(shiftDownQuery, shiftDownParams);
       } else {
@@ -451,22 +453,22 @@ exports.updateOhsListItemService = async (user, id, payload) => {
 
         const shiftUpParams = existingRecord.parent_id
           ? [
-              payload.sort_order,
-              existingSortOrder,
-              id,
-              company_id,
-              builder_id,
-              user.users_id,
-              existingRecord.parent_id,
-            ]
+            payload.sort_order,
+            existingSortOrder,
+            id,
+            company_id,
+            builder_id,
+            user.users_id,
+            existingRecord.parent_id,
+          ]
           : [
-              payload.sort_order,
-              existingSortOrder,
-              id,
-              company_id,
-              builder_id,
-              user.users_id,
-            ];
+            payload.sort_order,
+            existingSortOrder,
+            id,
+            company_id,
+            builder_id,
+            user.users_id,
+          ];
 
         await pool.query(shiftUpQuery, shiftUpParams);
       }
@@ -542,12 +544,12 @@ exports.updateOhsListItemService = async (user, id, payload) => {
   );
 
   return updated.rows[0];
-};
+}
 
 /* -----------------------------
    DELETE list item
 ------------------------------ */
-exports.deleteOhsListItemService = async (user, id) => {
+export async function deleteOhsListItemService(user, id) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
@@ -601,13 +603,13 @@ exports.deleteOhsListItemService = async (user, id) => {
 
   const shiftDownParams = deletedItemParentId
     ? [
-        deletedItemSortOrder,
-        company_id,
-        builder_id,
-        user.users_id,
-        deletedItemParentId,
-      ]
+      deletedItemSortOrder,
+      company_id,
+      builder_id,
+      user.users_id,
+      deletedItemParentId,
+    ]
     : [deletedItemSortOrder, company_id, builder_id, user.users_id];
 
   await pool.query(shiftDownQuery, shiftDownParams);
-};
+}

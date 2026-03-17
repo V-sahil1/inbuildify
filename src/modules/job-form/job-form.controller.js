@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createJobForm = async (req, res) => {
+export async function createJobForm(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -113,7 +113,7 @@ exports.createJobForm = async (req, res) => {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [leads_id, req.user?.company_id, builderId]
+      [leads_id, req.user?.company_id, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -123,8 +123,8 @@ exports.createJobForm = async (req, res) => {
 
     // Check if job form already exists for this lead
     const existingJobFormCheck = await client.query(
-      `SELECT job_form_id FROM job_form WHERE leads_id = $1 LIMIT 1`,
-      [leads_id]
+      "SELECT job_form_id FROM job_form WHERE leads_id = $1 LIMIT 1",
+      [leads_id],
     );
 
     if (existingJobFormCheck.rowCount > 0) {
@@ -305,9 +305,9 @@ exports.createJobForm = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllJobForms = async (req, res) => {
+export async function getAllJobForms(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -390,9 +390,9 @@ exports.getAllJobForms = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getJobFormById = async (req, res) => {
+export async function getJobFormById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -437,9 +437,9 @@ exports.getJobFormById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobForm = async (req, res) => {
+export async function updateJobForm(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -679,7 +679,7 @@ exports.updateJobForm = async (req, res) => {
       return errorResponse(res, 400, "No valid fields to update");
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     const updateSql = `
       UPDATE job_form 
@@ -709,9 +709,9 @@ exports.updateJobForm = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobForm = async (req, res) => {
+export async function deleteJobForm(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -758,4 +758,4 @@ exports.deleteJobForm = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

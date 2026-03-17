@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createHouseLandPackageSetting = async (req, res) => {
+export async function createHouseLandPackageSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -17,15 +17,15 @@ exports.createHouseLandPackageSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM house_land_package_settings WHERE builder_id = $1`,
-      [builderId]
+      "SELECT 1 FROM house_land_package_settings WHERE builder_id = $1",
+      [builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -33,7 +33,7 @@ exports.createHouseLandPackageSetting = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Settings already exist for this builder."
+        "Settings already exist for this builder.",
       );
     }
 
@@ -63,7 +63,7 @@ exports.createHouseLandPackageSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "house land package setting created successfully."
+      "house land package setting created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -72,9 +72,9 @@ exports.createHouseLandPackageSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getHouseLandPackagesetting = async (req, res) => {
+export async function getHouseLandPackagesetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -107,14 +107,14 @@ exports.getHouseLandPackagesetting = async (req, res) => {
       return successResponse(
         res,
         {},
-        "No house land package settings found. Please create one."
+        "No house land package settings found. Please create one.",
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "house land package settings fetched successfully."
+      "house land package settings fetched successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -123,9 +123,9 @@ exports.getHouseLandPackagesetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateHouseLandPackageSetting = async (req, res) => {
+export async function updateHouseLandPackageSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -140,7 +140,7 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -148,7 +148,7 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "include_facade_cost_in_total field is required."
+        "include_facade_cost_in_total field is required.",
       );
     }
 
@@ -157,7 +157,7 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
       `SELECT house_land_package_settings_id 
        FROM house_land_package_settings 
        WHERE house_land_package_settings_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existingRecord.rowCount === 0) {
@@ -165,7 +165,7 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "House land package setting not found for this builder."
+        "House land package setting not found for this builder.",
       );
     }
 
@@ -187,7 +187,7 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "House land package setting updated successfully."
+      "House land package setting updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -196,9 +196,9 @@ exports.updateHouseLandPackageSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getHouseLandPackageSettings = async (req, res) => {
+export async function getHouseLandPackageSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -217,7 +217,7 @@ exports.getHouseLandPackageSettings = async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -233,7 +233,7 @@ exports.getHouseLandPackageSettings = async (req, res) => {
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *;
         `,
-        [company_id, builder_id, false, user_id, user_id]
+        [company_id, builder_id, false, user_id, user_id],
       );
     }
 
@@ -242,7 +242,7 @@ exports.getHouseLandPackageSettings = async (req, res) => {
       {
         houseLandPackageSettings: keysToCamelCase(result.rows[0]),
       },
-      "House Land Package Settings fetched successfully"
+      "House Land Package Settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching house land package settings:", error);
@@ -250,4 +250,4 @@ exports.getHouseLandPackageSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

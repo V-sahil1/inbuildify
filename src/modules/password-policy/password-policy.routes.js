@@ -1,25 +1,24 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createPasswordPolicy,
   updatePasswordPolicy,
   updatePasswordPolicyIsActive,
   getPasswordPolicy,
-} = require("./password-policy.controller.js");
-const {
+} from "./password-policy.controller.js";
+import {
   cretePasswordPolicySchema,
   updatePasswordPolicyIdParamsSchema,
   updatePasswordPolicySchema,
   updatePasswordPolicyIsActiveSchema,
-} = require("./password-policy.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./password-policy.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,21 +27,21 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(cretePasswordPolicySchema, REQUEST_SOURCE.BODY),
-  createPasswordPolicy
+  createPasswordPolicy,
 );
 
 router.put(
   "/",
   validateRequest(updatePasswordPolicySchema, REQUEST_SOURCE.BODY),
-  updatePasswordPolicy
+  updatePasswordPolicy,
 );
 
 router.put(
   "/is-active",
   validateRequest(updatePasswordPolicyIsActiveSchema, REQUEST_SOURCE.BODY),
-  updatePasswordPolicyIsActive
+  updatePasswordPolicyIsActive,
 );
 
 router.get("/", getPasswordPolicy);
 
-module.exports = router;
+export default router;

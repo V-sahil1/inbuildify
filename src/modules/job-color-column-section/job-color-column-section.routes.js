@@ -1,31 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createJobColorColumnSection,
   getJobColorColumnSections,
   deleteJobColorColumnSection,
   updateJobColorColumnSection,
-} = require("./job-color-column-section.controller.js");
-const {
+} from "./job-color-column-section.controller.js";
+import {
   createJobColorColumnSectionSchema,
   getJobColorColumnSectionsSchema,
   deleteJobColorColumnSectionSchema,
   updateJobColorColumnSectionParamsSchema,
   updateJobColorColumnSectionSchema,
-} = require("./job-color-column-section.validation.js");
-
-const {
-  createUpload,
-  createPdfUpload,
-  handleMulterError,
-} = require("../../utils/s3Upload.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./job-color-column-section.validation.js";
+import { createUpload, createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -67,4 +62,4 @@ router.put(
   updateJobColorColumnSection,
 );
 
-module.exports = router;
+export default router;

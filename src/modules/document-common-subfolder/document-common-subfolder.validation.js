@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createDocumentCommonSubfolderSchem = Joi.object({
+export const createDocumentCommonSubfolderSchem = Joi.object({
   document_common_folder_id: Joi.string().uuid().optional().messages({
     "string.guid": "Document common folder ID must be a valid UUID",
     "any.required": "Document common folder ID is required",
@@ -17,14 +17,14 @@ const createDocumentCommonSubfolderSchem = Joi.object({
   sort_order: Joi.number().integer().default(0).min(0).optional(),
 });
 
-const getDocumentCommonSubfolderByFolderIdParamsSchema = Joi.object({
+export const getDocumentCommonSubfolderByFolderIdParamsSchema = Joi.object({
   document_common_folder_id: Joi.string().uuid().required().messages({
     "string.guid": "Document common folder ID must be a valid UUID",
     "any.required": "Document common folder ID is required",
   }),
 });
 
-const getDocumentCommonSubfolderByFolderIdSchema = Joi.object({
+export const getDocumentCommonSubfolderByFolderIdSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -39,21 +39,21 @@ const getDocumentCommonSubfolderByFolderIdSchema = Joi.object({
   }),
 });
 
-const deleteDocumentCommonSubfolderSchema = Joi.object({
+export const deleteDocumentCommonSubfolderSchema = Joi.object({
   document_common_subfolder_id: Joi.string().uuid().required().messages({
     "string.guid": "Document common subfolder ID must be a valid UUID",
     "any.required": "Document common subfolder ID is required",
   }),
 });
 
-const updateDocumentCommonSubfolderParamsSchema = Joi.object({
+export const updateDocumentCommonSubfolderParamsSchema = Joi.object({
   document_common_subfolder_id: Joi.string().uuid().required().messages({
     "string.guid": "Document common subfolder ID must be a valid UUID",
     "any.required": "Document common subfolder ID is required",
   }),
 });
 
-const updateDocumentCommonSubfolderSchema = Joi.object({
+export const updateDocumentCommonSubfolderSchema = Joi.object({
   name: Joi.string().trim().min(1).max(150).optional().messages({
     "string.base": "Name must be a string.",
     "string.max": "Name cannot exceed 150 characters.",
@@ -61,13 +61,13 @@ const updateDocumentCommonSubfolderSchema = Joi.object({
   sort_order: Joi.number().integer().default(0).min(0).optional(),
 });
 
-const getDocumentCommonSubfolderByParentIdSchema = Joi.object({
+export const getDocumentCommonSubfolderByParentIdSchema = Joi.object({
   parent_subfolder_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Parent subfolder ID must be a valid UUID",
   }),
 });
 
-module.exports = {
+export default {
   createDocumentCommonSubfolderSchem,
   getDocumentCommonSubfolderByFolderIdParamsSchema,
   getDocumentCommonSubfolderByFolderIdSchema,

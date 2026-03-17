@@ -1,7 +1,7 @@
-const quotationService = require("./quotation.service");
-const { successResponse, errorResponse } = require("../../helper/response");
+import quotationService from "./quotation.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
-exports.createQuotation = async (req, res) => {
+export async function createQuotation(req, res) {
   try {
     const { leads_id } = req.params;
     const userId = req.user?.users_id;
@@ -20,21 +20,21 @@ exports.createQuotation = async (req, res) => {
       leads_id,
       userId,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, 201, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Create quotation error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.getQuotationsByLeadId = async (req, res) => {
+export async function getQuotationsByLeadId(req, res) {
   try {
     const { leads_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -51,21 +51,21 @@ exports.getQuotationsByLeadId = async (req, res) => {
     const result = await quotationService.getQuotationsByLeadId(
       leads_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Get quotations by lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.getQuotationVersions = async (req, res) => {
+export async function getQuotationVersions(req, res) {
   try {
     const { quotation_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -78,21 +78,21 @@ exports.getQuotationVersions = async (req, res) => {
     const result = await quotationService.getQuotationVersions(
       quotation_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Get quotation versions error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.updateQuotationVersion = async (req, res) => {
+export async function updateQuotationVersion(req, res) {
   try {
     const { quotation_version_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -106,21 +106,21 @@ exports.updateQuotationVersion = async (req, res) => {
       quotation_version_id,
       req.body,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Update quotation version error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.deleteQuotation = async (req, res) => {
+export async function deleteQuotation(req, res) {
   try {
     const { quotation_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -133,21 +133,21 @@ exports.deleteQuotation = async (req, res) => {
     const result = await quotationService.deleteQuotation(
       quotation_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Delete quotation error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.duplicateQuotationVersion = async (req, res) => {
+export async function duplicateQuotationVersion(req, res) {
   try {
     const { quotation_version_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -160,21 +160,21 @@ exports.duplicateQuotationVersion = async (req, res) => {
     const result = await quotationService.duplicateQuotationVersion(
       quotation_version_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Duplicate quotation version error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.compareQuotationVersions = async (req, res) => {
+export async function compareQuotationVersions(req, res) {
   try {
     const { quotation_id } = req.params;
     const { version_1, version_2, show_all } = req.query;
@@ -193,21 +193,23 @@ exports.compareQuotationVersions = async (req, res) => {
       version_2,
       showAll,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Compare quotation versions error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
-exports.removePackageFromVersion = async (req, res) => {
+
+
+export const removePackageFromVersion = async (req, res) => {
   try {
     const { quotation_version_id, package_id } = req.params;
     const builderId = req.user?.builder_id;
@@ -233,4 +235,14 @@ exports.removePackageFromVersion = async (req, res) => {
     console.error("Remove package from quotation version error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
+};
+export default {
+  createQuotation,
+  getQuotationsByLeadId,
+  getQuotationVersions,
+  updateQuotationVersion,
+  deleteQuotation,
+  duplicateQuotationVersion,
+  compareQuotationVersions,
+  removePackageFromVersion
 };

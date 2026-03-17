@@ -1,33 +1,23 @@
-const userRepo = require("./user.repository");
-const addressRepo = require("../../repositories/address.repository");
-const builderRepo = require("../../repositories/builder.repository");
-const tokenRepo = require("../../repositories/token.repository");
-
-const { deleteFromS3 } = require("../../utils/s3Upload");
-
-const {
-  generateStrongPassword,
-  validatePasswordPolicy,
-} = require("../../utils/password.util");
-
-const {
-  sendPasswordEmail,
-  sendLoginIdEmail,
-} = require("../../service/email.service");
-
-const { encrypt } = require("../../utils/crypto.util");
+import userRepo from "./user.repository.js";
+import addressRepo from "../../repositories/address.repository.js";
+import builderRepo from "../../repositories/builder.repository.js";
+import tokenRepo from "../../repositories/token.repository.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
+import { sendPasswordEmail, sendLoginIdEmail } from "../../service/email.service.js";
+import { encrypt } from "../../utils/crypto.util.js";
 
 /* ----------------------------------------
       GET ALL USERS FOR CURRENT BUILDER
   ---------------------------------------- */
-async function getUsers(currentUser, query) {
+export async function getUsers(currentUser, query) {
   const builderId = currentUser.builder_id;
   console.log(query);
   const { search = "", role = "", role_id = "", is_active } = query;
-  console.log("🚀 ~ getUsers ~ is_active:", is_active)
-  console.log("🚀 ~ getUsers ~ role_id:", role_id)
-  console.log("🚀 ~ getUsers ~ role:", role)
-  console.log("🚀 ~ getUsers ~ search:", search)
+  console.log("🚀 ~ getUsers ~ is_active:", is_active);
+  console.log("🚀 ~ getUsers ~ role_id:", role_id);
+  console.log("🚀 ~ getUsers ~ role:", role);
+  console.log("🚀 ~ getUsers ~ search:", search);
 
   return await userRepo.getAllUsers({
     builderId,
@@ -41,7 +31,7 @@ async function getUsers(currentUser, query) {
 /* ----------------------------------------
       GET OWN PROFILE
   ---------------------------------------- */
-async function getProfile(userId) {
+export async function getProfile(userId) {
   const profile = await userRepo.getProfile(userId);
   if (!profile) {
     throw { status: 404, message: "User not found." };
@@ -52,7 +42,7 @@ async function getProfile(userId) {
 /* ----------------------------------------
       GET BASIC USER
   ---------------------------------------- */
-async function getBasicUser(userId) {
+export async function getBasicUser(userId) {
   const user = await userRepo.getBasicUser(userId);
   return user;
 }
@@ -60,7 +50,7 @@ async function getBasicUser(userId) {
 /* ----------------------------------------
         CREATE USER (ADMIN UI)
   ---------------------------------------- */
-async function createUser(currentUser, body, files) {
+export async function createUser(currentUser, body, files) {
   const {
     name,
     email,
@@ -285,11 +275,10 @@ async function createUser(currentUser, body, files) {
   }
 }
 
-
 /* ----------------------------------------
             UPDATE USER
   ---------------------------------------- */
-async function updateUser(currentUser, userId, body, files) {
+export async function updateUser(currentUser, userId, body, files) {
   /* --------------------------
         ROOT USER PROTECTION
     --------------------------- */
@@ -515,12 +504,16 @@ async function updateUser(currentUser, userId, body, files) {
     --------------------------- */
 
   if (files.photo) {
-    if (targetUser.photo) await deleteFromS3(targetUser.photo);
+    if (targetUser.photo) {
+      await deleteFromS3(targetUser.photo);
+    }
     await userRepo.updatePhoto(userId, files.photo.location);
   }
 
   if (files.signature) {
-    if (targetUser.signature) await deleteFromS3(targetUser.signature);
+    if (targetUser.signature) {
+      await deleteFromS3(targetUser.signature);
+    }
     await userRepo.updateSignature(userId, files.signature.location);
   }
 
@@ -531,12 +524,15 @@ async function updateUser(currentUser, userId, body, files) {
 /* ----------------------------------------
             SOFT DELETE USER
   ---------------------------------------- */
-async function deleteUser(currentUser, userId) {
+export async function deleteUser(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot delete root user." };
+  }
 
   await userRepo.softDeleteUser(userId);
 
@@ -546,12 +542,15 @@ async function deleteUser(currentUser, userId) {
 /* ----------------------------------------
             RESET PASSWORD
   ---------------------------------------- */
-async function resetPassword(currentUser, userId, body) {
+export async function resetPassword(currentUser, userId, body) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot reset root user password." };
+  }
 
   const {
     password_auto_generated,
@@ -599,8 +598,9 @@ async function resetPassword(currentUser, userId, body) {
     password_auto_generated === false ||
     password_auto_generated === "false"
   ) {
-    if (!manual_password)
+    if (!manual_password) {
       throw { status: 400, message: "Manual password missing." };
+    }
     if (!validatePasswordPolicy(manual_password)) {
       throw {
         status: 400,
@@ -652,7 +652,7 @@ async function resetPassword(currentUser, userId, body) {
 /* ----------------------------------------
             CHANGE LOGIN ID
   ---------------------------------------- */
-async function changeLoginId(currentUser, userId, body) {
+export async function changeLoginId(currentUser, userId, body) {
   const { new_login_id, email_login_id } = body;
 
   if (!/^[A-Za-z0-9._@-]+$/.test(new_login_id)) {
@@ -664,9 +664,12 @@ async function changeLoginId(currentUser, userId, body) {
   }
 
   const user = await userRepo.getBasicUser(userId);
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot change root login ID." };
+  }
 
   const exists = await userRepo.findByLoginId(new_login_id);
   if (exists && exists.user_id !== userId) {
@@ -684,14 +687,17 @@ async function changeLoginId(currentUser, userId, body) {
 /* ----------------------------------------
             ACTIVE / INACTIVE
   ---------------------------------------- */
-async function toggleActive(currentUser, userId) {
+export async function toggleActive(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot modify root user." };
+  }
 
-  const newValue = user.isActive ? false : true;
+  const newValue = !user.isActive;
 
   await userRepo.updateActiveStatus(userId, newValue);
 
@@ -700,11 +706,15 @@ async function toggleActive(currentUser, userId) {
 /* ----------------------------------------
             LOCK / UNLOCK USER
   ---------------------------------------- */
-async function toggleLock(currentUser, userId) {
+export async function toggleLock(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user) throw { status: 403, message: "Cannot lock root user." };
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
+    throw { status: 403, message: "Cannot lock root user." };
+  }
 
   const newValue = !user.isLocked;
 
@@ -720,14 +730,19 @@ async function toggleLock(currentUser, userId) {
 /* ----------------------------------------
             PHOTO UPDATE
   ---------------------------------------- */
-async function updatePhoto(currentUser, userId, file) {
+export async function updatePhoto(currentUser, userId, file) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot modify root user." };
+  }
 
-  if (user.photo) await deleteFromS3(user.photo);
+  if (user.photo) {
+    await deleteFromS3(user.photo);
+  }
 
   await userRepo.updatePhoto(userId, file.location);
 
@@ -737,14 +752,19 @@ async function updatePhoto(currentUser, userId, file) {
 /* ----------------------------------------
             SIGNATURE UPDATE
   ---------------------------------------- */
-async function updateSignature(currentUser, userId, file) {
+export async function updateSignature(currentUser, userId, file) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (user.root_user)
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (user.root_user) {
     throw { status: 403, message: "Cannot modify root user." };
+  }
 
-  if (user.signature) await deleteFromS3(user.signature);
+  if (user.signature) {
+    await deleteFromS3(user.signature);
+  }
 
   await userRepo.updateSignature(userId, file.location);
 
@@ -754,11 +774,15 @@ async function updateSignature(currentUser, userId, file) {
 /* ----------------------------------------
             DELETE PHOTO
   ---------------------------------------- */
-async function deletePhoto(currentUser, userId) {
+export async function deletePhoto(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (!user.photo) throw { status: 400, message: "No photo exists." };
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (!user.photo) {
+    throw { status: 400, message: "No photo exists." };
+  }
 
   await deleteFromS3(user.photo);
   await userRepo.updatePhoto(userId, null);
@@ -769,11 +793,15 @@ async function deletePhoto(currentUser, userId) {
 /* ----------------------------------------
             DELETE SIGNATURE
   ---------------------------------------- */
-async function deleteSignature(currentUser, userId) {
+export async function deleteSignature(currentUser, userId) {
   const user = await userRepo.getBasicUser(userId);
 
-  if (!user) throw { status: 404, message: "User not found." };
-  if (!user.signature) throw { status: 400, message: "No signature exists." };
+  if (!user) {
+    throw { status: 404, message: "User not found." };
+  }
+  if (!user.signature) {
+    throw { status: 400, message: "No signature exists." };
+  }
 
   await deleteFromS3(user.signature);
   await userRepo.updateSignature(userId, null);
@@ -781,7 +809,7 @@ async function deleteSignature(currentUser, userId) {
   return { userId };
 }
 
-module.exports = {
+export default {
   getUsers,
   getProfile,
   getBasicUser,

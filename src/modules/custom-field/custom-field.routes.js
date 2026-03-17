@@ -1,7 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createCustomField,
   getAllCustomFields,
   deleteCustomField,
@@ -9,8 +10,8 @@ const {
   updateCustomFieldIsActive,
   createOption,
   deleteOption,
-} = require("./custom-field.controller.js");
-const {
+} from "./custom-field.controller.js";
+import {
   createCustomFieldSchema,
   getAllCustomFieldSchema,
   deleteCustomFieldSchema,
@@ -20,14 +21,12 @@ const {
   createOptionSchema,
   deleteOptionParamsSchema,
   deleteOptionSchema,
-} = require("./custom-field.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./custom-field.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -36,45 +35,46 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createCustomFieldSchema, REQUEST_SOURCE.BODY),
-  createCustomField
+  createCustomField,
 );
 
 router.get(
   "/",
   validateRequest(getAllCustomFieldSchema, REQUEST_SOURCE.QUERY),
-  getAllCustomFields
+  getAllCustomFields,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteCustomFieldSchema, REQUEST_SOURCE.PARAMS),
-  deleteCustomField
+  deleteCustomField,
 );
 
 router.put(
   "/:id",
   validateRequest(updateCustomFieldIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCustomFieldSchema, REQUEST_SOURCE.BODY),
-  updateCustomField
+  updateCustomField,
 );
 
 router.put(
   "/is-active/:id",
   validateRequest(updateCustomFieldIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCustomFieldIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateCustomFieldIsActive
+  updateCustomFieldIsActive,
 );
 
 router.post(
   "/option",
   validateRequest(createOptionSchema, REQUEST_SOURCE.BODY),
-  createOption
+  createOption,
 );
 
 router.delete(
   "/option/:custom_field_id",
   validateRequest(deleteOptionParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(deleteOptionSchema, REQUEST_SOURCE.BODY),
-  deleteOption
-),
-  (module.exports = router);
+  deleteOption,
+);
+
+export default router;

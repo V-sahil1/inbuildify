@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createRolePermissionSchema = Joi.object({
+export const createRolePermissionSchema = Joi.object({
   role_id: Joi.string().uuid().required().messages({
     "string.guid": "Role id must be a valid UUID",
     "any.required": "Role id is required",
@@ -18,7 +18,7 @@ const createRolePermissionSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const getAllRolePermissionSchema = Joi.object({
+export const getAllRolePermissionSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -33,21 +33,21 @@ const getAllRolePermissionSchema = Joi.object({
   }),
 });
 
-const deleteRolePermissionSchema = Joi.object({
+export const deleteRolePermissionSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Role permission id must be a valid UUID",
     "any.required": "Role permission id is required",
   }),
 });
 
-const updatePermissionIdSchemaSchema = Joi.object({
+export const updatePermissionIdSchemaSchema = Joi.object({
   role_permission_id: Joi.string().uuid().required().messages({
     "string.guid": "Role permission id must be a valid UUID",
     "any.required": "Role permission id is required",
   }),
 });
 
-const updateRolePermissionSchema = Joi.object({
+export const updateRolePermissionSchema = Joi.object({
   role_id: Joi.string().uuid().optional().messages({
     "string.guid": "Role id must be a valid UUID",
   }),
@@ -61,11 +61,11 @@ const updateRolePermissionSchema = Joi.object({
   can_delete: Joi.boolean().default(false),
 });
 
-const updateRolePermissionIsActiveSchema = Joi.object({
+export const updateRolePermissionIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createRolePermissionSchema,
   getAllRolePermissionSchema,
   deleteRolePermissionSchema,

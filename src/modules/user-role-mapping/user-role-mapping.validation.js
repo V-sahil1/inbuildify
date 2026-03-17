@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createUserRoleMappingSchema = Joi.object({
+export const createUserRoleMappingSchema = Joi.object({
   role_type_id: Joi.string().uuid().optional().messages({
     "string.guid": "user ID must be a valid UUID",
   }),
@@ -19,7 +19,7 @@ const createUserRoleMappingSchema = Joi.object({
   }),
 });
 
-const getAllUserRoleMappingSchema = Joi.object({
+export const getAllUserRoleMappingSchema = Joi.object({
   assigned_by: Joi.string().uuid().optional().messages({
     "string.guid": "role ID must be a valid UUID",
   }),
@@ -37,21 +37,21 @@ const getAllUserRoleMappingSchema = Joi.object({
   }),
 });
 
-const deleteUserRoleMppingSchema = Joi.object({
+export const deleteUserRoleMppingSchema = Joi.object({
   user_role_mapping_id: Joi.string().uuid().required().messages({
     "string.guid": "user role mapping ID must be a valid UUID",
     "any.required": "user role mapping ID is required",
   }),
 });
 
-const updateUserRoleMppingParamsSchema = Joi.object({
+export const updateUserRoleMppingParamsSchema = Joi.object({
   user_role_mapping_id: Joi.string().uuid().required().messages({
     "string.guid": "user role mapping ID must be a valid UUID",
     "any.required": "user role mapping ID is required",
   }),
 });
 
-const updateUserRoleMappingSchema = Joi.object({
+export const updateUserRoleMappingSchema = Joi.object({
   role_type_id: Joi.string().uuid().optional().messages({
     "string.guid": "role type ID must be a valid UUID",
   }),
@@ -69,7 +69,7 @@ const updateUserRoleMappingSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createUserRoleMappingSchema,
   getAllUserRoleMappingSchema,
   deleteUserRoleMppingSchema,

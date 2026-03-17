@@ -1,27 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createFunctionality,
   getFunctionalities,
   deleteFunctionality,
   updateFunctionality,
   getFunctionalitiesByScreen,
-} = require("./functionality.controller.js");
-const {
+} from "./functionality.controller.js";
+import {
   createFunctionalitySchema,
   getFunctionalitiesSchema,
   deleteFunctionalitySchema,
   updateFunctionalityParamsSchema,
   updateFunctionalitySchema,
   getFunctionalitiesByScreenSchema,
-} = require("./functionality.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./functionality.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,7 +30,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createFunctionalitySchema, REQUEST_SOURCE.BODY),
-  createFunctionality
+  createFunctionality,
 );
 
 router.get("/", getFunctionalities);
@@ -38,20 +38,20 @@ router.get("/", getFunctionalities);
 router.get(
   "/:screenId",
   validateRequest(getFunctionalitiesByScreenSchema, REQUEST_SOURCE.PARAMS),
-  getFunctionalitiesByScreen
+  getFunctionalitiesByScreen,
 );
 
 router.delete(
   "/:functionality_id",
   validateRequest(deleteFunctionalitySchema, REQUEST_SOURCE.PARAMS),
-  deleteFunctionality
+  deleteFunctionality,
 );
 
 router.put(
   "/:functionality_id",
   validateRequest(updateFunctionalityParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateFunctionalitySchema, REQUEST_SOURCE.BODY),
-  updateFunctionality
+  updateFunctionality,
 );
 
-module.exports = router;
+export default router;

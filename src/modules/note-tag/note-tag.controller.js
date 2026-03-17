@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createNotesTag = async (req, res) => {
+export async function createNotesTag(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -25,7 +25,7 @@ exports.createNotesTag = async (req, res) => {
       AND company_id = $2 
       AND builder_id = $3
     `,
-      [name, companyId, builderId]
+      [name, companyId, builderId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -57,7 +57,7 @@ exports.createNotesTag = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Notes Tag created successfully."
+      "Notes Tag created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -66,9 +66,9 @@ exports.createNotesTag = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllNoteTag = async (req, res) => {
+export async function getAllNoteTag(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -116,7 +116,7 @@ exports.getAllNoteTag = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Note tag fetched successfully."
+      "Note tag fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching note tag:", error);
@@ -124,9 +124,9 @@ exports.getAllNoteTag = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteNoteTag = async (req, res) => {
+export async function deleteNoteTag(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -138,15 +138,15 @@ exports.deleteNoteTag = async (req, res) => {
       return errorResponse(res, 400, "Note tag ID is required.");
     }
     const existingNoteTag = await client.query(
-      `SELECT notes_tag_id FROM notes_tag WHERE notes_tag_id = $1 AND builder_id = $2`,
-      [id, builderId]
+      "SELECT notes_tag_id FROM notes_tag WHERE notes_tag_id = $1 AND builder_id = $2",
+      [id, builderId],
     );
 
     if (existingNoteTag.rowCount === 0) {
       return errorResponse(res, 404, "Note tag not found for this builder.");
     }
 
-    await client.query(`DELETE FROM notes_tag WHERE notes_tag_id = $1`, [id]);
+    await client.query("DELETE FROM notes_tag WHERE notes_tag_id = $1", [id]);
 
     return successResponse(res, null, "Note tag deleted successfully.");
   } catch (error) {
@@ -155,9 +155,9 @@ exports.deleteNoteTag = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateNoteTag = async (req, res) => {
+export async function updateNoteTag(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -219,7 +219,7 @@ exports.updateNoteTag = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Name already exists, please choose another name"
+          "Name already exists, please choose another name",
         );
       }
     }
@@ -245,7 +245,7 @@ exports.updateNoteTag = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Notes tag updated successfully"
+      "Notes tag updated successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -254,9 +254,9 @@ exports.updateNoteTag = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateNoteTagIsActive = async (req, res) => {
+export async function updateNoteTagIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -274,7 +274,7 @@ exports.updateNoteTagIsActive = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "is_active must be boolean (true or false)"
+        "is_active must be boolean (true or false)",
       );
     }
 
@@ -285,7 +285,7 @@ exports.updateNoteTagIsActive = async (req, res) => {
       WHERE notes_tag_id = $1
         AND builder_id = $2
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -307,7 +307,7 @@ exports.updateNoteTagIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "note tag status updated successfully."
+      "note tag status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating note tag is_active:", error);
@@ -315,4 +315,4 @@ exports.updateNoteTagIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

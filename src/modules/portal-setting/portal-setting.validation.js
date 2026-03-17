@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createPortalSettingsSchema = Joi.object({
+export const createPortalSettingsSchema = Joi.object({
   send_login_credentials_to_customer: Joi.boolean().default(false),
   portal_active_days_after_handover: Joi.number().min(0).max(365),
   send_mail_when_portal_inactive: Joi.boolean().default(false),
@@ -16,7 +16,7 @@ const createPortalSettingsSchema = Joi.object({
   publish_packages_to_agent_portal: Joi.boolean().default(false),
 });
 
-const updatePortalSettingsSchema = Joi.object({
+export const updatePortalSettingsSchema = Joi.object({
   send_login_credentials_to_customer: Joi.boolean(),
   portal_active_days_after_handover: Joi.number().min(0).max(365).optional(),
   send_mail_when_portal_inactive: Joi.boolean(),
@@ -32,7 +32,7 @@ const updatePortalSettingsSchema = Joi.object({
   publish_packages_to_agent_portal: Joi.boolean(),
 });
 
-module.exports = {
+export default {
   createPortalSettingsSchema,
   updatePortalSettingsSchema,
 };

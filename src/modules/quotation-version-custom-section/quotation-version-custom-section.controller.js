@@ -1,10 +1,10 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
-const path = require("path");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import path from "path";
 
-const extractFileNameFromUrl = (url) => {
+export const extractFileNameFromUrl = (url) => {
   if (!url) return null;
   try {
     const parts = url.split("/");
@@ -19,7 +19,7 @@ const extractFileNameFromUrl = (url) => {
   }
 };
 
-exports.createCustomSection = async (req, res) => {
+export async function createCustomSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -41,7 +41,7 @@ exports.createCustomSection = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [quotation_version_id, companyId, builderId]
+      [quotation_version_id, companyId, builderId],
     );
 
     if (versionCheck.rowCount === 0) {
@@ -58,7 +58,7 @@ exports.createCustomSection = async (req, res) => {
       `SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
        FROM quotation_version_custom_section
        WHERE quotation_version_id = $1`,
-      [quotation_version_id]
+      [quotation_version_id],
     );
 
     const maxSortOrder = maxSortResult.rows[0].max_sort_order;
@@ -70,7 +70,7 @@ exports.createCustomSection = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
         );
       }
 
@@ -78,7 +78,7 @@ exports.createCustomSection = async (req, res) => {
         `UPDATE quotation_version_custom_section
          SET sort_order = sort_order + 1
          WHERE sort_order >= $1 AND quotation_version_id = $2`,
-        [finalSortOrder, quotation_version_id]
+        [finalSortOrder, quotation_version_id],
       );
     }
 
@@ -87,7 +87,7 @@ exports.createCustomSection = async (req, res) => {
        (quotation_version_id, file_url, sort_order) 
        VALUES ($1, $2, $3) 
        RETURNING *`,
-      [quotation_version_id, file_url || null, finalSortOrder]
+      [quotation_version_id, file_url || null, finalSortOrder],
     );
 
     const responseData = keysToCamelCase(result.rows[0]);
@@ -100,9 +100,9 @@ exports.createCustomSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getCustomSectionsByVersionId = async (req, res) => {
+export async function getCustomSectionsByVersionId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -124,7 +124,7 @@ exports.getCustomSectionsByVersionId = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [quotation_version_id, companyId, builderId]
+      [quotation_version_id, companyId, builderId],
     );
 
     if (versionCheck.rowCount === 0) {
@@ -135,7 +135,7 @@ exports.getCustomSectionsByVersionId = async (req, res) => {
       `SELECT * FROM quotation_version_custom_section
        WHERE quotation_version_id = $1
        ORDER BY sort_order ASC, created_at ASC`,
-      [quotation_version_id]
+      [quotation_version_id],
     );
     return successResponse(
       res,
@@ -152,9 +152,9 @@ exports.getCustomSectionsByVersionId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateCustomSection = async (req, res) => {
+export async function updateCustomSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -178,7 +178,7 @@ exports.updateCustomSection = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [custom_section_id, companyId, builderId]
+      [custom_section_id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -198,7 +198,7 @@ exports.updateCustomSection = async (req, res) => {
         `SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
          FROM quotation_version_custom_section
          WHERE quotation_version_id = $1`,
-        [existingSection.quotation_version_id]
+        [existingSection.quotation_version_id],
       );
       const maxSortOrder = maxSortResult.rows[0].max_sort_order;
 
@@ -206,7 +206,7 @@ exports.updateCustomSection = async (req, res) => {
         return errorResponse(
           res,
           400,
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`
+          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
         );
       }
 
@@ -219,7 +219,7 @@ exports.updateCustomSection = async (req, res) => {
                AND sort_order <= $2
                AND quotation_version_id = $3
                AND custom_section_id != $4`,
-            [existingSortOrder, sort_order, existingSection.quotation_version_id, custom_section_id]
+            [existingSortOrder, sort_order, existingSection.quotation_version_id, custom_section_id],
           );
         } else {
           await client.query(
@@ -229,7 +229,7 @@ exports.updateCustomSection = async (req, res) => {
                AND sort_order < $2
                AND quotation_version_id = $3
                AND custom_section_id != $4`,
-            [sort_order, existingSortOrder, existingSection.quotation_version_id, custom_section_id]
+            [sort_order, existingSortOrder, existingSection.quotation_version_id, custom_section_id],
           );
         }
       }
@@ -256,7 +256,7 @@ exports.updateCustomSection = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     values.push(custom_section_id);
 
     const result = await client.query(
@@ -264,7 +264,7 @@ exports.updateCustomSection = async (req, res) => {
        SET ${updateFields.join(", ")}
        WHERE custom_section_id = $${paramIndex}
        RETURNING *`,
-      values
+      values,
     );
 
     const responseData = keysToCamelCase(result.rows[0]);
@@ -276,9 +276,9 @@ exports.updateCustomSection = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteCustomSection = async (req, res) => {
+export async function deleteCustomSection(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -301,7 +301,7 @@ exports.deleteCustomSection = async (req, res) => {
          (l.company_id = $2 AND $2 IS NOT NULL)
          OR (l.builder_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [custom_section_id, companyId, builderId]
+      [custom_section_id, companyId, builderId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -320,14 +320,14 @@ exports.deleteCustomSection = async (req, res) => {
 
     await client.query(
       "DELETE FROM quotation_version_custom_section WHERE custom_section_id = $1",
-      [custom_section_id]
+      [custom_section_id],
     );
 
     await client.query(
       `UPDATE quotation_version_custom_section
        SET sort_order = sort_order - 1
        WHERE sort_order > $1 AND quotation_version_id = $2`,
-      [deletedSection.sort_order, deletedSection.quotation_version_id]
+      [deletedSection.sort_order, deletedSection.quotation_version_id],
     );
 
     return successResponse(res, null, "Custom section deleted successfully");
@@ -337,4 +337,11 @@ exports.deleteCustomSection = async (req, res) => {
   } finally {
     client.release();
   }
+}
+
+export default {
+  createCustomSection,
+  getCustomSectionsByVersionId,
+  updateCustomSection,
+  deleteCustomSection,
 };

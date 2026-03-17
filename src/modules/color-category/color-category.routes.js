@@ -1,7 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createColorCategory,
   getColorCategories,
   getColorCategoryById,
@@ -9,19 +10,18 @@ const {
   updateColorCategory,
   deleteColorCategory,
   copyColorCategory,
-} = require("./color-category.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const {
+} from "./color-category.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createColorCategorySchema,
   updateColorCategorySchema,
   paramsIdSchema,
   copyColorCategorySchema,
-} = require("./color-category.validation");
+} from "./color-category.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -60,4 +60,4 @@ router.post(
   copyColorCategory,
 );
 
-module.exports = router;
+export default router;

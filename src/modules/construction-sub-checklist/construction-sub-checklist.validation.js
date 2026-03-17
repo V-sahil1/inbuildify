@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createConstructionSubChecklistValidation = Joi.object({
+export const createConstructionSubChecklistValidation = Joi.object({
   construction_checklist_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction checklist ID must be a valid UUID",
     "any.required": "Construction checklist ID is required",
@@ -25,7 +25,7 @@ const createConstructionSubChecklistValidation = Joi.object({
   }),
 });
 
-const updateConstructionSubChecklistValidation = Joi.object({
+export const updateConstructionSubChecklistValidation = Joi.object({
   name: Joi.string()
     .min(2)
     .max(255)
@@ -45,14 +45,14 @@ const updateConstructionSubChecklistValidation = Joi.object({
   }),
 }).min(1);
 
-const getConstructionSubChecklistByIdValidation = Joi.object({
+export const getConstructionSubChecklistByIdValidation = Joi.object({
   construction_sub_checklist_id: Joi.string().uuid().required().messages({
     "string.uuid": "Construction sub checklist ID must be a valid UUID",
     "any.required": "Construction sub checklist ID is required",
   }),
 });
 
-const queryValidation = Joi.object({
+export const queryValidation = Joi.object({
   page: Joi.number().integer().min(1).optional().messages({
     "number.integer": "Page must be an integer",
     "number.min": "Page must be at least 1",
@@ -73,7 +73,7 @@ const queryValidation = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createConstructionSubChecklistValidation,
   updateConstructionSubChecklistValidation,
   getConstructionSubChecklistByIdValidation,

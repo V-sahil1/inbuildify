@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-exports.createEstateStage = async (req, res) => {
+export async function createEstateStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -11,9 +11,9 @@ exports.createEstateStage = async (req, res) => {
     await client.query("BEGIN");
 
     const { estate_id, name, release_date } = req.body;
-    const attach_files = req.files?.attachFile?.map(file => file.location) || 
+    const attach_files = req.files?.attachFile?.map(file => file.location) ||
                       (req.body.attach_file ? [req.body.attach_file] : []);
-    
+
     const builderId = req.user?.builder_id;
 
     const estateCheck = await client.query(
@@ -93,9 +93,9 @@ exports.createEstateStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllEstateStages = async (req, res) => {
+export async function getAllEstateStages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -108,8 +108,8 @@ exports.getAllEstateStages = async (req, res) => {
     const limitNumber = parseInt(limit, 10);
     const offset = (pageNumber - 1) * limitNumber;
 
-    let whereClause = `WHERE e.builder_id = $1`;
-    let values = [builderId];
+    let whereClause = "WHERE e.builder_id = $1";
+    const values = [builderId];
     let paramIndex = 2;
 
     if (estate_id) {
@@ -154,9 +154,9 @@ exports.getAllEstateStages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteEstateStage = async (req, res) => {
+export async function deleteEstateStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -212,9 +212,9 @@ exports.deleteEstateStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateEstateStage = async (req, res) => {
+export async function updateEstateStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -227,7 +227,7 @@ exports.updateEstateStage = async (req, res) => {
     await client.query("BEGIN");
 
     const existing = await client.query(
-      `SELECT estate_id, name, attach_file FROM estate_stages WHERE estate_stage_id = $1`,
+      "SELECT estate_id, name, attach_file FROM estate_stages WHERE estate_stage_id = $1",
       [estate_stage_id],
     );
 
@@ -302,13 +302,12 @@ exports.updateEstateStage = async (req, res) => {
       values.push(release_date);
     }
 
-    
     // Handle file updates for multiple files
     let updatedFiles = existingFiles;
-    
+
     if (attach_file !== undefined) {
       // If attach_file is provided in body (string or JSON array), use it
-      if (attach_file === null || attach_file === '') {
+      if (attach_file === null || attach_file === "") {
         // Remove all files if null is provided
         if (existingFiles.length > 0) {
           for (const fileUrl of existingFiles) {
@@ -318,33 +317,33 @@ exports.updateEstateStage = async (req, res) => {
         fields.push(`attach_file = $${idx++}`);
         values.push(null);
         updatedFiles = [];
-      } else if (typeof attach_file === 'string') {
+      } else if (typeof attach_file === "string") {
         // Handle single string or JSON array string
         try {
           const parsedFiles = JSON.parse(attach_file);
           const newFiles = Array.isArray(parsedFiles) ? parsedFiles : [attach_file];
-          
+
           // Delete old files that are not in the new list
           for (const oldFile of existingFiles) {
             if (!newFiles.includes(oldFile)) {
               await deleteFromS3(oldFile);
             }
           }
-          
+
           fields.push(`attach_file = $${idx++}`);
           values.push(newFiles);
           updatedFiles = newFiles;
         } catch {
           // If parsing fails, treat as single file
           const newFiles = [attach_file];
-          
+
           // Delete old files that are not the new file
           for (const oldFile of existingFiles) {
             if (oldFile !== attach_file) {
               await deleteFromS3(oldFile);
             }
           }
-          
+
           fields.push(`attach_file = $${idx++}`);
           values.push(newFiles);
           updatedFiles = newFiles;
@@ -358,7 +357,7 @@ exports.updateEstateStage = async (req, res) => {
           await deleteFromS3(fileUrl);
         }
       }
-      
+
       fields.push(`attach_file = $${idx++}`);
       values.push(uploadedFiles);
       updatedFiles = uploadedFiles;
@@ -369,7 +368,7 @@ exports.updateEstateStage = async (req, res) => {
       return errorResponse(res, 400, "Nothing to update");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const query = `
       UPDATE estate_stages
@@ -400,4 +399,4 @@ exports.updateEstateStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

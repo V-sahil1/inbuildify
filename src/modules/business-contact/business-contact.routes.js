@@ -1,29 +1,28 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createBusinessContact,
   getAllBusinessContacts,
   getBusinessContactById,
   getBusinessContactsByLeadsId,
   updateBusinessContact,
   deleteBusinessContact,
-} = require("./business-contact.controller.js");
-
-const {
+} from "./business-contact.controller.js";
+import {
   createBusinessContactSchema,
   getAllBusinessContactsSchema,
   getBusinessContactByIdSchema,
   getBusinessContactsByLeadsIdSchema,
   updateBusinessContactSchema,
   deleteBusinessContactSchema,
-} = require("./business-contact.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./business-contact.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -65,4 +64,4 @@ router.delete(
   deleteBusinessContact,
 );
 
-module.exports = router;
+export default router;

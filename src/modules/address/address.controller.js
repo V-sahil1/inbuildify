@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createAddress = async (req, res) => {
+export async function createAddress(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -17,8 +17,8 @@ exports.createAddress = async (req, res) => {
 
     if (country_id) {
       const countryIdCheck = await client.query(
-        `SELECT country_id FROM country WHERE country_id = $1 LIMIT 1`,
-        [country_id]
+        "SELECT country_id FROM country WHERE country_id = $1 LIMIT 1",
+        [country_id],
       );
 
       if (countryIdCheck.rowCount === 0) {
@@ -26,15 +26,15 @@ exports.createAddress = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid country id. country not found."
+          "Invalid country id. country not found.",
         );
       }
     }
 
     if (state_id) {
       const stateCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
-        [state_id]
+        "SELECT state_id FROM state WHERE state_id = $1 LIMIT 1",
+        [state_id],
       );
 
       if (stateCheck.rowCount === 0) {
@@ -73,7 +73,7 @@ exports.createAddress = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Address created successfully."
+      "Address created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -82,4 +82,4 @@ exports.createAddress = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

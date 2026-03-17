@@ -1,9 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { successResponse } = require("../../helper/response");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createContractor = async (req, res) => {
+export async function createContractor(req, res) {
   const { name, email, phone, address, service } = req.body || {};
   const builderId = req.user.builder_id;
   const lowerCaseEmail = email.toLowerCase();
@@ -12,7 +11,7 @@ exports.createContractor = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderQuery = `SELECT  * FROM builder WHERE builder_id = $1;`;
+    const builderQuery = "SELECT  * FROM builder WHERE builder_id = $1;";
     const builderResult = await client.query(builderQuery, [builderId]);
 
     if (builderResult.rows.length === 0) {
@@ -37,14 +36,14 @@ exports.createContractor = async (req, res) => {
     }
 
     let serviceId;
-    const serviceQuery = `SELECT * FROM service WHERE service = $1 AND (builder_id = $2 OR builder_id IS NULL);`;
+    const serviceQuery = "SELECT * FROM service WHERE service = $1 AND (builder_id = $2 OR builder_id IS NULL);";
     const serviceResult = await client.query(serviceQuery, [
       service,
       builderId,
     ]);
 
     if (serviceResult.rows.length === 0) {
-      const serviceCreateQuery = `INSERT INTO service (service, builder_id) VALUES ($1, $2) RETURNING *;`;
+      const serviceCreateQuery = "INSERT INTO service (service, builder_id) VALUES ($1, $2) RETURNING *;";
       const serviceCreateResult = await client.query(serviceCreateQuery, [
         service,
         builderId,
@@ -54,7 +53,7 @@ exports.createContractor = async (req, res) => {
       serviceId = serviceResult.rows[0].service_id;
     }
 
-    const contractorQuery = `INSERT INTO contractor (name, email, builder_id, phone, address, service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
+    const contractorQuery = "INSERT INTO contractor (name, email, builder_id, phone, address, service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;";
     const contractorResult = await client.query(contractorQuery, [
       name,
       lowerCaseEmail,
@@ -88,9 +87,9 @@ exports.createContractor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getContractors = async (req, res) => {
+export async function getContractors(req, res) {
   const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
@@ -114,9 +113,9 @@ exports.getContractors = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getContractorById = async (req, res) => {
+export async function getContractorById(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -146,9 +145,9 @@ exports.getContractorById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateContractor = async (req, res) => {
+export async function updateContractor(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
   const updates = req.body;
@@ -157,7 +156,7 @@ exports.updateContractor = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const checkBuilderQuery = `SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;`;
+    const checkBuilderQuery = "SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;";
     const checkBuilderResult = await client.query(checkBuilderQuery, [
       id,
       builderId,
@@ -217,7 +216,7 @@ exports.updateContractor = async (req, res) => {
     }
 
     const serviceResult = await client.query(
-      `SELECT service FROM service WHERE service_id = $1 LIMIT 1;`,
+      "SELECT service FROM service WHERE service_id = $1 LIMIT 1;",
       [updateResult.rows[0].service_id],
     );
     const serviceName =
@@ -235,9 +234,9 @@ exports.updateContractor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteContractor = async (req, res) => {
+export async function deleteContractor(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -245,7 +244,7 @@ exports.deleteContractor = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const checkBuilderQuery = `SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;`;
+    const checkBuilderQuery = "SELECT * FROM contractor WHERE contractor_id = $1 AND builder_id = $2 AND is_deleted = false;";
     const checkBuilderResult = await client.query(checkBuilderQuery, [
       id,
       builderId,
@@ -255,7 +254,7 @@ exports.deleteContractor = async (req, res) => {
       return errorResponse(res, 404, "Contractor not found.");
     }
 
-    const deleteQuery = `UPDATE contractor set is_deleted = true where contractor_id = $1 AND builder_id = $2;`;
+    const deleteQuery = "UPDATE contractor set is_deleted = true where contractor_id = $1 AND builder_id = $2;";
     const deleteResult = await client.query(deleteQuery, [id, builderId]);
 
     if (deleteResult.rowCount === 0) {
@@ -269,4 +268,4 @@ exports.deleteContractor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

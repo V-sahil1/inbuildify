@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createConstructiontyeSchema = Joi.object({
+export const createConstructiontyeSchema = Joi.object({
   builder: Joi.string().uuid().required().messages({
     "string.guid": "builder ID must be a valid UUID",
     "any.required": "builder ID is required",
@@ -29,28 +29,28 @@ const createConstructiontyeSchema = Joi.object({
     }),
 });
 
-const getAllConstructionTypeSchema = Joi.object({
+export const getAllConstructionTypeSchema = Joi.object({
   builder: Joi.string().uuid().optional().messages({
     "string.guid": "builder ID must be a valid UUID",
     "any.required": "builder ID is required",
   }),
 });
 
-const deleteConstructionTypeSchema = Joi.object({
+export const deleteConstructionTypeSchema = Joi.object({
   construction_type_id: Joi.string().uuid().required().messages({
     "string.guid": "construction type ID must be a valid UUID",
     "any.required": "construction type ID is required",
   }),
 });
 
-const updateConstructionTypeParamsSchema = Joi.object({
+export const updateConstructionTypeParamsSchema = Joi.object({
   construction_type_id: Joi.string().uuid().required().messages({
     "string.guid": "construction type ID must be a valid UUID",
     "any.required": "construction type ID is required",
   }),
 });
 
-const updateConstructionTypeSchema = Joi.object({
+export const updateConstructionTypeSchema = Joi.object({
   types_name: Joi.string()
     .trim()
     .min(2)
@@ -67,7 +67,8 @@ const updateConstructionTypeSchema = Joi.object({
       "string.guid": "dwelling type ID must be a valid UUID",
     }),
 });
-module.exports = {
+
+export default {
   createConstructiontyeSchema,
   getAllConstructionTypeSchema,
   deleteConstructionTypeSchema,

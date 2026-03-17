@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createJobSettings = async (req, res) => {
+export async function createJobSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -22,7 +22,7 @@ exports.createJobSettings = async (req, res) => {
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM job_settings WHERE builder_id = $1 OR company_id = $2`,
+      "SELECT 1 FROM job_settings WHERE builder_id = $1 OR company_id = $2",
       [builderId, companyId],
     );
 
@@ -111,9 +111,9 @@ exports.createJobSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobSettings = async (req, res) => {
+export async function updateJobSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -224,7 +224,7 @@ exports.updateJobSettings = async (req, res) => {
     }
 
     if (forceNullDays) {
-      fields.push(`auto_archive_after_days = NULL`);
+      fields.push("auto_archive_after_days = NULL");
     }
 
     if (milestone_status_check_days !== undefined) {
@@ -254,7 +254,7 @@ exports.updateJobSettings = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_settings
@@ -281,9 +281,9 @@ exports.updateJobSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobSettings = async (req, res) => {
+export async function getUserJobSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -330,4 +330,4 @@ exports.getUserJobSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

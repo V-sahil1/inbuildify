@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createTemplateEmailSignatureSchema = Joi.object({
+export const createTemplateEmailSignatureSchema = Joi.object({
   include_email_signature: Joi.boolean().default(false),
   signature_content: Joi.alternatives().conditional("include_email_signature", {
     otherwise: Joi.forbidden().messages({
@@ -10,7 +10,7 @@ const createTemplateEmailSignatureSchema = Joi.object({
   }),
 });
 
-const updateTemplateEmailSignatureSchema = Joi.object({
+export const updateTemplateEmailSignatureSchema = Joi.object({
   include_email_signature: Joi.boolean().optional(),
   signature_content: Joi.alternatives().try(
     Joi.string().allow(null, "").optional(),
@@ -26,7 +26,7 @@ const updateTemplateEmailSignatureSchema = Joi.object({
   return value;
 }, "Custom logic validation");
 
-module.exports = {
+export default {
   createTemplateEmailSignatureSchema,
   updateTemplateEmailSignatureSchema,
 };

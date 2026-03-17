@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.convertOpportunityToJob = async (req, res) => {
+export async function convertOpportunityToJob(req, res) {
   const { opportunity_id } = req.params;
   const { out_come, quotation_version_id, job_note, send_email } = req.body;
 
@@ -31,8 +31,8 @@ exports.convertOpportunityToJob = async (req, res) => {
     // 2. Logic for out_come = "lost"
     if (out_come === "lost") {
       await client.query(
-        `UPDATE opportunity SET status = 'closed', outcome = $1, opportunity_notes = COALESCE($2, opportunity_notes), updated_at = NOW() WHERE opportunity_id = $3`,
-        ["lost", job_note || null, opportunity_id]
+        "UPDATE opportunity SET status = 'closed', outcome = $1, opportunity_notes = COALESCE($2, opportunity_notes), updated_at = NOW() WHERE opportunity_id = $3",
+        ["lost", job_note || null, opportunity_id],
       );
       await client.query("COMMIT");
       return successResponse(res, {}, "Opportunity marked as lost and closed.");
@@ -42,8 +42,8 @@ exports.convertOpportunityToJob = async (req, res) => {
     if (out_come === "won") {
       // Check if job already exists for this opportunity
       const jobCheck = await client.query(
-        `SELECT job_id FROM job WHERE opportunity_id = $1`,
-        [opportunity_id]
+        "SELECT job_id FROM job WHERE opportunity_id = $1",
+        [opportunity_id],
       );
 
       if (jobCheck.rowCount > 0) {
@@ -51,7 +51,7 @@ exports.convertOpportunityToJob = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "A job already exists for this opportunity."
+          "A job already exists for this opportunity.",
         );
       }
 
@@ -61,13 +61,13 @@ exports.convertOpportunityToJob = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Quotation version ID is required when status is WON"
+          "Quotation version ID is required when status is WON",
         );
       }
 
       const qvCheck = await client.query(
-        `SELECT quotation_version_id, is_approve FROM quotation_version WHERE quotation_version_id = $1 AND is_approve = true`,
-        [quotation_version_id]
+        "SELECT quotation_version_id, is_approve FROM quotation_version WHERE quotation_version_id = $1 AND is_approve = true",
+        [quotation_version_id],
       );
 
       if (qvCheck.rowCount === 0) {
@@ -77,8 +77,8 @@ exports.convertOpportunityToJob = async (req, res) => {
 
       // Update opportunity attributes
       await client.query(
-        `UPDATE opportunity SET status = 'closed', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2`,
-        ["won", opportunity_id]
+        "UPDATE opportunity SET status = 'closed', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2",
+        ["won", opportunity_id],
       );
 
       // Create new job with opportunity's associated lead reference number
@@ -108,7 +108,7 @@ exports.convertOpportunityToJob = async (req, res) => {
       return successResponse(
         res,
         keysToCamelCase(jobResult.rows[0]),
-        "Opportunity converted to job successfully."
+        "Opportunity converted to job successfully.",
       );
     }
   } catch (error) {
@@ -118,4 +118,4 @@ exports.convertOpportunityToJob = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

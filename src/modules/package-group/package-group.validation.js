@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createPackageGroupSchema = Joi.object({
+export const createPackageGroupSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -10,7 +10,7 @@ const createPackageGroupSchema = Joi.object({
   no_of_packages: Joi.number().integer().min(0).default(0),
 });
 
-const getAllPackageGroupSchema = Joi.object({
+export const getAllPackageGroupSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -25,21 +25,21 @@ const getAllPackageGroupSchema = Joi.object({
   }),
 });
 
-const deletePackageGroupSchema = Joi.object({
+export const deletePackageGroupSchema = Joi.object({
   package_group_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
   }),
 });
 
-const updatePackageGroupParamsSchema = Joi.object({
+export const updatePackageGroupParamsSchema = Joi.object({
   package_group_id: Joi.string().uuid().required().messages({
     "string.guid": "Package ID must be a valid UUID",
     "any.required": "Package ID is required",
   }),
 });
 
-const updatePackageGroupSchema = Joi.object({
+export const updatePackageGroupSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -49,7 +49,7 @@ const updatePackageGroupSchema = Joi.object({
   no_of_packages: Joi.number().integer().min(0).optional(),
 });
 
-module.exports = {
+export default {
   createPackageGroupSchema,
   getAllPackageGroupSchema,
   deletePackageGroupSchema,

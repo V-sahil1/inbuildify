@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createLeadContactMapSchema = Joi.object({
+export const createLeadContactMapSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Leads ID must be a valid UUID",
     "any.required": "Leads ID is required",
@@ -11,21 +11,21 @@ const createLeadContactMapSchema = Joi.object({
   }),
 });
 
-const getByLeadParamsSchema = Joi.object({
+export const getByLeadParamsSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Leads ID must be a valid UUID",
     "any.required": "Leads ID is required",
   }),
 });
 
-const deleteParamsSchema = Joi.object({
+export const deleteParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-module.exports = {
+export default {
   createLeadContactMapSchema,
   getByLeadParamsSchema,
   deleteParamsSchema,

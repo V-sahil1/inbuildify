@@ -1,5 +1,5 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 class LeadsRepository {
   constructor() {
@@ -139,7 +139,7 @@ class LeadsRepository {
          JOIN users u ON lcm.contact_id = u.users_id
          LEFT JOIN address a ON u.address_id = a.address_id
          WHERE lcm.leads_id = $1`,
-        [lead.leads_id]
+        [lead.leads_id],
       );
 
       let leadSourceName = null;
@@ -176,7 +176,7 @@ class LeadsRepository {
       const values = [builderId, createdBy, name];
 
       if (excludeLeadId) {
-        query += ` AND leads_id != $4`;
+        query += " AND leads_id != $4";
         values.push(excludeLeadId);
       }
 
@@ -206,8 +206,8 @@ class LeadsRepository {
       } = filters;
 
       const offset = (page - 1) * limit;
-      let whereConditions = ["(l.builder_id = $1 OR (l.company_id = $2 AND $2 IS NOT NULL))"];
-      let queryParams = [builderId, companyId];
+      const whereConditions = ["(l.builder_id = $1 OR (l.company_id = $2 AND $2 IS NOT NULL))"];
+      const queryParams = [builderId, companyId];
       let paramIndex = 3;
 
       if (status) {
@@ -651,7 +651,7 @@ async getLeadById(leadId, builderId, companyId) {
       }
 
       updateFields.push(`updated_by = $${paramIndex++}`);
-      updateFields.push(`updated_at = NOW()`);
+      updateFields.push("updated_at = NOW()");
       values.push(updated_by);
 
       values.push(leadId, builderId);
@@ -673,19 +673,19 @@ async getLeadById(leadId, builderId, companyId) {
   async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId) {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // 1. Verify existence and ownership
-      const leadQuery = `SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE`;
+      const leadQuery = "SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE";
       const leadResult = await client.query(leadQuery, [leadId, builderId, companyId]);
-      
+
       if (leadResult.rowCount === 0) {
         throw new Error("Lead not found or unauthorized");
       }
 
       const lead = leadResult.rows[0];
 
-      if (lead.status === 'Convert') {
+      if (lead.status === "Convert") {
         throw new Error("Lead is already converted");
       }
 
@@ -705,11 +705,11 @@ async getLeadById(leadId, builderId, companyId) {
       `;
       await client.query(updateLeadQuery, [leadId]);
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       return keysToCamelCase(oppResult.rows[0]);
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -816,4 +816,4 @@ async getLeadById(leadId, builderId, companyId) {
 }
 
 
-module.exports = new LeadsRepository();
+export default new LeadsRepository();

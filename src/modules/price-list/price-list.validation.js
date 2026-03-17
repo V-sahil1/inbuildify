@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createPriceListSchema = Joi.object({
+export const createPriceListSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -13,7 +13,7 @@ const createPriceListSchema = Joi.object({
   }),
 });
 
-const getAllPriceListSchema = Joi.object({
+export const getAllPriceListSchema = Joi.object({
   is_active: Joi.boolean().optional(),
   is_suggested: Joi.boolean().optional(),
   search: Joi.string().trim().max(200).optional(),
@@ -31,21 +31,21 @@ const getAllPriceListSchema = Joi.object({
   }),
 });
 
-const deletePriceListSchema = Joi.object({
+export const deletePriceListSchema = Joi.object({
   priceListId: Joi.string().uuid().required().messages({
     "string.guid": "price list ID must be a valid UUID",
     "any.required": "price list ID is required",
   }),
 });
 
-const updatePriceListParamsSchema = Joi.object({
+export const updatePriceListParamsSchema = Joi.object({
   priceListId: Joi.string().uuid().required().messages({
     "string.guid": "price list ID must be a valid UUID",
     "any.required": "price list ID is required",
   }),
 });
 
-const updatePriceListSchema = Joi.object({
+export const updatePriceListSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -59,7 +59,7 @@ const updatePriceListSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createPriceListSchema,
   getAllPriceListSchema,
   deletePriceListSchema,

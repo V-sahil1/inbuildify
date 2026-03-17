@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createMasterPriceListCategoryItem = async (req, res) => {
+export async function createMasterPriceListCategoryItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -37,7 +37,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "master_price_list_category_id is required."
+        "master_price_list_category_id is required.",
       );
     }
 
@@ -49,7 +49,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid cost_type. Must be one of: include, fixed, variable."
+        "Invalid cost_type. Must be one of: include, fixed, variable.",
       );
     }
 
@@ -57,7 +57,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid cost_option. Must be one of: none, tba, tbc."
+        "Invalid cost_option. Must be one of: none, tba, tbc.",
       );
     }
 
@@ -72,7 +72,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
         AND company_id = $3
         AND is_deleted = FALSE
       `,
-      [master_price_list_category_id, builderId, companyId]
+      [master_price_list_category_id, builderId, companyId],
     );
 
     if (categoryCheck.rowCount === 0) {
@@ -80,7 +80,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Master price list category not found or not accessible."
+        "Master price list category not found or not accessible.",
       );
     }
 
@@ -93,7 +93,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
         AND master_price_list_category_id = $3
         AND LOWER(name) = LOWER($4)
       `,
-      [builderId, companyId, master_price_list_category_id, name.trim()]
+      [builderId, companyId, master_price_list_category_id, name.trim()],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -101,7 +101,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Item name already exists in this category."
+        "Item name already exists in this category.",
       );
     }
 
@@ -113,7 +113,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
         FROM master_price_list_categories_item
         WHERE builder_id = $1 AND company_id = $2 AND master_price_list_category_id = $3
         `,
-        [builderId, companyId, master_price_list_category_id]
+        [builderId, companyId, master_price_list_category_id],
       );
       finalSortOrder = orderRes.rows[0].next_order;
     }
@@ -173,7 +173,7 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Master Price List Category Item created successfully."
+      "Master Price List Category Item created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -182,9 +182,9 @@ exports.createMasterPriceListCategoryItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getMasterPriceListCategoryItemsByCategoryId = async (req, res) => {
+export async function getMasterPriceListCategoryItemsByCategoryId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -207,14 +207,14 @@ exports.getMasterPriceListCategoryItemsByCategoryId = async (req, res) => {
         
         AND company_id = $3
       `,
-      [categoryId, builderId, companyId]
+      [categoryId, builderId, companyId],
     );
 
     if (categoryCheck.rows.length === 0) {
       return errorResponse(
         res,
         404,
-        "Master price list category not found or does not belong to this builder."
+        "Master price list category not found or does not belong to this builder.",
       );
     }
 
@@ -236,28 +236,28 @@ exports.getMasterPriceListCategoryItemsByCategoryId = async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY mpci.sort_order ASC, mpci.name ASC;`;
+    query += " ORDER BY mpci.sort_order ASC, mpci.name ASC;";
 
     const result = await client.query(query, params);
 
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Category items fetched successfully."
+      "Category items fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching category items:", err);
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err?.message || "Internal Server Error"
+      err?.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateMasterPriceListCategoryItem = async (req, res) => {
+export async function updateMasterPriceListCategoryItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -271,7 +271,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Updating master_price_list_category_id is not allowed."
+        "Updating master_price_list_category_id is not allowed.",
       );
     }
 
@@ -302,7 +302,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
         AND builder_id = $2
         AND company_id = $3
       `,
-      [category_item_id, builderId, companyId]
+      [category_item_id, builderId, companyId],
     );
 
     if (itemRes.rowCount === 0) {
@@ -310,7 +310,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Category item not found or not owned by this builder."
+        "Category item not found or not owned by this builder.",
       );
     }
 
@@ -333,7 +333,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
           builderId,
           companyId,
           category_item_id,
-        ]
+        ],
       );
 
       if (duplicateCheck.rowCount > 0) {
@@ -341,7 +341,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Item name already exists in this category."
+          "Item name already exists in this category.",
         );
       }
     }
@@ -404,7 +404,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
           AND builder_id = $2
           AND company_id = $3
         `,
-        [category_item_id, builderId, companyId]
+        [category_item_id, builderId, companyId],
       );
       updatedItem = fetchRes.rows[0];
     }
@@ -414,7 +414,7 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updatedItem),
-      "Category item updated successfully."
+      "Category item updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -423,9 +423,9 @@ exports.updateMasterPriceListCategoryItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteMasterPriceListCategoryItem = async (req, res) => {
+export async function deleteMasterPriceListCategoryItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -441,7 +441,7 @@ exports.deleteMasterPriceListCategoryItem = async (req, res) => {
       FROM master_price_list_categories_item 
       WHERE master_price_list_categories_item_id = $1 
       `,
-      [category_item_id]
+      [category_item_id],
     );
 
     if (itemRes.rowCount === 0) {
@@ -449,7 +449,7 @@ exports.deleteMasterPriceListCategoryItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Category item not found or already deleted."
+        "Category item not found or already deleted.",
       );
     }
 
@@ -459,7 +459,7 @@ exports.deleteMasterPriceListCategoryItem = async (req, res) => {
       `
      DELETE FROM master_price_list_categories_item WHERE master_price_list_categories_item_id = $1
       `,
-      [category_item_id]
+      [category_item_id],
     );
 
     await client.query("COMMIT");
@@ -467,7 +467,7 @@ exports.deleteMasterPriceListCategoryItem = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(item),
-      "Category item deleted successfully."
+      "Category item deleted successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -475,9 +475,9 @@ exports.deleteMasterPriceListCategoryItem = async (req, res) => {
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err?.message || "Internal Server Error"
+      err?.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}

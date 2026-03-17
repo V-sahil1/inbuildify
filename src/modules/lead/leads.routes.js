@@ -1,6 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createLead,
   getAllLeads,
   getLeadById,
@@ -12,12 +14,12 @@ const {
   forceCreateLead,
   convertLeadToOpportunity,
   removeHLPackage
-} = require("./leads.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+} from "./leads.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,
@@ -26,14 +28,12 @@ const {
   getAllLeadsQuerySchema,
   convertLeadToOpportunitySchema,
   removeHLPackageSchema
-} = require("./leads.validation.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./leads.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
-
-
 
 router.post(
   "/",
@@ -110,4 +110,4 @@ router.delete(
   removeHLPackage,
 );
 
-module.exports = router;
+export default router;

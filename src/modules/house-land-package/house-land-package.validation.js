@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const uuidRule = Joi.string().uuid().required().messages({
   "string.guid": "ID must be a valid UUID",
@@ -23,7 +23,7 @@ const booleanRule = Joi.boolean().optional().messages({
   "boolean.base": "Must be a boolean value",
 });
 
-const createHouseLandPackageSchema = Joi.object({
+export const createHouseLandPackageSchema = Joi.object({
   title: stringRule.max(255).required().messages({
     "any.required": "Title is required",
     "string.max": "Title must not exceed 255 characters",
@@ -40,7 +40,7 @@ const createHouseLandPackageSchema = Joi.object({
   range_id: optionalUuidRule.messages({
     "string.guid": "Range ID must be a valid UUID",
   }),
-  disclaimer_type: stringRule.max(255).optional().valid('validity', 'standard').allow(null),
+  disclaimer_type: stringRule.max(255).optional().valid("validity", "standard").allow(null),
   floor_plan_id: optionalUuidRule.messages({
     "string.guid": "Floor plan ID must be a valid UUID",
   }),
@@ -49,7 +49,7 @@ const createHouseLandPackageSchema = Joi.object({
   }),
 });
 
-const updateHouseLandPackageSchema = Joi.object({
+export const updateHouseLandPackageSchema = Joi.object({
   title: stringRule.max(255).optional().messages({
     "string.max": "Title must not exceed 255 characters",
   }),
@@ -86,20 +86,20 @@ const updateHouseLandPackageSchema = Joi.object({
   }),
   package_description: stringRule.max(3000).optional().allow(""),
   house_feature_id: optionalUuidRule,
-  disclaimer_type: stringRule.max(255).optional().valid('validity', 'standard').allow(null),
+  disclaimer_type: stringRule.max(255).optional().valid("validity", "standard").allow(null),
   disclaimer_description: stringRule.max(3000).optional().allow(""),
   attach_files: stringRule.max(500).optional().allow(""),
 });
 
-const getHouseLandPackageByIdSchema = Joi.object({
+export const getHouseLandPackageByIdSchema = Joi.object({
   house_land_package_id: uuidRule,
 });
 
-const deleteHouseLandPackageSchema = Joi.object({
+export const deleteHouseLandPackageSchema = Joi.object({
   house_land_package_id: uuidRule,
 });
 
-const getAllHouseLandPackagesSchema = Joi.object({
+export const getAllHouseLandPackagesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(25),
   title: stringRule.max(255).optional().allow(""),
@@ -112,11 +112,11 @@ const getAllHouseLandPackagesSchema = Joi.object({
   lot_id: optionalUuidRule,
 });
 
-const getHouseLandPackageDetailedInfoSchema = Joi.object({
+export const getHouseLandPackageDetailedInfoSchema = Joi.object({
   house_land_package_id: uuidRule,
 });
 
-module.exports = {
+export default {
   createHouseLandPackageSchema,
   updateHouseLandPackageSchema,
   getHouseLandPackageByIdSchema,

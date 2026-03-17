@@ -1,20 +1,20 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const {
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createCustomSectionSchema,
   getCustomSectionsByVersionSchema,
   updateCustomSectionSchema,
   customSectionIdParamsSchema,
-} = require("./quotation-version-custom-section.validation.js");
-const customSectionController = require("./quotation-version-custom-section.controller.js");
-const { createPdfUpload, handleMulterError } = require("../../utils/s3Upload.js");
+} from "./quotation-version-custom-section.validation.js";
+import customSectionController from "./quotation-version-custom-section.controller.js";
+import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 const upload = createPdfUpload("quotation-custom-section");
 
@@ -27,13 +27,13 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createCustomSectionSchema, REQUEST_SOURCE.FORM_DATA),
-  customSectionController.createCustomSection
+  customSectionController.createCustomSection,
 );
 
 router.get(
   "/:quotation_version_id",
   validateRequest(getCustomSectionsByVersionSchema, REQUEST_SOURCE.PARAMS),
-  customSectionController.getCustomSectionsByVersionId
+  customSectionController.getCustomSectionsByVersionId,
 );
 
 router.put(
@@ -43,13 +43,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(customSectionIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCustomSectionSchema, REQUEST_SOURCE.FORM_DATA),
-  customSectionController.updateCustomSection
+  customSectionController.updateCustomSection,
 );
 
 router.delete(
   "/:custom_section_id",
   validateRequest(customSectionIdParamsSchema, REQUEST_SOURCE.PARAMS),
-  customSectionController.deleteCustomSection
+  customSectionController.deleteCustomSection,
 );
 
-module.exports = router;
+export default router;

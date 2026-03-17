@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createEstateStageSchema = Joi.object({
+export const createEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "string.guid": "estate ID must be a valid UUID.",
   }),
@@ -13,7 +13,7 @@ const createEstateStageSchema = Joi.object({
   release_date: Joi.date().optional().allow(null),
   attach_file: Joi.alternatives().try(
     Joi.array().items(Joi.string().uri()),
-    Joi.string().uri().allow(null, "")
+    Joi.string().uri().allow(null, ""),
   ).optional().messages({
     "array.base": "attach_file must be an array of URLs",
     "string.uri": "attach_file must be a valid URL",
@@ -21,7 +21,7 @@ const createEstateStageSchema = Joi.object({
   }),
 });
 
-const getALLEstateStageSchema = Joi.object({
+export const getALLEstateStageSchema = Joi.object({
   estate_id: Joi.string().uuid().optional().messages({
     "string.guid": "estate ID must be a valid UUID",
   }),
@@ -39,21 +39,21 @@ const getALLEstateStageSchema = Joi.object({
   }),
 });
 
-const deleteEstateStageSchema = Joi.object({
+export const deleteEstateStageSchema = Joi.object({
   estate_stage_id: Joi.string().uuid().required().messages({
     "string.guid": "estate stage ID must be a valid UUID",
     "any.required": "estate stage ID is required",
   }),
 });
 
-const updateEstateStageParamsSchema = Joi.object({
+export const updateEstateStageParamsSchema = Joi.object({
   estate_stage_id: Joi.string().uuid().required().messages({
     "string.guid": "estate stage ID must be a valid UUID",
     "any.required": "estate stage ID is required",
   }),
 });
 
-const updsteEstateStageSchema = Joi.object({
+export const updsteEstateStageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -63,13 +63,14 @@ const updsteEstateStageSchema = Joi.object({
   release_date: Joi.date().optional().allow(null),
   attach_file: Joi.alternatives().try(
     Joi.array().items(Joi.string().uri()),
-    Joi.string().uri()
+    Joi.string().uri(),
   ).optional().allow(null, "").messages({
     "array.base": "attach_file must be an array of URLs or a single URL",
     "string.uri": "attach_file must be a valid URL",
   }),
 });
-module.exports = {
+
+export default {
   createEstateStageSchema,
   getALLEstateStageSchema,
   deleteEstateStageSchema,

@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createRangeSchema = Joi.object({
+export const createRangeSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)
@@ -48,14 +48,14 @@ const createRangeSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const updateRangeParamsSchema = Joi.object({
+export const updateRangeParamsSchema = Joi.object({
   range_id: Joi.string().uuid().required().messages({
     "string.guid": "Range ID must be a valid UUID",
     "any.required": "Range ID is required",
   }),
 });
 
-const updateRangeSchema = Joi.object({
+export const updateRangeSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)
@@ -104,7 +104,7 @@ const updateRangeSchema = Joi.object({
     "object.min": "At least one field is required to update",
   });
 
-const deleteRangeSchema = {
+export const deleteRangeSchema = {
   params: Joi.object({
     range_id: Joi.string().uuid().required().messages({
       "string.guid": "Range ID must be a valid UUID",
@@ -113,11 +113,11 @@ const deleteRangeSchema = {
   }),
 };
 
-const updateRangeActiveSchema = Joi.object({
+export const updateRangeActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createRangeSchema,
   updateRangeParamsSchema,
   updateRangeSchema,

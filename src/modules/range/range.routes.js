@@ -1,27 +1,20 @@
-const express = require("express");
-const router = express.Router();
-const {
-  getAllRanges,
-  createRange,
-  updateRange,
-  deleteRange,
-  updateRangeActive,
-} = require("./range.controller.js");
+import express from "express";
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+const router = express.Router();
+import { getAllRanges, createRange, updateRange, deleteRange, updateRangeActive } from "./range.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createRangeSchema,
   updateRangeSchema,
   updateRangeParamsSchema,
   deleteRangeSchema,
   updateRangeActiveSchema,
-} = require("./range.validation.js");
-
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
+} from "./range.validation.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -66,4 +59,4 @@ router.put(
   updateRangeActive,
 );
 
-module.exports = router;
+export default router;

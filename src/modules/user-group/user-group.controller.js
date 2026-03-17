@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createUserGroup = async (req, res) => {
+export async function createUserGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -49,7 +49,7 @@ exports.createUserGroup = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more users are inavlid or not verify."
+          "One or more users are inavlid or not verify.",
         );
       }
     }
@@ -71,7 +71,7 @@ exports.createUserGroup = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "A user group with this name already exists for this builder."
+        "A user group with this name already exists for this builder.",
       );
     }
 
@@ -147,9 +147,9 @@ exports.createUserGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllUserGroups = async (req, res) => {
+export async function getAllUserGroups(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -244,7 +244,7 @@ exports.getAllUserGroups = async (req, res) => {
           }),
           users: usersDetails,
         };
-      })
+      }),
     );
 
     return successResponse(
@@ -258,7 +258,7 @@ exports.getAllUserGroups = async (req, res) => {
           limit: limitValue,
         },
       },
-      "User groups fetched successfully."
+      "User groups fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching user groups:", error);
@@ -266,9 +266,9 @@ exports.getAllUserGroups = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateUserGroup = async (req, res) => {
+export async function updateUserGroup(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
   const userId = req.user.user_id;
@@ -287,7 +287,7 @@ exports.updateUserGroup = async (req, res) => {
        WHERE user_group_id = $1 
          AND builder_id = $2 
        FOR UPDATE`,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (checkGroup.rowCount === 0) {
@@ -295,7 +295,7 @@ exports.updateUserGroup = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "User group not found or not authorized to update."
+        "User group not found or not authorized to update.",
       );
     }
 
@@ -307,7 +307,7 @@ exports.updateUserGroup = async (req, res) => {
     const fieldsToCheck = ["name", "users_id"];
 
     const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined
+      (field) => req.body[field] !== undefined,
     );
 
     if (currentStatus === true && statusInBody && requestedStatus === false) {
@@ -316,7 +316,7 @@ exports.updateUserGroup = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To deactivate an active user group, only 'is_active' is allowed."
+          "To deactivate an active user group, only 'is_active' is allowed.",
         );
       }
     }
@@ -329,7 +329,7 @@ exports.updateUserGroup = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "To activate an inactive user group, only 'is_active' is allowed."
+          "To activate an inactive user group, only 'is_active' is allowed.",
         );
       }
 
@@ -338,7 +338,7 @@ exports.updateUserGroup = async (req, res) => {
         return errorResponse(
           res,
           403,
-          "Cannot update fields when the user group is inactive."
+          "Cannot update fields when the user group is inactive.",
         );
       }
 
@@ -359,7 +359,7 @@ exports.updateUserGroup = async (req, res) => {
           AND is_active = true
         LIMIT 1;
         `,
-        [name.trim(), builderId, id]
+        [name.trim(), builderId, id],
       );
 
       if (dupCheck.rowCount > 0) {
@@ -367,7 +367,7 @@ exports.updateUserGroup = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "A user group with this name already exists."
+          "A user group with this name already exists.",
         );
       }
     }
@@ -396,7 +396,7 @@ exports.updateUserGroup = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "One or more users are invalid or not verified."
+            "One or more users are invalid or not verified.",
           );
         }
       }
@@ -411,9 +411,13 @@ exports.updateUserGroup = async (req, res) => {
       updateValues.push(value);
     };
 
-    if (name !== undefined) push("name", name);
+    if (name !== undefined) {
+      push("name", name);
+    }
 
-    if (users_id !== undefined) push("users_id", users_id);
+    if (users_id !== undefined) {
+      push("users_id", users_id);
+    }
 
     if (statusInBody) {
       if (typeof is_active !== "boolean") {
@@ -431,7 +435,7 @@ exports.updateUserGroup = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field is required to update."
+        "At least one field is required to update.",
       );
     }
 
@@ -505,9 +509,9 @@ exports.updateUserGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateUserGroupIsActive = async (req, res) => {
+export async function updateUserGroupIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -528,7 +532,7 @@ exports.updateUserGroupIsActive = async (req, res) => {
       WHERE user_group_id = $1
         AND (builder_id = $2 OR company_id = $3)
       `,
-      [id, builderId || null, companyId || null]
+      [id, builderId || null, companyId || null],
     );
 
     if (existing.rowCount === 0) {
@@ -553,7 +557,7 @@ exports.updateUserGroupIsActive = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updated.rows[0]),
-      "User group status updated successfully."
+      "User group status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating user_group is_active:", error);
@@ -561,4 +565,4 @@ exports.updateUserGroupIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

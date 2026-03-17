@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createInvoiceSchema = Joi.object({
+export const createInvoiceSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
     "any.required": "Lead ID is required",
@@ -15,11 +15,11 @@ const createInvoiceSchema = Joi.object({
   }),
 
   invoice_date: Joi.date().optional(),
-  due_date: Joi.date().min(Joi.ref('invoice_date')).optional().messages({
+  due_date: Joi.date().min(Joi.ref("invoice_date")).optional().messages({
     "date.min": "due_date must be greater than or equal to invoice_date",
   }),
   invoice_amount: Joi.number().precision(2).optional(),
-  
+
   deposite_date: Joi.date().optional(),
   deposite_amount: Joi.number().precision(2).optional(),
   payment_method: Joi.string()
@@ -51,32 +51,32 @@ const createInvoiceSchema = Joi.object({
     }),
   });
 
-const getInvoiceByIdSchema = Joi.object({
+export const getInvoiceByIdSchema = Joi.object({
   invoice_id: Joi.string().uuid().required().messages({
     "string.guid": "Invoice ID must be a valid UUID",
     "any.required": "Invoice ID is required",
   }),
 });
 
-const getInvoicesByLeadSchema = Joi.object({
+export const getInvoicesByLeadSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
     "any.required": "Lead ID is required",
   }),
 });
 
-const updateInvoiceSchema = Joi.object({
+export const updateInvoiceSchema = Joi.object({
   status: Joi.string()
     .valid("paid", "draft", "unsent", "sent", "ready")
     .optional(),
   description: Joi.string().max(500).optional().allow(null, ""),
 
   invoice_date: Joi.date().optional(),
-  due_date: Joi.date().min(Joi.ref('invoice_date')).optional().messages({
+  due_date: Joi.date().min(Joi.ref("invoice_date")).optional().messages({
     "date.min": "due_date must be greater than or equal to invoice_date",
   }),
   invoice_amount: Joi.number().precision(2).optional(),
-  
+
   deposite_date: Joi.date().optional(),
   deposite_amount: Joi.number().precision(2).optional(),
   payment_method: Joi.string()
@@ -87,7 +87,7 @@ const updateInvoiceSchema = Joi.object({
   "object.min": "At least one field must be provided for update",
 });
 
-module.exports = {
+export default {
   createInvoiceSchema,
   getInvoiceByIdSchema,
   getInvoicesByLeadSchema,

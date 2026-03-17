@@ -1,9 +1,9 @@
-const costCenterService = require("./cost-center.service");
+import costCenterService from "./cost-center.service.js";
 
 /**
  * CREATE COST CENTER
  */
-exports.createCostCenter = async (req, res) => {
+export async function createCostCenter(req, res) {
   try {
     const { builder_id, company_id, users_id } = req.user;
     const costCenter = await costCenterService.createCostCenter(
@@ -28,12 +28,12 @@ exports.createCostCenter = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * GET ALL COST CENTERS
  */
-exports.getCostCenters = async (req, res) => {
+export async function getCostCenters(req, res) {
   try {
     const { builder_id, company_id } = req.user;
     const costCenters = await costCenterService.getCostCenters(
@@ -57,12 +57,12 @@ exports.getCostCenters = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * GET COST CENTER BY ID
  */
-exports.getCostCenterById = async (req, res) => {
+export async function getCostCenterById(req, res) {
   try {
     const { builder_id, company_id } = req.user;
     const { cost_center_id } = req.params;
@@ -88,12 +88,12 @@ exports.getCostCenterById = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * UPDATE COST CENTER
  */
-exports.updateCostCenter = async (req, res) => {
+export async function updateCostCenter(req, res) {
   try {
     const { builder_id, company_id, users_id } = req.user;
     const { cost_center_id } = req.params;
@@ -121,12 +121,12 @@ exports.updateCostCenter = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * DELETE COST CENTER
  */
-exports.deleteCostCenter = async (req, res) => {
+export async function deleteCostCenter(req, res) {
   try {
     const { builder_id, company_id } = req.user;
     const { cost_center_id } = req.params;
@@ -152,12 +152,12 @@ exports.deleteCostCenter = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * TOGGLE COST CENTER STATUS
  */
-exports.toggleCostCenterStatus = async (req, res) => {
+export async function toggleCostCenterStatus(req, res) {
   try {
     const { builder_id, company_id, users_id } = req.user;
     const { cost_center_id } = req.params;
@@ -186,12 +186,12 @@ exports.toggleCostCenterStatus = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * CREATE COST CENTER CHECKLIST MAP
  */
-exports.createCostCenterChecklistMap = async (req, res) => {
+export async function createCostCenterChecklistMap(req, res) {
   try {
     const { builder_id, company_id, users_id } = req.user;
 
@@ -217,12 +217,12 @@ exports.createCostCenterChecklistMap = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * GET ALL COST CENTER CHECKLIST MAPS
  */
-exports.getCostCenterChecklistMaps = async (req, res) => {
+export async function getCostCenterChecklistMaps(req, res) {
   try {
     const { builder_id, company_id } = req.user;
 
@@ -247,12 +247,12 @@ exports.getCostCenterChecklistMaps = async (req, res) => {
       data: null,
     });
   }
-};
+}
 
 /**
  * DELETE COST CENTER CHECKLIST MAP
  */
-exports.deleteCostCenterChecklistMap = async (req, res) => {
+export async function deleteCostCenterChecklistMap(req, res) {
   try {
     const { builder_id, company_id } = req.user;
     const { id } = req.params;
@@ -278,4 +278,4 @@ exports.deleteCostCenterChecklistMap = async (req, res) => {
       data: null,
     });
   }
-};
+}

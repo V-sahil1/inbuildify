@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createNoteTageSchema = Joi.object({
+export const createNoteTageSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -34,7 +34,7 @@ const createNoteTageSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const getAllNoteTagSchema = Joi.object({
+export const getAllNoteTagSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -49,21 +49,21 @@ const getAllNoteTagSchema = Joi.object({
   }),
 });
 
-const updateNoteTagIdParamsSchema = Joi.object({
+export const updateNoteTagIdParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Note tag ID must be a valid UUID",
     "any.required": "Note tag ID is required",
   }),
 });
 
-const deleteNoteTagSchema = Joi.object({
+export const deleteNoteTagSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Note tag ID must be a valid UUID",
     "any.required": "Note tag ID is required",
   }),
 });
 
-const updateNoteTagSchema = Joi.object({
+export const updateNoteTagSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -100,10 +100,11 @@ const updateNoteTagSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-const updateNoteTagIsActiveSchema = Joi.object({
+export const updateNoteTagIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
-module.exports = {
+
+export default {
   createNoteTageSchema,
   getAllNoteTagSchema,
   deleteNoteTagSchema,

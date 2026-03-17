@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const costTypes = ["included", "fixed", "variable"];
 const costOptions = ["none", "tba", "tbc"];
@@ -25,7 +25,7 @@ const conditionSchema = Joi.object({
     }),
 });
 
-const createMasterPriceListCategoryItemSchema = Joi.object({
+export const createMasterPriceListCategoryItemSchema = Joi.object({
   master_price_list_category_id: Joi.string().uuid().required().messages({
     "string.guid": "Category ID must be a valid UUID",
     "any.required": "Category ID is required",
@@ -83,8 +83,8 @@ const createMasterPriceListCategoryItemSchema = Joi.object({
         Joi.number(),
         Joi.boolean(),
         Joi.array().items(Joi.any()),
-        Joi.object()
-      )
+        Joi.object(),
+      ),
     )
     .default({})
     .messages({
@@ -132,7 +132,7 @@ const createMasterPriceListCategoryItemSchema = Joi.object({
       "cost_option is not allowed when cost_type is INCLUDED",
   });
 
-const updateMasterPriceListCategoryItemSchema =
+export const updateMasterPriceListCategoryItemSchema =
   createMasterPriceListCategoryItemSchema.keys({
     master_price_list_category_id: Joi.forbidden(),
     name: Joi.string().trim().min(2).max(50).optional(),
@@ -142,18 +142,18 @@ const updateMasterPriceListCategoryItemSchema =
       .optional(),
   });
 
-const getMasterPriceListCategoryItemsByCategoryIdSchema = Joi.object({
+export const getMasterPriceListCategoryItemsByCategoryIdSchema = Joi.object({
   item_type: Joi.string().optional(),
 });
 
-const deleteMasterPriceListCategoryItemSchema = Joi.object({
+export const deleteMasterPriceListCategoryItemSchema = Joi.object({
   category_item_id: Joi.string().uuid().required().messages({
     "string.guid": "Category item ID must be a valid UUID",
     "any.required": "Category item ID is required",
   }),
 });
 
-module.exports = {
+export default {
   createMasterPriceListCategoryItemSchema,
   updateMasterPriceListCategoryItemSchema,
   getMasterPriceListCategoryItemsByCategoryIdSchema,

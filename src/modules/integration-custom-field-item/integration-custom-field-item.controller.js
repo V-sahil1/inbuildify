@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createIntegrationCustomFieldItem = async (req, res) => {
+export async function createIntegrationCustomFieldItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,7 +15,7 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -50,7 +50,7 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid header1_id: not owned by this builder/company."
+        "Invalid header1_id: not owned by this builder/company.",
       );
     }
     if (header2_id) {
@@ -71,13 +71,13 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid header2_id: not owned by this builder/company."
+          "Invalid header2_id: not owned by this builder/company.",
         );
       }
     }
 
     if (assignee_user_id) {
-      const userCheckQuery = `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;`;
+      const userCheckQuery = "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;";
       const userCheckResult = await client.query(userCheckQuery, [
         assignee_user_id,
       ]);
@@ -87,7 +87,7 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid assignee_user_id: user not found."
+          "Invalid assignee_user_id: user not found.",
         );
       }
     }
@@ -133,20 +133,20 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
       if (assigneeResult.rows.length > 0) {
         assigneeDetails = {
           id: assigneeResult.rows[0].users_id,
-          name: assigneeResult.rows[0].name
+          name: assigneeResult.rows[0].name,
         };
       }
     }
 
     const responseData = {
       ...keysToCamelCase(insertResult.rows[0]),
-      assigneeUser: assigneeDetails
+      assigneeUser: assigneeDetails,
     };
 
     return successResponse(
       res,
       responseData,
-      "Integration custom field item created successfully."
+      "Integration custom field item created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -155,9 +155,9 @@ exports.createIntegrationCustomFieldItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllIntegrationCustomFieldItem = async (req, res) => {
+export async function getAllIntegrationCustomFieldItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -200,16 +200,16 @@ exports.getAllIntegrationCustomFieldItem = async (req, res) => {
           if (assigneeResult.rows.length > 0) {
             assigneeDetails = {
               id: assigneeResult.rows[0].users_id,
-              name: assigneeResult.rows[0].name
+              name: assigneeResult.rows[0].name,
             };
           }
         }
 
         return {
           ...keysToCamelCase(item),
-          assigneeUser: assigneeDetails
+          assigneeUser: assigneeDetails,
         };
-      })
+      }),
     );
 
     const countQuery = `
@@ -232,7 +232,7 @@ exports.getAllIntegrationCustomFieldItem = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Integration custom field items fetched successfully."
+      "Integration custom field items fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching integration custom field items:", error);
@@ -240,9 +240,9 @@ exports.getAllIntegrationCustomFieldItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteIntegrationCustomFieldItem = async (req, res) => {
+export async function deleteIntegrationCustomFieldItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -268,7 +268,7 @@ exports.deleteIntegrationCustomFieldItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No integration custom field item found for this builder."
+        "No integration custom field item found for this builder.",
       );
     }
 
@@ -284,7 +284,7 @@ exports.deleteIntegrationCustomFieldItem = async (req, res) => {
     return successResponse(
       res,
       null,
-      "Integration custom field item deleted successfully."
+      "Integration custom field item deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting integration custom field item:", error);
@@ -292,9 +292,9 @@ exports.deleteIntegrationCustomFieldItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateIntegrationCustomFieldItem = async (req, res) => {
+export async function updateIntegrationCustomFieldItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -308,7 +308,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -335,7 +335,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No integration custom field item found for this user."
+        "No integration custom field item found for this user.",
       );
     }
 
@@ -355,7 +355,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid header1_id. It does not belong to this builder or company."
+          "Invalid header1_id. It does not belong to this builder or company.",
         );
       }
     }
@@ -376,7 +376,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Invalid header2_id. It does not belong to this builder or company."
+          "Invalid header2_id. It does not belong to this builder or company.",
         );
       }
     }
@@ -429,7 +429,7 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE integration_custom_field_item
@@ -460,20 +460,20 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
       if (assigneeResult.rows.length > 0) {
         assigneeDetails = {
           id: assigneeResult.rows[0].users_id,
-          name: assigneeResult.rows[0].name
+          name: assigneeResult.rows[0].name,
         };
       }
     }
 
     const responseData = {
       ...keysToCamelCase(updatedItem),
-      assigneeUser: assigneeDetails
+      assigneeUser: assigneeDetails,
     };
 
     return successResponse(
       res,
       responseData,
-      "Integration custom field item updated successfully."
+      "Integration custom field item updated successfully.",
     );
   } catch (error) {
     console.error("Error updating integration custom field item:", error);
@@ -481,4 +481,4 @@ exports.updateIntegrationCustomFieldItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

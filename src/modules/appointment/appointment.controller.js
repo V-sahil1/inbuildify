@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createAppointment = async (req, res) => {
+export async function createAppointment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -158,7 +158,7 @@ exports.createAppointment = async (req, res) => {
     let locationData = [];
     if (location_id) {
       const locationQuery = await client.query(
-        `SELECT location_id, name FROM location WHERE location_id = $1`,
+        "SELECT location_id, name FROM location WHERE location_id = $1",
         [location_id],
       );
       if (locationQuery.rowCount > 0) {
@@ -174,7 +174,7 @@ exports.createAppointment = async (req, res) => {
     let selectUsersData = [];
     if (select_users && select_users.length > 0) {
       const usersQuery = await client.query(
-        `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+        "SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false",
         [select_users],
       );
       if (usersQuery.rowCount > 0) {
@@ -217,9 +217,9 @@ exports.createAppointment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllAppointments = async (req, res) => {
+export async function getAllAppointments(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -242,8 +242,8 @@ exports.getAllAppointments = async (req, res) => {
     const offset = (page - 1) * limit;
     const { title, date, location_id, link_to, is_deleted } = req.query;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
     let idx = 1;
 
     if (builderId) {
@@ -281,7 +281,7 @@ exports.getAllAppointments = async (req, res) => {
     }
 
     if (is_deleted === undefined) {
-      whereClauses.push(`a.is_deleted = false`);
+      whereClauses.push("a.is_deleted = false");
     } else {
       whereClauses.push(`a.is_deleted = $${idx}`);
       values.push(is_deleted === "true");
@@ -333,7 +333,7 @@ exports.getAllAppointments = async (req, res) => {
         let selectUsersData = [];
         if (appointment.select_users && appointment.select_users.length > 0) {
           const usersQuery = await client.query(
-            `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+            "SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false",
             [appointment.select_users],
           );
           if (usersQuery.rowCount > 0) {
@@ -364,9 +364,9 @@ exports.getAllAppointments = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteAppointment = async (req, res) => {
+export async function deleteAppointment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -426,9 +426,9 @@ exports.deleteAppointment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateAppointment = async (req, res) => {
+export async function updateAppointment(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -486,9 +486,9 @@ exports.updateAppointment = async (req, res) => {
 
     const existing = checkResult.rows[0];
 
-    let newStartTime =
+    const newStartTime =
       start_time !== undefined ? start_time : existing.start_time;
-    let newEndTime = end_time !== undefined ? end_time : existing.end_time;
+    const newEndTime = end_time !== undefined ? end_time : existing.end_time;
 
     if (start_time !== undefined && end_time === undefined) {
       if (newStartTime >= newEndTime) {
@@ -528,7 +528,7 @@ exports.updateAppointment = async (req, res) => {
 
       if (select_users.length > 0) {
         const userCheck = await client.query(
-          `SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+          "SELECT users_id FROM users WHERE users_id = ANY($1) AND is_deleted = false",
           [select_users],
         );
 
@@ -541,7 +541,7 @@ exports.updateAppointment = async (req, res) => {
 
     if (location_id !== undefined) {
       const locationCheck = await client.query(
-        `SELECT location_id FROM location WHERE location_id = $1 AND builder_id = $2`,
+        "SELECT location_id FROM location WHERE location_id = $1 AND builder_id = $2",
         [location_id, builderId],
       );
       if (locationCheck.rowCount === 0) {
@@ -552,7 +552,7 @@ exports.updateAppointment = async (req, res) => {
 
     if (location_id !== undefined) {
       const locationActiveCheck = await client.query(
-        `SELECT location_id FROM location WHERE location_id = $1 AND status = true AND builder_id = $2`,
+        "SELECT location_id FROM location WHERE location_id = $1 AND status = true AND builder_id = $2",
         [location_id, builderId],
       );
       if (locationActiveCheck.rowCount === 0) {
@@ -627,7 +627,7 @@ exports.updateAppointment = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     fields.push(`updated_by = $${index}`);
     values.push(user_id);
     index++;
@@ -673,7 +673,7 @@ exports.updateAppointment = async (req, res) => {
 
     if (locationIdToLookup) {
       const locationQuery = await client.query(
-        `SELECT location_id, name FROM location WHERE location_id = $1`,
+        "SELECT location_id, name FROM location WHERE location_id = $1",
         [locationIdToLookup],
       );
       if (locationQuery.rowCount > 0) {
@@ -694,7 +694,7 @@ exports.updateAppointment = async (req, res) => {
         : updatedAppointment.select_users;
     if (selectUsersToLookup && selectUsersToLookup.length > 0) {
       const usersQuery = await client.query(
-        `SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false`,
+        "SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false",
         [selectUsersToLookup],
       );
       if (usersQuery.rowCount > 0) {
@@ -742,9 +742,9 @@ exports.updateAppointment = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.searchUserBuilderTables = async (req, res) => {
+export async function searchUserBuilderTables(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -821,7 +821,7 @@ exports.searchUserBuilderTables = async (req, res) => {
       {
         userName: foundUser.name,
         builderId: userBuilderId,
-        existingTables: existingTables,
+        existingTables,
         searchTerm: search,
       },
       "User builder table existence checked successfully.",
@@ -836,4 +836,4 @@ exports.searchUserBuilderTables = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

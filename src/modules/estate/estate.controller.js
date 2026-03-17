@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-exports.createEstate = async (req, res) => {
+export async function createEstate(req, res) {
   const {
     name,
     street_name,
@@ -43,7 +43,7 @@ exports.createEstate = async (req, res) => {
 
     if (state_id) {
       const stateCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1`,
+        "SELECT state_id FROM state WHERE state_id = $1",
         [state_id],
       );
 
@@ -55,7 +55,7 @@ exports.createEstate = async (req, res) => {
 
     if (country_id) {
       const countryCheck = await client.query(
-        `SELECT country_id FROM country WHERE country_id = $1`,
+        "SELECT country_id FROM country WHERE country_id = $1",
         [country_id],
       );
 
@@ -113,9 +113,9 @@ exports.createEstate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllEstate = async (req, res) => {
+export async function getAllEstate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -129,7 +129,7 @@ exports.getAllEstate = async (req, res) => {
     const limitNum = parseInt(limit, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    let whereClause = `WHERE e.builder_id = $1 AND e.company_id = $2`;
+    let whereClause = "WHERE e.builder_id = $1 AND e.company_id = $2";
     const values = [builderId, companyId];
     let paramIndex = 3;
 
@@ -192,9 +192,9 @@ exports.getAllEstate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteEstate = async (req, res) => {
+export async function deleteEstate(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -248,9 +248,9 @@ exports.deleteEstate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateEstate = async (req, res) => {
+export async function updateEstate(req, res) {
   const { estate_id } = req.params;
 
   let body = req.body;
@@ -305,8 +305,12 @@ exports.updateEstate = async (req, res) => {
     let requestedStatus = status;
 
     if (statusInBody) {
-      if (requestedStatus === "true") requestedStatus = true;
-      if (requestedStatus === "false") requestedStatus = false;
+      if (requestedStatus === "true") {
+        requestedStatus = true;
+      }
+      if (requestedStatus === "false") {
+        requestedStatus = false;
+      }
 
       if (typeof requestedStatus !== "boolean") {
         await client.query("ROLLBACK");
@@ -386,7 +390,7 @@ exports.updateEstate = async (req, res) => {
 
     if (state_id) {
       const sCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1`,
+        "SELECT state_id FROM state WHERE state_id = $1",
         [state_id],
       );
       if (sCheck.rowCount === 0) {
@@ -397,7 +401,7 @@ exports.updateEstate = async (req, res) => {
 
     if (country_id) {
       const cCheck = await client.query(
-        `SELECT country_id FROM country WHERE country_id = $1`,
+        "SELECT country_id FROM country WHERE country_id = $1",
         [country_id],
       );
       if (cCheck.rowCount === 0) {
@@ -414,12 +418,14 @@ exports.updateEstate = async (req, res) => {
       await deleteFromS3(oldData.estate_logo);
     }
 
-    let updateFields = [];
-    let updateValues = [];
+    const updateFields = [];
+    const updateValues = [];
     let idx = 1;
 
     const push = (column, value, isString = false) => {
-      if (!Object.prototype.hasOwnProperty.call(body, column)) return;
+      if (!Object.prototype.hasOwnProperty.call(body, column)) {
+        return;
+      }
 
       let finalValue = value;
       if (isString && typeof finalValue === "string") {
@@ -440,9 +446,12 @@ exports.updateEstate = async (req, res) => {
     push("website", website, true);
     push("description", description, true);
     push("featured", featured);
-    if (statusInBody) push("status", requestedStatus);
-    if (Object.prototype.hasOwnProperty.call(body, "estate_logo"))
+    if (statusInBody) {
+      push("status", requestedStatus);
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "estate_logo")) {
       push("estate_logo", estate_logo);
+    }
 
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
@@ -480,4 +489,4 @@ exports.updateEstate = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,18 +1,15 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  getCompany,
-  upsertCompany,
-} = require("./company.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-const { upsertCompanySchema } = require("./company.validation");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload");
+import { getCompany, upsertCompany } from "./company.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { upsertCompanySchema } from "./company.validation.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -44,4 +41,4 @@ router.post(
   upsertCompany,
 );
 
-module.exports = router;
+export default router;

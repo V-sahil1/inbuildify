@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.getJobProcessStageFunctionalities = async (req, res) => {
+export async function getJobProcessStageFunctionalities(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -18,7 +18,7 @@ exports.getJobProcessStageFunctionalities = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Job process stage functionalities fetched successfully."
+      "Job process stage functionalities fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching job process stage functionalities:", error);
@@ -26,4 +26,4 @@ exports.getJobProcessStageFunctionalities = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

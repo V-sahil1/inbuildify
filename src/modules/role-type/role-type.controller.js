@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
-exports.createRoleType = async (req, res) => {
+export async function createRoleType(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -63,7 +63,7 @@ exports.createRoleType = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Role type created successfully"
+      "Role type created successfully",
     );
   } catch (error) {
     console.error("Error creating role type:", error);
@@ -71,9 +71,9 @@ exports.createRoleType = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getRoleTypes = async (req, res) => {
+export async function getRoleTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -90,8 +90,8 @@ exports.getRoleTypes = async (req, res) => {
 
     if (role) {
       const roleCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = $1 LIMIT 1`,
-        [role]
+        "SELECT role_id FROM role WHERE role_id = $1 LIMIT 1",
+        [role],
       );
 
       if (roleCheck.rowCount === 0) {
@@ -138,7 +138,7 @@ exports.getRoleTypes = async (req, res) => {
           totalPages: Math.ceil(countResult.rows[0].total / limitValue),
         },
       },
-      "Role types fetched successfully"
+      "Role types fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching role types:", error);
@@ -146,9 +146,9 @@ exports.getRoleTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllRoleTypes = async (req, res) => {
+export async function getAllRoleTypes(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -187,7 +187,7 @@ exports.getAllRoleTypes = async (req, res) => {
           totalPages: Math.ceil(countResult.rows[0].total / limitValue),
         },
       },
-      "Role types fetched successfully"
+      "Role types fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching role types:", error);
@@ -195,4 +195,4 @@ exports.getAllRoleTypes = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

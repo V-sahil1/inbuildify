@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createTemplateEmailSignature = async (req, res) => {
+export async function createTemplateEmailSignature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -78,9 +78,9 @@ exports.createTemplateEmailSignature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getTemplateEmailSignature = async (req, res) => {
+export async function getTemplateEmailSignature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -124,9 +124,9 @@ exports.getTemplateEmailSignature = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTemplateEmailSignature = async (req, res) => {
+export async function updateTemplateEmailSignature(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -215,4 +215,4 @@ RETURNING include_email_signature, signature_content;
   } finally {
     client.release();
   }
-};
+}

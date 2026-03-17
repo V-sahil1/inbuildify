@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createConstructionStageSchema = Joi.object({
+export const createConstructionStageSchema = Joi.object({
   builder: Joi.string().uuid().required().messages({
     "string.guid": "builder ID must be a valid UUID",
     "any.required": "builder ID is required",
@@ -46,7 +46,7 @@ const createConstructionStageSchema = Joi.object({
     }),
 });
 
-const getAllConstructionStageSchema = Joi.object({
+export const getAllConstructionStageSchema = Joi.object({
   builder: Joi.string().uuid().optional().messages({
     "string.guid": "builder ID must be a valid UUID",
   }),
@@ -56,19 +56,19 @@ const getAllConstructionStageSchema = Joi.object({
   }),
 });
 
-const deleteConstructionStageSchema = Joi.object({
+export const deleteConstructionStageSchema = Joi.object({
   construction_stage: Joi.string().uuid().optional().messages({
     "string.guid": "construction stage ID must be a valid UUID",
   }),
 });
 
-const updateConstructionStageParamsSchema = Joi.object({
+export const updateConstructionStageParamsSchema = Joi.object({
   construction_stage: Joi.string().uuid().optional().messages({
     "string.guid": "construction stage ID must be a valid UUID",
   }),
 });
 
-const updateConstructionStageSchema = Joi.object({
+export const updateConstructionStageSchema = Joi.object({
   stage_name: Joi.string()
     .trim()
     .min(2)
@@ -104,7 +104,8 @@ const updateConstructionStageSchema = Joi.object({
         "Enter valid font color in HEX format (e.g., #FFF453)",
     }),
 });
-module.exports = {
+
+export default {
   createConstructionStageSchema,
   getAllConstructionStageSchema,
   deleteConstructionStageSchema,

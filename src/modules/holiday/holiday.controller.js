@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createHoliday = async (req, res) => {
+export async function createHoliday(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -152,9 +152,9 @@ exports.createHoliday = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllHolidays = async (req, res) => {
+export async function getAllHolidays(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -170,7 +170,7 @@ exports.getAllHolidays = async (req, res) => {
       );
     }
 
-    let { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10 } = req.query;
     const pageValue = parseInt(page) || 1;
     const limitValue = parseInt(limit) || 10;
     const offset = (pageValue - 1) * limitValue;
@@ -184,8 +184,8 @@ exports.getAllHolidays = async (req, res) => {
       year,
     } = req.query;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
     let index = 1;
 
     whereClauses.push(
@@ -237,7 +237,7 @@ exports.getAllHolidays = async (req, res) => {
     }
 
     const whereSQL = whereClauses.length
-      ? "WHERE " + whereClauses.join(" AND ")
+      ? `WHERE ${ whereClauses.join(" AND ")}`
       : "";
 
     const countResult = await client.query(
@@ -308,9 +308,9 @@ exports.getAllHolidays = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteHoliday = async (req, res) => {
+export async function deleteHoliday(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -359,9 +359,9 @@ exports.deleteHoliday = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.toggleHolidayStatus = async (req, res) => {
+export async function toggleHolidayStatus(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -448,9 +448,9 @@ exports.toggleHolidayStatus = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateHoliday = async (req, res) => {
+export async function updateHoliday(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -515,7 +515,7 @@ exports.updateHoliday = async (req, res) => {
       const stateArray = typeof state === "string" ? state.split(",") : state;
 
       const stateCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = ANY($1::uuid[])`,
+        "SELECT state_id FROM state WHERE state_id = ANY($1::uuid[])",
         [stateArray],
       );
 
@@ -590,7 +590,7 @@ exports.updateHoliday = async (req, res) => {
     fields.push(`updated_by = $${paramIndex++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE holiday
@@ -646,4 +646,4 @@ exports.updateHoliday = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

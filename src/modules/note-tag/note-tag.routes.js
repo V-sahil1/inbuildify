@@ -1,28 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createNotesTag,
   getAllNoteTag,
   deleteNoteTag,
   updateNoteTag,
   updateNoteTagIsActive,
-} = require("./note-tag.controller.js");
-const {
+} from "./note-tag.controller.js";
+import {
   createNoteTageSchema,
   getAllNoteTagSchema,
   deleteNoteTagSchema,
   updateNoteTagIdParamsSchema,
   updateNoteTagSchema,
   updateNoteTagIsActiveSchema,
-} = require("./note-tag.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./note-tag.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,33 +30,33 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createNoteTageSchema, REQUEST_SOURCE.BODY),
-  createNotesTag
+  createNotesTag,
 );
 
 router.get(
   "/",
   validateRequest(getAllNoteTagSchema, REQUEST_SOURCE.PARAMS),
-  getAllNoteTag
+  getAllNoteTag,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteNoteTagSchema, REQUEST_SOURCE.PARAMS),
-  deleteNoteTag
+  deleteNoteTag,
 );
 
 router.put(
   "/:id",
   validateRequest(updateNoteTagIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateNoteTagSchema, REQUEST_SOURCE.BODY),
-  updateNoteTag
+  updateNoteTag,
 );
 
 router.put(
   "/is-active/:id",
   validateRequest(updateNoteTagIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateNoteTagIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateNoteTagIsActive
+  updateNoteTagIsActive,
 );
 
-module.exports = router;
+export default router;

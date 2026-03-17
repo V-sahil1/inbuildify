@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createContractSectionSchema = Joi.object({
+export const createContractSectionSchema = Joi.object({
   contract_format_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_format_id must be a valid UUID.",
     "any.required": "contract_format_id is required.",
@@ -30,7 +30,7 @@ const createContractSectionSchema = Joi.object({
     .optional(),
 });
 
-const getAllContractSectionsSchema = Joi.object({
+export const getAllContractSectionsSchema = Joi.object({
   page: Joi.number().integer().min(1).optional().default(1).messages({
     "number.base": "page must be a number.",
     "number.integer": "page must be an integer.",
@@ -56,21 +56,21 @@ const getAllContractSectionsSchema = Joi.object({
   }),
 });
 
-const getContractSectionByIdSchema = Joi.object({
+export const getContractSectionByIdSchema = Joi.object({
   contract_section_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_section_id must be a valid UUID.",
     "any.required": "contract_section_id is required.",
   }),
 });
 
-const updateContractSectionParamsSchema = Joi.object({
+export const updateContractSectionParamsSchema = Joi.object({
   contract_section_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_section_id must be a valid UUID.",
     "any.required": "contract_section_id is required.",
   }),
 });
 
-const updateContractSectionSchema = Joi.object({
+export const updateContractSectionSchema = Joi.object({
   section_name: Joi.string()
     .min(1)
     .max(255)
@@ -99,14 +99,14 @@ const updateContractSectionSchema = Joi.object({
     "object.min": "At least one field must be provided for update.",
   });
 
-const deleteContractSectionSchema = Joi.object({
+export const deleteContractSectionSchema = Joi.object({
   contract_section_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_section_id must be a valid UUID.",
     "any.required": "contract_section_id is required.",
   }),
 });
 
-module.exports = {
+export default {
   createContractSectionSchema,
   getAllContractSectionsSchema,
   getContractSectionByIdSchema,

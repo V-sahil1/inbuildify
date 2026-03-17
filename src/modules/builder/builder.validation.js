@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const addressSchema = Joi.object({
   address_line1: Joi.string()
@@ -90,7 +90,7 @@ const insurerSchema = Joi.object({
   }),
 });
 
-const upsertBuilderSchema = Joi.object({
+export const upsertBuilderSchema = Joi.object({
   company_id: Joi.string().uuid().messages({
     "string.guid": "Company ID must be a valid UUID",
     "any.required": "Company ID is required",
@@ -174,4 +174,4 @@ const upsertBuilderSchema = Joi.object({
   insurer: insurerSchema.optional(),
 }).min(1);
 
-module.exports = { upsertBuilderSchema };
+export default { upsertBuilderSchema };

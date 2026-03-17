@@ -1,5 +1,5 @@
-const invoiceRepository = require("./invoice.repository");
-const leadsRepository = require("../lead/leads.repository");
+import invoiceRepository from "./invoice.repository.js";
+import leadsRepository from "../lead/leads.repository.js";
 
 class InvoiceService {
   async createInvoice(invoiceData, builderId, companyId) {
@@ -15,7 +15,7 @@ class InvoiceService {
       const count = await invoiceRepository.countInvoicesByLead(invoiceData.leads_id);
       const invoiceNumber = count + 1;
 
-      const leadRef = lead.referenceNumber || lead.refrenceNumber || `LD-UNKNOWN`;
+      const leadRef = lead.referenceNumber || lead.refrenceNumber || "LD-UNKNOWN";
       const invoiceReferenceNumber = `${leadRef}-I${invoiceNumber}`;
 
       const invoiceDataWithRef = {
@@ -174,4 +174,4 @@ class InvoiceService {
   }
 }
 
-module.exports = new InvoiceService();
+export default new InvoiceService();

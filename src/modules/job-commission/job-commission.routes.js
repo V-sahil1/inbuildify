@@ -1,25 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createJobCommission,
   getAllJobCommissions,
   deleteJobCommission,
   updateJobCommission,
-} = require("./job-commission.controller.js");
-const {
+} from "./job-commission.controller.js";
+import {
   createJobCommissionSchema,
   getAllJobCommissionsSchema,
   deleteJobCommissionSchema,
   updateJobCommissionParamsSchema,
   updateJobCommissionSchema,
-} = require("./job-commission.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./job-commission.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,26 +28,26 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createJobCommissionSchema, REQUEST_SOURCE.BODY),
-  createJobCommission
+  createJobCommission,
 );
 
 router.get(
   "/",
   validateRequest(getAllJobCommissionsSchema, REQUEST_SOURCE.QUERY),
-  getAllJobCommissions
+  getAllJobCommissions,
 );
 
 router.delete(
   "/:job_commission_id",
   validateRequest(deleteJobCommissionSchema, REQUEST_SOURCE.PARAMS),
-  deleteJobCommission
+  deleteJobCommission,
 );
 
 router.put(
   "/:job_commission_id",
   validateRequest(updateJobCommissionParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateJobCommissionSchema, REQUEST_SOURCE.BODY),
-  updateJobCommission
+  updateJobCommission,
 );
 
-module.exports = router;
+export default router;

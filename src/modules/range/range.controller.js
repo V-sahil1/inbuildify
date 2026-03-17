@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-exports.getAllRanges = async (req, res) => {
+export async function getAllRanges(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -31,9 +31,9 @@ exports.getAllRanges = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createRange = async (req, res) => {
+export async function createRange(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -42,7 +42,7 @@ exports.createRange = async (req, res) => {
     const companyId = req.user?.company_id;
     const createdBy = req.user?.user_id;
 
-    let { name, user_id, sort_order, bg_color, font_color, is_active } =
+    const { name, user_id, sort_order, bg_color, font_color, is_active } =
       req.body;
 
     const logo_image = req.files?.logoUrl?.[0]?.location || null;
@@ -91,7 +91,7 @@ exports.createRange = async (req, res) => {
     }
 
     const dupCheck = await client.query(
-      `SELECT range_id FROM range WHERE builder_id = $1 AND LOWER(name) = LOWER($2)`,
+      "SELECT range_id FROM range WHERE builder_id = $1 AND LOWER(name) = LOWER($2)",
       [builderId, name],
     );
 
@@ -186,9 +186,9 @@ exports.createRange = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRange = async (req, res) => {
+export async function updateRange(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -210,7 +210,7 @@ exports.updateRange = async (req, res) => {
     await client.query("BEGIN");
 
     const rangeCheck = await client.query(
-      `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2`,
+      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
       [range_id, builderId],
     );
 
@@ -220,7 +220,7 @@ exports.updateRange = async (req, res) => {
     }
 
     const rangeActiveCheck = await client.query(
-      `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true`,
+      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true",
       [range_id, builderId],
     );
 
@@ -233,28 +233,19 @@ exports.updateRange = async (req, res) => {
 
     if (user_id) {
       try {
-        //  JSON array string → '["id1","id2"]'
         if (typeof user_id === "string" && user_id.trim().startsWith("[")) {
           user_id = JSON.parse(user_id);
-        }
-        //  "{id}" or '{"id"}'
-        else if (
+        } else if (
           typeof user_id === "string" &&
           user_id.startsWith("{") &&
           user_id.endsWith("}")
         ) {
           user_id = [user_id.replace(/[{}"]/g, "")];
-        }
-        //  CSV
-        else if (typeof user_id === "string" && user_id.includes(",")) {
+        } else if (typeof user_id === "string" && user_id.includes(",")) {
           user_id = user_id.split(",").map((x) => x.trim());
-        }
-        //  Single string UUID
-        else if (typeof user_id === "string") {
+        } else if (typeof user_id === "string") {
           user_id = [user_id.trim()];
-        }
-        // Already array
-        else if (!Array.isArray(user_id)) {
+        } else if (!Array.isArray(user_id)) {
           return errorResponse(res, 400, "Invalid user_id format.");
         }
       } catch (e) {
@@ -264,7 +255,7 @@ exports.updateRange = async (req, res) => {
 
     if (user_id && user_id.length > 0) {
       const userCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false`,
+        "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
         [user_id],
       );
 
@@ -372,7 +363,7 @@ exports.updateRange = async (req, res) => {
       values.push(font_color);
     }
 
-    let updatedLogoUrl = existingRange.logo_url;
+    const updatedLogoUrl = existingRange.logo_url;
     if (logo_image !== undefined) {
       if (!logo_image) {
         fields.push(`logo_url = $${i++}`);
@@ -386,7 +377,7 @@ exports.updateRange = async (req, res) => {
       }
     }
 
-    let updatedHeaderUrl = existingRange.header_url;
+    const updatedHeaderUrl = existingRange.header_url;
     if (header_image !== undefined) {
       if (!header_image) {
         fields.push(`header_url = $${i++}`);
@@ -411,7 +402,7 @@ exports.updateRange = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE range
@@ -443,9 +434,9 @@ exports.updateRange = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteRange = async (req, res) => {
+export async function deleteRange(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -453,7 +444,7 @@ exports.deleteRange = async (req, res) => {
   const builderId = req.user.builder_id;
   try {
     const checkRangeExists = await client.query(
-      `SELECT * FROM range WHERE range_id = $1 AND builder_id = $2`,
+      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
       [range_id, builderId],
     );
     if (checkRangeExists.rowCount === 0) {
@@ -483,11 +474,11 @@ exports.deleteRange = async (req, res) => {
     await client.query(updatePackagesQuery, [range_id]);
 
     // Delete the range
-    const query = `DELETE FROM range WHERE range_id = $1 AND builder_id = $2`;
+    const query = "DELETE FROM range WHERE range_id = $1 AND builder_id = $2";
     const result = await client.query(query, [range_id, builderId]);
 
     await client.query(
-      `UPDATE range SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2`,
+      "UPDATE range SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
       [deletedSortOrder, builderId],
     );
 
@@ -505,9 +496,9 @@ exports.deleteRange = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateRangeActive = async (req, res) => {
+export async function updateRangeActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -570,4 +561,4 @@ exports.updateRangeActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

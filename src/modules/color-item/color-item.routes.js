@@ -1,7 +1,8 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createColorItem,
   getAllColorItems,
   getColorItemById,
@@ -11,8 +12,8 @@ const {
   colorItemMove,
   copyColorItem,
   getColorItemsWithoutCategory,
-} = require("./color-item.controller.js");
-const {
+} from "./color-item.controller.js";
+import {
   createColorItemSchema,
   getAllColorItemsSchema,
   getColorItemsWithoutCategorySchema,
@@ -22,19 +23,13 @@ const {
   deleteImageFieldSchema,
   colorItemMoveSchema,
   copyColorItemSchema,
-} = require("./color-item.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const {
-  createUpload,
-  createImageOrPdfUpload,
-  handleMulterError,
-} = require("../../utils/s3Upload.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./color-item.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createUpload, createImageOrPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -117,4 +112,4 @@ router.post(
   copyColorItem,
 );
 
-module.exports = router;
+export default router;

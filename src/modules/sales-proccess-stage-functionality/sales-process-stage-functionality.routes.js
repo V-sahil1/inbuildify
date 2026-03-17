@@ -1,19 +1,17 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  getSalesProcessStageFunctionalities,
-} = require("./sales-process-stage-functionality.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
+import { getSalesProcessStageFunctionalities } from "./sales-process-stage-functionality.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
 router.get(
   "/",
-  getSalesProcessStageFunctionalities
+  getSalesProcessStageFunctionalities,
 );
 
-module.exports = router;
+export default router;

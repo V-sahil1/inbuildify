@@ -1,30 +1,29 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createHouseLandPackage,
   getAllHouseLandPackages,
   getHouseLandPackageById,
   updateHouseLandPackage,
   deleteHouseLandPackage,
   getHouseLandPackageDetailedInfo,
-} = require("./house-land-package.controller.js");
-
-const {
+} from "./house-land-package.controller.js";
+import {
   createHouseLandPackageSchema,
   updateHouseLandPackageSchema,
   getHouseLandPackageByIdSchema,
   deleteHouseLandPackageSchema,
   getAllHouseLandPackagesSchema,
   getHouseLandPackageDetailedInfoSchema,
-} = require("./house-land-package.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { createImageOrPdfUpload, handleMulterError, createPdfUpload } = require("../../utils/s3Upload.js");
+} from "./house-land-package.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createImageOrPdfUpload, handleMulterError, createPdfUpload } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -59,7 +58,7 @@ router.get(
 router.put(
   "/:house_land_package_id",
   upload.fields([
-    { name: "attachFiles", maxCount: 10},
+    { name: "attachFiles", maxCount: 10 },
   ]),
   handleMulterError,
   camelToSnakeMiddleware,
@@ -74,4 +73,4 @@ router.delete(
   deleteHouseLandPackage,
 );
 
-module.exports = router;
+export default router;

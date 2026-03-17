@@ -1,7 +1,7 @@
 /**
  * Seed default sales_module_settings for a new builder
  */
-async function seedSalesModuleSettings({ company_id, builder_id, created_by, client }) {
+export async function seedSalesModuleSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO sales_module_settings (
       company_id, builder_id,
@@ -11,8 +11,8 @@ async function seedSalesModuleSettings({ company_id, builder_id, created_by, cli
       created_by, updated_by
     ) VALUES ($1, $2, false, true, true, 'email_and_phone', 'Mark as Won', 'sq_m2', $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedSalesModuleSettings };
+export default { seedSalesModuleSettings };

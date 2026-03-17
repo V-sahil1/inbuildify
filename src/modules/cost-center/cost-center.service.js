@@ -1,10 +1,10 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /**
  * CREATE COST CENTER
  */
-async function createCostCenter(payload, builderId, companyId, userId) {
+export async function createCostCenter(payload, builderId, companyId, userId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -101,11 +101,11 @@ async function createCostCenter(payload, builderId, companyId, userId) {
 /**
  * GET ALL COST CENTERS
  */
-async function getCostCenters(builderId, companyId, filters = {}) {
+export async function getCostCenters(builderId, companyId, filters = {}) {
   const pool = getPool();
 
   let whereClause = "WHERE (company_id = $1 OR builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (filters.code) {
@@ -152,7 +152,7 @@ async function getCostCenters(builderId, companyId, filters = {}) {
 /**
  * GET COST CENTER BY ID
  */
-async function getCostCenterById(costCenterId, builderId, companyId) {
+export async function getCostCenterById(costCenterId, builderId, companyId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -175,7 +175,7 @@ async function getCostCenterById(costCenterId, builderId, companyId) {
 /**
  * UPDATE COST CENTER
  */
-async function updateCostCenter(
+export async function updateCostCenter(
   costCenterId,
   payload,
   builderId,
@@ -312,7 +312,7 @@ async function updateCostCenter(
 
     updateFields.push(`updated_by = $${paramIndex++}`);
     updateValues.push(userId);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     if (updateFields.length === 0) {
       throw new Error("No fields to update");
@@ -349,7 +349,7 @@ async function updateCostCenter(
 /**
  * DELETE COST CENTER
  */
-async function deleteCostCenter(costCenterId, builderId, companyId) {
+export async function deleteCostCenter(costCenterId, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -412,7 +412,7 @@ async function deleteCostCenter(costCenterId, builderId, companyId) {
 /**
  * TOGGLE COST CENTER STATUS
  */
-async function toggleCostCenterStatus(
+export async function toggleCostCenterStatus(
   costCenterId,
   builderId,
   companyId,
@@ -465,7 +465,7 @@ async function toggleCostCenterStatus(
 /**
  * CREATE COST CENTER CHECKLIST MAP
  */
-async function createCostCenterChecklistMap(
+export async function createCostCenterChecklistMap(
   payload,
   builderId,
   companyId,
@@ -558,11 +558,11 @@ async function createCostCenterChecklistMap(
 /**
  * GET ALL COST CENTER CHECKLIST MAPS
  */
-async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
+export async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
   const pool = getPool();
 
   let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (filters.cost_center_id) {
@@ -605,7 +605,7 @@ async function getCostCenterChecklistMaps(builderId, companyId, filters = {}) {
 /**
  * DELETE COST CENTER CHECKLIST MAP
  */
-async function deleteCostCenterChecklistMap(id, builderId, companyId) {
+export async function deleteCostCenterChecklistMap(id, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -645,7 +645,7 @@ async function deleteCostCenterChecklistMap(id, builderId, companyId) {
   }
 }
 
-module.exports = {
+export default {
   createCostCenter,
   getCostCenters,
   getCostCenterById,

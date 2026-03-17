@@ -1,8 +1,10 @@
-const { buildDynamicUpdate } = require("../../utils/buildDynamicUpdate");
-const { ADDRESS_UPDATE_FIELDS } = require("../../constants/updateFields");
+import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate.js";
+import { ADDRESS_UPDATE_FIELDS } from "../../constants/updateFields.js";
 
-async function upsertAddress(client, existingAddressId, addressPayload) {
-  if (!addressPayload) return null;
+export async function upsertAddress(client, existingAddressId, addressPayload) {
+  if (!addressPayload) {
+    return null;
+  }
 
   // 🔹 INSERT (no existing address)
   if (!existingAddressId) {
@@ -21,7 +23,7 @@ async function upsertAddress(client, existingAddressId, addressPayload) {
         addressPayload.state_id,
         addressPayload.country_id,
         addressPayload.zip_code,
-      ]
+      ],
     );
 
     return result.rows[0].address_id;
@@ -43,4 +45,4 @@ async function upsertAddress(client, existingAddressId, addressPayload) {
   return existingAddressId;
 }
 
-module.exports = { upsertAddress };
+export default { upsertAddress };

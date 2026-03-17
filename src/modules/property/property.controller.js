@@ -1,10 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const addressRepo = require("../../repositories/address.repository");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import addressRepo from "../../repositories/address.repository.js";
 
-
-exports.createProperty = async (req, res) => {
+export async function createProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -108,6 +107,10 @@ exports.createProperty = async (req, res) => {
       [propertyDetailId, leads_id]
     );
 
+    await client.query(
+      `UPDATE leads SET status = 'Working', updated_at = CURRENT_TIMESTAMP WHERE leads_id = $1 AND status = 'New'`,
+      [leads_id]
+    );
     await client.query("COMMIT");
 
     // Re-fetch with state/country/estate names
@@ -127,7 +130,7 @@ exports.createProperty = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property created successfully"
+      "Property created successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -136,9 +139,9 @@ exports.createProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getPropertyByLeadId = async (req, res) => {
+export async function getPropertyByLeadId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -176,7 +179,7 @@ exports.getPropertyByLeadId = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property fetched successfully"
+      "Property fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching property:", error);
@@ -184,9 +187,9 @@ exports.getPropertyByLeadId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateProperty = async (req, res) => {
+export async function updateProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -325,7 +328,7 @@ exports.updateProperty = async (req, res) => {
     return successResponse(
       res,
       formatted,
-      "Property updated successfully"
+      "Property updated successfully",
     );
   } catch (error) {
     console.error("Error updating property:", error);
@@ -333,9 +336,9 @@ exports.updateProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllProperties = async (req, res) => {
+export async function getAllProperties(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -349,8 +352,8 @@ exports.getAllProperties = async (req, res) => {
 
     const { search } = req.query;
 
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     whereConditions.push(`(
@@ -391,7 +394,7 @@ exports.getAllProperties = async (req, res) => {
     return successResponse(
       res,
       formattedData,
-      "Properties fetched successfully"
+      "Properties fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching properties:", error);
@@ -399,8 +402,9 @@ exports.getAllProperties = async (req, res) => {
   } finally {
     client.release();
   }
-};
-exports.deleteProperty = async (req, res) => {
+}
+
+export async function deleteProperty(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -451,4 +455,4 @@ exports.deleteProperty = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

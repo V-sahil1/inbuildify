@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createLeadContactMap = async (req, res) => {
+export async function createLeadContactMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -20,7 +20,7 @@ exports.createLeadContactMap = async (req, res) => {
         (builder_id = $2 AND $2 IS NOT NULL)
         OR (company_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [leads_id, builderId, companyId]
+      [leads_id, builderId, companyId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -41,7 +41,7 @@ exports.createLeadContactMap = async (req, res) => {
        JOIN role r ON u.role_id = r.role_id
        LEFT JOIN address a ON a.address_id = u.address_id
        WHERE u.users_id = $1 AND u.is_deleted = false LIMIT 1`,
-      [contact_id]
+      [contact_id],
     );
 
     if (contactCheck.rowCount === 0) {
@@ -57,8 +57,8 @@ exports.createLeadContactMap = async (req, res) => {
     }
 
     const duplicateCheck = await client.query(
-      `SELECT id FROM leads_contact_map WHERE leads_id = $1 AND contact_id = $2 LIMIT 1`,
-      [leads_id, contact_id]
+      "SELECT id FROM leads_contact_map WHERE leads_id = $1 AND contact_id = $2 LIMIT 1",
+      [leads_id, contact_id],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -68,13 +68,13 @@ exports.createLeadContactMap = async (req, res) => {
     const result = await client.query(
       `INSERT INTO leads_contact_map (leads_id, contact_id)
        VALUES ($1, $2) RETURNING *`,
-      [leads_id, contact_id]
+      [leads_id, contact_id],
     );
 
     const contact = contactCheck.rows[0];
     const rawResult = result.rows[0];
     const { created_at, updated_at, ...restResult } = rawResult;
-    
+
     const responseData = keysToCamelCase({
       ...restResult,
       users_id: contact.users_id,
@@ -90,8 +90,8 @@ exports.createLeadContactMap = async (req, res) => {
       address: contact.address,
       contact_created_at: contact.created_at,
       contact_updated_at: contact.updated_at,
-      created_at: created_at,
-      updated_at: updated_at
+      created_at,
+      updated_at,
     });
 
     return successResponse(res, responseData, 201, "Contact mapped to lead successfully");
@@ -101,9 +101,9 @@ exports.createLeadContactMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getContactsByLeadId = async (req, res) => {
+export async function getContactsByLeadId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -121,7 +121,7 @@ exports.getContactsByLeadId = async (req, res) => {
         (builder_id = $2 AND $2 IS NOT NULL)
         OR (company_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
-      [leads_id, builderId, companyId]
+      [leads_id, builderId, companyId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -148,7 +148,7 @@ exports.getContactsByLeadId = async (req, res) => {
        LEFT JOIN address a ON a.address_id = u.address_id
        WHERE m.leads_id = $1
        ORDER BY m.created_at ASC`,
-      [leads_id]
+      [leads_id],
     );
 
     const formattedData = result.rows.map(row => {
@@ -157,9 +157,9 @@ exports.getContactsByLeadId = async (req, res) => {
         contact_users_id, contact_name, contact_email, contact_phone,
         contact_secondary_phone, contact_remark, contact_role_id,
         contact_address_id, contact_has_login, contact_is_active,
-        contact_created_at, contact_updated_at, contact_address
+        contact_created_at, contact_updated_at, contact_address,
       } = row;
-      
+
       return keysToCamelCase({
         id, leads_id, contact_id,
         users_id: contact_users_id,
@@ -173,10 +173,10 @@ exports.getContactsByLeadId = async (req, res) => {
         has_login: contact_has_login,
         is_active: contact_is_active,
         address: contact_address,
-        contact_created_at: contact_created_at,
-        contact_updated_at: contact_updated_at,
-        created_at: created_at,
-        updated_at: updated_at
+        contact_created_at,
+        contact_updated_at,
+        created_at,
+        updated_at,
       });
     });
 
@@ -191,9 +191,9 @@ exports.getContactsByLeadId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLeadContactMap = async (req, res) => {
+export async function deleteLeadContactMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -213,7 +213,7 @@ exports.deleteLeadContactMap = async (req, res) => {
          (l.builder_id = $2 AND $2 IS NOT NULL)
          OR (l.company_id = $3 AND $3 IS NOT NULL)
        ) LIMIT 1`,
-      [id, builderId, companyId]
+      [id, builderId, companyId],
     );
 
     if (checkResult.rowCount === 0) {
@@ -229,4 +229,10 @@ exports.deleteLeadContactMap = async (req, res) => {
   } finally {
     client.release();
   }
+}
+
+export default {
+  createLeadContactMap,
+  getContactsByLeadId,
+  deleteLeadContactMap,
 };

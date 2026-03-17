@@ -1,12 +1,16 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 const getUsersDetails = async (client, userIds) => {
-  if (!userIds || userIds.length === 0) return {};
+  if (!userIds || userIds.length === 0) {
+    return {};
+  }
 
   const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+  if (validUserIds.length === 0) {
+    return {};
+  }
 
   const usersQuery = `
     SELECT users_id, name 
@@ -22,14 +26,16 @@ const getUsersDetails = async (client, userIds) => {
 };
 
 const formatUserObject = (userId, usersMap) => {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
   return {
     id: userId,
-    name: usersMap[userId] || null
+    name: usersMap[userId] || null,
   };
 };
 
-exports.getAllWorkFlowProcess = async (req, res) => {
+export async function getAllWorkFlowProcess(req, res) {
   const { limit, offset } = req.query;
   const parsedLimit = parseInt(limit, 10) || 25;
   const parsedOffset = parseInt(offset, 10) || 0;
@@ -40,7 +46,7 @@ exports.getAllWorkFlowProcess = async (req, res) => {
     const result = await client.query(
       `SELECT * FROM workflow_process WHERE builder_id = $1 AND is_deleted = false
       ORDER BY display_order ASC LIMIT $2 OFFSET $3`,
-      [req.user.builder_id, parsedLimit, parsedOffset]
+      [req.user.builder_id, parsedLimit, parsedOffset],
     );
 
     const workflows = keysToCamelCase(result.rows);
@@ -63,8 +69,8 @@ exports.getAllWorkFlowProcess = async (req, res) => {
     }));
 
     const totalResult = await client.query(
-      `SELECT COUNT(*) FROM workflow_process WHERE builder_id = $1 AND is_deleted = false`,
-      [req.user.builder_id]
+      "SELECT COUNT(*) FROM workflow_process WHERE builder_id = $1 AND is_deleted = false",
+      [req.user.builder_id],
     );
 
     const totalItems = parseInt(totalResult.rows[0].count, 10);
@@ -82,21 +88,21 @@ exports.getAllWorkFlowProcess = async (req, res) => {
           limit: parsedLimit,
         },
       },
-      "Workflow processes fetched successfully."
+      "Workflow processes fetched successfully.",
     );
   } catch (error) {
     console.error("Get all workflow process error:", error);
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Failed to fetch workflow processes."
+      error?.message || "Failed to fetch workflow processes.",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.createWorkFlowProcess = async (req, res) => {
+export async function createWorkFlowProcess(req, res) {
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
   const userId = req.user.user_id;
@@ -106,8 +112,8 @@ exports.createWorkFlowProcess = async (req, res) => {
 
   try {
     const checkNameExists = await client.query(
-      `SELECT * FROM workflow_process WHERE name = $1 AND builder_id = $2 AND is_deleted = false`,
-      [name, builderId]
+      "SELECT * FROM workflow_process WHERE name = $1 AND builder_id = $2 AND is_deleted = false",
+      [name, builderId],
     );
     if (checkNameExists.rowCount > 0) {
       return errorResponse(res, 400, "Workflow process name already exists.");
@@ -116,7 +122,7 @@ exports.createWorkFlowProcess = async (req, res) => {
     const orderResult = await client.query(
       `SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order 
        FROM workflow_process WHERE builder_id = $1`,
-      [builderId]
+      [builderId],
     );
     const displayOrder = orderResult.rows[0].next_order;
 
@@ -126,7 +132,7 @@ exports.createWorkFlowProcess = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $5)
       RETURNING *
       `,
-      [builderId, name, description || null, displayOrder, userId]
+      [builderId, name, description || null, displayOrder, userId],
     );
 
     const workflow = result.rows[0];
@@ -141,7 +147,7 @@ exports.createWorkFlowProcess = async (req, res) => {
         created_by: formatUserObject(workflow.created_by_id, usersMap),
         updated_by: formatUserObject(workflow.updated_by_id, usersMap),
       }),
-      "Workflow process created successfully."
+      "Workflow process created successfully.",
     );
   } catch (error) {
     console.error("Create workflow process error:", error);
@@ -149,9 +155,9 @@ exports.createWorkFlowProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateWorkFlowProcess = async (req, res) => {
+export async function updateWorkFlowProcess(req, res) {
   const { id } = req.params;
   const { name, description } = req.body;
   const builderId = req.user.builder_id;
@@ -171,14 +177,14 @@ exports.updateWorkFlowProcess = async (req, res) => {
       WHERE workflow_process_id = $4 AND builder_id = $5 AND is_deleted = false
       RETURNING *
       `,
-      [name || null, description || null, userId, id, builderId]
+      [name || null, description || null, userId, id, builderId],
     );
 
     if (result.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Workflow process not found or already deleted."
+        "Workflow process not found or already deleted.",
       );
     }
 
@@ -194,7 +200,7 @@ exports.updateWorkFlowProcess = async (req, res) => {
         created_by: formatUserObject(workflow.created_by_id, usersMap),
         updated_by: formatUserObject(workflow.updated_by_id, usersMap),
       }),
-      "Workflow process updated successfully."
+      "Workflow process updated successfully.",
     );
   } catch (error) {
     console.error("Update workflow process error:", error);
@@ -202,9 +208,9 @@ exports.updateWorkFlowProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.displayOrderManage = async (req, res) => {
+export async function displayOrderManage(req, res) {
   const { orderedWorkflowProcess } = req.body;
   const builderId = req.user.builder_id;
   const userId = req.user.user_id;
@@ -216,7 +222,7 @@ exports.displayOrderManage = async (req, res) => {
     await client.query("BEGIN");
 
     const workflowProcessIds = orderedWorkflowProcess.map(
-      (c) => c.workflowProcessId
+      (c) => c.workflowProcessId,
     );
 
     const { rows: existingWorkflowProcesses } = await client.query(
@@ -227,14 +233,14 @@ exports.displayOrderManage = async (req, res) => {
         AND is_deleted = false
         AND workflow_process_id = ANY($2::uuid[])
       `,
-      [builderId, workflowProcessIds]
+      [builderId, workflowProcessIds],
     );
 
     const validIds = existingWorkflowProcesses.map(
-      (c) => c.workflow_process_id
+      (c) => c.workflow_process_id,
     );
     const invalidIds = workflowProcessIds.filter(
-      (id) => !validIds.includes(id)
+      (id) => !validIds.includes(id),
     );
 
     if (invalidIds.length > 0) {
@@ -242,7 +248,7 @@ exports.displayOrderManage = async (req, res) => {
       return errorResponse(
         res,
         400,
-        `Invalid or deleted workflow processes: ${invalidIds.join(", ")}`
+        `Invalid or deleted workflow processes: ${invalidIds.join(", ")}`,
       );
     }
 
@@ -273,7 +279,7 @@ exports.displayOrderManage = async (req, res) => {
     return successResponse(
       res,
       "",
-      "Workflow process display orders updated successfully."
+      "Workflow process display orders updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -281,14 +287,14 @@ exports.displayOrderManage = async (req, res) => {
     return errorResponse(
       res,
       res.statusCode || 400,
-      error?.message || "Failed to manage workflow process display orders."
+      error?.message || "Failed to manage workflow process display orders.",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteWorkFlowProcess = async (req, res) => {
+export async function deleteWorkFlowProcess(req, res) {
   const { id } = req.params;
   const builderId = req.user.builder_id;
   const userId = req.user.user_id;
@@ -298,15 +304,15 @@ exports.deleteWorkFlowProcess = async (req, res) => {
 
   try {
     const checkWorkflowProcessExists = await client.query(
-      `SELECT * FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [id, builderId]
+      "SELECT * FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false",
+      [id, builderId],
     );
 
     if (checkWorkflowProcessExists.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Workflow process not found or already deleted."
+        "Workflow process not found or already deleted.",
       );
     }
 
@@ -319,14 +325,14 @@ exports.deleteWorkFlowProcess = async (req, res) => {
       WHERE workflow_process_id = $2 AND builder_id = $3
       RETURNING *
       `,
-      [userId, id, builderId]
+      [userId, id, builderId],
     );
 
     if (result.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "Workflow process not found or already deleted."
+        "Workflow process not found or already deleted.",
       );
     }
 
@@ -342,7 +348,7 @@ exports.deleteWorkFlowProcess = async (req, res) => {
         created_by: formatUserObject(workflow.created_by_id, usersMap),
         updated_by: formatUserObject(workflow.updated_by_id, usersMap),
       }),
-      "Workflow process deleted successfully."
+      "Workflow process deleted successfully.",
     );
   } catch (error) {
     console.error("Delete workflow process error:", error);
@@ -350,9 +356,9 @@ exports.deleteWorkFlowProcess = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getWorkflowProcessesByCategoryId = async (req, res) => {
+export async function getWorkflowProcessesByCategoryId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -361,8 +367,8 @@ exports.getWorkflowProcessesByCategoryId = async (req, res) => {
 
     // First verify the workflow_process exists and belongs to the builder
     const workflowProcessCheck = await client.query(
-      `SELECT * FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [workflow_process_id, builderId]
+      "SELECT * FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false",
+      [workflow_process_id, builderId],
     );
 
     if (workflowProcessCheck.rowCount === 0) {
@@ -400,21 +406,21 @@ exports.getWorkflowProcessesByCategoryId = async (req, res) => {
     return successResponse(
       res,
       tasksWithUsers,
-      "Workflow process tasks fetched successfully."
+      "Workflow process tasks fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching workflow process tasks:", err);
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err?.message || "Internal Server Error"
+      err?.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.createWorkflowProcessTask = async (req, res) => {
+export async function createWorkflowProcessTask(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -423,33 +429,33 @@ exports.createWorkflowProcessTask = async (req, res) => {
     const userId = req.user.user_id;
     const { workflow_process_id, name, description, timespent } = req.body;
 
-    await client.query(`BEGIN`);
+    await client.query("BEGIN");
 
     const imageUrl = req.file?.location;
 
     // Verify workflow_process exists and belongs to builder
     const workflowProcessCheck = await client.query(
-      `SELECT 1 FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false`,
-      [workflow_process_id, builderId]
+      "SELECT 1 FROM workflow_process WHERE workflow_process_id = $1 AND builder_id = $2 AND is_deleted = false",
+      [workflow_process_id, builderId],
     );
 
     if (workflowProcessCheck.rows.length === 0) {
-      await client.query(`ROLLBACK`);
+      await client.query("ROLLBACK");
       return errorResponse(res, 404, "Workflow process not found.");
     }
 
     // Check if task name already exists for this workflow process
     const nameCheck = await client.query(
-      `SELECT * FROM workflow_process_task WHERE workflow_process_id = $1 AND name = $2 AND is_deleted = false`,
-      [workflow_process_id, name]
+      "SELECT * FROM workflow_process_task WHERE workflow_process_id = $1 AND name = $2 AND is_deleted = false",
+      [workflow_process_id, name],
     );
 
     if (nameCheck.rowCount > 0) {
-      await client.query(`ROLLBACK`);
+      await client.query("ROLLBACK");
       return errorResponse(
         res,
         400,
-        "Task name already exists in this workflow process."
+        "Task name already exists in this workflow process.",
       );
     }
 
@@ -477,7 +483,7 @@ exports.createWorkflowProcessTask = async (req, res) => {
     // Get user details
     const usersMap = await getUsersDetails(client, [task.created_by_id, task.updated_by_id]);
 
-    await client.query(`COMMIT`);
+    await client.query("COMMIT");
 
     return successResponse(
       res,
@@ -486,22 +492,22 @@ exports.createWorkflowProcessTask = async (req, res) => {
         created_by: formatUserObject(task.created_by_id, usersMap),
         updated_by: formatUserObject(task.updated_by_id, usersMap),
       }),
-      "Workflow process task created successfully."
+      "Workflow process task created successfully.",
     );
   } catch (err) {
-    await client.query(`ROLLBACK`);
+    await client.query("ROLLBACK");
     console.error("Error creating workflow process task:", err);
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err.message || "Internal Server Error"
+      err.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateWorkflowProcessTask = async (req, res) => {
+export async function updateWorkflowProcessTask(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -516,7 +522,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Updating workflow_process_id is not allowed."
+        "Updating workflow_process_id is not allowed.",
       );
     }
 
@@ -531,7 +537,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
     FROM workflow_process_task wpt
     JOIN workflow_process wp ON wpt.workflow_process_id = wp.workflow_process_id
     WHERE wpt.workflow_process_task_id = $1 AND wp.builder_id = $2 AND wpt.is_deleted = false`,
-      [workflow_process_task_id, builderId]
+      [workflow_process_task_id, builderId],
     );
 
     if (taskRes.rowCount === 0) {
@@ -544,7 +550,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
       const nameCheck = await client.query(
         `SELECT * FROM workflow_process_task 
         WHERE workflow_process_id = $1 AND name = $2 AND workflow_process_task_id != $3 AND is_deleted = false`,
-        [taskRes.rows[0].workflow_process_id, name, workflow_process_task_id]
+        [taskRes.rows[0].workflow_process_id, name, workflow_process_task_id],
       );
 
       if (nameCheck.rowCount > 0) {
@@ -552,7 +558,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Task name already exists in this workflow process."
+          "Task name already exists in this workflow process.",
         );
       }
     }
@@ -590,8 +596,8 @@ exports.updateWorkflowProcessTask = async (req, res) => {
     } else {
       // If no fields to update, just fetch existing
       const fetchRes = await client.query(
-        `SELECT * FROM workflow_process_task WHERE workflow_process_task_id = $1`,
-        [workflow_process_task_id]
+        "SELECT * FROM workflow_process_task WHERE workflow_process_task_id = $1",
+        [workflow_process_task_id],
       );
       updatedTask = fetchRes.rows[0];
     }
@@ -608,7 +614,7 @@ exports.updateWorkflowProcessTask = async (req, res) => {
         created_by: formatUserObject(updatedTask.created_by_id, usersMap),
         updated_by: formatUserObject(updatedTask.updated_by_id, usersMap),
       }),
-      "Workflow process task updated successfully."
+      "Workflow process task updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -616,14 +622,14 @@ exports.updateWorkflowProcessTask = async (req, res) => {
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err.message || "Internal Server Error"
+      err.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteWorkflowProcessTask = async (req, res) => {
+export async function deleteWorkflowProcessTask(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -641,7 +647,7 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
     FROM workflow_process_task wpt
     JOIN workflow_process wp ON wpt.workflow_process_id = wp.workflow_process_id
     WHERE wpt.workflow_process_task_id = $1 AND wp.builder_id = $2 AND wpt.is_deleted = false`,
-      [workflow_process_task_id, builderId]
+      [workflow_process_task_id, builderId],
     );
 
     if (taskRes.rowCount === 0) {
@@ -655,7 +661,7 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
        SET is_deleted = true, updated_by_id = $1, updated_at = NOW() 
        WHERE workflow_process_task_id = $2
        RETURNING *`,
-      [userId, workflow_process_task_id]
+      [userId, workflow_process_task_id],
     );
 
     const task = result.rows[0];
@@ -672,7 +678,7 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
         created_by: formatUserObject(task.created_by_id, usersMap),
         updated_by: formatUserObject(task.updated_by_id, usersMap),
       }),
-      "Workflow process task deleted successfully."
+      "Workflow process task deleted successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -680,9 +686,9 @@ exports.deleteWorkflowProcessTask = async (req, res) => {
     return errorResponse(
       res,
       err?.statusCode || 400,
-      err.message || "Internal Server Error"
+      err.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}

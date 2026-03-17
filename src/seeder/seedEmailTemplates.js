@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database.js";
 
 const seedEmailTemplates = async () => {
   const pool = await getPool();
@@ -97,7 +97,7 @@ const seedEmailTemplates = async () => {
           template.message,
           template.cta_text,
           template.cta_link,
-        ]
+        ],
       );
     }
 

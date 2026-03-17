@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createJobVariationApproval = async (req, res) => {
+export async function createJobVariationApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -103,9 +103,9 @@ exports.createJobVariationApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getJobVariationApprovals = async (req, res) => {
+export async function getJobVariationApprovals(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -155,9 +155,9 @@ exports.getJobVariationApprovals = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteJobVariationApproval = async (req, res) => {
+export async function deleteJobVariationApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -214,9 +214,9 @@ exports.deleteJobVariationApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobVariationApproval = async (req, res) => {
+export async function updateJobVariationApproval(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -314,7 +314,7 @@ exports.updateJobVariationApproval = async (req, res) => {
     }
 
     fields.push(`updated_by = $${paramIndex++}`);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     values.push(userId);
 
     const updateQuery = `
@@ -365,4 +365,4 @@ exports.updateJobVariationApproval = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.updateSalesModuleSettings = async (req, res) => {
+export async function updateSalesModuleSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -26,7 +26,7 @@ exports.updateSalesModuleSettings = async (req, res) => {
       `SELECT * FROM sales_module_settings 
        WHERE builder_id = $1
        LIMIT 1;`,
-      [builderId]
+      [builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -34,7 +34,7 @@ exports.updateSalesModuleSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No sales module settings found for this builder."
+        "No sales module settings found for this builder.",
       );
     }
 
@@ -50,7 +50,7 @@ exports.updateSalesModuleSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided for update."
+        "At least one field must be provided for update.",
       );
     }
 
@@ -66,7 +66,7 @@ exports.updateSalesModuleSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "One or more provided role id are invalid."
+          "One or more provided role id are invalid.",
         );
       }
     }
@@ -104,7 +104,7 @@ exports.updateSalesModuleSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Sales module settings updated successfully."
+      "Sales module settings updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -113,9 +113,9 @@ exports.updateSalesModuleSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getSalesModuleSetting = async (req, res) => {
+export async function getSalesModuleSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -134,7 +134,7 @@ exports.getSalesModuleSetting = async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -149,7 +149,7 @@ exports.getSalesModuleSetting = async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *;
         `,
-        [company_id, builder_id, user_id, user_id]
+        [company_id, builder_id, user_id, user_id],
       );
     }
 
@@ -158,7 +158,7 @@ exports.getSalesModuleSetting = async (req, res) => {
       {
         salesModuleSettings: keysToCamelCase(result.rows[0]),
       },
-      "Sales Module Settings fetched successfully"
+      "Sales Module Settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching sales module settings:", error);
@@ -166,4 +166,4 @@ exports.getSalesModuleSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

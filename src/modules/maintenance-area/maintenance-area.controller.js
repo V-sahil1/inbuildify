@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createMaintenanceArea = async (req, res) => {
+export async function createMaintenanceArea(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -17,7 +17,7 @@ exports.createMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -36,7 +36,7 @@ exports.createMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Maintenance areas are not enabled for this builder."
+        "Maintenance areas are not enabled for this builder.",
       );
     }
 
@@ -70,7 +70,7 @@ exports.createMaintenanceArea = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(insertResult.rows[0]),
-      "Maintenance area created successfully."
+      "Maintenance area created successfully.",
     );
   } catch (error) {
     console.error("Error creating maintenance area:", error);
@@ -78,9 +78,9 @@ exports.createMaintenanceArea = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllMaintenanceAreas = async (req, res) => {
+export async function getAllMaintenanceAreas(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -92,7 +92,7 @@ exports.getAllMaintenanceAreas = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -111,7 +111,7 @@ exports.getAllMaintenanceAreas = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Maintenance areas are not enabled for this builder."
+        "Maintenance areas are not enabled for this builder.",
       );
     }
 
@@ -153,7 +153,7 @@ exports.getAllMaintenanceAreas = async (req, res) => {
           limit,
         },
       },
-      "Maintenance areas fetched successfully."
+      "Maintenance areas fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching maintenance areas:", error);
@@ -161,9 +161,9 @@ exports.getAllMaintenanceAreas = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteMaintenanceArea = async (req, res) => {
+export async function deleteMaintenanceArea(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -180,7 +180,7 @@ exports.deleteMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -199,7 +199,7 @@ exports.deleteMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Maintenance areas are not enabled for this builder."
+        "Maintenance areas are not enabled for this builder.",
       );
     }
 
@@ -218,7 +218,7 @@ exports.deleteMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not authorized to delete this maintenance area."
+        "You are not authorized to delete this maintenance area.",
       );
     }
 
@@ -240,9 +240,9 @@ exports.deleteMaintenanceArea = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateMaintenanceArea = async (req, res) => {
+export async function updateMaintenanceArea(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -260,7 +260,7 @@ exports.updateMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Invalid user context. Missing builder or company ID."
+        "Invalid user context. Missing builder or company ID.",
       );
     }
 
@@ -281,7 +281,7 @@ exports.updateMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "Maintenance areas are not enabled for this builder."
+        "Maintenance areas are not enabled for this builder.",
       );
     }
 
@@ -300,7 +300,7 @@ exports.updateMaintenanceArea = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not authorized to update this maintenance area."
+        "You are not authorized to update this maintenance area.",
       );
     }
 
@@ -338,7 +338,7 @@ exports.updateMaintenanceArea = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(updatedBy);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     values.push(maintenance_area_id);
 
@@ -357,7 +357,7 @@ exports.updateMaintenanceArea = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Maintenance area updated successfully."
+      "Maintenance area updated successfully.",
     );
   } catch (error) {
     console.error("Error updating maintenance area:", error);
@@ -365,4 +365,4 @@ exports.updateMaintenanceArea = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

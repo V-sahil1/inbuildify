@@ -1,23 +1,23 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const getAllWorkFlowProcessSchema = Joi.object({
+export const getAllWorkFlowProcessSchema = Joi.object({
   limit: Joi.number().optional().default(25).max(50),
   offset: Joi.number().optional().default(0).max(25),
 });
 
-const createWorkFlowProcessSchema = Joi.object({
+export const createWorkFlowProcessSchema = Joi.object({
   name: Joi.string().required().min(2).max(200),
   description: Joi.string().optional(),
 });
 
-const updateWorkFlowProcessSchema = Joi.object({
+export const updateWorkFlowProcessSchema = Joi.object({
   name: Joi.string().optional().min(2).max(200),
   description: Joi.string().optional(),
 })
   .min(1)
   .message({ "object.min": "At least one field is required to update" });
 
-const displayOrderManageSchema = Joi.object({
+export const displayOrderManageSchema = Joi.object({
   orderedWorkflowProcess: Joi.array()
     .items(
       Joi.object({
@@ -30,7 +30,7 @@ const displayOrderManageSchema = Joi.object({
           "number.integer": "Display Order must be an integer",
           "any.required": "Display Order is required",
         }),
-      })
+      }),
     )
     .unique("workflowProcessId")
     .unique("displayOrder")
@@ -46,14 +46,14 @@ const displayOrderManageSchema = Joi.object({
   .required()
   .unknown(false);
 
-const deleteWorkFlowProcessSchema = Joi.object({
+export const deleteWorkFlowProcessSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Workflow Process ID must be a valid UUID",
     "any.required": "Workflow Process ID is required",
   }),
 });
 
-const getWorkflowProcessesByCategoryIdSchema = Joi.object({
+export const getWorkflowProcessesByCategoryIdSchema = Joi.object({
   workflow_process_id: Joi.string().uuid().required().messages({
     "string.guid": "Workflow Process ID must be a valid UUID",
     "any.required": "Workflow Process ID is required",
@@ -62,20 +62,20 @@ const getWorkflowProcessesByCategoryIdSchema = Joi.object({
 
 const imageRule = Joi.alternatives().try(
   Joi.string().uri().max(500).trim().messages({
-    'string.base': 'Image must be a string',
-    'string.uri': 'Image must be a valid URL',
-    'string.max': 'Image URL must not exceed 500 characters'
+    "string.base": "Image must be a string",
+    "string.uri": "Image must be a valid URL",
+    "string.max": "Image URL must not exceed 500 characters",
   }),
   Joi.object({
-    fieldname: Joi.string().valid('image').required(),
+    fieldname: Joi.string().valid("image").required(),
     originalname: Joi.string().required(),
     mimetype: Joi.string().required(),
     size: Joi.number().max(10 * 1024 * 1024).required(),
-    location: Joi.string().uri().required()
-  }).unknown(true)
+    location: Joi.string().uri().required(),
+  }).unknown(true),
 ).optional();
 
-const createWorkflowProcessTaskSchema = Joi.object({
+export const createWorkflowProcessTaskSchema = Joi.object({
   workflow_process_id: Joi.string().uuid().required().messages({
     "string.guid": "Workflow Process ID must be a valid UUID",
     "any.required": "Workflow Process ID is required",
@@ -94,7 +94,7 @@ const createWorkflowProcessTaskSchema = Joi.object({
   }),
 }).prefs({ convert: true, abortEarly: false });
 
-const updateWorkflowProcessTaskSchema = Joi.object({
+export const updateWorkflowProcessTaskSchema = Joi.object({
   name: Joi.string().optional().min(2).max(200).messages({
     "string.min": "Name must be at least 2 characters long",
     "string.max": "Name cannot exceed 200 characters",
@@ -110,14 +110,14 @@ const updateWorkflowProcessTaskSchema = Joi.object({
   .min(1)
   .message({ "object.min": "At least one field is required to update" });
 
-const deleteWorkflowProcessTaskSchema = Joi.object({
+export const deleteWorkflowProcessTaskSchema = Joi.object({
   workflow_process_task_id: Joi.string().uuid().required().messages({
     "string.guid": "Workflow Process Task ID must be a valid UUID",
     "any.required": "Workflow Process Task ID is required",
   }),
 });
 
-module.exports = {
+export default {
   getAllWorkFlowProcessSchema,
   createWorkFlowProcessSchema,
   updateWorkFlowProcessSchema,

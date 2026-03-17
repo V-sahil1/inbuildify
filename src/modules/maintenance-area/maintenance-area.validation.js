@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createMaintenanceAreaSchem = Joi.object({
+export const createMaintenanceAreaSchem = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -9,7 +9,7 @@ const createMaintenanceAreaSchem = Joi.object({
     .required(),
 });
 
-const getAllMaintenanceAreaSchema = Joi.object({
+export const getAllMaintenanceAreaSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -24,21 +24,21 @@ const getAllMaintenanceAreaSchema = Joi.object({
   }),
 });
 
-const deleteMaintenanceAreaSchema = Joi.object({
+export const deleteMaintenanceAreaSchema = Joi.object({
   maintenance_area_id: Joi.string().uuid().required().messages({
     "string.guid": "Maintenance area ID must be a valid UUID",
     "any.required": "Maintenance area ID  is required",
   }),
 });
 
-const updateMaintenanceAreaParamsSchema = Joi.object({
+export const updateMaintenanceAreaParamsSchema = Joi.object({
   maintenance_area_id: Joi.string().uuid().required().messages({
     "string.guid": "Maintenance area ID must be a valid UUID",
     "any.required": "Maintenance area ID  is required",
   }),
 });
 
-const updateMaintenanceAreaSchema = Joi.object({
+export const updateMaintenanceAreaSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -47,7 +47,7 @@ const updateMaintenanceAreaSchema = Joi.object({
     .optional(),
 });
 
-module.exports = {
+export default {
   createMaintenanceAreaSchem,
   getAllMaintenanceAreaSchema,
   deleteMaintenanceAreaSchema,

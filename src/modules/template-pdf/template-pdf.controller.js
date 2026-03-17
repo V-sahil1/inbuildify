@@ -1,11 +1,9 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const templatePdfService = require("./template-pdf.service");
-const {
-  getFormatValidationSchema,
-} = require("./template-pdf.validation");
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import templatePdfService from "./template-pdf.service.js";
+import { getFormatValidationSchema } from "./template-pdf.validation.js";
 
-exports.createTemplatePdf = async (req, res) => {
+export async function createTemplatePdf(req, res) {
   try {
     const user = req.user;
 
@@ -14,39 +12,45 @@ exports.createTemplatePdf = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(template),
-      "PDF template created successfully"
+      "PDF template created successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.updateTemplatePdf = async (req, res) => {
+export async function updateTemplatePdf(req, res) {
   try {
     const user = req.user;
     const { template_pdf_id } = req.params;
 
     const formatTypeInput = req.body.format_type;
-    if (!formatTypeInput) return errorResponse(res, 400, "format_type is required");
+    if (!formatTypeInput) {
+      return errorResponse(res, 400, "format_type is required");
+    }
 
     const formatType = templatePdfService.normalizeFormatType(formatTypeInput);
-    if (!formatType) return errorResponse(res, 400, "Invalid format_type");
+    if (!formatType) {
+      return errorResponse(res, 400, "Invalid format_type");
+    }
 
     const schema = getFormatValidationSchema(formatType);
-    if (!schema) return errorResponse(res, 400, "Invalid format_type");
+    if (!schema) {
+      return errorResponse(res, 400, "Invalid format_type");
+    }
 
     const payloadForValidation = { ...req.body };
     delete payloadForValidation.format_type;
     delete payloadForValidation.logo_image;
     delete payloadForValidation.watermark_image;
-    
+
     const { error } = schema.validate(payloadForValidation, { abortEarly: false });
     if (error) {
       return errorResponse(
         res,
         422,
-        error.details.map((d) => d.message).join(", ")
+        error.details.map((d) => d.message).join(", "),
       );
     }
 
@@ -54,28 +58,28 @@ exports.updateTemplatePdf = async (req, res) => {
       user,
       template_pdf_id,
       formatType,
-      req.body
+      req.body,
     );
 
     return successResponse(
       res,
       keysToCamelCase(updated),
-      "Template format updated successfully"
+      "Template format updated successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 400, err.message);
   }
-};
+}
 
-exports.getTemplatePdfById = async (req, res) => {
+export async function getTemplatePdfById(req, res) {
   try {
     const user = req.user;
     const { templatePdfId } = req.params;
 
     const template = await templatePdfService.getTemplatePdfById(
       user,
-      templatePdfId
+      templatePdfId,
     );
 
     if (!template) {
@@ -85,15 +89,15 @@ exports.getTemplatePdfById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(template),
-      "PDF template fetched successfully"
+      "PDF template fetched successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, "Failed to fetch template");
   }
-};
+}
 
-exports.getTemplatePdfList = async (req, res) => {
+export async function getTemplatePdfList(req, res) {
   try {
     const user = req.user;
 
@@ -102,15 +106,15 @@ exports.getTemplatePdfList = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(templates),
-      "PDF templates fetched successfully"
+      "PDF templates fetched successfully",
     );
   } catch (err) {
     console.error(err);
     return errorResponse(res, 500, "Failed to fetch templates");
   }
-};
+}
 
-exports.deleteTemplatePdf = async (req, res) => {
+export async function deleteTemplatePdf(req, res) {
   try {
     const user = req.user;
     const { templatePdfId } = req.params;
@@ -122,4 +126,4 @@ exports.deleteTemplatePdf = async (req, res) => {
     console.error(err);
     return errorResponse(res, 400, err.message);
   }
-};
+}

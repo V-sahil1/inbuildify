@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createSurveyor = async (req, res) => {
+export async function createSurveyor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -33,7 +33,7 @@ exports.createSurveyor = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Name, address1, city, and zip/postal code are required."
+        "Name, address1, city, and zip/postal code are required.",
       );
     }
 
@@ -55,15 +55,15 @@ exports.createSurveyor = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Surveyor with this email already exists."
+          "Surveyor with this email already exists.",
         );
       }
     }
 
     if (state_id) {
       const stateCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1;`,
-        [state_id]
+        "SELECT state_id FROM state WHERE state_id = $1;",
+        [state_id],
       );
 
       if (stateCheck.rowCount === 0) {
@@ -115,7 +115,7 @@ exports.createSurveyor = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Surveyor created successfully."
+      "Surveyor created successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -124,9 +124,9 @@ exports.createSurveyor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSurveyor = async (req, res) => {
+export async function getAllSurveyor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -173,7 +173,7 @@ exports.getAllSurveyor = async (req, res) => {
           limit: limitValue,
         },
       },
-      "Surveyors fetched successfully."
+      "Surveyors fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching surveyors:", error);
@@ -181,9 +181,9 @@ exports.getAllSurveyor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSurveyor = async (req, res) => {
+export async function deleteSurveyor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -195,15 +195,15 @@ exports.deleteSurveyor = async (req, res) => {
       return errorResponse(res, 400, "Surveyor ID is required.");
     }
     const existingSurveyor = await client.query(
-      `SELECT surveyor_id FROM surveyor WHERE surveyor_id = $1 AND builder_id = $2`,
-      [surveyor_id, builderId]
+      "SELECT surveyor_id FROM surveyor WHERE surveyor_id = $1 AND builder_id = $2",
+      [surveyor_id, builderId],
     );
 
     if (existingSurveyor.rowCount === 0) {
       return errorResponse(res, 404, "Surveyor not found for this builder.");
     }
 
-    await client.query(`DELETE FROM surveyor WHERE surveyor_id = $1`, [
+    await client.query("DELETE FROM surveyor WHERE surveyor_id = $1", [
       surveyor_id,
     ]);
 
@@ -214,9 +214,9 @@ exports.deleteSurveyor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSurveyor = async (req, res) => {
+export async function updateSurveyor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -257,7 +257,7 @@ exports.updateSurveyor = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -268,7 +268,7 @@ exports.updateSurveyor = async (req, res) => {
        FROM surveyor 
        WHERE surveyor_id = $1 
          AND builder_id = $2`,
-      [surveyor_id, builderId]
+      [surveyor_id, builderId],
     );
 
     if (existingSurveyor.rowCount === 0) {
@@ -283,7 +283,7 @@ exports.updateSurveyor = async (req, res) => {
          WHERE LOWER(email) = LOWER($1)
            AND builder_id = $2
            AND surveyor_id != $3`,
-        [email, builderId, surveyor_id]
+        [email, builderId, surveyor_id],
       );
 
       if (duplicateEmail.rowCount > 0) {
@@ -291,15 +291,15 @@ exports.updateSurveyor = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Email already exists for another surveyor."
+          "Email already exists for another surveyor.",
         );
       }
     }
 
     if (state_id) {
       const stateCheck = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1;`,
-        [state_id]
+        "SELECT state_id FROM state WHERE state_id = $1;",
+        [state_id],
       );
 
       if (stateCheck.rowCount === 0) {
@@ -356,7 +356,7 @@ exports.updateSurveyor = async (req, res) => {
     fields.push(`company_id = $${paramIndex++}`);
     values.push(companyId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE surveyor
@@ -375,7 +375,7 @@ exports.updateSurveyor = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Surveyor updated successfully."
+      "Surveyor updated successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -384,4 +384,4 @@ exports.updateSurveyor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createColorItemCustomFieldSchema = Joi.object({
+export const createColorItemCustomFieldSchema = Joi.object({
   color_item: Joi.string().uuid().required().messages({
     "string.guid": "Color Item ID must be a valid UUID",
     "any.required": "Color Item ID is required",
@@ -33,7 +33,7 @@ const createColorItemCustomFieldSchema = Joi.object({
   }),
 });
 
-const updateColorItemCustomFieldSchema = Joi.object({
+export const updateColorItemCustomFieldSchema = Joi.object({
   color_item: Joi.string().uuid().optional().messages({
     "string.guid": "Color Item ID must be a valid UUID",
   }),
@@ -67,7 +67,7 @@ const updateColorItemCustomFieldSchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-module.exports = {
+export default {
   createColorItemCustomFieldSchema,
   updateColorItemCustomFieldSchema,
 };

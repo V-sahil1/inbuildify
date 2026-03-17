@@ -1,18 +1,18 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createCustomFieldModuleSchema = Joi.object({
+export const createCustomFieldModuleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(50).optional(),
   description: Joi.string().trim().max(500).optional(),
 });
 
-const deleteCustomFieldModuleSchema = Joi.object({
+export const deleteCustomFieldModuleSchema = Joi.object({
   module_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const getAllCustomFieldModuleSchema = Joi.object({
+export const getAllCustomFieldModuleSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -27,19 +27,19 @@ const getAllCustomFieldModuleSchema = Joi.object({
   }),
 });
 
-const updateCustomFieldModuleIdParamsSchema = Joi.object({
+export const updateCustomFieldModuleIdParamsSchema = Joi.object({
   module_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateCustomFieldModuleSchema = Joi.object({
+export const updateCustomFieldModuleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(50).optional(),
   description: Joi.string().trim().max(500).optional(),
 });
 
-module.exports = {
+export default {
   createCustomFieldModuleSchema,
   getAllCustomFieldModuleSchema,
   deleteCustomFieldModuleSchema,

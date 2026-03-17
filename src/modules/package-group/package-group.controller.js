@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createPackageGroup = async (req, res) => {
+export async function createPackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -80,9 +80,9 @@ exports.createPackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllPackageGroups = async (req, res) => {
+export async function getAllPackageGroups(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -162,9 +162,9 @@ exports.getAllPackageGroups = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deletePackageGroup = async (req, res) => {
+export async function deletePackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -212,9 +212,9 @@ exports.deletePackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updatePackageGroup = async (req, res) => {
+export async function updatePackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -294,7 +294,7 @@ exports.updatePackageGroup = async (req, res) => {
       return errorResponse(res, 400, "No fields to update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE package_group
@@ -333,4 +333,4 @@ exports.updatePackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

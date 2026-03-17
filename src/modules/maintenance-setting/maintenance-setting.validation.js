@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createMaintenanceSettingSchema = Joi.object({
+export const createMaintenanceSettingSchema = Joi.object({
   area_enabled: Joi.boolean().default(false),
   supplier_enabled: Joi.boolean().default(false),
   allow_completion_without_supplier_response: Joi.boolean().default(false),
@@ -15,13 +15,13 @@ const createMaintenanceSettingSchema = Joi.object({
   supervisor_roles: Joi.array().items(Joi.string().uuid()).default([]),
 });
 
-const updateMaintenanceSettingParamsSchema = Joi.object({
+export const updateMaintenanceSettingParamsSchema = Joi.object({
   maintenance_settings_id: Joi.string().uuid().required().messages({
     "string.guid": "Maintenance setting ID must be a valid UUID",
     "any.required": "maintenance setting ID is required",
   }),
 });
-const updateMaintenanceSettingSchema = Joi.object({
+export const updateMaintenanceSettingSchema = Joi.object({
   area_enabled: Joi.boolean(),
   supplier_enabled: Joi.boolean(),
   allow_completion_without_supplier_response: Joi.boolean(),
@@ -57,12 +57,13 @@ const updateMaintenanceSettingSchema = Joi.object({
     value.allow_completion_without_supplier_response === true
   ) {
     return helpers.message(
-      "Cannot allow completion without supplier response when supplier is disabled."
+      "Cannot allow completion without supplier response when supplier is disabled.",
     );
   }
   return value;
 });
-module.exports = {
+
+export default {
   createMaintenanceSettingSchema,
   updateMaintenanceSettingParamsSchema,
   updateMaintenanceSettingSchema,

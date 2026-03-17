@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createConstructionStage = async (req, res) => {
+export async function createConstructionStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -245,9 +245,9 @@ exports.createConstructionStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionStages = async (req, res) => {
+export async function getAllConstructionStages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -255,14 +255,14 @@ exports.getAllConstructionStages = async (req, res) => {
     const loggedInBuilderId = req.user.builder_id;
     const { builder, construction_type_id } = req.query;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
 
     if (builder) {
-      whereClauses.push(`cs.builder = $1 AND cs.builder_id = $2`);
+      whereClauses.push("cs.builder = $1 AND cs.builder_id = $2");
       values.push(builder, loggedInBuilderId);
     } else {
-      whereClauses.push(`cs.builder_id = $1`);
+      whereClauses.push("cs.builder_id = $1");
       values.push(loggedInBuilderId);
     }
 
@@ -320,9 +320,9 @@ exports.getAllConstructionStages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionStage = async (req, res) => {
+export async function deleteConstructionStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -402,9 +402,9 @@ exports.deleteConstructionStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionStage = async (req, res) => {
+export async function updateConstructionStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -425,7 +425,7 @@ exports.updateConstructionStage = async (req, res) => {
       return errorResponse(res, 400, "Construction stage ID is required.");
     }
 
-    let {
+    const {
       stage_name,
       days,
       sort_order,
@@ -609,7 +609,7 @@ exports.updateConstructionStage = async (req, res) => {
     updateFields.push(`updated_by = $${idx}`);
     values.push(userId);
     idx++;
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     if (updateFields.length === 0) {
       await client.query("ROLLBACK");
@@ -680,4 +680,4 @@ exports.updateConstructionStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

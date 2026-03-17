@@ -1,12 +1,9 @@
-const getPool = require("../../config/database");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-const { successResponse, errorResponse } = require("../../helper/response");
-
-const { keysToCamelCase } = require("../../utils/common");
-
-const { deleteFromS3 } = require("../../utils/s3Upload");
-
-exports.createTask = async (req, res) => {
+export async function createTask(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -38,7 +35,7 @@ exports.createTask = async (req, res) => {
 
     if (assignee_id) {
       const assigneeCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true",
         [assignee_id],
       );
 
@@ -50,7 +47,7 @@ exports.createTask = async (req, res) => {
 
     if (link_to) {
       const linkToCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true",
         [link_to],
       );
 
@@ -114,7 +111,7 @@ exports.createTask = async (req, res) => {
     let assigneeName = null;
     if (assignee_id) {
       const assigneeResult = await client.query(
-        `SELECT name as assignee_name FROM users WHERE users_id = $1`,
+        "SELECT name as assignee_name FROM users WHERE users_id = $1",
         [assignee_id],
       );
       if (assigneeResult.rowCount > 0) {
@@ -164,9 +161,9 @@ exports.createTask = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllTasks = async (req, res) => {
+export async function getAllTasks(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -379,9 +376,9 @@ exports.getAllTasks = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteTask = async (req, res) => {
+export async function deleteTask(req, res) {
   const { task_id } = req.params;
   const builderId = req.user?.builder_id;
   const pool = getPool();
@@ -415,7 +412,7 @@ exports.deleteTask = async (req, res) => {
       );
     }
 
-    await client.query(`DELETE FROM task WHERE task_id = $1`, [task_id]);
+    await client.query("DELETE FROM task WHERE task_id = $1", [task_id]);
     await client.query("COMMIT");
     return successResponse(res, {}, "Task deleted successfully");
   } catch (error) {
@@ -425,9 +422,9 @@ exports.deleteTask = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTask = async (req, res) => {
+export async function updateTask(req, res) {
   const { task_id } = req.params;
   const builderId = req.user?.builder_id;
   const userId = req.user?.user_id;
@@ -525,7 +522,7 @@ exports.updateTask = async (req, res) => {
 
     if (assignee_id) {
       const assigneeCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true",
         [assignee_id],
       );
 
@@ -546,7 +543,7 @@ exports.updateTask = async (req, res) => {
 
     if (link_to) {
       const linkToCheck = await client.query(
-        `SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true`,
+        "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false AND is_verified = true",
         [link_to],
       );
 
@@ -608,7 +605,7 @@ exports.updateTask = async (req, res) => {
       return errorResponse(res, 400, "No fields to update");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     fields.push(`updated_by = $${index}`);
     values.push(userId);
     index++;
@@ -627,7 +624,7 @@ exports.updateTask = async (req, res) => {
     let assigneeName = null;
     if (updatedTask.assignee_id) {
       const assigneeResult = await client.query(
-        `SELECT name as assignee_name FROM users WHERE users_id = $1`,
+        "SELECT name as assignee_name FROM users WHERE users_id = $1",
         [updatedTask.assignee_id],
       );
       if (assigneeResult.rowCount > 0) {
@@ -677,4 +674,4 @@ exports.updateTask = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

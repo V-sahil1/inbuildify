@@ -1,27 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createUserRoleMapping,
   getAllUserRoleMapping,
   deleteUserRoleMapping,
   updateUserRoleMapping,
-} = require("./user-role-mapping.controller.js");
-
-const {
+} from "./user-role-mapping.controller.js";
+import {
   createUserRoleMappingSchema,
   getAllUserRoleMappingSchema,
   deleteUserRoleMppingSchema,
   updateUserRoleMppingParamsSchema,
   updateUserRoleMappingSchema,
-} = require("./user-role-mapping.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./user-role-mapping.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,26 +28,26 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createUserRoleMappingSchema, REQUEST_SOURCE.BODY),
-  createUserRoleMapping
+  createUserRoleMapping,
 );
 
 router.get(
   "/",
   validateRequest(getAllUserRoleMappingSchema, REQUEST_SOURCE.QUERY),
-  getAllUserRoleMapping
+  getAllUserRoleMapping,
 );
 
 router.delete(
   "/:user_role_mapping_id",
   validateRequest(deleteUserRoleMppingSchema, REQUEST_SOURCE.PARAMS),
-  deleteUserRoleMapping
+  deleteUserRoleMapping,
 );
 
 router.put(
   "/:user_role_mapping_id",
   validateRequest(updateUserRoleMppingParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateUserRoleMappingSchema, REQUEST_SOURCE.BODY),
-  updateUserRoleMapping
+  updateUserRoleMapping,
 );
 
-module.exports = router;
+export default router;

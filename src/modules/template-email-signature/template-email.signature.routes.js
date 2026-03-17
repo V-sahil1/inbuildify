@@ -1,22 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createTemplateEmailSignature,
   getTemplateEmailSignature,
   updateTemplateEmailSignature,
-} = require("./template-email-signature.controller.js");
-const {
-  createTemplateEmailSignatureSchema,
-  updateTemplateEmailSignatureSchema,
-} = require("./template-email-signature.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./template-email-signature.controller.js";
+import { createTemplateEmailSignatureSchema, updateTemplateEmailSignatureSchema } from "./template-email-signature.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -35,4 +31,4 @@ router.put(
   validateRequest(updateTemplateEmailSignatureSchema, REQUEST_SOURCE.BODY),
   updateTemplateEmailSignature,
 );
-module.exports = router;
+export default router;

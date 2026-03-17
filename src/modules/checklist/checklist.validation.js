@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createChecklistSchema = Joi.object({
+export const createChecklistSchema = Joi.object({
   screen_id: Joi.string().uuid().required().messages({
     "string.guid": "Screen ID must be a valid UUID",
     "any.required": "Screen ID is required",
@@ -22,28 +22,28 @@ const createChecklistSchema = Joi.object({
   is_active: Joi.boolean().default(true),
 });
 
-const getAllChecklistSchema = Joi.object({
+export const getAllChecklistSchema = Joi.object({
   checklist_id: Joi.string().uuid().required().messages({
     "string.guid": "Checklist ID must be a valid UUID",
     "any.required": "Checklist ID is required",
   }),
 });
 
-const deleteChecklistSchema = Joi.object({
+export const deleteChecklistSchema = Joi.object({
   checklist_id: Joi.string().uuid().required().messages({
     "string.guid": "Checklist ID must be a valid UUID",
     "any.required": "Checklist ID is required",
   }),
 });
 
-const updateChecklistParamsSchema = Joi.object({
+export const updateChecklistParamsSchema = Joi.object({
   checklist_id: Joi.string().uuid().required().messages({
     "string.guid": "Checklist ID must be a valid UUID",
     "any.required": "Checklit ID is required",
   }),
 });
 
-const updateChecklistSchema = Joi.object({
+export const updateChecklistSchema = Joi.object({
   screen_id: Joi.string().uuid().optional().messages({
     "string.guid": "Screen ID must be a valid UUID",
     "any.required": "Screen ID is required",
@@ -63,11 +63,11 @@ const updateChecklistSchema = Joi.object({
   }),
 });
 
-const updateChecklistIsActiveSchema = Joi.object({
+export const updateChecklistIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createChecklistSchema,
   getAllChecklistSchema,
   deleteChecklistSchema,

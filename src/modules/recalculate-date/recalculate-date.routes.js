@@ -1,22 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createRecalculateDate,
-  getRecalculateDate,
-  updateRecalculateDate,
-} = require("./recalculate-date..controller.js");
-const {
-  createRecalculateDateSchema,
-  updateRecalculateDateSchema,
-} = require("./recalculate-date.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { createRecalculateDate, getRecalculateDate, updateRecalculateDate } from "./recalculate-date..controller.js";
+import { createRecalculateDateSchema, updateRecalculateDateSchema } from "./recalculate-date.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -25,7 +17,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createRecalculateDateSchema, REQUEST_SOURCE.BODY),
-  createRecalculateDate
+  createRecalculateDate,
 );
 
 router.get("/", getRecalculateDate);
@@ -33,7 +25,7 @@ router.get("/", getRecalculateDate);
 router.put(
   "/",
   validateRequest(updateRecalculateDateSchema, REQUEST_SOURCE.BODY),
-  updateRecalculateDate
+  updateRecalculateDate,
 );
 
-module.exports = router;
+export default router;

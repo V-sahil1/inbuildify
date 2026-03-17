@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createChecklist = async (req, res) => {
+export async function createChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -14,7 +14,7 @@ exports.createChecklist = async (req, res) => {
     await client.query("BEGIN");
 
     const screenRes = await client.query(
-      `SELECT screen_id FROM screen WHERE screen_id = $1`,
+      "SELECT screen_id FROM screen WHERE screen_id = $1",
       [screen_id],
     );
     if (screenRes.rowCount === 0) {
@@ -23,7 +23,7 @@ exports.createChecklist = async (req, res) => {
     }
 
     const funcRes = await client.query(
-      `SELECT functionality_id FROM functionality WHERE functionality_id = $1`,
+      "SELECT functionality_id FROM functionality WHERE functionality_id = $1",
       [functionality_id],
     );
     if (funcRes.rowCount === 0) {
@@ -104,9 +104,9 @@ exports.createChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllChecklist = async (req, res) => {
+export async function getAllChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -176,9 +176,9 @@ exports.getAllChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteChecklist = async (req, res) => {
+export async function deleteChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -239,9 +239,9 @@ exports.deleteChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateChecklist = async (req, res) => {
+export async function updateChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -285,7 +285,7 @@ exports.updateChecklist = async (req, res) => {
 
     if (screen_id) {
       const screenCheck = await client.query(
-        `SELECT screen_id FROM screen WHERE screen_id = $1;`,
+        "SELECT screen_id FROM screen WHERE screen_id = $1;",
         [screen_id],
       );
       if (screenCheck.rowCount === 0) {
@@ -296,7 +296,7 @@ exports.updateChecklist = async (req, res) => {
 
     if (functionality_id) {
       const funcCheck = await client.query(
-        `SELECT functionality_id FROM functionality WHERE functionality_id = $1;`,
+        "SELECT functionality_id FROM functionality WHERE functionality_id = $1;",
         [functionality_id],
       );
       if (funcCheck.rowCount === 0) {
@@ -364,7 +364,7 @@ exports.updateChecklist = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     fields.push(`updated_by = $${index}`);
     values.push(user_id);
     index++;
@@ -423,9 +423,9 @@ exports.updateChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateChecklistIsActive = async (req, res) => {
+export async function updateChecklistIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -485,4 +485,4 @@ exports.updateChecklistIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

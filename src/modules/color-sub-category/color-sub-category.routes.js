@@ -1,23 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   getAllColorSubCategories,
   getColorSubCategoryById,
   createColorSubCategory,
   updateColorSubCategory,
   deleteColorSubCategory,
-} = require("./color-sub-category.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const {
+} from "./color-sub-category.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   getAllColorSubCategoriesSchema,
   getAllColorSubCategoriesParamsSchema,
   createColorSubCategorySchema,
   updateColorSubCategorySchema,
   colorSubCategoryIdParamSchema,
-} = require("./color-sub-category.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+} from "./color-sub-category.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,4 +30,4 @@ router.post("/", validateRequest(createColorSubCategorySchema, REQUEST_SOURCE.BO
 router.put("/:color_sub_category_id", validateRequest(updateColorSubCategorySchema, REQUEST_SOURCE.BODY), updateColorSubCategory);
 router.delete("/:color_sub_category_id", validateRequest(colorSubCategoryIdParamSchema, REQUEST_SOURCE.PARAMS), deleteColorSubCategory);
 
-module.exports = router;
+export default router;

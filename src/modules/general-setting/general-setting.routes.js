@@ -1,22 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createGeneralSetting,
-  updateGeneralSettings,
-  getUserGeneralSettings,
-} = require("./general-setting.controller.js");
-const {
-  createGeneralSettigSchema,
-  updateGeneralSettingsSchema,
-} = require("./general-setting.validation.js");
-
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { createGeneralSetting, updateGeneralSettings, getUserGeneralSettings } from "./general-setting.controller.js";
+import { createGeneralSettigSchema, updateGeneralSettingsSchema } from "./general-setting.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -25,15 +17,15 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createGeneralSettigSchema, REQUEST_SOURCE.BODY),
-  createGeneralSetting
+  createGeneralSetting,
 );
 
 router.put(
   "/",
   validateRequest(updateGeneralSettingsSchema, REQUEST_SOURCE.BODY),
-  updateGeneralSettings
+  updateGeneralSettings,
 );
 
 router.get("/user", getUserGeneralSettings);
 
-module.exports = router;
+export default router;

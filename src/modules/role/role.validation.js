@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createRoleSchema = Joi.object({
+export const createRoleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(150).required().messages({
     "string.empty": "Role name is required.",
     "any.required": "Role name is required.",
@@ -9,7 +9,7 @@ const createRoleSchema = Joi.object({
   description: Joi.string().optional(),
 });
 
-const getAllRoleSchema = Joi.object({
+export const getAllRoleSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -24,21 +24,21 @@ const getAllRoleSchema = Joi.object({
   }),
 });
 
-const deleteRoleSchema = Joi.object({
+export const deleteRoleSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Role ID must be a valid UUID",
     "any.required": "Role ID is required",
   }),
 });
 
-const updateRoleIdParamsSchema = Joi.object({
+export const updateRoleIdParamsSchema = Joi.object({
   role_id: Joi.string().uuid().required().messages({
     "string.guid": "Role ID must be a valid UUID",
     "any.required": "Role ID is required",
   }),
 });
 
-const updateRoleSchema = Joi.object({
+export const updateRoleSchema = Joi.object({
   name: Joi.string().trim().min(3).max(150).optional().messages({
     "string.empty": "Role name is can not be empty.",
   }),
@@ -52,7 +52,7 @@ const updateRoleSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
-module.exports = {
+export default {
   createRoleSchema,
   getAllRoleSchema,
   deleteRoleSchema,

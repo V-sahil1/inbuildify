@@ -1,33 +1,28 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createContractSection,
   getAllContractSections,
   getContractSectionById,
   updateContractSection,
   deleteContractSection,
-} = require("./contract-section.controller.js");
-const {
+} from "./contract-section.controller.js";
+import {
   createContractSectionSchema,
   getAllContractSectionsSchema,
   getContractSectionByIdSchema,
   updateContractSectionParamsSchema,
   updateContractSectionSchema,
   deleteContractSectionSchema,
-} = require("./contract-section.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const {
-  createUpload,
-  handleMulterError,
-  createImageOrPdfUpload,
-} = require("../../utils/s3Upload.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./contract-section.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createUpload, handleMulterError, createImageOrPdfUpload } from "../../utils/s3Upload.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -71,4 +66,4 @@ router.delete(
   deleteContractSection,
 );
 
-module.exports = router;
+export default router;

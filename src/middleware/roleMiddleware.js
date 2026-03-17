@@ -1,7 +1,7 @@
-const errorResponse = require("../helper/response");
-const { ERROR_MESSAGES, isValidRole } = require("../config/constants.js");
-const isAuthorized = require("../helper/utils.js");
-const getPool = require("../config/database");
+import errorResponse from "../helper/response.js";
+import { ERROR_MESSAGES, isValidRole } from "../config/constants.js";
+import isAuthorized from "../helper/utils.js";
+import getPool from "../config/database.js";
 
 const roleMiddleware = async (req, res, next) => {
   try {
@@ -19,7 +19,7 @@ const roleMiddleware = async (req, res, next) => {
       FROM role
       WHERE role_id = $1
       `,
-      [role_id]
+      [role_id],
     );
 
     if (rowCount === 0) {
@@ -33,4 +33,4 @@ const roleMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = roleMiddleware;
+export default roleMiddleware;

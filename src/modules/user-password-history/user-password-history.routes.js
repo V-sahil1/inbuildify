@@ -1,27 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createUserPasswordHistory,
   getUserPasswordHistory,
   deleteUserPasswordHistory,
   getUserPasswordHistoryById,
   deleteUserPasswordHistoryByUserId,
-} = require("./user-password-history.controller.js");
-const {
+} from "./user-password-history.controller.js";
+import {
   createUserPasswordHistorySchema,
   getAllUserPasswordHistorySchema,
   deleteUserPasswordHistorySchema,
   getUserPasswordHistoryByIdSchema,
   deleteUserPasswordHistoryByUserIdSchema,
-} = require("./user-password-history.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./user-password-history.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,33 +29,33 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createUserPasswordHistorySchema, REQUEST_SOURCE.BODY),
-  createUserPasswordHistory
+  createUserPasswordHistory,
 );
 
 router.get(
   "/",
   validateRequest(getAllUserPasswordHistorySchema, REQUEST_SOURCE.QUERY),
-  getUserPasswordHistory
+  getUserPasswordHistory,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteUserPasswordHistorySchema, REQUEST_SOURCE.PARAMS),
-  deleteUserPasswordHistory
+  deleteUserPasswordHistory,
 ),
-  router.get(
-    "/:id",
-    validateRequest(getUserPasswordHistoryByIdSchema, REQUEST_SOURCE.PARAMS),
-    getUserPasswordHistoryById
-  );
+router.get(
+  "/:id",
+  validateRequest(getUserPasswordHistoryByIdSchema, REQUEST_SOURCE.PARAMS),
+  getUserPasswordHistoryById,
+);
 
 router.delete(
   "/user/:user_id",
   validateRequest(
     deleteUserPasswordHistoryByUserIdSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deleteUserPasswordHistoryByUserId
+  deleteUserPasswordHistoryByUserId,
 );
 
-module.exports = router;
+export default router;

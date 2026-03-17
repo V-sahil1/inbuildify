@@ -1,8 +1,8 @@
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase, encrypt, decrypt } = require("../../utils/common");
-const getPool = require("../../config/database");
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase, encrypt, decrypt } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
-exports.createUserPasswordHistory = async (req, res) => {
+export async function createUserPasswordHistory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -29,7 +29,7 @@ exports.createUserPasswordHistory = async (req, res) => {
        FROM password_policy
        WHERE builder_id = $1 AND is_active = true
        LIMIT 1`,
-      [builderId]
+      [builderId],
     );
 
     if (policyActive.rowCount === 0) {
@@ -42,7 +42,7 @@ exports.createUserPasswordHistory = async (req, res) => {
        FROM password_policy
        WHERE builder_id = $1
        LIMIT 1`,
-      [builderId]
+      [builderId],
     );
 
     if (policyRes.rowCount === 0) {
@@ -58,12 +58,12 @@ exports.createUserPasswordHistory = async (req, res) => {
        FROM user_password_history
        WHERE user_id = $1
        ORDER BY changed_at ASC`,
-      [userId]
+      [userId],
     );
 
     // Prevent duplicate password for THIS user only
     const alreadyUsed = existingHistory.rows.find(
-      (x) => x.old_password === encryptedPassword
+      (x) => x.old_password === encryptedPassword,
     );
 
     if (alreadyUsed) {
@@ -71,7 +71,7 @@ exports.createUserPasswordHistory = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "This password already exists in your password history."
+        "This password already exists in your password history.",
       );
     }
 
@@ -87,7 +87,7 @@ exports.createUserPasswordHistory = async (req, res) => {
         `DELETE FROM user_password_history
          WHERE user_id = $1
          AND history_id = ANY($2::uuid[])`,
-        [userId, oldestToDelete]
+        [userId, oldestToDelete],
       );
     }
 
@@ -108,7 +108,7 @@ exports.createUserPasswordHistory = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "User password history saved successfully."
+      "User password history saved successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -117,7 +117,7 @@ exports.createUserPasswordHistory = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "This password already exists in your password history."
+        "This password already exists in your password history.",
       );
     }
 
@@ -126,9 +126,9 @@ exports.createUserPasswordHistory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserPasswordHistory = async (req, res) => {
+export async function getUserPasswordHistory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -181,9 +181,9 @@ exports.getUserPasswordHistory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteUserPasswordHistory = async (req, res) => {
+export async function deleteUserPasswordHistory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -195,27 +195,27 @@ exports.deleteUserPasswordHistory = async (req, res) => {
       return errorResponse(res, 400, "Histroy ID is required.");
     }
     const existingHistory = await client.query(
-      `SELECT history_id FROM user_password_history WHERE history_id = $1 AND user_id = $2`,
-      [id, userId]
+      "SELECT history_id FROM user_password_history WHERE history_id = $1 AND user_id = $2",
+      [id, userId],
     );
 
     if (existingHistory.rowCount === 0) {
       return errorResponse(
         res,
         404,
-        "User password history not found for this user."
+        "User password history not found for this user.",
       );
     }
 
     await client.query(
-      `DELETE FROM user_password_history WHERE history_id = $1`,
-      [id]
+      "DELETE FROM user_password_history WHERE history_id = $1",
+      [id],
     );
 
     return successResponse(
       res,
       null,
-      "User password history deleted successfully."
+      "User password history deleted successfully.",
     );
   } catch (error) {
     console.error("Error deleting user password history:", error);
@@ -223,9 +223,9 @@ exports.deleteUserPasswordHistory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserPasswordHistoryById = async (req, res) => {
+export async function getUserPasswordHistoryById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -260,7 +260,7 @@ exports.getUserPasswordHistoryById = async (req, res) => {
     return successResponse(
       res,
       decryptedHistory,
-      "User password history fetched successfully."
+      "User password history fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching user password history:", error);
@@ -268,9 +268,9 @@ exports.getUserPasswordHistoryById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
+export async function deleteUserPasswordHistoryByUserId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -286,7 +286,7 @@ exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
       return errorResponse(
         res,
         403,
-        "You are not allowed to delete another user's password history."
+        "You are not allowed to delete another user's password history.",
       );
     }
 
@@ -298,7 +298,7 @@ exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
       FROM user_password_history
       WHERE user_id = $1
       `,
-      [user_id]
+      [user_id],
     );
 
     if (existing.rowCount === 0) {
@@ -306,7 +306,7 @@ exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No password history found for this user."
+        "No password history found for this user.",
       );
     }
 
@@ -325,7 +325,7 @@ exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
       {
         deletedCount: deleted.rowCount,
       },
-      "User password history deleted successfully."
+      "User password history deleted successfully.",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -334,4 +334,4 @@ exports.deleteUserPasswordHistoryByUserId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

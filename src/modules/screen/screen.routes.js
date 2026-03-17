@@ -1,23 +1,18 @@
-const express = require("express");
-const router = express.Router();
-const {
-  createScreen,
-  getScreens,
-  deleteScreen,
-  updateScreen,
-} = require("./screen.controller.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
+import express from "express";
 
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const {
+const router = express.Router();
+import { createScreen, getScreens, deleteScreen, updateScreen } from "./screen.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createScreenSchema,
   deleteScreenSchema,
   updateScreenParamsSchema,
   updateScreenSchema,
-} = require("./screen.validation.js");
+} from "./screen.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,7 +21,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createScreenSchema, REQUEST_SOURCE.BODY),
-  createScreen
+  createScreen,
 );
 
 router.get("/", getScreens);
@@ -34,14 +29,14 @@ router.get("/", getScreens);
 router.delete(
   "/:screen_id",
   validateRequest(deleteScreenSchema, REQUEST_SOURCE.PARAMS),
-  deleteScreen
+  deleteScreen,
 );
 
 router.put(
   "/:screen_id",
   validateRequest(updateScreenParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateScreenSchema, REQUEST_SOURCE.BODY),
-  updateScreen
+  updateScreen,
 );
 
-module.exports = router;
+export default router;

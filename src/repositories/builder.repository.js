@@ -1,6 +1,6 @@
-const getPool = require("../config/database");
+import getPool from "../config/database.js";
 
-async function getBuilderAddress(builderId) {
+export async function getBuilderAddress(builderId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -31,7 +31,7 @@ async function getBuilderAddress(builderId) {
   }
 }
 
-async function getCompanyAddress(builderId) {
+export async function getCompanyAddress(builderId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -62,7 +62,7 @@ async function getCompanyAddress(builderId) {
   }
 }
 
-module.exports = {
+export default {
   getBuilderAddress,
   getCompanyAddress,
 };

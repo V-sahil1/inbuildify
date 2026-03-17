@@ -1,22 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createSchedulerSettings,
-  getSchedulerSettings,
-  updateSchedulerSettings,
-} = require("./scheduler-setting.controller.js");
-const {
-  createSchedulerSettingsSchema,
-  updateSchedulerSettingSchema,
-} = require("./scheduler-setting.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { createSchedulerSettings, getSchedulerSettings, updateSchedulerSettings } from "./scheduler-setting.controller.js";
+import { createSchedulerSettingsSchema, updateSchedulerSettingSchema } from "./scheduler-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -25,7 +17,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createSchedulerSettingsSchema, REQUEST_SOURCE.BODY),
-  createSchedulerSettings
+  createSchedulerSettings,
 );
 
 router.get("/", getSchedulerSettings);
@@ -33,7 +25,7 @@ router.get("/", getSchedulerSettings);
 router.put(
   "/",
   validateRequest(updateSchedulerSettingSchema, REQUEST_SOURCE.BODY),
-  updateSchedulerSettings
+  updateSchedulerSettings,
 );
 
-module.exports = router;
+export default router;

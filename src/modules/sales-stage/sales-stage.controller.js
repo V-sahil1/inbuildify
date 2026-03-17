@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createSalesStage = async (req, res) => {
+export async function createSalesStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -26,7 +26,7 @@ exports.createSalesStage = async (req, res) => {
     await client.query("BEGIN");
 
     const checkProcess = await client.query(
-      `SELECT 1 FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2 LIMIT 1`,
+      "SELECT 1 FROM sales_process WHERE sales_process_id = $1 AND builder_id = $2 LIMIT 1",
       [sales_process_id, builderId],
     );
 
@@ -36,7 +36,7 @@ exports.createSalesStage = async (req, res) => {
     }
 
     const existing = await client.query(
-      `SELECT 1 FROM sales_stage WHERE sales_process_id = $1 AND stage_name = $2 LIMIT 1`,
+      "SELECT 1 FROM sales_stage WHERE sales_process_id = $1 AND stage_name = $2 LIMIT 1",
       [sales_process_id, stage_name.trim()],
     );
 
@@ -172,9 +172,9 @@ exports.createSalesStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSalesStages = async (req, res) => {
+export async function getAllSalesStages(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -217,9 +217,9 @@ exports.getAllSalesStages = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSalesStage = async (req, res) => {
+export async function deleteSalesStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -278,9 +278,9 @@ exports.deleteSalesStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSalesStage = async (req, res) => {
+export async function updateSalesStage(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -293,7 +293,7 @@ exports.updateSalesStage = async (req, res) => {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
-    let { stage_name, functionality_id, category, sort_order } = req.body;
+    const { stage_name, functionality_id, category, sort_order, is_active } = req.body;
 
     const updatingOtherFields =
       stage_name || functionality_id || category || sort_order !== undefined;
@@ -472,7 +472,7 @@ exports.updateSalesStage = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const query = `
       WITH updated AS (
@@ -524,9 +524,9 @@ exports.updateSalesStage = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSalesStageIsActive = async (req, res) => {
+export async function updateSalesStageIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -601,9 +601,9 @@ exports.updateSalesStageIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getSalesStagesBySalesProcessId = async (req, res) => {
+export async function getSalesStagesBySalesProcessId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -686,4 +686,4 @@ exports.getSalesStagesBySalesProcessId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

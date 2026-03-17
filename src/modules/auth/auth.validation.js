@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Reusable rules
 const nameRule = Joi.string().min(2).max(100).trim().required().messages({
@@ -47,7 +47,7 @@ const phoneRule = Joi.string()
   });
 
 // Schemas
-const registerRootSchema = Joi.object({
+export const registerRootSchema = Joi.object({
   name: nameRule,
   email: emailRule,
   password: passwordRule,
@@ -58,7 +58,7 @@ const registerRootSchema = Joi.object({
   phone: phoneRule,
 });
 
-const loginUserSchema = Joi.object({
+export const loginUserSchema = Joi.object({
   email: Joi.string().email().lowercase().trim().optional().allow("").messages({
     "string.base": "Email must be a string",
     "string.email": "Please provide a valid email address",
@@ -79,16 +79,16 @@ const loginUserSchema = Joi.object({
     "object.missing": "Either email or login ID is required",
   });
 
-const verifyEmailSchema = Joi.object({
+export const verifyEmailSchema = Joi.object({
   email: emailRule,
   otp: otpRule,
 });
 
-const forgotPasswordSchema = Joi.object({
+export const forgotPasswordSchema = Joi.object({
   email: emailRule,
 });
 
-const resetPasswordSchema = Joi.object({
+export const resetPasswordSchema = Joi.object({
   email: emailRule,
   resetPasswordToken: Joi.string().allow("").messages({
     "string.base": "Reset password token must be a string",
@@ -98,7 +98,7 @@ const resetPasswordSchema = Joi.object({
   password: passwordRule.label("New password"), // override label for better messages
 });
 
-const changePasswordSchema = Joi.object({
+export const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required().messages({
     "string.base": "Current password must be a string",
     "string.empty": "Current password is required",
@@ -107,7 +107,7 @@ const changePasswordSchema = Joi.object({
   newPassword: passwordRule.label("New password"),
 });
 
-const refreshTokenSchema = Joi.object({
+export const refreshTokenSchema = Joi.object({
   refreshToken: Joi.string().required().messages({
     "string.base": "Refresh token must be a string",
     "string.empty": "Refresh token is required",
@@ -115,11 +115,11 @@ const refreshTokenSchema = Joi.object({
   }),
 });
 
-const resendOtpSchema = Joi.object({
+export const resendOtpSchema = Joi.object({
   email: emailRule,
 });
 
-module.exports = {
+export default {
   registerRootSchema,
   loginUserSchema,
   verifyEmailSchema,

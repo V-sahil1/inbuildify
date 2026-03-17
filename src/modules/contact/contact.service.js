@@ -1,21 +1,16 @@
-const contactRepository = require("./contact.repository");
-const userRepository = require("../user/user.repository");
-const addressRepository = require("../../repositories/address.repository");
-const tokenRepository = require("../../repositories/token.repository");
-
-const emailService = require("../../service/email.service");
-const {
-  generateStrongPassword,
-  validatePasswordPolicy,
-} = require("../../utils/password.util");
-
-const { encrypt } = require("../../utils/common");
-const getPool = require("../../config/database");
+import contactRepository from "./contact.repository.js";
+import userRepository from "../user/user.repository.js";
+import addressRepository from "../../repositories/address.repository.js";
+import tokenRepository from "../../repositories/token.repository.js";
+import emailService from "../../service/email.service.js";
+import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
+import { encrypt } from "../../utils/common.js";
+import getPool from "../../config/database.js";
 
 /* ------------------------------------------------------------
       LIST CONTACTS
   ------------------------------------------------------------ */
-async function getContacts(currentUser, query) {
+export async function getContacts(currentUser, query) {
   const builderId = currentUser.builder_id;
 
   const search = query.search || "";
@@ -31,7 +26,7 @@ async function getContacts(currentUser, query) {
 /* ------------------------------------------------------------
       GET ONE CONTACT
   ------------------------------------------------------------ */
-async function getContactById(currentUser, contact_id) {
+export async function getContactById(currentUser, contact_id) {
   const contact = await contactRepository.getContactById(
     currentUser.builder_id,
     contact_id,
@@ -49,7 +44,7 @@ async function getContactById(currentUser, contact_id) {
 /* ------------------------------------------------------------
       CREATE CONTACT
   ------------------------------------------------------------ */
-async function createContact(currentUser, body) {
+export async function createContact(currentUser, body) {
   const builderId = currentUser.builder_id;
 
   const {
@@ -142,7 +137,7 @@ async function createContact(currentUser, body) {
 /* ------------------------------------------------------------
       UPDATE CONTACT
   ------------------------------------------------------------ */
-async function updateContact(currentUser, contact_id, body) {
+export async function updateContact(currentUser, contact_id, body) {
   const builderId = currentUser.builder_id;
 
   const existing = await contactRepository.getContactById(
@@ -167,7 +162,7 @@ async function updateContact(currentUser, contact_id, body) {
   } = body;
 
   // Remove role_id from updateData - users cannot update roles
-  let updateData = {
+  const updateData = {
     name,
     email,
     phone,
@@ -214,7 +209,7 @@ async function updateContact(currentUser, contact_id, body) {
 /* ------------------------------------------------------------
       DELETE CONTACT (soft delete)
   ------------------------------------------------------------ */
-async function deleteContact(currentUser, contact_id) {
+export async function deleteContact(currentUser, contact_id) {
   const builderId = currentUser.builder_id;
 
   const contact = await contactRepository.getContactById(builderId, contact_id);
@@ -232,7 +227,7 @@ async function deleteContact(currentUser, contact_id) {
 /* ------------------------------------------------------------
       CONVERT CONTACT → USER
   ------------------------------------------------------------ */
-async function convertContactToUser(currentUser, contact_id, body) {
+export async function convertContactToUser(currentUser, contact_id, body) {
   const { role_id } = body;
 
   const builderId = currentUser.builder_id;
@@ -292,7 +287,7 @@ async function convertContactToUser(currentUser, contact_id, body) {
   };
 }
 
-module.exports = {
+export default {
   getContacts,
   getContactById,
   createContact,

@@ -1,21 +1,13 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-  createAction,
-  getAction,
-  updateAction,
-} = require("./actions.controller.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
-  createActionSchema,
-  getActionSchema,
-  updateActionSchema,
-} = require("./actions.validation.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { handleMulterError } = require("../../utils/s3Upload.js");
-const { createUpload } = require("../../utils/s3Upload.js");
+import { createAction, getAction, updateAction } from "./actions.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { createActionSchema, getActionSchema, updateActionSchema } from "./actions.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { handleMulterError, createUpload } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,5 +18,4 @@ router.post("/:lead_id", upload.single("attachment"), handleMulterError, validat
 router.put("/:action_id", upload.single("attachment"), handleMulterError, validateRequest(updateActionSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(updateActionSchema.body, REQUEST_SOURCE.BODY), updateAction);
 router.get("/:lead_id", validateRequest(getActionSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(getActionSchema.query, REQUEST_SOURCE.QUERY), getAction);
 
-
-module.exports = router;
+export default router;

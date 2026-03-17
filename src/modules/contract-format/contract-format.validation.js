@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createContractFormatSchema = Joi.object({
+export const createContractFormatSchema = Joi.object({
   format_name: Joi.string()
     .min(2)
     .max(255)
@@ -22,7 +22,7 @@ const createContractFormatSchema = Joi.object({
   }),
 });
 
-const getAllContractFormatsSchema = Joi.object({
+export const getAllContractFormatsSchema = Joi.object({
   page: Joi.number().integer().min(1).optional().default(1).messages({
     "number.base": "page must be a number.",
     "number.integer": "page must be an integer.",
@@ -83,21 +83,21 @@ const getAllContractFormatsSchema = Joi.object({
   }),
 });
 
-const getContractFormatByIdSchema = Joi.object({
+export const getContractFormatByIdSchema = Joi.object({
   contract_format_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_format_id must be a valid UUID.",
     "any.required": "contract_format_id is required.",
   }),
 });
 
-const updateContractFormatParamsSchema = Joi.object({
+export const updateContractFormatParamsSchema = Joi.object({
   contract_format_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_format_id must be a valid UUID.",
     "any.required": "contract_format_id is required.",
   }),
 });
 
-const updateContractFormatSchema = Joi.object({
+export const updateContractFormatSchema = Joi.object({
   format_name: Joi.string()
     .min(2)
     .max(255)
@@ -122,14 +122,14 @@ const updateContractFormatSchema = Joi.object({
     "object.min": "At least one field must be provided for update.",
   });
 
-const deleteContractFormatSchema = Joi.object({
+export const deleteContractFormatSchema = Joi.object({
   contract_format_id: Joi.string().uuid().required().messages({
     "string.guid": "contract_format_id must be a valid UUID.",
     "any.required": "contract_format_id is required.",
   }),
 });
 
-module.exports = {
+export default {
   createContractFormatSchema,
   getAllContractFormatsSchema,
   getContractFormatByIdSchema,

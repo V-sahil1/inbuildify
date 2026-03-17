@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.getDashboardData = async (req, res) => {
+export async function getDashboardData(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -74,16 +74,16 @@ exports.getDashboardData = async (req, res) => {
         lead_count,
         lead_data,
       }),
-      "Dashboard data fetched successfully."
+      "Dashboard data fetched successfully.",
     );
   } catch (error) {
     console.error("Error in getDashboardData:", error);
     return errorResponse(
       res,
       error?.statusCode || 400,
-      error?.message || "Internal Server Error"
+      error?.message || "Internal Server Error",
     );
   } finally {
     client.release();
   }
-};
+}

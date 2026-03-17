@@ -1,18 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const {
-  createLeadContactMapSchema,
-  getByLeadParamsSchema,
-  deleteParamsSchema,
-} = require("./leads-contact-map.validation.js");
-const controller = require("./leads-Contact-map.controller.js");
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createLeadContactMapSchema, getByLeadParamsSchema, deleteParamsSchema } from "./leads-contact-map.validation.js";
+import controller from "./leads-Contact-map.controller.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -21,19 +17,19 @@ router.post(
   "/",
   camelToSnakeMiddleware,
   validateRequest(createLeadContactMapSchema, REQUEST_SOURCE.BODY),
-  controller.createLeadContactMap
+  controller.createLeadContactMap,
 );
 
 router.get(
   "/:leads_id",
   validateRequest(getByLeadParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.getContactsByLeadId
+  controller.getContactsByLeadId,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteParamsSchema, REQUEST_SOURCE.PARAMS),
-  controller.deleteLeadContactMap
+  controller.deleteLeadContactMap,
 );
 
-module.exports = router;
+export default router;

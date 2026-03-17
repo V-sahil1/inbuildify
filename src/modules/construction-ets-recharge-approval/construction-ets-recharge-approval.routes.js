@@ -1,25 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createConstructionEtsRechargeApproval,
   getAllConstructionEtsRechargeApprovals,
   getConstructionEtsRechargeApprovalById,
   updateConstructionEtsRechargeApproval,
   deleteConstructionEtsRechargeApproval,
-} = require("./construction-ets-recharge-approval.controller.js");
-const {
+} from "./construction-ets-recharge-approval.controller.js";
+import {
   createConstructionEtsRechargeApprovalValidation,
   updateConstructionEtsRechargeApprovalValidation,
   getConstructionEtsRechargeApprovalByIdValidation,
   queryValidation,
-} = require("./construction-ets-recharge-approval.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-ets-recharge-approval.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -28,32 +28,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createConstructionEtsRechargeApprovalValidation, REQUEST_SOURCE.BODY),
-  createConstructionEtsRechargeApproval
+  createConstructionEtsRechargeApproval,
 );
 
 router.get(
   "/",
   validateRequest(queryValidation, REQUEST_SOURCE.QUERY),
-  getAllConstructionEtsRechargeApprovals
+  getAllConstructionEtsRechargeApprovals,
 );
 
 router.get(
   "/:construction_ets_recharge_approval_id",
   validateRequest(getConstructionEtsRechargeApprovalByIdValidation, REQUEST_SOURCE.PARAMS),
-  getConstructionEtsRechargeApprovalById
+  getConstructionEtsRechargeApprovalById,
 );
 
 router.put(
   "/:construction_ets_recharge_approval_id",
   validateRequest(getConstructionEtsRechargeApprovalByIdValidation, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionEtsRechargeApprovalValidation, REQUEST_SOURCE.BODY),
-  updateConstructionEtsRechargeApproval
+  updateConstructionEtsRechargeApproval,
 );
 
 router.delete(
   "/:construction_ets_recharge_approval_id",
   validateRequest(getConstructionEtsRechargeApprovalByIdValidation, REQUEST_SOURCE.PARAMS),
-  deleteConstructionEtsRechargeApproval
+  deleteConstructionEtsRechargeApproval,
 );
 
-module.exports = router;
+export default router;

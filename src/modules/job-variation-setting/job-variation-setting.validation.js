@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createJobVariationSettingSchema = Joi.object({
+export const createJobVariationSettingSchema = Joi.object({
   allow_notes_in_variation: Joi.boolean().default(false),
   allow_cost_adjustment: Joi.boolean().default(false),
   show_notes_in_variation_by_default: Joi.boolean().default(false),
@@ -49,14 +49,14 @@ const createJobVariationSettingSchema = Joi.object({
     }),
 });
 
-const updateJobVariationSettingParamsSchema = Joi.object({
+export const updateJobVariationSettingParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "job variation setting ID must be a valid UUID",
     "any.required": "job variation setting ID is required",
   }),
 });
 
-const updateJobVariationSettingSchema = Joi.object({
+export const updateJobVariationSettingSchema = Joi.object({
   allow_notes_in_variation: Joi.boolean().optional(),
   allow_cost_adjustment: Joi.boolean().optional(),
   show_notes_in_variation_by_default: Joi.boolean().optional(),
@@ -106,7 +106,7 @@ const updateJobVariationSettingSchema = Joi.object({
     }),
 });
 
-module.exports = {
+export default {
   createJobVariationSettingSchema,
   updateJobVariationSettingParamsSchema,
   updateJobVariationSettingSchema,

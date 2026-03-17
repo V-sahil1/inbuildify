@@ -1,14 +1,15 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createDocumentCommonSubfolder,
   getDocumentCommonSubfolderByFolderId,
   getDocumentCommonSubfolderTree,
   deleteDocumentCommonSubfolder,
   updateDocumentCommonSubfolder,
-} = require("./document-common-subfolder.controller.js");
-const {
+} from "./document-common-subfolder.controller.js";
+import {
   createDocumentCommonSubfolderSchem,
   getDocumentCommonSubfolderByFolderIdParamsSchema,
   getDocumentCommonSubfolderByFolderIdSchema,
@@ -16,14 +17,12 @@ const {
   deleteDocumentCommonSubfolderSchema,
   updateDocumentCommonSubfolderParamsSchema,
   updateDocumentCommonSubfolderSchema,
-} = require("./document-common-subfolder.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./document-common-subfolder.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -73,4 +72,4 @@ router.put(
   updateDocumentCommonSubfolder,
 );
 
-module.exports = router;
+export default router;

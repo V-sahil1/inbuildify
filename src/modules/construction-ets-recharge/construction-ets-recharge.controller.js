@@ -1,9 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-
-exports.getConstructionEtsRechargeSettings = async (req, res) => {
+export async function getConstructionEtsRechargeSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -18,7 +17,7 @@ exports.getConstructionEtsRechargeSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -33,14 +32,14 @@ exports.getConstructionEtsRechargeSettings = async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING enable_ets_supplier, enable_recharge_supplier, signature_section;
         `,
-        [company_id, builder_id, req.user.users_id, req.user.users_id]
+        [company_id, builder_id, req.user.users_id, req.user.users_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction ETS recharge settings fetched"
+      "Construction ETS recharge settings fetched",
     );
   } catch (error) {
     console.error("Fetch Construction ETS Recharge Error:", error);
@@ -48,9 +47,9 @@ exports.getConstructionEtsRechargeSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionEtsRechargeSettings = async (req, res) => {
+export async function updateConstructionEtsRechargeSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -115,7 +114,7 @@ exports.updateConstructionEtsRechargeSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(rows[0]),
-      "Construction ETS recharge settings saved successfully"
+      "Construction ETS recharge settings saved successfully",
     );
   } catch (error) {
     await client.query("ROLLBACK");
@@ -124,6 +123,4 @@ exports.updateConstructionEtsRechargeSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
-
-
+}

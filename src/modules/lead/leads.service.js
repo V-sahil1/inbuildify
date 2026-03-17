@@ -1,8 +1,8 @@
-const leadsRepository = require("./leads.repository");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { generateDynamicReferenceNumber } = require("../../utils/common");
-const getPool = require("../../config/database");
-const quotationService = require("../quotation/quotation.service")
+import leadsRepository from "./leads.repository.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { generateDynamicReferenceNumber } from "../../utils/common.js";
+import getPool from "../../config/database.js";
+
 class LeadsService {
   async createLead(
     leadData,
@@ -161,20 +161,6 @@ class LeadsService {
         }
       }
 
-      // Check if name is being updated and if it conflicts with existing leads
-      if (leadData.name && leadData.name.toLowerCase() !== existingLead.name.toLowerCase()) {
-        const existingLeadByName = await leadsRepository.checkDuplicateName(
-          leadData.name,
-          builderId,
-          userId,
-          leadId
-        );
-
-        if (existingLeadByName) {
-          throw new Error("A lead with this name already exists");
-        }
-      }
-
       if (leadData.region_id) {
         const regionValidation = await this.validateRegion(leadData.region_id);
         if (!regionValidation.valid) {
@@ -203,7 +189,7 @@ class LeadsService {
         const hlpValidation = await this.validateHouseLandPackage(
           leadData.house_land_package_id,
           builderId,
-          companyId
+          companyId,
         );
         if (!hlpValidation.valid) {
           return {
@@ -265,7 +251,7 @@ class LeadsService {
         leadId,
         opportunityNotes,
         builderId,
-        companyId
+        companyId,
       );
 
       return {
@@ -740,6 +726,4 @@ class LeadsService {
   }
 }
 
- 
-
-module.exports = new LeadsService();
+export default new LeadsService();

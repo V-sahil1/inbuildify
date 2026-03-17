@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createConstructionType,
   getAllConstructionTypes,
   deleteConstructionType,
   updateConstructionType,
-} = require("./construction-type.controller.js");
-const {
+} from "./construction-type.controller.js";
+import {
   createConstructiontyeSchema,
   getAllConstructionTypeSchema,
   deleteConstructionTypeSchema,
   updateConstructionTypeParamsSchema,
   updateConstructionTypeSchema,
-} = require("./construction-type.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-type.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -29,26 +28,26 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createConstructiontyeSchema, REQUEST_SOURCE.BODY),
-  createConstructionType
+  createConstructionType,
 );
 
 router.get(
   "/",
   validateRequest(getAllConstructionTypeSchema, REQUEST_SOURCE.QUERY),
-  getAllConstructionTypes
+  getAllConstructionTypes,
 );
 
 router.delete(
   "/:construction_type_id",
   validateRequest(deleteConstructionTypeSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionType
+  deleteConstructionType,
 );
 
 router.put(
   "/:construction_type_id",
   validateRequest(updateConstructionTypeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionTypeSchema, REQUEST_SOURCE.BODY),
-  updateConstructionType
+  updateConstructionType,
 );
 
-module.exports = router;
+export default router;

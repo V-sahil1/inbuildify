@@ -1,7 +1,7 @@
 /**
  * Seed default job_variation_settings for a new builder
  */
-async function seedJobVariationSettings({ company_id, builder_id, created_by, client }) {
+export async function seedJobVariationSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO job_variation_settings (
       company_id, builder_id,
@@ -16,8 +16,8 @@ async function seedJobVariationSettings({ company_id, builder_id, created_by, cl
       created_by, updated_by
     ) VALUES ($1, $2, false, false, false, false, false, false, false, false, false, false, $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedJobVariationSettings };
+export default { seedJobVariationSettings };

@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createDocumentCommonFolderSchema = Joi.object({
+export const createDocumentCommonFolderSchema = Joi.object({
   name: Joi.string().min(1).max(150).required(),
   sort_order: Joi.number().integer().default(0).min(0).optional(),
   notify: Joi.boolean().optional(),
@@ -14,7 +14,7 @@ const createDocumentCommonFolderSchema = Joi.object({
   }),
 });
 
-const getAllDocumentCommonFolderSchema = Joi.object({
+export const getAllDocumentCommonFolderSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -29,21 +29,21 @@ const getAllDocumentCommonFolderSchema = Joi.object({
   }),
 });
 
-const deleteDocumentCommonFolderSchema = Joi.object({
+export const deleteDocumentCommonFolderSchema = Joi.object({
   document_common_folder_id: Joi.string().uuid().required().messages({
     "string.guid": "Surveyor ID must be a valid UUID",
     "any.required": "Surveyor ID is required",
   }),
 });
 
-const updateDocumentCommonFolderParamsSchema = Joi.object({
+export const updateDocumentCommonFolderParamsSchema = Joi.object({
   document_common_folder_id: Joi.string().uuid().required().messages({
     "string.guid": "Surveyor ID must be a valid UUID",
     "any.required": "Surveyor ID is required",
   }),
 });
 
-const updateDocumentCommonFolderSchema = Joi.object({
+export const updateDocumentCommonFolderSchema = Joi.object({
   name: Joi.string().min(1).max(150).optional(),
   sort_order: Joi.number().integer().default(0).min(0).optional(),
   notify: Joi.boolean().optional(),
@@ -57,7 +57,7 @@ const updateDocumentCommonFolderSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createDocumentCommonFolderSchema,
   getAllDocumentCommonFolderSchema,
   deleteDocumentCommonFolderSchema,

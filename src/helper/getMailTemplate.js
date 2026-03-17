@@ -1,14 +1,14 @@
-const getPool = require("../config/database");
+import getPool from "../config/database.js";
 
 const getMailTemplate = async (templateKey) => {
   const pool = getPool();
   const client = await pool.connect();
   try {
-    let query = `SELECT * FROM email_templates`;
+    let query = "SELECT * FROM email_templates";
     let params = [];
 
     if (templateKey) {
-      query += ` WHERE template_key = $1 LIMIT 1;`;
+      query += " WHERE template_key = $1 LIMIT 1;";
       params = [templateKey];
     }
 
@@ -22,4 +22,4 @@ const getMailTemplate = async (templateKey) => {
   }
 };
 
-module.exports = getMailTemplate;
+export default getMailTemplate;

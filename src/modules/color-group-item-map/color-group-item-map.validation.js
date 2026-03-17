@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createColorGroupItemMapSchema = Joi.object({
+export const createColorGroupItemMapSchema = Joi.object({
   color_group_id: Joi.string().uuid().required().messages({
     "any.required": "Color group ID is required",
     "string.uuid": "Color group ID must be a valid UUID",
@@ -13,7 +13,7 @@ const createColorGroupItemMapSchema = Joi.object({
   }),
 });
 
-const getAllColorGroupItemMapsSchema = Joi.object({
+export const getAllColorGroupItemMapsSchema = Joi.object({
   color_group_id: Joi.string().uuid().optional().messages({
     "string.uuid": "Color group ID must be a valid UUID",
     "string.guid": "Color group ID must be a valid UUID",
@@ -35,7 +35,7 @@ const getAllColorGroupItemMapsSchema = Joi.object({
   }),
 });
 
-const deleteColorGroupItemMapSchema = Joi.object({
+export const deleteColorGroupItemMapSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "any.required": "Mapping ID is required",
     "string.uuid": "Mapping ID must be a valid UUID",
@@ -43,7 +43,7 @@ const deleteColorGroupItemMapSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createColorGroupItemMapSchema,
   getAllColorGroupItemMapsSchema,
   deleteColorGroupItemMapSchema,

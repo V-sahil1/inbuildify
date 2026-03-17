@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createLotPackageGroup = async (req, res) => {
+export async function createLotPackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -64,9 +64,9 @@ exports.createLotPackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllLotPackageGroups = async (req, res) => {
+export async function getAllLotPackageGroups(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -81,8 +81,8 @@ exports.getAllLotPackageGroups = async (req, res) => {
     const { page = 1, limit = 25, search } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereConditions = [];
-    let queryParams = [];
+    const whereConditions = [];
+    const queryParams = [];
     let paramIndex = 1;
 
     if (builderId) {
@@ -133,9 +133,9 @@ exports.getAllLotPackageGroups = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getLotPackageGroupById = async (req, res) => {
+export async function getLotPackageGroupById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -172,9 +172,9 @@ exports.getLotPackageGroupById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateLotPackageGroup = async (req, res) => {
+export async function updateLotPackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -245,9 +245,9 @@ exports.updateLotPackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteLotPackageGroup = async (req, res) => {
+export async function deleteLotPackageGroup(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -287,4 +287,4 @@ exports.deleteLotPackageGroup = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

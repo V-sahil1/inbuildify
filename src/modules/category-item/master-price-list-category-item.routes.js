@@ -1,23 +1,24 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createMasterPriceListCategoryItem,
   updateMasterPriceListCategoryItem,
   getMasterPriceListCategoryItemsByCategoryId,
   deleteMasterPriceListCategoryItem,
-} = require("./master-price-list-category-item.controller.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const {
+} from "./master-price-list-category-item.controller.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import {
   createMasterPriceListCategoryItemSchema,
   getMasterPriceListCategoryItemsByCategoryIdSchema,
   updateMasterPriceListCategoryItemSchema,
   deleteMasterPriceListCategoryItemSchema,
-} = require("./master-price-list-category-item.validation.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./master-price-list-category-item.validation.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,28 +27,28 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createMasterPriceListCategoryItemSchema),
-  createMasterPriceListCategoryItem
+  createMasterPriceListCategoryItem,
 );
 router.get(
   "/:categoryId",
   validateRequest(
     getMasterPriceListCategoryItemsByCategoryIdSchema,
-    REQUEST_SOURCE.QUERY
+    REQUEST_SOURCE.QUERY,
   ),
-  getMasterPriceListCategoryItemsByCategoryId
+  getMasterPriceListCategoryItemsByCategoryId,
 );
 router.put(
   "/:category_item_id",
   validateRequest(updateMasterPriceListCategoryItemSchema),
-  updateMasterPriceListCategoryItem
+  updateMasterPriceListCategoryItem,
 );
 router.delete(
   "/:category_item_id",
   validateRequest(
     deleteMasterPriceListCategoryItemSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deleteMasterPriceListCategoryItem
+  deleteMasterPriceListCategoryItem,
 );
 
-module.exports = router;
+export default router;

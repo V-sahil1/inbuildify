@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const imageRule = Joi.alternatives()
   .try(
@@ -39,7 +39,7 @@ const limitRule = Joi.number().integer().min(1).max(100).default(10).messages({
   "number.max": "Limit must not exceed 100",
 });
 
-const createFloorPlanSchema = Joi.object({
+export const createFloorPlanSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)
@@ -95,7 +95,7 @@ const createFloorPlanSchema = Joi.object({
   status: Joi.boolean().default(true),
 });
 
-const getFloorPlansSchema = Joi.object({
+export const getFloorPlansSchema = Joi.object({
   name: Joi.string().max(150).optional(),
   dwelling_type_id: Joi.string().uuid().allow("", null).optional().messages({
     "string.guid": "Dwelling type ID must be a valid UUID",
@@ -112,7 +112,7 @@ const getFloorPlansSchema = Joi.object({
   limit: limitRule,
 });
 
-const updateFloorPlanSchema = Joi.object({
+export const updateFloorPlanSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(150)
@@ -186,15 +186,15 @@ const updateFloorPlanSchema = Joi.object({
   status: Joi.boolean(),
 });
 
-const updateFloorPlanParamsSchema = Joi.object({
+export const updateFloorPlanParamsSchema = Joi.object({
   floor_plan_id: floorPlanIdRule.required(),
 });
 
-const deleteFloorPlanSchema = Joi.object({
+export const deleteFloorPlanSchema = Joi.object({
   floor_plan_id: floorPlanIdRule.required(),
 });
 
-module.exports = {
+export default {
   createFloorPlanSchema,
   getFloorPlansSchema,
   updateFloorPlanSchema,

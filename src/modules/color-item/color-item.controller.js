@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.getColorItemsWithoutCategory = async (req, res) => {
+export async function getColorItemsWithoutCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -17,7 +17,7 @@ exports.getColorItemsWithoutCategory = async (req, res) => {
 
     let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
         AND ci.color_category_id IS NULL`;
-    let queryParams = [companyId, builderId];
+    const queryParams = [companyId, builderId];
     let paramIndex = 3;
 
     // Add color_group_id filter if provided
@@ -87,9 +87,9 @@ exports.getColorItemsWithoutCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createColorItem = async (req, res) => {
+export async function createColorItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -481,9 +481,9 @@ exports.createColorItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllColorItems = async (req, res) => {
+export async function getAllColorItems(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -506,8 +506,8 @@ exports.getAllColorItems = async (req, res) => {
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
 
-    let conditions = [`(ci.company_id = $1 OR ci.builder_id = $2)`];
-    let values = [companyId, builderId];
+    const conditions = ["(ci.company_id = $1 OR ci.builder_id = $2)"];
+    const values = [companyId, builderId];
     let index = 3;
 
     if (status !== undefined) {
@@ -621,9 +621,9 @@ exports.getAllColorItems = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorItem = async (req, res) => {
+export async function updateColorItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -654,7 +654,7 @@ exports.updateColorItem = async (req, res) => {
     } = req.body;
 
     let upgrade_option = reqUpgradeOption;
-    let cost_type = reqCostType;
+    const cost_type = reqCostType;
     let cost = reqCost;
 
     const colorImages = req.files?.colorImage || [];
@@ -1313,7 +1313,7 @@ exports.updateColorItem = async (req, res) => {
       );
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     updateValues.push(color_item_id);
 
@@ -1353,9 +1353,9 @@ exports.updateColorItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorItem = async (req, res) => {
+export async function deleteColorItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1440,9 +1440,9 @@ exports.deleteColorItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteImageField = async (req, res) => {
+export async function deleteImageField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1526,9 +1526,9 @@ exports.deleteImageField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorItemById = async (req, res) => {
+export async function getColorItemById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1563,9 +1563,9 @@ exports.getColorItemById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.colorItemMove = async (req, res) => {
+export async function colorItemMove(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1758,9 +1758,9 @@ exports.colorItemMove = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.copyColorItem = async (req, res) => {
+export async function copyColorItem(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1971,4 +1971,4 @@ exports.copyColorItem = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

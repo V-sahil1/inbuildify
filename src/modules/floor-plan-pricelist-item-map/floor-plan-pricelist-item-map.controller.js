@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createFloorPlanPricelistItemMap = async (req, res) => {
+export async function createFloorPlanPricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -26,7 +26,7 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
     }
 
     const floorPlanCheck = await client.query(
-      `SELECT floor_plan_id FROM floor_plan WHERE floor_plan_id = $1 AND (builder_id = $2 OR company_id = $3)`,
+      "SELECT floor_plan_id FROM floor_plan WHERE floor_plan_id = $1 AND (builder_id = $2 OR company_id = $3)",
       [floor_plan_id, builderId, companyId],
     );
     if (floorPlanCheck.rowCount === 0) {
@@ -34,7 +34,7 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
     }
 
     const priceListItemCheck = await client.query(
-      `SELECT price_list_item_id, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND (builder_id = $2 OR company_id = $3)`,
+      "SELECT price_list_item_id, cost_type FROM price_list_item WHERE price_list_item_id = $1 AND (builder_id = $2 OR company_id = $3)",
       [price_list_item_id, builderId, companyId],
     );
     if (priceListItemCheck.rowCount === 0) {
@@ -139,9 +139,9 @@ exports.createFloorPlanPricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
+export async function getAllFloorPlanPricelistItemMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -162,7 +162,7 @@ exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
     const offsetValue = (pageValue - 1) * limitValue;
 
     let whereClause = "WHERE (fp.builder_id = $1 OR fp.company_id = $2)";
-    let values = [builderId, companyId];
+    const values = [builderId, companyId];
     let paramIndex = values.length + 1;
 
     if (floor_plan_id) {
@@ -240,9 +240,9 @@ exports.getAllFloorPlanPricelistItemMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getFloorPlanPricelistItemMapById = async (req, res) => {
+export async function getFloorPlanPricelistItemMapById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -291,9 +291,9 @@ exports.getFloorPlanPricelistItemMapById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateFloorPlanPricelistItemMap = async (req, res) => {
+export async function updateFloorPlanPricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -355,7 +355,7 @@ exports.updateFloorPlanPricelistItemMap = async (req, res) => {
       );
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `UPDATE floor_plan_pricelist_item_map SET ${updateFields.join(", ")} 
@@ -396,9 +396,9 @@ exports.updateFloorPlanPricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteFloorPlanPricelistItemMap = async (req, res) => {
+export async function deleteFloorPlanPricelistItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -437,7 +437,7 @@ exports.deleteFloorPlanPricelistItemMap = async (req, res) => {
     }
 
     await client.query(
-      `DELETE FROM floor_plan_pricelist_item_map WHERE id = $1`,
+      "DELETE FROM floor_plan_pricelist_item_map WHERE id = $1",
       [id],
     );
 
@@ -452,4 +452,4 @@ exports.deleteFloorPlanPricelistItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const nameRule = Joi.string()
   .min(2)
@@ -24,14 +24,14 @@ const leadSourceIdRule = Joi.string().uuid().messages({
   "any.required": "Lead source ID is required",
 });
 
-const createLeadSourceSchema = Joi.object({
+export const createLeadSourceSchema = Joi.object({
   name: nameRule.required(),
   sort_order: sortOrderRule.optional(),
   is_active: Joi.boolean().default(true),
   allow_change: Joi.boolean().default(true),
 });
 
-const getLeadResourcesSchema = Joi.object({
+export const getLeadResourcesSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -46,29 +46,29 @@ const getLeadResourcesSchema = Joi.object({
   }),
 });
 
-const getLeadSourceByIdSchema = Joi.object({
+export const getLeadSourceByIdSchema = Joi.object({
   lead_source_id: leadSourceIdRule.required(),
 });
 
-const updateLeadSourceSchema = Joi.object({
+export const updateLeadSourceSchema = Joi.object({
   name: nameRule.optional(),
   sort_order: sortOrderRule.optional(),
   allow_change: Joi.boolean().default(true),
 });
 
-const updateLeadSourceParamsSchema = Joi.object({
+export const updateLeadSourceParamsSchema = Joi.object({
   lead_source_id: leadSourceIdRule.required(),
 });
 
-const deleteLeadSourceSchema = Joi.object({
+export const deleteLeadSourceSchema = Joi.object({
   lead_source_id: leadSourceIdRule.required(),
 });
 
-const updateLeadSourceIsActiveSchema = Joi.object({
+export const updateLeadSourceIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-module.exports = {
+export default {
   createLeadSourceSchema,
   getLeadResourcesSchema,
   getLeadSourceByIdSchema,

@@ -3,30 +3,30 @@
  * Called from registerRoot in auth.service.js within the same transaction.
  */
 
-const { seedGeneralSettings } = require("./seed-general-settings");
-const { seedSalesModuleSettings } = require("./seed-sales-module-settings");
-const { seedQuotationSettings } = require("./seed-quotation-settings");
-const { seedHouseLandPackageSettings } = require("./seed-house-land-package-settings");
-const { seedJobSettings } = require("./seed-job-settings");
-const { seedJobColorSettings } = require("./seed-job-color-settings");
-const { seedJobWorkflowSettings } = require("./seed-job-workflow-settings");
-const { seedJobInvoiceSettings } = require("./seed-job-invoice-settings");
-const { seedJobVariationSettings } = require("./seed-job-variation-settings");
-const { seedJobCommissionSettings } = require("./seed-job-commission-settings");
-const { seedMaintenanceSettings } = require("./seed-maintenance-settings");
-const { seedConstructionSettings } = require("./seed-construction-settings");
-const { seedPasswordPolicy } = require("./seed-password-policy");
-const { seedPortalSettings } = require("./seed-portal-settings");
-const { seedIntegrationSettings } = require("./seed-integration-settings");
-const { seedTemplateEmailSignature } = require("./seed-template-email-signature");
-const { seedSchedulerSettings } = require("./seed-scheduler-settings");
-const { seedConstructionEtsRecharge } = require("./seed-construction-ets-recharge");
-const { seedConstructionOhsSettings } = require("./seed-construction-ohs-settings");
-const { seedRecalculateDate } = require("./seed-recalculate-date");
-const { seedDocumentFolderMapping } = require("./seed-document-folder-mapping");
-const { seedDocumentFileNamingFormat } = require("./seed-document-file-naming-format");
-const { seedTemplateEmail } = require("./seed-template-email");
-const { seedInitialPdfTemplates } = require("./template-pdf.seed");
+import { seedGeneralSettings } from "./seed-general-settings.js";
+import { seedSalesModuleSettings } from "./seed-sales-module-settings.js";
+import { seedQuotationSettings } from "./seed-quotation-settings.js";
+import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings.js";
+import { seedJobSettings } from "./seed-job-settings.js";
+import { seedJobColorSettings } from "./seed-job-color-settings.js";
+import { seedJobWorkflowSettings } from "./seed-job-workflow-settings.js";
+import { seedJobInvoiceSettings } from "./seed-job-invoice-settings.js";
+import { seedJobVariationSettings } from "./seed-job-variation-settings.js";
+import { seedJobCommissionSettings } from "./seed-job-commission-settings.js";
+import { seedMaintenanceSettings } from "./seed-maintenance-settings.js";
+import { seedConstructionSettings } from "./seed-construction-settings.js";
+import { seedPasswordPolicy } from "./seed-password-policy.js";
+import { seedPortalSettings } from "./seed-portal-settings.js";
+import { seedIntegrationSettings } from "./seed-integration-settings.js";
+import { seedTemplateEmailSignature } from "./seed-template-email-signature.js";
+import { seedSchedulerSettings } from "./seed-scheduler-settings.js";
+import { seedConstructionEtsRecharge } from "./seed-construction-ets-recharge.js";
+import { seedConstructionOhsSettings } from "./seed-construction-ohs-settings.js";
+import { seedRecalculateDate } from "./seed-recalculate-date.js";
+import { seedDocumentFolderMapping } from "./seed-document-folder-mapping.js";
+import { seedDocumentFileNamingFormat } from "./seed-document-file-naming-format.js";
+import { seedTemplateEmail } from "./seed-template-email.js";
+import { seedInitialPdfTemplates } from "./template-pdf.seed.js";
 
 /**
  * Seeds all default settings for a newly registered builder.
@@ -38,7 +38,7 @@ const { seedInitialPdfTemplates } = require("./template-pdf.seed");
  * @param {string} params.created_by - users_id of the root user
  * @param {Object} params.client - pg client (within a transaction)
  */
-async function seedBuilderDefaults({ company_id, builder_id, created_by, client }) {
+export async function seedBuilderDefaults({ company_id, builder_id, created_by, client }) {
   const ctx = { company_id, builder_id, created_by, client };
 
   console.log("🌱 Seeding default settings for builder:", builder_id);
@@ -118,4 +118,4 @@ async function seedBuilderDefaults({ company_id, builder_id, created_by, client 
   console.log("✅ All default settings seeded for builder:", builder_id);
 }
 
-module.exports = { seedBuilderDefaults };
+export default { seedBuilderDefaults };

@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createConstructionSubChecklist = async (req, res) => {
+export async function createConstructionSubChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -42,7 +42,7 @@ exports.createConstructionSubChecklist = async (req, res) => {
     }
 
     const checklistCheck = await client.query(
-      `SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3`,
+      "SELECT construction_checklist_id FROM construction_checklist WHERE construction_checklist_id = $1 AND builder_id = $2 AND company_id = $3",
       [construction_checklist_id, builderId, companyId],
     );
     if (checklistCheck.rowCount === 0) {
@@ -54,7 +54,7 @@ exports.createConstructionSubChecklist = async (req, res) => {
     }
 
     const maxSortOrderQuery = await client.query(
-      `SELECT COALESCE(MAX(sort_order), 0) as max_sort_order FROM construction_sub_checklist WHERE construction_checklist_id = $1`,
+      "SELECT COALESCE(MAX(sort_order), 0) as max_sort_order FROM construction_sub_checklist WHERE construction_checklist_id = $1",
       [construction_checklist_id],
     );
 
@@ -62,7 +62,7 @@ exports.createConstructionSubChecklist = async (req, res) => {
     if (sort_order !== undefined) {
       newSortOrder = sort_order;
       await client.query(
-        `UPDATE construction_sub_checklist SET sort_order = sort_order + 1 WHERE construction_checklist_id = $1 AND sort_order >= $2`,
+        "UPDATE construction_sub_checklist SET sort_order = sort_order + 1 WHERE construction_checklist_id = $1 AND sort_order >= $2",
         [construction_checklist_id, newSortOrder],
       );
     } else {
@@ -126,9 +126,9 @@ exports.createConstructionSubChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionSubChecklists = async (req, res) => {
+export async function getAllConstructionSubChecklists(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -138,7 +138,7 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
     const { builder_id: builderId, company_id: companyId } = req.user;
 
     let whereClause = "WHERE 1=1";
-    let values = [];
+    const values = [];
     let paramIndex = 1;
 
     if (construction_checklist_id) {
@@ -191,9 +191,9 @@ exports.getAllConstructionSubChecklists = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getConstructionSubChecklistById = async (req, res) => {
+export async function getConstructionSubChecklistById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -250,9 +250,9 @@ exports.getConstructionSubChecklistById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionSubChecklist = async (req, res) => {
+export async function updateConstructionSubChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -360,7 +360,7 @@ exports.updateConstructionSubChecklist = async (req, res) => {
       );
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `UPDATE construction_sub_checklist SET ${updateFields.join(", ")} 
@@ -401,9 +401,9 @@ exports.updateConstructionSubChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionSubChecklist = async (req, res) => {
+export async function deleteConstructionSubChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -445,7 +445,7 @@ exports.deleteConstructionSubChecklist = async (req, res) => {
     const checklistId = checkResult.rows[0].construction_checklist_id;
 
     await client.query(
-      `DELETE FROM construction_sub_checklist WHERE construction_sub_checklist_id = $1`,
+      "DELETE FROM construction_sub_checklist WHERE construction_sub_checklist_id = $1",
       [construction_sub_checklist_id],
     );
 
@@ -466,4 +466,4 @@ exports.deleteConstructionSubChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

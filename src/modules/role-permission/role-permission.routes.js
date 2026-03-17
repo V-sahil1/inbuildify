@@ -1,28 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createRolePermission,
   getAllRolePermission,
   deleteRolePermission,
   updateRolePermission,
   updateRolePermissionIsActive,
-} = require("./role-permission.controller.js");
-const {
+} from "./role-permission.controller.js";
+import {
   createRolePermissionSchema,
   getAllRolePermissionSchema,
   deleteRolePermissionSchema,
   updatePermissionIdSchemaSchema,
   updateRolePermissionSchema,
   updateRolePermissionIsActiveSchema,
-} = require("./role-permission.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./role-permission.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,33 +30,33 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createRolePermissionSchema, REQUEST_SOURCE.BODY),
-  createRolePermission
+  createRolePermission,
 );
 
 router.get(
   "/",
   validateRequest(getAllRolePermissionSchema, REQUEST_SOURCE.QUERY),
-  getAllRolePermission
+  getAllRolePermission,
 );
 
 router.delete(
   "/:id",
   validateRequest(deleteRolePermissionSchema, REQUEST_SOURCE.PARAMS),
-  deleteRolePermission
+  deleteRolePermission,
 );
 
 router.put(
   "/:role_permission_id",
   validateRequest(updatePermissionIdSchemaSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRolePermissionSchema, REQUEST_SOURCE.BODY),
-  updateRolePermission
+  updateRolePermission,
 );
 
 router.put(
   "/is-active/:role_permission_id",
   validateRequest(updatePermissionIdSchemaSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateRolePermissionIsActiveSchema, REQUEST_SOURCE.BODY),
-  updateRolePermissionIsActive
+  updateRolePermissionIsActive,
 );
 
-module.exports = router;
+export default router;

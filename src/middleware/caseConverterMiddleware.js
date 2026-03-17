@@ -1,5 +1,5 @@
-  const camelToSnake = (str) =>
-    str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+const camelToSnake = (str) =>
+  str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const isObject = (obj) =>
   obj !== null && typeof obj === "object" && !Array.isArray(obj);
@@ -38,20 +38,17 @@ const camelToSnakeMiddleware = (req, res, next) => {
 
     if (req.files) {
       /**
-       * Normalize files into:
-       * [
-       *   { fieldname, location }
-       * ]
-       */
+         * Normalize files into:
+         * [
+         *   { fieldname, location }
+         * ]
+         */
       const normalizedFiles = [];
 
       // multer.array() OR multer.single()
       if (Array.isArray(req.files)) {
         normalizedFiles.push(...req.files);
-      }
-
-      // multer.fields()
-      else if (typeof req.files === "object") {
+      } else if (typeof req.files === "object") { // multer.fields()
         Object.values(req.files).forEach((files) => {
           if (Array.isArray(files)) {
             normalizedFiles.push(...files);
@@ -67,8 +64,8 @@ const camelToSnakeMiddleware = (req, res, next) => {
         // Do not overwrite valid body values
         if (
           req.body[key] === undefined ||
-          req.body[key] === null ||
-          req.body[key] === ""
+            req.body[key] === null ||
+            req.body[key] === ""
         ) {
           req.body[key] = value;
         }
@@ -83,8 +80,8 @@ const camelToSnakeMiddleware = (req, res, next) => {
       // Do not overwrite valid body values
       if (
         req.body[key] === undefined ||
-        req.body[key] === null ||
-        req.body[key] === ""
+          req.body[key] === null ||
+          req.body[key] === ""
       ) {
         req.body[key] = value;
       }
@@ -113,4 +110,4 @@ const camelToSnakeMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = camelToSnakeMiddleware;
+export default camelToSnakeMiddleware;

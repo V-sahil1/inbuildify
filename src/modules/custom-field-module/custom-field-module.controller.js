@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createCustomFieldModule = async (req, res) => {
+export async function createCustomFieldModule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const { name, description } = req.body;
@@ -12,7 +12,7 @@ exports.createCustomFieldModule = async (req, res) => {
       return errorResponse(res, 400, "Custom field module name is required.");
     }
     const existsName = await client.query(
-      `SELECT * FROM custom_field_module WHERE name = $1`,
+      "SELECT * FROM custom_field_module WHERE name = $1",
       [name],
     );
     if (existsName.rowCount > 0) {
@@ -41,20 +41,20 @@ exports.createCustomFieldModule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllCustomFieldModule = async (req, res) => {
+export async function getAllCustomFieldModule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    let { page, limit } = req.query;
+    const { page, limit } = req.query;
 
     const pageValue = parseInt(page) || 1;
     const limitValue = parseInt(limit) || 10;
     const offset = (pageValue - 1) * limitValue;
 
-    const countQuery = `SELECT COUNT(*) AS total FROM custom_field_module;`;
+    const countQuery = "SELECT COUNT(*) AS total FROM custom_field_module;";
     const countResult = await client.query(countQuery);
     const total = parseInt(countResult.rows[0].total);
 
@@ -90,9 +90,9 @@ exports.getAllCustomFieldModule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteCustomFieldModule = async (req, res) => {
+export async function deleteCustomFieldModule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -102,7 +102,7 @@ exports.deleteCustomFieldModule = async (req, res) => {
     await client.query("BEGIN");
 
     const checkExists = await client.query(
-      `SELECT * FROM custom_field_module WHERE module_id = $1`,
+      "SELECT * FROM custom_field_module WHERE module_id = $1",
       [module_id],
     );
 
@@ -137,9 +137,9 @@ exports.deleteCustomFieldModule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateCustomFieldModule = async (req, res) => {
+export async function updateCustomFieldModule(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -150,7 +150,7 @@ exports.updateCustomFieldModule = async (req, res) => {
     await client.query("BEGIN");
 
     const existingModule = await client.query(
-      `SELECT * FROM custom_field_module WHERE module_id = $1`,
+      "SELECT * FROM custom_field_module WHERE module_id = $1",
       [module_id],
     );
 
@@ -168,7 +168,7 @@ exports.updateCustomFieldModule = async (req, res) => {
     }
 
     const existsName = await client.query(
-      `SELECT * FROM custom_field_module WHERE name = $1`,
+      "SELECT * FROM custom_field_module WHERE name = $1",
       [name],
     );
     if (existsName.rowCount > 0) {
@@ -192,7 +192,7 @@ exports.updateCustomFieldModule = async (req, res) => {
       values.push(description);
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE custom_field_module
@@ -219,4 +219,4 @@ exports.updateCustomFieldModule = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

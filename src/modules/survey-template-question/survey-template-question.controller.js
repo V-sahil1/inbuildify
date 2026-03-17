@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createSurveyTemplateQuestion = async (req, res) => {
+export async function createSurveyTemplateQuestion(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -159,9 +159,9 @@ exports.createSurveyTemplateQuestion = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSurveyTemplateQuestions = async (req, res) => {
+export async function getAllSurveyTemplateQuestions(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -233,9 +233,9 @@ exports.getAllSurveyTemplateQuestions = async (req, res) => {
       {
         questions: keysToCamelCase(dataResult.rows),
         pagination: {
-          totalRecords: totalRecords,
+          totalRecords,
           currentPage: pageValue,
-          totalPages: totalPages,
+          totalPages,
           limit: limitValue,
         },
       },
@@ -247,9 +247,9 @@ exports.getAllSurveyTemplateQuestions = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSurveyTemplateQuestion = async (req, res) => {
+export async function deleteSurveyTemplateQuestion(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -314,9 +314,9 @@ exports.deleteSurveyTemplateQuestion = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSurveyTemplateQuestion = async (req, res) => {
+export async function updateSurveyTemplateQuestion(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -452,7 +452,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
       newOptionType = option_type;
 
       if (option_type !== "radio") {
-        setClauses.push(`options = NULL`);
+        setClauses.push("options = NULL");
       }
     }
 
@@ -483,7 +483,7 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
       return errorResponse(res, 400, "No fields provided to update.");
     }
 
-    setClauses.push(`updated_at = NOW()`);
+    setClauses.push("updated_at = NOW()");
     values.push(survey_question_id);
 
     const updateQuery = `
@@ -534,4 +534,4 @@ exports.updateSurveyTemplateQuestion = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

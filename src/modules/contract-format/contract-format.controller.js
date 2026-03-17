@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createContractFormat = async (req, res) => {
+export async function createContractFormat(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -116,9 +116,9 @@ exports.createContractFormat = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllContractFormats = async (req, res) => {
+export async function getAllContractFormats(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -152,8 +152,8 @@ exports.getAllContractFormats = async (req, res) => {
       end_updated_date,
     } = req.query;
 
-    let whereClauses = [];
-    let values = [];
+    const whereClauses = [];
+    const values = [];
     let idx = 1;
 
     if (builderId) {
@@ -195,17 +195,17 @@ exports.getAllContractFormats = async (req, res) => {
       const now = new Date();
 
       switch (created_at.toLowerCase()) {
-        case "last_7_days":
-          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "last_15_days":
-          dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-          break;
-        case "last_30_days":
-          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          break;
+      case "last_7_days":
+        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "last_15_days":
+        dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+        break;
+      case "last_30_days":
+        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        break;
       }
 
       if (dateFilter) {
@@ -240,17 +240,17 @@ exports.getAllContractFormats = async (req, res) => {
       const now = new Date();
 
       switch (updated_at.toLowerCase()) {
-        case "last_7_days":
-          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "last_15_days":
-          dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-          break;
-        case "last_30_days":
-          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          break;
+      case "last_7_days":
+        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "last_15_days":
+        dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+        break;
+      case "last_30_days":
+        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        break;
       }
 
       if (dateFilter) {
@@ -341,9 +341,9 @@ exports.getAllContractFormats = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getContractFormatById = async (req, res) => {
+export async function getContractFormatById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -401,9 +401,9 @@ exports.getContractFormatById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateContractFormat = async (req, res) => {
+export async function updateContractFormat(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -496,7 +496,7 @@ exports.updateContractFormat = async (req, res) => {
       return errorResponse(res, 400, "No fields provided for update.");
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
     fields.push(`updated_by = $${index}`);
     values.push(userId);
     index++;
@@ -557,9 +557,9 @@ exports.updateContractFormat = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteContractFormat = async (req, res) => {
+export async function deleteContractFormat(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -613,4 +613,4 @@ exports.deleteContractFormat = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

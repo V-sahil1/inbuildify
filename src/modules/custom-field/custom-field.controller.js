@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createCustomField = async (req, res) => {
+export async function createCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -36,7 +36,7 @@ exports.createCustomField = async (req, res) => {
     await client.query("BEGIN");
 
     const validateModule = await client.query(
-      `SELECT module_id FROM custom_field_module WHERE module_id = $1`,
+      "SELECT module_id FROM custom_field_module WHERE module_id = $1",
       [module_id],
     );
 
@@ -159,9 +159,9 @@ exports.createCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllCustomFields = async (req, res) => {
+export async function getAllCustomFields(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -183,11 +183,11 @@ exports.getAllCustomFields = async (req, res) => {
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    let whereClause = `WHERE cf.builder_id = $1 AND cf.company_id = $2`;
+    let whereClause = "WHERE cf.builder_id = $1 AND cf.company_id = $2";
     const params = [builderId, companyId];
 
     if (module_id) {
-      whereClause += ` AND cf.module_id = $3`;
+      whereClause += " AND cf.module_id = $3";
       params.push(module_id);
     }
 
@@ -234,9 +234,9 @@ exports.getAllCustomFields = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteCustomField = async (req, res) => {
+export async function deleteCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -322,9 +322,9 @@ exports.deleteCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateCustomField = async (req, res) => {
+export async function updateCustomField(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -415,7 +415,7 @@ exports.updateCustomField = async (req, res) => {
       }
     }
 
-    let existingSortOrder = existing.sort_order;
+    const existingSortOrder = existing.sort_order;
 
     if (sort_order !== undefined && sort_order !== null) {
       const maxSortQuery = `
@@ -540,9 +540,9 @@ exports.updateCustomField = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateCustomFieldIsActive = async (req, res) => {
+export async function updateCustomFieldIsActive(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -601,9 +601,9 @@ exports.updateCustomFieldIsActive = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.createOption = async (req, res) => {
+export async function createOption(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -692,9 +692,9 @@ exports.createOption = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteOption = async (req, res) => {
+export async function deleteOption(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -749,7 +749,7 @@ exports.deleteOption = async (req, res) => {
       );
     }
 
-    let existingOptions = field.options || [];
+    const existingOptions = field.options || [];
 
     const optionsToDelete = options.map((o) => o.toLowerCase());
 
@@ -792,4 +792,4 @@ exports.deleteOption = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

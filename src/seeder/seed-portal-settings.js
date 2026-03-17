@@ -1,7 +1,7 @@
 /**
  * Seed default portal_settings for a new builder
  */
-async function seedPortalSettings({ company_id, builder_id, created_by, client }) {
+export async function seedPortalSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO portal_settings (
       company_id, builder_id,
@@ -15,8 +15,8 @@ async function seedPortalSettings({ company_id, builder_id, created_by, client }
       created_by, updated_by
     ) VALUES ($1, $2, false, false, false, false, false, false, false, false, false, false, false, $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedPortalSettings };
+export default { seedPortalSettings };

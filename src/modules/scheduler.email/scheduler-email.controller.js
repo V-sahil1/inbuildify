@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-exports.createSchedulerEmail = async (req, res) => {
+export async function createSchedulerEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -161,9 +161,9 @@ exports.createSchedulerEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSchedulerEmail = async (req, res) => {
+export async function getAllSchedulerEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -176,11 +176,11 @@ exports.getAllSchedulerEmail = async (req, res) => {
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    let whereClause = `WHERE (se.builder_id = $1 OR se.company_id = $2)`;
+    let whereClause = "WHERE (se.builder_id = $1 OR se.company_id = $2)";
     const params = [builderId, companyId, limitValue, offset];
 
     if (is_active !== undefined) {
-      whereClause += ` AND se.is_active = $5`;
+      whereClause += " AND se.is_active = $5";
       params.push(is_active === "true");
     }
 
@@ -209,11 +209,11 @@ exports.getAllSchedulerEmail = async (req, res) => {
       return filtered;
     });
 
-    let countParams = [builderId, companyId];
-    let countWhere = `WHERE (builder_id = $1 OR company_id = $2)`;
+    const countParams = [builderId, companyId];
+    let countWhere = "WHERE (builder_id = $1 OR company_id = $2)";
 
     if (is_active !== undefined) {
-      countWhere += ` AND is_active = $3`;
+      countWhere += " AND is_active = $3";
       countParams.push(is_active === "true");
     }
 
@@ -247,9 +247,9 @@ exports.getAllSchedulerEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSchedulerEmail = async (req, res) => {
+export async function deleteSchedulerEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -292,9 +292,9 @@ exports.deleteSchedulerEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSchedulerEmail = async (req, res) => {
+export async function updateSchedulerEmail(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -571,9 +571,9 @@ exports.updateSchedulerEmail = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getSchedulerEmails = async (req, res) => {
+export async function getSchedulerEmails(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -737,11 +737,11 @@ exports.getSchedulerEmails = async (req, res) => {
           attach_files, is_active, created_by, updated_by
         ) VALUES 
         ${staticRecords
-          .map(
-            (_, index) =>
-              `($${index * 17 + 1}, $${index * 17 + 2}, $${index * 17 + 3}, $${index * 17 + 4}, $${index * 17 + 5}, $${index * 17 + 6}, $${index * 17 + 7}, $${index * 17 + 8}, $${index * 17 + 9}, $${index * 17 + 10}, $${index * 17 + 11}, $${index * 17 + 12}, $${index * 17 + 13}, $${index * 17 + 14}, $${index * 17 + 15}, $${index * 17 + 16}, $${index * 17 + 17})`,
-          )
-          .join(", ")}
+    .map(
+      (_, index) =>
+        `($${index * 17 + 1}, $${index * 17 + 2}, $${index * 17 + 3}, $${index * 17 + 4}, $${index * 17 + 5}, $${index * 17 + 6}, $${index * 17 + 7}, $${index * 17 + 8}, $${index * 17 + 9}, $${index * 17 + 10}, $${index * 17 + 11}, $${index * 17 + 12}, $${index * 17 + 13}, $${index * 17 + 14}, $${index * 17 + 15}, $${index * 17 + 16}, $${index * 17 + 17})`,
+    )
+    .join(", ")}
         RETURNING *;
       `;
 
@@ -796,8 +796,8 @@ exports.getSchedulerEmails = async (req, res) => {
         },
         "15 default scheduler emails created and fetched successfully.",
       );
-    } else {
-      const query = `
+    }
+    const query = `
         SELECT *
         FROM scheduler_email
         WHERE (company_id = $1 OR builder_id = $2)
@@ -806,48 +806,48 @@ exports.getSchedulerEmails = async (req, res) => {
         LIMIT 15
       `;
 
-      const queryParams = [companyId, builderId];
-      if (is_active !== undefined) {
-        queryParams.push(is_active === "true");
-      }
-      const result = await client.query(query, queryParams);
-
-      // Filter out sensitive fields from response
-      const filteredResults = result.rows.map((row) => {
-        const {
-          company_id,
-          builder_id,
-          created_at,
-          updated_at,
-          created_by,
-          updated_by,
-          ...filtered
-        } = row;
-        return filtered;
-      });
-
-      return successResponse(
-        res,
-        {
-          scheduler_emails: keysToCamelCase(filteredResults),
-          counts: {
-            total: parseInt(counts.total_count),
-            active: parseInt(counts.active_count),
-            inactive: parseInt(counts.inactive_count),
-          },
-        },
-        "Scheduler emails fetched successfully.",
-      );
+    const queryParams = [companyId, builderId];
+    if (is_active !== undefined) {
+      queryParams.push(is_active === "true");
     }
+    const result = await client.query(query, queryParams);
+
+    // Filter out sensitive fields from response
+    const filteredResults = result.rows.map((row) => {
+      const {
+        company_id,
+        builder_id,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        ...filtered
+      } = row;
+      return filtered;
+    });
+
+    return successResponse(
+      res,
+      {
+        scheduler_emails: keysToCamelCase(filteredResults),
+        counts: {
+          total: parseInt(counts.total_count),
+          active: parseInt(counts.active_count),
+          inactive: parseInt(counts.inactive_count),
+        },
+      },
+      "Scheduler emails fetched successfully.",
+    );
+
   } catch (error) {
     console.error("Error fetching scheduler emails:", error);
     return errorResponse(res, 500, "Internal server error.", error.message);
   } finally {
     client.release();
   }
-};
+}
 
-exports.toggleSchedulerEmailStatus = async (req, res) => {
+export async function toggleSchedulerEmailStatus(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -918,4 +918,4 @@ exports.toggleSchedulerEmailStatus = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

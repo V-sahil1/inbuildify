@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createColorGroupItemMap = async (req, res) => {
+export async function createColorGroupItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -115,9 +115,9 @@ exports.createColorGroupItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllColorGroupItemMaps = async (req, res) => {
+export async function getAllColorGroupItemMaps(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -139,7 +139,7 @@ exports.getAllColorGroupItemMaps = async (req, res) => {
       WHERE (cg.company_id = $1 OR cg.builder_id = $2)
         AND (ci.company_id = $1 OR ci.builder_id = $2)
     `;
-    let values = [companyId, builderId];
+    const values = [companyId, builderId];
     let paramIndex = 3;
 
     if (color_group_id) {
@@ -212,9 +212,9 @@ exports.getAllColorGroupItemMaps = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorGroupItemMap = async (req, res) => {
+export async function deleteColorGroupItemMap(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -267,4 +267,4 @@ exports.deleteColorGroupItemMap = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

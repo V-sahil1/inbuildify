@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createConstructionStage,
   getAllConstructionStages,
   deleteConstructionStage,
   updateConstructionStage,
-} = require("./construction-stage.controller.js");
-const {
+} from "./construction-stage.controller.js";
+import {
   createConstructionStageSchema,
   getAllConstructionStageSchema,
   deleteConstructionStageSchema,
   updateConstructionStageParamsSchema,
   updateConstructionStageSchema,
-} = require("./construction-stage.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-stage.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(camelToSnakeMiddleware);
 router.use(authMiddleware);
@@ -29,26 +28,26 @@ router.use(roleMiddleware);
 router.post(
   "/",
   validateRequest(createConstructionStageSchema, REQUEST_SOURCE.BODY),
-  createConstructionStage
+  createConstructionStage,
 );
 
 router.get(
   "/",
   validateRequest(getAllConstructionStageSchema, REQUEST_SOURCE.QUERY),
-  getAllConstructionStages
+  getAllConstructionStages,
 );
 
 router.delete(
   "/:construction_stage",
   validateRequest(deleteConstructionStageSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionStage
+  deleteConstructionStage,
 );
 
 router.put(
   "/:construction_stage",
   validateRequest(updateConstructionStageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionStageSchema, REQUEST_SOURCE.BODY),
-  updateConstructionStage
+  updateConstructionStage,
 );
 
-module.exports = router;
+export default router;

@@ -1,20 +1,26 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const contactController = require("./contact.controller");
-
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
-
-const {
+import {
+  getContacts,
+  getContactById,
+  createContact,
+  updateContact,
+  deleteContact,
+  convertContactToUser,
+} from "./contact.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import {
   createContactSchema,
   updateContactSchema,
   convertContactSchema,
   getContactsSchema,
-} = require("./contact.validation");
+} from "./contact.validation.js";
 
 /* ============================================================
     CONTACT ROUTES
@@ -30,7 +36,7 @@ router.get(
   authMiddleware,
   roleMiddleware,
   validateRequest(getContactsSchema, REQUEST_SOURCE.QUERY),
-  contactController.getContacts,
+  getContacts,
 );
 
 /**
@@ -42,7 +48,7 @@ router.get(
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
-  contactController.getContactById,
+  getContactById,
 );
 
 /**
@@ -55,7 +61,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(createContactSchema, REQUEST_SOURCE.BODY),
-  contactController.createContact,
+  createContact,
 );
 
 /**
@@ -68,7 +74,7 @@ router.put(
   authMiddleware,
   roleMiddleware,
   validateRequest(updateContactSchema, REQUEST_SOURCE.BODY),
-  contactController.updateContact,
+  updateContact,
 );
 
 /**
@@ -80,7 +86,7 @@ router.delete(
   camelToSnakeMiddleware,
   authMiddleware,
   roleMiddleware,
-  contactController.deleteContact,
+  deleteContact,
 );
 
 /**
@@ -93,7 +99,7 @@ router.post(
   authMiddleware,
   roleMiddleware,
   validateRequest(convertContactSchema, REQUEST_SOURCE.BODY),
-  contactController.convertContactToUser,
+  convertContactToUser,
 );
 
-module.exports = router;
+export default router;

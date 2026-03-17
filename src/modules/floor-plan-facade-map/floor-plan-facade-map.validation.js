@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 // Common rules
 const uuidRule = Joi.string()
@@ -8,7 +8,7 @@ const uuidRule = Joi.string()
 /* ---------------------------
    CREATE FLOOR PLAN FACADE MAP
 ---------------------------- */
-const createFloorPlanFacadeMapSchema = Joi.object({
+export const createFloorPlanFacadeMapSchema = Joi.object({
   floor_plan_id: uuidRule.required(),
   facade_id: uuidRule.required(),
 });
@@ -16,7 +16,7 @@ const createFloorPlanFacadeMapSchema = Joi.object({
 /* ---------------------------
    GET FLOOR PLAN FACADE MAPS
 ---------------------------- */
-const getFloorPlanFacadeMapsSchema = Joi.object({
+export const getFloorPlanFacadeMapsSchema = Joi.object({
   floor_plan_id: uuidRule.optional(),
   facade_id: uuidRule.optional(),
   page: Joi.number().min(1).default(1),
@@ -26,11 +26,11 @@ const getFloorPlanFacadeMapsSchema = Joi.object({
 /* ---------------------------
    DELETE FLOOR PLAN FACADE MAP
 ---------------------------- */
-const deleteFloorPlanFacadeMapSchema = Joi.object({
+export const deleteFloorPlanFacadeMapSchema = Joi.object({
   id: uuidRule.required(),
 });
 
-module.exports = {
+export default {
   createFloorPlanFacadeMapSchema,
   getFloorPlanFacadeMapsSchema,
   deleteFloorPlanFacadeMapSchema,

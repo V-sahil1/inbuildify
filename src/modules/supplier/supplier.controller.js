@@ -1,9 +1,9 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { deleteFromS3 } = require("../../utils/s3Upload");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
-exports.createSupplier = async (req, res) => {
+export async function createSupplier(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -78,7 +78,7 @@ exports.createSupplier = async (req, res) => {
 
     // Check for duplicate company name
     const checkUnique = await client.query(
-      `SELECT supplier_id FROM supplier WHERE company_id = $1 AND builder_id = $2 AND company_name = $3 LIMIT 1`,
+      "SELECT supplier_id FROM supplier WHERE company_id = $1 AND builder_id = $2 AND company_name = $3 LIMIT 1",
       [companyId, builderId, company_name],
     );
 
@@ -94,7 +94,7 @@ exports.createSupplier = async (req, res) => {
     // Validate state if provided
     if (state_id) {
       const checkState = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
+        "SELECT state_id FROM state WHERE state_id = $1 LIMIT 1",
         [state_id],
       );
 
@@ -108,7 +108,7 @@ exports.createSupplier = async (req, res) => {
     if (supplier_type_id && supplier_type_id.length > 0) {
       // Check if all supplier_type_id values are valid UUIDs and exist in supplier_type table
       const checkSupplierTypes = await client.query(
-        `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)`,
+        "SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)",
         [supplier_type_id, builderId, companyId],
       );
 
@@ -260,7 +260,7 @@ exports.createSupplier = async (req, res) => {
     const responseResult = await client.query(responseQuery, [supplierId]);
 
     // Handle supplier contacts if provided
-    let createdContacts = [];
+    const createdContacts = [];
 
     // Parse contacts if it's a string
     let parsedContacts = contacts;
@@ -341,9 +341,9 @@ exports.createSupplier = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllSuppliers = async (req, res) => {
+export async function getAllSuppliers(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -351,7 +351,7 @@ exports.getAllSuppliers = async (req, res) => {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    let {
+    const {
       company_name,
       phone,
       email,
@@ -471,9 +471,9 @@ exports.getAllSuppliers = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteSupplier = async (req, res) => {
+export async function deleteSupplier(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -530,9 +530,9 @@ exports.deleteSupplier = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateSupplier = async (req, res) => {
+export async function updateSupplier(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -707,7 +707,7 @@ exports.updateSupplier = async (req, res) => {
 
     if (state_id) {
       const checkState = await client.query(
-        `SELECT state_id FROM state WHERE state_id = $1 LIMIT 1`,
+        "SELECT state_id FROM state WHERE state_id = $1 LIMIT 1",
         [state_id],
       );
 
@@ -731,7 +731,7 @@ exports.updateSupplier = async (req, res) => {
       if (supplier_type_id.length > 0) {
         // Check if all supplier_type_id values are valid UUIDs and exist in supplier_type table
         const checkSupplierTypes = await client.query(
-          `SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)`,
+          "SELECT supplier_type_id FROM supplier_type WHERE supplier_type_id = ANY($1::uuid[]) AND is_active = true AND (builder_id = $2 OR company_id = $3)",
           [supplier_type_id, builderId, companyId],
         );
 
@@ -771,18 +771,42 @@ exports.updateSupplier = async (req, res) => {
       values.push(value);
     };
 
-    if (company_name !== undefined) push("company_name", company_name.trim());
-    if (abn !== undefined) push("abn", abn);
-    if (description !== undefined) push("description", description);
-    if (contact_name !== undefined) push("contact_name", contact_name);
-    if (primary_phone !== undefined) push("primary_phone", primary_phone);
-    if (secondary_phone !== undefined) push("secondary_phone", secondary_phone);
-    if (website !== undefined) push("website", website);
-    if (address_line1 !== undefined) push("address_line1", address_line1);
-    if (city !== undefined) push("city", city);
-    if (state_id !== undefined) push("state_id", state_id);
-    if (zip_code !== undefined) push("zip_code", zip_code);
-    if (lead_time !== undefined) push("lead_time", lead_time);
+    if (company_name !== undefined) {
+      push("company_name", company_name.trim());
+    }
+    if (abn !== undefined) {
+      push("abn", abn);
+    }
+    if (description !== undefined) {
+      push("description", description);
+    }
+    if (contact_name !== undefined) {
+      push("contact_name", contact_name);
+    }
+    if (primary_phone !== undefined) {
+      push("primary_phone", primary_phone);
+    }
+    if (secondary_phone !== undefined) {
+      push("secondary_phone", secondary_phone);
+    }
+    if (website !== undefined) {
+      push("website", website);
+    }
+    if (address_line1 !== undefined) {
+      push("address_line1", address_line1);
+    }
+    if (city !== undefined) {
+      push("city", city);
+    }
+    if (state_id !== undefined) {
+      push("state_id", state_id);
+    }
+    if (zip_code !== undefined) {
+      push("zip_code", zip_code);
+    }
+    if (lead_time !== undefined) {
+      push("lead_time", lead_time);
+    }
 
     const finalWorkCoverUrl =
       req.files?.workCoverImage?.[0]?.location || work_cover_url;
@@ -853,26 +877,38 @@ exports.updateSupplier = async (req, res) => {
       });
     }
 
-    if (finalWorkCoverUrl !== undefined)
+    if (finalWorkCoverUrl !== undefined) {
       push("work_cover_url", finalWorkCoverUrl);
-    if (finalPlInsuranceUrl !== undefined)
+    }
+    if (finalPlInsuranceUrl !== undefined) {
       push("pl_insurance_url", finalPlInsuranceUrl);
-    if (finalWhiteCardUrl !== undefined)
+    }
+    if (finalWhiteCardUrl !== undefined) {
       push("white_card_url", finalWhiteCardUrl);
-    if (finalForkLiftLicenseUrl !== undefined)
+    }
+    if (finalForkLiftLicenseUrl !== undefined) {
       push("fork_lift_license_url", finalForkLiftLicenseUrl);
-    if (finalTradeLicenseUrl !== undefined)
+    }
+    if (finalTradeLicenseUrl !== undefined) {
       push("trade_license_url", finalTradeLicenseUrl);
-    if (induction_pack_received !== undefined)
+    }
+    if (induction_pack_received !== undefined) {
       push("induction_pack_received", induction_pack_received);
-    if (finalInductionPackUrl !== undefined)
+    }
+    if (finalInductionPackUrl !== undefined) {
       push("induction_pack_url", finalInductionPackUrl);
+    }
 
-    if (statusInBody) push("status", requestedStatus);
+    if (statusInBody) {
+      push("status", requestedStatus);
+    }
 
-    if (sanitizedEmails !== null) push("emails", sanitizedEmails);
-    if (supplier_type_id !== undefined)
+    if (sanitizedEmails !== null) {
+      push("emails", sanitizedEmails);
+    }
+    if (supplier_type_id !== undefined) {
       push("supplier_type_id", supplier_type_id);
+    }
 
     if (fields.length === 0) {
       await client.query("ROLLBACK");
@@ -884,7 +920,7 @@ exports.updateSupplier = async (req, res) => {
     }
 
     push("updated_by", userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const whereClauseValues = [supplier_id, builderId, companyId];
 
@@ -966,4 +1002,4 @@ exports.updateSupplier = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

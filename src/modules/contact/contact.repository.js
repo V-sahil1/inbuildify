@@ -1,22 +1,22 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /* ============================================================
         GET CONTACT LIST (pagination + search)
   ============================================================ */
-async function getContacts({ builderId, search, is_active }) {
+export async function getContacts({ builderId, search, is_active }) {
   const pool = getPool();
-  let whereConditions = [];
-  let queryParams = [];
+  const whereConditions = [];
+  const queryParams = [];
   let paramIndex = 1;
 
   // Build WHERE conditions
   whereConditions.push(`u.builder_id = $${paramIndex++}`);
   queryParams.push(builderId);
 
-  whereConditions.push(`u.is_deleted = FALSE`);
+  whereConditions.push("u.is_deleted = FALSE");
 
-  whereConditions.push(`LOWER(r.name) = 'contact'`);
+  whereConditions.push("LOWER(r.name) = 'contact'");
 
   if (search) {
     whereConditions.push(`(
@@ -69,7 +69,7 @@ async function getContacts({ builderId, search, is_active }) {
 /* ============================================================
         GET CONTACT BY ID
   ============================================================ */
-async function getContactById(builderId, contact_id) {
+export async function getContactById(builderId, contact_id) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -110,7 +110,7 @@ async function getContactById(builderId, contact_id) {
 /* ============================================================
         CREATE CONTACT
   ============================================================ */
-async function createContact(data) {
+export async function createContact(data) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -205,14 +205,16 @@ async function createContact(data) {
 /* ============================================================
         UPDATE CONTACT (dynamic update)
   ============================================================ */
-async function updateContact(contactId, data) {
+export async function updateContact(contactId, data) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     const keys = Object.keys(data).filter((k) => data[k] !== undefined);
 
-    if (keys.length === 0) return;
+    if (keys.length === 0) {
+      return;
+    }
 
     let index = 1;
     const setClauses = keys.map((k) => `${k} = $${index++}`);
@@ -269,7 +271,7 @@ async function updateContact(contactId, data) {
 /* ============================================================
         SOFT DELETE CONTACT
   ============================================================ */
-async function softDeleteContact(contactId) {
+export async function softDeleteContact(contactId) {
   const pool = getPool();
   await pool.query(
     `
@@ -281,7 +283,7 @@ async function softDeleteContact(contactId) {
   );
 }
 
-module.exports = {
+export default {
   getContacts,
   getContactById,
   createContact,

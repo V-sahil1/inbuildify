@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createIntegrationCustomFieldHeader = async (req, res) => {
+export async function createIntegrationCustomFieldHeader(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -78,9 +78,9 @@ exports.createIntegrationCustomFieldHeader = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllIntegrationCustomFieldHeader = async (req, res) => {
+export async function getAllIntegrationCustomFieldHeader(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -144,9 +144,9 @@ exports.getAllIntegrationCustomFieldHeader = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
+export async function deleteIntegrationCustomFieldHeader(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -253,9 +253,9 @@ exports.deleteIntegrationCustomFieldHeader = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateIntegrationCustomFieldHeader = async (req, res) => {
+export async function updateIntegrationCustomFieldHeader(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -334,7 +334,7 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE integration_custom_field_header
@@ -363,4 +363,4 @@ exports.updateIntegrationCustomFieldHeader = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

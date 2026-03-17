@@ -1,13 +1,10 @@
-const getPool = require("../../config/database");
-const { deleteFromS3 } = require("../../utils/s3Upload");
-const { buildDynamicUpdate } = require("../../utils/buildDynamicUpdate");
-const {
-  BUILDER_UPDATE_FIELDS,
-  INSURER_UPDATE_FIELDS,
-} = require("../../constants/updateFields");
-const { upsertAddress } = require("./address.service");
+import getPool from "../../config/database.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { buildDynamicUpdate } from "../../utils/buildDynamicUpdate.js";
+import { BUILDER_UPDATE_FIELDS, INSURER_UPDATE_FIELDS } from "../../constants/updateFields.js";
+import { upsertAddress } from "./address.service.js";
 
-async function upsertBuilder(builderId, payload, logoUrl) {
+export async function upsertBuilder(builderId, payload, logoUrl) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,7 +12,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
     await client.query("BEGIN");
 
     const existingRes = await client.query(
-      `SELECT * FROM builder WHERE builder_id = $1`,
+      "SELECT * FROM builder WHERE builder_id = $1",
       [builderId],
     );
 
@@ -104,7 +101,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
 
     if (payload.insurer) {
       const insurerRes = await client.query(
-        `SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1`,
+        "SELECT builder_insurer_id FROM builder_insurer WHERE builder_id = $1",
         [builderId],
       );
 
@@ -165,7 +162,7 @@ async function upsertBuilder(builderId, payload, logoUrl) {
   }
 }
 
-async function getBuilderProfile(builderId) {
+export async function getBuilderProfile(builderId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -208,7 +205,7 @@ async function getBuilderProfile(builderId) {
   }
 }
 
-async function getAllBuilders() {
+export async function getAllBuilders() {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -262,4 +259,4 @@ async function getAllBuilders() {
   }
 }
 
-module.exports = { upsertBuilder, getBuilderProfile, getAllBuilders };
+export default { upsertBuilder, getBuilderProfile, getAllBuilders };

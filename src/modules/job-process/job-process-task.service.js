@@ -1,17 +1,10 @@
-const getPool = require("../../config/database");
-const {
-  ensureWorkflowStageBySubStageId,
-} = require("./job-process-workflow.guard");
+import getPool from "../../config/database.js";
+import { ensureWorkflowStageBySubStageId } from "./job-process-workflow.guard.js";
 
 /**
  * CREATE TASK + DEPENDENCIES
  */
-exports.createTaskService = async (
-  subStageId,
-  payload,
-  builderId,
-  companyId,
-) => {
+export async function createTaskService(subStageId, payload, builderId, companyId) {
   await ensureWorkflowStageBySubStageId(subStageId);
 
   const pool = getPool();
@@ -216,9 +209,9 @@ exports.createTaskService = async (
       no_of_days: task.no_of_days,
       assignee: task.assignee_id
         ? {
-            id: task.assignee_id,
-            name: task.assignee_name,
-          }
+          id: task.assignee_id,
+          name: task.assignee_name,
+        }
         : null,
       notify: task.notify,
       milestone: task.milestone,
@@ -234,9 +227,9 @@ exports.createTaskService = async (
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateTask = async (taskId, payload, builderId, companyId) => {
+export async function updateTask(taskId, payload, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -409,7 +402,9 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       ],
     );
 
-    if (!rowCount) throw new Error("Task not found");
+    if (!rowCount) {
+      throw new Error("Task not found");
+    }
 
     // Handle predecessor task dependencies
     if (payload.predecessor_task_ids !== undefined) {
@@ -473,9 +468,9 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
       no_of_days: task.no_of_days,
       assignee: task.assignee_id
         ? {
-            id: task.assignee_id,
-            name: task.assignee_name,
-          }
+          id: task.assignee_id,
+          name: task.assignee_name,
+        }
         : null,
       notify: task.notify,
       milestone: task.milestone,
@@ -492,9 +487,9 @@ exports.updateTask = async (taskId, payload, builderId, companyId) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteTask = async (taskId, builderId, companyId) => {
+export async function deleteTask(taskId, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -548,13 +543,13 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
     );
 
     await client.query(
-      `DELETE FROM job_process_task WHERE job_process_task_id = $1`,
+      "DELETE FROM job_process_task WHERE job_process_task_id = $1",
       [taskId],
     );
 
     // Remove this task from all dependencies where it's a predecessor
     await client.query(
-      `DELETE FROM job_process_task_dependency WHERE predecessor_task_id = $1`,
+      "DELETE FROM job_process_task_dependency WHERE predecessor_task_id = $1",
       [taskId],
     );
 
@@ -565,9 +560,9 @@ exports.deleteTask = async (taskId, builderId, companyId) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getTasks = async (subStageId, builderId, companyId) => {
+export async function getTasks(subStageId, builderId, companyId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -631,9 +626,9 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
         },
         folder: r.folder_id
           ? {
-              id: r.folder_id,
-              name: r.folder_name,
-            }
+            id: r.folder_id,
+            name: r.folder_name,
+          }
           : null,
         notify: r.notify,
         milestone: r.milestone,
@@ -673,12 +668,12 @@ exports.getTasks = async (subStageId, builderId, companyId) => {
     }
   }
   return Array.from(taskMap.values());
-};
+}
 
 /**
  * CREATE SUB-TASK
  */
-exports.createSubTask = async (taskId, payload, builderId, companyId) => {
+export async function createSubTask(taskId, payload, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -797,12 +792,12 @@ exports.createSubTask = async (taskId, payload, builderId, companyId) => {
   } finally {
     client.release();
   }
-};
+}
 
 /**
  * UPDATE SUB-TASK
  */
-exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
+export async function updateSubTask(subTaskId, payload, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -934,7 +929,9 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
       [subTaskId, payload.name, payload.sort_order],
     );
 
-    if (!rowCount) throw new Error("Sub-task not found");
+    if (!rowCount) {
+      throw new Error("Sub-task not found");
+    }
 
     const { rows: updatedRows } = await client.query(
       `
@@ -969,12 +966,12 @@ exports.updateSubTask = async (subTaskId, payload, builderId, companyId) => {
   } finally {
     client.release();
   }
-};
+}
 
 /**
  * DELETE SUB-TASK
  */
-exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
+export async function deleteSubTask(subTaskId, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1044,17 +1041,12 @@ exports.deleteSubTask = async (subTaskId, builderId, companyId) => {
   } finally {
     client.release();
   }
-};
+}
 
 /**
  * DELETE TASK DEPENDENCY
  */
-exports.deleteTaskDependency = async (
-  taskId,
-  predecessorTaskId,
-  builderId,
-  companyId,
-) => {
+export async function deleteTaskDependency(taskId, predecessorTaskId, builderId, companyId) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1109,8 +1101,9 @@ exports.deleteTaskDependency = async (
   } finally {
     client.release();
   }
-};
-exports.getAllJobTasks = async (builderId, companyId) => {
+}
+
+export async function getAllJobTasks(builderId, companyId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -1218,12 +1211,12 @@ exports.getAllJobTasks = async (builderId, companyId) => {
   }
 
   return Array.from(taskMap.values());
-};
+}
 
 /**
  * GET SUB-TASKS BY TASK
  */
-exports.getSubTasks = async (taskId, builderId, companyId) => {
+export async function getSubTasks(taskId, builderId, companyId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -1254,12 +1247,12 @@ exports.getSubTasks = async (taskId, builderId, companyId) => {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
-};
+}
 
 /**
  * GET ALL TASKS - TASK DETAILS ONLY
  */
-exports.getAllTasksOnly = async (builderId, companyId) => {
+export async function getAllTasksOnly(builderId, companyId) {
   const pool = getPool();
 
   const { rows } = await pool.query(
@@ -1329,4 +1322,17 @@ exports.getAllTasksOnly = async (builderId, companyId) => {
   }
 
   return Array.from(taskMap.values());
+}
+
+export default {
+  createTaskService,
+  updateTask,
+  deleteTask,
+  getTasks,
+  updateSubTask,
+  deleteSubTask,
+  getSubTasks,
+  getAllJobTasks,
+  getAllTasksOnly,
+  deleteTaskDependency,
 };

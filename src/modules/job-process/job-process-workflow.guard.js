@@ -1,6 +1,6 @@
-const getPool = require("../../config/database");
+import getPool from "../../config/database.js";
 
-async function ensureWorkflowStageByStageId(stageId) {
+export async function ensureWorkflowStageByStageId(stageId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `
@@ -10,7 +10,7 @@ async function ensureWorkflowStageByStageId(stageId) {
       ON f.functionality_id = s.functionality_id
     WHERE s.stage_id = $1
     `,
-    [stageId]
+    [stageId],
   );
 
   if (!rows[0]?.is_workflow) {
@@ -18,7 +18,7 @@ async function ensureWorkflowStageByStageId(stageId) {
   }
 }
 
-async function ensureWorkflowStageBySubStageId(subStageId) {
+export async function ensureWorkflowStageBySubStageId(subStageId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `
@@ -28,7 +28,7 @@ async function ensureWorkflowStageBySubStageId(subStageId) {
     JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
     WHERE ss.sub_stage_id = $1
     `,
-    [subStageId]
+    [subStageId],
   );
 
   // if (!rows[0]?.is_workflow) {
@@ -36,7 +36,7 @@ async function ensureWorkflowStageBySubStageId(subStageId) {
   // }
 }
 
-module.exports = {
+export default {
   ensureWorkflowStageByStageId,
   ensureWorkflowStageBySubStageId,
 };

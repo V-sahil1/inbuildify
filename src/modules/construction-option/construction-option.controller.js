@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createConstructionOption = async (req, res) => {
+export async function createConstructionOption(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -74,9 +74,9 @@ exports.createConstructionOption = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionOptions = async (req, res) => {
+export async function getAllConstructionOptions(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -114,9 +114,9 @@ exports.getAllConstructionOptions = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionOption = async (req, res) => {
+export async function deleteConstructionOption(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -195,9 +195,9 @@ exports.deleteConstructionOption = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionOption = async (req, res) => {
+export async function updateConstructionOption(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -274,7 +274,7 @@ exports.updateConstructionOption = async (req, res) => {
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
 
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE construction_option
@@ -298,4 +298,4 @@ exports.updateConstructionOption = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

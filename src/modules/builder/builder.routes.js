@@ -1,19 +1,15 @@
-const express = require("express");
-const router = express.Router();
-const {
-  upsertBuilder,
-  getMyBuilderProfile,
-  getAllBuilders,
-} = require("./builder.controller.js");
+import express from "express";
 
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-const parseFormDataJson = require("../../middleware/parseFormDataJson.js");
-const { createUpload, handleMulterError } = require("../../utils/s3Upload.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const { REQUEST_SOURCE } = require("../../config/constants.js");
-const { upsertBuilderSchema } = require("./builder.validation.js");
+const router = express.Router();
+import { upsertBuilder, getMyBuilderProfile, getAllBuilders } from "./builder.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import parseFormDataJson from "../../middleware/parseFormDataJson.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
+import { upsertBuilderSchema } from "./builder.validation.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,4 +27,4 @@ router.post(
   upsertBuilder,
 );
 
-module.exports = router;
+export default router;

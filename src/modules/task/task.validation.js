@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createTaskSchema = Joi.object({
+export const createTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -47,7 +47,7 @@ const createTaskSchema = Joi.object({
   attach_files: Joi.string().max(500).allow(null, "").optional(),
 });
 
-const getAllTaskSchema = Joi.object({
+export const getAllTaskSchema = Joi.object({
   name: Joi.string().max(200).optional(),
 
   due_date: Joi.date()
@@ -88,21 +88,21 @@ const getAllTaskSchema = Joi.object({
   }),
 });
 
-const deleteTaskSchema = Joi.object({
+export const deleteTaskSchema = Joi.object({
   task_id: Joi.string().uuid().required().messages({
     "string.guid": "task ID must be a valid UUID",
     "any.required": "task ID is required",
   }),
 });
 
-const updateTaskParamsSchema = Joi.object({
+export const updateTaskParamsSchema = Joi.object({
   task_id: Joi.string().uuid().required().messages({
     "string.guid": "task ID must be a valid UUID",
     "any.required": "task ID is required",
   }),
 });
 
-const updateTaskSchema = Joi.object({
+export const updateTaskSchema = Joi.object({
   name: Joi.string()
     .min(2)
     .max(200)
@@ -147,7 +147,7 @@ const updateTaskSchema = Joi.object({
   attach_files: Joi.string().max(500).allow(null, "").optional(),
 });
 
-module.exports = {
+export default {
   createTaskSchema,
   getAllTaskSchema,
   deleteTaskSchema,

@@ -1,14 +1,13 @@
-const getPool = require("../../config/database");
-const { errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
-const { successResponse } = require("../../helper/response");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.getCountries = async (req, res) => {
+export async function getCountries(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    const query = `SELECT * FROM country WHERE name = $1;`;
+    const query = "SELECT * FROM country WHERE name = $1;";
     const result = await client.query(query, ["australia"]);
     successResponse(res, keysToCamelCase(result.rows), "Countries fetched successfully.");
   } catch (error) {
@@ -16,4 +15,4 @@ exports.getCountries = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

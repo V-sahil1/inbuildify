@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createJobWorkflowSetting = async (req, res) => {
+export async function createJobWorkflowSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -15,15 +15,15 @@ exports.createJobWorkflowSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
     await client.query("BEGIN");
 
     const duplicateCheck = await client.query(
-      `SELECT 1 FROM job_workflow_settings WHERE builder_id = $1 OR company_id = $2`,
-      [builderId, companyId]
+      "SELECT 1 FROM job_workflow_settings WHERE builder_id = $1 OR company_id = $2",
+      [builderId, companyId],
     );
 
     if (duplicateCheck.rowCount > 0) {
@@ -31,7 +31,7 @@ exports.createJobWorkflowSetting = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Job workflow settings already exist for this builder."
+        "Job workflow settings already exist for this builder.",
       );
     }
     const {
@@ -80,7 +80,7 @@ exports.createJobWorkflowSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job workflow settings created successfully."
+      "Job workflow settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -89,9 +89,9 @@ exports.createJobWorkflowSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobColorSetting = async (req, res) => {
+export async function updateJobColorSetting(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -104,7 +104,7 @@ exports.updateJobColorSetting = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -126,7 +126,7 @@ exports.updateJobColorSetting = async (req, res) => {
       WHERE (builder_id = $1 OR company_id = $2)
       LIMIT 1
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     const jobWorkflowSettingsIdToUpdate =
@@ -137,7 +137,7 @@ exports.updateJobColorSetting = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job workflow settings not found for this user."
+        "Job workflow settings not found for this user.",
       );
     }
 
@@ -163,7 +163,7 @@ exports.updateJobColorSetting = async (req, res) => {
     }
     if (recalculate_estimated_dates_based_on_actual_changes !== undefined) {
       fields.push(
-        `recalculate_estimated_dates_based_on_actual_changes = $${i++}`
+        `recalculate_estimated_dates_based_on_actual_changes = $${i++}`,
       );
       values.push(recalculate_estimated_dates_based_on_actual_changes);
     }
@@ -175,7 +175,7 @@ exports.updateJobColorSetting = async (req, res) => {
 
     fields.push(`updated_by = $${i++}`);
     values.push(userId);
-    fields.push(`updated_at = NOW()`);
+    fields.push("updated_at = NOW()");
 
     const updateQuery = `
       UPDATE job_workflow_settings
@@ -197,7 +197,7 @@ exports.updateJobColorSetting = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job workflow settings updated successfully."
+      "Job workflow settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -206,9 +206,9 @@ exports.updateJobColorSetting = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getUserJobWorkflowSettings = async (req, res) => {
+export async function getUserJobWorkflowSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -227,7 +227,7 @@ exports.getUserJobWorkflowSettings = async (req, res) => {
         AND builder_id = $2
       LIMIT 1;
       `,
-      [company_id, builder_id]
+      [company_id, builder_id],
     );
 
     if (result.rowCount === 0) {
@@ -246,14 +246,14 @@ exports.getUserJobWorkflowSettings = async (req, res) => {
       recalculate_estimated_end_dates_future_tasks,
       recalculate_estimated_dates_based_on_actual_changes
         `,
-        [company_id, builder_id, user_id]
+        [company_id, builder_id, user_id],
       );
     }
 
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job workflow settings fetched successfully"
+      "Job workflow settings fetched successfully",
     );
   } catch (error) {
     console.error("Error fetching job workflow settings:", error);
@@ -261,4 +261,4 @@ exports.getUserJobWorkflowSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

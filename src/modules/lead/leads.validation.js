@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createLeadSchema = Joi.object({
+export const createLeadSchema = Joi.object({
   force_create: Joi.boolean().optional().default(false),
   name: Joi.string().min(2).max(255).required().messages({
     "string.min": "Name must be at least 2 characters long",
@@ -27,14 +27,14 @@ const createLeadSchema = Joi.object({
   "object.unknown": "Only specified fields are allowed during lead creation",
 });
 
-const getLeadByIdSchema = Joi.object({
+export const getLeadByIdSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
     "any.required": "Lead ID is required",
   }),
 });
 
-const updateLeadSchema = Joi.object({
+export const updateLeadSchema = Joi.object({
   reference_number: Joi.string().max(30).optional(),
 
   name: Joi.string().min(2).max(255).optional().messages({
@@ -135,7 +135,7 @@ const updateLeadSchema = Joi.object({
     "object.min": "At least one field must be provided for update",
   });
 
-const updateLeadStatusSchema = Joi.object({
+export const updateLeadStatusSchema = Joi.object({
   status: Joi.string()
     .valid("New", "Working", "Convert")
     .required()
@@ -145,14 +145,14 @@ const updateLeadStatusSchema = Joi.object({
     }),
 });
 
-const assignLeadSchema = Joi.object({
+export const assignLeadSchema = Joi.object({
   assignee_id: Joi.string().uuid().required().messages({
     "string.guid": "Assignee ID must be a valid UUID",
     "any.required": "Assignee ID is required",
   }),
 });
 
-const getAllLeadsQuerySchema = Joi.object({
+export const getAllLeadsQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -178,19 +178,19 @@ const getAllLeadsQuerySchema = Joi.object({
   }),
 });
 
-const convertLeadToOpportunitySchema = Joi.object({
+export const convertLeadToOpportunitySchema = Joi.object({
   opportunity_notes: Joi.string().max(1000).optional().allow(null, "").messages({
     "string.max": "Opportunity notes must not exceed 1000 characters",
   }),
 });
 
-const removeHLPackageSchema = Joi.object({
+export const removeHLPackageSchema = Joi.object({
   remove_hl_package_lot_quotation: Joi.boolean().optional().default(true).messages({
     "boolean.base": "remove_hl_package_lot_quotation must be a boolean",
   }),
 });
 
-module.exports = {
+export default  {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,

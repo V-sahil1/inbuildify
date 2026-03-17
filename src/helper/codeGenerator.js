@@ -1,4 +1,4 @@
-function generateCode(name = "default", type = "default") {
+export function generateCode(name = "default", type = "default") {
   const prefix = name.substring(0, 2).toUpperCase();
 
   const typeMap = {
@@ -13,7 +13,7 @@ function generateCode(name = "default", type = "default") {
   return `${prefix}${typeCode}${randomNum}`;
 }
 
-function generateInvoiceCode(name = "default", type = "default", versionNumber = 1) {
+export function generateInvoiceCode(name = "default", type = "default", versionNumber = 1) {
   const prefix = name.substring(0, 2).toUpperCase();
 
   const typeMap = {
@@ -27,4 +27,4 @@ function generateInvoiceCode(name = "default", type = "default", versionNumber =
   return `${prefix}${typeCode}${randomNum}-I${versionNumber}`;
 }
 
-module.exports = { generateCode, generateInvoiceCode };
+export default { generateCode, generateInvoiceCode };

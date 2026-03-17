@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSupplierSchema = Joi.object({
+export const createSupplierSchema = Joi.object({
   supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.sparse": "supplier_type_id cannot contain empty values",
     "array.unique": "supplier_type_id must be unique",
@@ -132,7 +132,7 @@ const createSupplierSchema = Joi.object({
     .optional(),
 });
 
-const getAllSupplierSchema = Joi.object({
+export const getAllSupplierSchema = Joi.object({
   company_name: Joi.string().trim().max(255).optional(),
   phone: Joi.string()
     .pattern(/^[0-9+\-\s()]*$/)
@@ -155,21 +155,21 @@ const getAllSupplierSchema = Joi.object({
   induction: Joi.boolean().optional(),
 });
 
-const deleteSupplierSchema = Joi.object({
+export const deleteSupplierSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
   }),
 });
 
-const updateSupplierParamsSchema = Joi.object({
+export const updateSupplierParamsSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
   }),
 });
 
-const updateSupplierSchema = Joi.object({
+export const updateSupplierSchema = Joi.object({
   supplier_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.sparse": "supplier_type_id cannot contain empty values",
     "array.unique": "supplier_type_id must be unique",
@@ -293,7 +293,8 @@ const updateSupplierSchema = Joi.object({
     .allow(null, "")
     .optional(),
 });
-module.exports = {
+
+export default {
   createSupplierSchema,
   getAllSupplierSchema,
   deleteSupplierSchema,

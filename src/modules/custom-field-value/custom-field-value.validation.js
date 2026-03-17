@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createCustomFieldValueSchema = Joi.object({
+export const createCustomFieldValueSchema = Joi.object({
   custom_field_id: Joi.string().uuid().required().messages({
     "any.required": "custom field id is required",
   }),
@@ -14,7 +14,7 @@ const createCustomFieldValueSchema = Joi.object({
   value_list: Joi.string().optional().allow(null, ""),
 });
 
-const getAllCustomFieldValueSchema = Joi.object({
+export const getAllCustomFieldValueSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -29,21 +29,21 @@ const getAllCustomFieldValueSchema = Joi.object({
   }),
 });
 
-const deleteCustomFieldValueSchema = Joi.object({
+export const deleteCustomFieldValueSchema = Joi.object({
   custom_field_value_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateCustomFieldValueIdParamsSchema = Joi.object({
+export const updateCustomFieldValueIdParamsSchema = Joi.object({
   custom_field_value_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
     "any.required": "ID is required",
   }),
 });
 
-const updateCustomFieldValueSchema = Joi.object({
+export const updateCustomFieldValueSchema = Joi.object({
   custom_field_id: Joi.string().uuid().optional().messages({
     "string.guid": "custom field value ID must be a valid UUID",
   }),
@@ -67,10 +67,10 @@ const updateCustomFieldValueSchema = Joi.object({
   "value_number",
   "value_date",
   "value_boolean",
-  "value_list"
+  "value_list",
 );
 
-module.exports = {
+export default {
   createCustomFieldValueSchema,
   getAllCustomFieldValueSchema,
   deleteCustomFieldValueSchema,

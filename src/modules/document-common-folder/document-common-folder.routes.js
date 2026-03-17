@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createDocumentCommonFolder,
   getAllDocumentCommonFolders,
   deleteDocumentCommonFolder,
   updateDocumentCommonFolder,
-} = require("./document-common-folder.controller.js");
-const {
+} from "./document-common-folder.controller.js";
+import {
   createDocumentCommonFolderSchema,
   getAllDocumentCommonFolderSchema,
   deleteDocumentCommonFolderSchema,
   updateDocumentCommonFolderParamsSchema,
   updateDocumentCommonFolderSchema,
-} = require("./document-common-folder.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./document-common-folder.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -29,29 +28,29 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createDocumentCommonFolderSchema, REQUEST_SOURCE.BODY),
-  createDocumentCommonFolder
+  createDocumentCommonFolder,
 );
 
 router.get(
   "/",
   validateRequest(getAllDocumentCommonFolderSchema, REQUEST_SOURCE.QUERY),
-  getAllDocumentCommonFolders
+  getAllDocumentCommonFolders,
 );
 
 router.delete(
   "/:document_common_folder_id",
   validateRequest(deleteDocumentCommonFolderSchema, REQUEST_SOURCE.PARAMS),
-  deleteDocumentCommonFolder
+  deleteDocumentCommonFolder,
 );
 
 router.put(
   "/:document_common_folder_id",
   validateRequest(
     updateDocumentCommonFolderParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateDocumentCommonFolderSchema, REQUEST_SOURCE.BODY),
-  updateDocumentCommonFolder
+  updateDocumentCommonFolder,
 );
 
-module.exports = router;
+export default router;

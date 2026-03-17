@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSupplierContactSchema = Joi.object({
+export const createSupplierContactSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
@@ -30,7 +30,7 @@ const createSupplierContactSchema = Joi.object({
     .optional(),
 });
 
-const getAllSupplierContactsSchema = Joi.object({
+export const getAllSupplierContactsSchema = Joi.object({
   supplier_id: Joi.string().uuid().optional().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
@@ -49,21 +49,21 @@ const getAllSupplierContactsSchema = Joi.object({
   }),
 });
 
-const deleteSupplierContactSchema = Joi.object({
+export const deleteSupplierContactSchema = Joi.object({
   supplier_contact_id: Joi.string().uuid().required().messages({
     "string.guid": "supplier contact ID must be a valid UUID",
     "any.required": " supplier contact ID is required",
   }),
 });
 
-const updateSupplierContactParamsSchema = Joi.object({
+export const updateSupplierContactParamsSchema = Joi.object({
   supplier_contact_id: Joi.string().uuid().required().messages({
     "string.guid": "supplier contact ID must be a valid UUID",
     "any.required": " supplier contact ID is required",
   }),
 });
 
-const updateSupplierContactSchema = Joi.object({
+export const updateSupplierContactSchema = Joi.object({
   contact_name: Joi.string()
     .trim()
     .min(2)
@@ -89,7 +89,8 @@ const updateSupplierContactSchema = Joi.object({
     .max(100)
     .optional(),
 });
-module.exports = {
+
+export default {
   createSupplierContactSchema,
   getAllSupplierContactsSchema,
   deleteSupplierContactSchema,

@@ -1,5 +1,5 @@
 // builderUpdateFields
-module.exports.BUILDER_UPDATE_FIELDS = {
+export var BUILDER_UPDATE_FIELDS = {
   name: "name",
   email: "email",
   phone_number: "phone_number",
@@ -19,7 +19,7 @@ module.exports.BUILDER_UPDATE_FIELDS = {
 };
 
 // addressUpdateFields
-module.exports.ADDRESS_UPDATE_FIELDS = {
+export var ADDRESS_UPDATE_FIELDS = {
   address_line1: "address_line1",
   address_line2: "address_line2",
   city: "city",
@@ -29,7 +29,7 @@ module.exports.ADDRESS_UPDATE_FIELDS = {
 };
 
 // insurerUpdateFields
-module.exports.INSURER_UPDATE_FIELDS = {
+export var INSURER_UPDATE_FIELDS = {
   insurer_name: "insurer_name",
   insured_name: "insured_name",
   phone_number: "phone_number",

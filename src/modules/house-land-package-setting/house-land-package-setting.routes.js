@@ -1,23 +1,23 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createHouseLandPackageSetting,
   getHouseLandPackagesetting,
   updateHouseLandPackageSetting,
   getHouseLandPackageSettings,
-} = require("./house-land-package-setting.controller.js");
-const {
+} from "./house-land-package-setting.controller.js";
+import {
   createHouseLandPackageSettingSchema,
   updateHouseLandPackageSettingParamsSchema,
   updateHouseLandPackageSettingSchems,
-} = require("./house-land-package-setting.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./house-land-package-setting.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -26,7 +26,7 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createHouseLandPackageSettingSchema, REQUEST_SOURCE.BODY),
-  createHouseLandPackageSetting
+  createHouseLandPackageSetting,
 );
 
 router.get("/fetch", getHouseLandPackageSettings);
@@ -37,10 +37,10 @@ router.put(
   "/:id",
   validateRequest(
     updateHouseLandPackageSettingParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateHouseLandPackageSettingSchems, REQUEST_SOURCE.BODY),
-  updateHouseLandPackageSetting
+  updateHouseLandPackageSetting,
 );
 
-module.exports = router;
+export default router;

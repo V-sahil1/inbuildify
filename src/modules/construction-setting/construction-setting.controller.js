@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createConstructionSettings = async (req, res) => {
+export async function createConstructionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -26,7 +26,7 @@ exports.createConstructionSettings = async (req, res) => {
         FROM construction_settings 
         WHERE company_id = $1 AND builder_id = $2;
       `,
-      [companyId, builderId]
+      [companyId, builderId],
     );
 
     if (existingSettings.rowCount > 0) {
@@ -34,7 +34,7 @@ exports.createConstructionSettings = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Construction settings already exist for this company and builder."
+        "Construction settings already exist for this company and builder.",
       );
     }
 
@@ -76,7 +76,7 @@ exports.createConstructionSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "You cannot define allow_checklist_even_supplier_tradies_not_responded when suppliers_tradies_madatory_to_complete_checklist is false ."
+          "You cannot define allow_checklist_even_supplier_tradies_not_responded when suppliers_tradies_madatory_to_complete_checklist is false .",
         );
       }
     }
@@ -89,16 +89,14 @@ exports.createConstructionSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Reminder days cannot be defined when default lead time is disabled."
+          "Reminder days cannot be defined when default lead time is disabled.",
         );
       }
       finalReminderDays = null;
+    } else if (no_of_reminder_days === undefined || no_of_reminder_days === null) {
+      finalReminderDays = 7;
     } else {
-      if (no_of_reminder_days === undefined || no_of_reminder_days === null) {
-        finalReminderDays = 7;
-      } else {
-        finalReminderDays = no_of_reminder_days;
-      }
+      finalReminderDays = no_of_reminder_days;
     }
 
     if (admin_coordinator_roles.length > 0) {
@@ -108,7 +106,7 @@ exports.createConstructionSettings = async (req, res) => {
           FROM role
           WHERE role_id = ANY($1) AND builder_id = $2;
         `,
-        [admin_coordinator_roles, builderId]
+        [admin_coordinator_roles, builderId],
       );
 
       if (adminCheck.rowCount !== admin_coordinator_roles.length) {
@@ -124,7 +122,7 @@ exports.createConstructionSettings = async (req, res) => {
           FROM role
           WHERE role_id = ANY($1) AND builder_id = $2 AND is_active = true;
         `,
-        [admin_coordinator_roles, builderId]
+        [admin_coordinator_roles, builderId],
       );
 
       if (adminCheck.rowCount !== admin_coordinator_roles.length) {
@@ -140,7 +138,7 @@ exports.createConstructionSettings = async (req, res) => {
           FROM role
           WHERE role_id = ANY($1) AND builder_id = $2;
         `,
-        [site_supervisor_roles, builderId]
+        [site_supervisor_roles, builderId],
       );
 
       if (supervisorCheck.rowCount !== site_supervisor_roles.length) {
@@ -156,7 +154,7 @@ exports.createConstructionSettings = async (req, res) => {
         FROM role
           WHERE role_id = ANY($1) AND builder_id = $2 AND is_active = true;
         `,
-        [site_supervisor_roles, builderId]
+        [site_supervisor_roles, builderId],
       );
 
       if (supervisorCheck.rowCount !== site_supervisor_roles.length) {
@@ -241,7 +239,7 @@ exports.createConstructionSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Construction settings created successfully."
+      "Construction settings created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -250,9 +248,9 @@ exports.createConstructionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getConstructionSettings = async (req, res) => {
+export async function getConstructionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -275,7 +273,7 @@ exports.getConstructionSettings = async (req, res) => {
         WHERE builder_id = $1 AND company_id = $2
         LIMIT 1;
       `,
-      [builderId, companyId]
+      [builderId, companyId],
     );
 
     if (result.rowCount === 0) {
@@ -290,7 +288,7 @@ exports.getConstructionSettings = async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *
         `,
-        [builderId, companyId, userId, userId]
+        [builderId, companyId, userId, userId],
       );
     }
 
@@ -299,7 +297,7 @@ exports.getConstructionSettings = async (req, res) => {
       keysToCamelCase(result.rows[0]),
       result.rowCount === 0
         ? "Construction settings created and retrieved successfully."
-        : "Construction settings retrieved successfully."
+        : "Construction settings retrieved successfully.",
     );
   } catch (err) {
     console.error("Error fetching construction settings:", err);
@@ -307,9 +305,9 @@ exports.getConstructionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionSettings = async (req, res) => {
+export async function updateConstructionSettings(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   const builderId = req.user?.builder_id;
@@ -317,15 +315,18 @@ exports.updateConstructionSettings = async (req, res) => {
   const userId = req.user?.user_id;
 
   try {
-    if (!builderId)
+    if (!builderId) {
       return errorResponse(res, 400, "Builder ID not found in user context.");
-    if (!companyId) return errorResponse(res, 400, "Company ID not found.");
+    }
+    if (!companyId) {
+      return errorResponse(res, 400, "Company ID not found.");
+    }
 
     await client.query("BEGIN");
 
     const existingSettingsResult = await client.query(
-      `SELECT * FROM construction_settings WHERE company_id = $1 AND builder_id = $2 LIMIT 1;`,
-      [companyId, builderId]
+      "SELECT * FROM construction_settings WHERE company_id = $1 AND builder_id = $2 LIMIT 1;",
+      [companyId, builderId],
     );
 
     if (existingSettingsResult.rowCount === 0) {
@@ -333,7 +334,7 @@ exports.updateConstructionSettings = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "No construction settings found to update for this company and builder."
+        "No construction settings found to update for this company and builder.",
       );
     }
 
@@ -389,7 +390,7 @@ exports.updateConstructionSettings = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Cannot define allow_checklist_even_supplier_tradies_not_responded when checklist mandatory is false."
+            "Cannot define allow_checklist_even_supplier_tradies_not_responded when checklist mandatory is false.",
           );
         }
         finalAllowChecklist = false;
@@ -402,11 +403,11 @@ exports.updateConstructionSettings = async (req, res) => {
 
       addField(
         "suppliers_tradies_madatory_to_complete_checklist",
-        finalSuppliersChecklist
+        finalSuppliersChecklist,
       );
       addField(
         "allow_checklist_even_supplier_tradies_not_responded",
-        finalAllowChecklist
+        finalAllowChecklist,
       );
     } else if (
       allow_checklist_even_supplier_tradies_not_responded !== undefined
@@ -419,12 +420,12 @@ exports.updateConstructionSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Cannot define allow_checklist_even_supplier_tradies_not_responded when checklist mandatory is false."
+          "Cannot define allow_checklist_even_supplier_tradies_not_responded when checklist mandatory is false.",
         );
       }
       addField(
         "allow_checklist_even_supplier_tradies_not_responded",
-        allow_checklist_even_supplier_tradies_not_responded
+        allow_checklist_even_supplier_tradies_not_responded,
       );
     }
 
@@ -440,7 +441,7 @@ exports.updateConstructionSettings = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Reminder days cannot be defined when default lead time is disabled."
+            "Reminder days cannot be defined when default lead time is disabled.",
           );
         }
         finalReminderDays = null;
@@ -459,7 +460,7 @@ exports.updateConstructionSettings = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Reminder days cannot be defined when default lead time is disabled."
+          "Reminder days cannot be defined when default lead time is disabled.",
         );
       }
       addField("no_of_reminder_days", no_of_reminder_days);
@@ -486,13 +487,15 @@ exports.updateConstructionSettings = async (req, res) => {
     ];
 
     otherFields.forEach((field) => {
-      if (req.body[field] !== undefined) addField(field, req.body[field]);
+      if (req.body[field] !== undefined) {
+        addField(field, req.body[field]);
+      }
     });
 
     if (admin_coordinator_roles.length > 0) {
       const adminCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1)`,
-        [admin_coordinator_roles]
+        "SELECT role_id FROM role WHERE role_id = ANY($1)",
+        [admin_coordinator_roles],
       );
       if (adminCheck.rowCount !== admin_coordinator_roles.length) {
         await client.query("ROLLBACK");
@@ -504,8 +507,8 @@ exports.updateConstructionSettings = async (req, res) => {
 
     if (site_supervisor_roles.length > 0) {
       const supervisorCheck = await client.query(
-        `SELECT role_id FROM role WHERE role_id = ANY($1)`,
-        [site_supervisor_roles]
+        "SELECT role_id FROM role WHERE role_id = ANY($1)",
+        [site_supervisor_roles],
       );
       if (supervisorCheck.rowCount !== site_supervisor_roles.length) {
         await client.query("ROLLBACK");
@@ -538,7 +541,7 @@ exports.updateConstructionSettings = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Construction settings updated successfully."
+      "Construction settings updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -547,4 +550,4 @@ exports.updateConstructionSettings = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

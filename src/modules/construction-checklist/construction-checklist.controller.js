@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createConstructionChecklist = async (req, res) => {
+export async function createConstructionChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -52,34 +52,37 @@ exports.createConstructionChecklist = async (req, res) => {
 
     if (construction_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2`,
+        "SELECT 1 FROM construction_type WHERE construction_type_id = $1 AND builder_id = $2",
         [construction_type_id, builder_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid construction_type_id");
+      }
     }
 
     if (construction_stage_id) {
       const check = await client.query(
-        `SELECT 1 FROM construction_stage WHERE construction_stage = $1 AND builder_id = $2`,
+        "SELECT 1 FROM construction_stage WHERE construction_stage = $1 AND builder_id = $2",
         [construction_stage_id, builder_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid construction_stage_id");
+      }
     }
 
     if (supplier_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1 AND builder_id = $2`,
+        "SELECT 1 FROM supplier_type WHERE supplier_type_id = $1 AND builder_id = $2",
         [supplier_type_id, builder_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid supplier_type_id");
+      }
     }
 
     if (Array.isArray(cost_center_id) && cost_center_id.length) {
       const check = await client.query(
-        `SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[]) AND builder_id = $2`,
+        "SELECT cost_center_id FROM cost_center WHERE cost_center_id = ANY($1::uuid[]) AND builder_id = $2",
         [cost_center_id, builder_id],
       );
       if (check.rowCount !== cost_center_id.length) {
@@ -96,7 +99,7 @@ exports.createConstructionChecklist = async (req, res) => {
       construction_option_id.length
     ) {
       const check = await client.query(
-        `SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[]) AND builder_id = $2`,
+        "SELECT construction_option_id FROM construction_option WHERE construction_option_id = ANY($1::uuid[]) AND builder_id = $2",
         [construction_option_id, builder_id],
       );
       if (check.rowCount !== construction_option_id.length) {
@@ -110,19 +113,22 @@ exports.createConstructionChecklist = async (req, res) => {
 
     if (compliance_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
+        "SELECT 1 FROM compliance_type WHERE compliance_type_id = $1",
         [compliance_type_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid compliance_type_id");
+      }
     }
 
     if (builder) {
       const check = await client.query(
-        `SELECT 1 FROM builder WHERE builder_id = $1`,
+        "SELECT 1 FROM builder WHERE builder_id = $1",
         [builder],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
+      if (!check.rowCount) {
+        return errorResponse(res, 400, "Invalid builder");
+      }
     }
 
     if (data_required === false && no_of_days) {
@@ -326,9 +332,9 @@ exports.createConstructionChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllConstructionChecklists = async (req, res) => {
+export async function getAllConstructionChecklists(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -339,7 +345,7 @@ exports.getAllConstructionChecklists = async (req, res) => {
     const { company_id, builder_id } = req.user;
 
     let whereClause = "WHERE (cc.company_id = $1 OR cc.builder_id = $2)";
-    let values = [company_id, builder_id];
+    const values = [company_id, builder_id];
     let paramIndex = values.length + 1;
 
     if (construction_type_id) {
@@ -501,9 +507,9 @@ exports.getAllConstructionChecklists = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getConstructionChecklistById = async (req, res) => {
+export async function getConstructionChecklistById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -586,9 +592,9 @@ exports.getConstructionChecklistById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateConstructionChecklist = async (req, res) => {
+export async function updateConstructionChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -637,29 +643,32 @@ exports.updateConstructionChecklist = async (req, res) => {
 
     if (construction_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM construction_type WHERE construction_type_id = $1`,
+        "SELECT 1 FROM construction_type WHERE construction_type_id = $1",
         [construction_type_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid construction_type_id");
+      }
     }
 
     if (construction_stage_id) {
       const check = await client.query(
-        `SELECT 1 FROM construction_stage WHERE construction_stage = $1`,
+        "SELECT 1 FROM construction_stage WHERE construction_stage = $1",
         [construction_stage_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid construction_stage_id");
+      }
     }
 
     if (supplier_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM supplier_type WHERE supplier_type_id = $1`,
+        "SELECT 1 FROM supplier_type WHERE supplier_type_id = $1",
         [supplier_type_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid supplier_type_id");
+      }
     }
 
     if (Array.isArray(cost_center_id) && cost_center_id.length) {
@@ -699,37 +708,42 @@ exports.updateConstructionChecklist = async (req, res) => {
 
     if (compliance_type_id) {
       const check = await client.query(
-        `SELECT 1 FROM compliance_type WHERE compliance_type_id = $1`,
+        "SELECT 1 FROM compliance_type WHERE compliance_type_id = $1",
         [compliance_type_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid compliance_type_id");
+      }
     }
 
     if (builder) {
       const check = await client.query(
-        `SELECT 1 FROM builder WHERE builder_id = $1`,
+        "SELECT 1 FROM builder WHERE builder_id = $1",
         [builder],
       );
-      if (!check.rowCount) return errorResponse(res, 400, "Invalid builder");
+      if (!check.rowCount) {
+        return errorResponse(res, 400, "Invalid builder");
+      }
     }
 
     if (po_folder_id) {
       const check = await client.query(
-        `SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1`,
+        "SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1",
         [po_folder_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid po_folder_id");
+      }
     }
 
     if (job_documents_folder_id) {
       const check = await client.query(
-        `SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1`,
+        "SELECT 1 FROM document_common_folder WHERE document_common_folder_id = $1",
         [job_documents_folder_id],
       );
-      if (!check.rowCount)
+      if (!check.rowCount) {
         return errorResponse(res, 400, "Invalid job_documents_folder_id");
+      }
     }
 
     const currentRecord = await client.query(
@@ -785,7 +799,9 @@ exports.updateConstructionChecklist = async (req, res) => {
     }
 
     if (name !== undefined) {
-      if (!name) return errorResponse(res, 400, "Name cannot be empty");
+      if (!name) {
+        return errorResponse(res, 400, "Name cannot be empty");
+      }
 
       const duplicateCheck = await client.query(
         `SELECT construction_checklist_id 
@@ -913,7 +929,7 @@ exports.updateConstructionChecklist = async (req, res) => {
 
     updateFields.push(`updated_by = $${idx++}`);
     updateValues.push(user_id);
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push("updated_at = NOW()");
 
     await client.query(
       `UPDATE construction_checklist 
@@ -1054,9 +1070,9 @@ exports.updateConstructionChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteConstructionChecklist = async (req, res) => {
+export async function deleteConstructionChecklist(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1087,7 +1103,7 @@ exports.deleteConstructionChecklist = async (req, res) => {
     const deletedSortOrder = deletedRecord.rows[0].sort_order;
 
     await client.query(
-      `DELETE FROM construction_checklist WHERE construction_checklist_id = $1`,
+      "DELETE FROM construction_checklist WHERE construction_checklist_id = $1",
       [construction_checklist_id],
     );
 
@@ -1109,4 +1125,4 @@ exports.deleteConstructionChecklist = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

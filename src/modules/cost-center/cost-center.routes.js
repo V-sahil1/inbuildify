@@ -1,7 +1,18 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const costCenterController = require("./cost-center.controller.js");
-const {
+import {
+  createCostCenter,
+  getCostCenters,
+  getCostCenterById,
+  updateCostCenter,
+  deleteCostCenter,
+  toggleCostCenterStatus,
+  createCostCenterChecklistMap,
+  getCostCenterChecklistMaps,
+  deleteCostCenterChecklistMap,
+} from "./cost-center.controller.js";
+import {
   createCostCenterSchema,
   updateCostCenterSchema,
   costCenterParamsSchema,
@@ -9,13 +20,12 @@ const {
   costCenterChecklistMapQuerySchema,
   costCenterChecklistMapParamsSchema,
   getAllCostCentersSchema,
-} = require("./cost-center.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./cost-center.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -24,58 +34,58 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createCostCenterSchema, REQUEST_SOURCE.BODY),
-  costCenterController.createCostCenter,
+  createCostCenter,
 );
 
 router.get(
   "/",
   validateRequest(getAllCostCentersSchema, REQUEST_SOURCE.QUERY),
-  costCenterController.getCostCenters,
+  getCostCenters,
 );
 
 //get cost center checklist map
 router.get(
   "/checklist-map",
   validateRequest(costCenterChecklistMapQuerySchema, REQUEST_SOURCE.QUERY),
-  costCenterController.getCostCenterChecklistMaps,
+  getCostCenterChecklistMaps,
 );
 
 router.get(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.getCostCenterById,
+  getCostCenterById,
 );
 
 router.put(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCostCenterSchema, REQUEST_SOURCE.BODY),
-  costCenterController.updateCostCenter,
+  updateCostCenter,
 );
 
 router.put(
   "/is-active/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.toggleCostCenterStatus,
+  toggleCostCenterStatus,
 );
 
 router.delete(
   "/:cost_center_id",
   validateRequest(costCenterParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.deleteCostCenter,
+  deleteCostCenter,
 );
 
 // Cost Center Checklist Map Routes
 router.post(
   "/checklist-map",
   validateRequest(createCostCenterChecklistMapSchema, REQUEST_SOURCE.BODY),
-  costCenterController.createCostCenterChecklistMap,
+  createCostCenterChecklistMap,
 );
 
 router.delete(
   "/checklist-map/:id",
   validateRequest(costCenterChecklistMapParamsSchema, REQUEST_SOURCE.PARAMS),
-  costCenterController.deleteCostCenterChecklistMap,
+  deleteCostCenterChecklistMap,
 );
 
-module.exports = router;
+export default router;

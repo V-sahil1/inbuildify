@@ -1,15 +1,14 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const { getAllTimezones } = require("./timezone.controller.js");
-const { getAllTimezoneSchema } = require("./timezone.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+import { getAllTimezones } from "./timezone.controller.js";
+import { getAllTimezoneSchema } from "./timezone.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -18,7 +17,7 @@ router.use(camelToSnakeMiddleware);
 router.get(
   "/",
   validateRequest(getAllTimezoneSchema, REQUEST_SOURCE.QUERY),
-  getAllTimezones
+  getAllTimezones,
 );
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const floorPlanFacadeMapService = require("./floor-plan-facade-map.service");
-const { successResponse, errorResponse } = require("../../helper/response");
+import floorPlanFacadeMapService from "./floor-plan-facade-map.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 /* ---------------------------
    CREATE FLOOR PLAN FACADE MAP
 ---------------------------- */
-module.exports.createFloorPlanFacadeMap = async (req, res) => {
+export async function createFloorPlanFacadeMap(req, res) {
   try {
     const data = await floorPlanFacadeMapService.createFloorPlanFacadeMap(
       req.user,
@@ -24,12 +24,12 @@ module.exports.createFloorPlanFacadeMap = async (req, res) => {
       error.message || "Internal server error",
     );
   }
-};
+}
 
 /* ---------------------------
    GET ALL FLOOR PLAN FACADE MAPS
 ---------------------------- */
-module.exports.getFloorPlanFacadeMaps = async (req, res) => {
+export async function getFloorPlanFacadeMaps(req, res) {
   try {
     const data = await floorPlanFacadeMapService.getFloorPlanFacadeMaps(
       req.user,
@@ -49,12 +49,12 @@ module.exports.getFloorPlanFacadeMaps = async (req, res) => {
       error.message || "Internal server error",
     );
   }
-};
+}
 
 /* ---------------------------
    DELETE FLOOR PLAN FACADE MAP
 ---------------------------- */
-module.exports.deleteFloorPlanFacadeMap = async (req, res) => {
+export async function deleteFloorPlanFacadeMap(req, res) {
   try {
     const { id } = req.params;
 
@@ -73,4 +73,10 @@ module.exports.deleteFloorPlanFacadeMap = async (req, res) => {
       error.message || "Internal server error",
     );
   }
+}
+
+export default {
+  createFloorPlanFacadeMap,
+  getFloorPlanFacadeMaps,
+  deleteFloorPlanFacadeMap,
 };

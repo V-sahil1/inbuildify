@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { errorResponse, successResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { errorResponse, successResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createService = async (req, res) => {
+export async function createService(req, res) {
   const { service } = req.body || {};
   const builderId = req.user.builder_id;
 
@@ -10,7 +10,7 @@ exports.createService = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const builderQuery = `SELECT * FROM builder WHERE builder_id = $1;`;
+    const builderQuery = "SELECT * FROM builder WHERE builder_id = $1;";
     const builderResult = await client.query(builderQuery, [builderId]);
 
     if (builderResult.rows.length === 0) {
@@ -43,7 +43,7 @@ exports.createService = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(serviceResult.rows[0]),
-      "Service created successfully."
+      "Service created successfully.",
     );
   } catch (error) {
     console.error("Create service error:", error);
@@ -56,9 +56,9 @@ exports.createService = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getServices = async (req, res) => {
+export async function getServices(req, res) {
   const builderId = req.user.builder_id;
   const pool = getPool();
   const client = await pool.connect();
@@ -74,7 +74,7 @@ exports.getServices = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows),
-      "Services retrieved successfully."
+      "Services retrieved successfully.",
     );
   } catch (error) {
     console.error("Get services error:", error);
@@ -82,9 +82,9 @@ exports.getServices = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getServiceById = async (req, res) => {
+export async function getServiceById(req, res) {
   const { service_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -105,7 +105,7 @@ exports.getServiceById = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Service fetched successfully."
+      "Service fetched successfully.",
     );
   } catch (error) {
     console.error("Get service by ID error:", error);
@@ -113,9 +113,9 @@ exports.getServiceById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateService = async (req, res) => {
+export async function updateService(req, res) {
   const { service_id } = req.params;
   const builderId = req.user.builder_id;
   const { service } = req.body;
@@ -137,7 +137,7 @@ exports.updateService = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Service not found or you don't have permission to update this service."
+        "Service not found or you don't have permission to update this service.",
       );
     }
 
@@ -176,7 +176,7 @@ exports.updateService = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(updateResult.rows[0]),
-      "Service updated successfully."
+      "Service updated successfully.",
     );
   } catch (error) {
     console.error("Error updating service:", error);
@@ -189,9 +189,9 @@ exports.updateService = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteService = async (req, res) => {
+export async function deleteService(req, res) {
   const { service_id } = req.params;
   const builderId = req.user.builder_id;
 
@@ -212,7 +212,7 @@ exports.deleteService = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Service not found or you don't have permission to delete this service."
+        "Service not found or you don't have permission to delete this service.",
       );
     }
 
@@ -228,7 +228,7 @@ exports.deleteService = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "Cannot delete service. It is being used by one or more contractors."
+        "Cannot delete service. It is being used by one or more contractors.",
       );
     }
 
@@ -253,4 +253,4 @@ exports.deleteService = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

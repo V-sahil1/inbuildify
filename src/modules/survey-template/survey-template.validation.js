@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSurveyTemplateSchema = Joi.object({
+export const createSurveyTemplateSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -28,7 +28,7 @@ const createSurveyTemplateSchema = Joi.object({
   }),
 });
 
-const getAllSurveyTemplateSchema = Joi.object({
+export const getAllSurveyTemplateSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -57,21 +57,21 @@ const getAllSurveyTemplateSchema = Joi.object({
   }),
 });
 
-const deleteSurveyTemplateSchema = Joi.object({
+export const deleteSurveyTemplateSchema = Joi.object({
   survey_template_id: Joi.string().uuid().required().messages({
     "string.guid": "Survey template ID must be a valid UUID",
     "any.required": "Survey template ID is required",
   }),
 });
 
-const updateSurveyTemplateParamsSchema = Joi.object({
+export const updateSurveyTemplateParamsSchema = Joi.object({
   survey_template_id: Joi.string().uuid().required().messages({
     "string.guid": "Survey template ID must be a valid UUID",
     "any.required": "Survey template ID is required",
   }),
 });
 
-const updateSurveyTemplateSchema = Joi.object({
+export const updateSurveyTemplateSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -97,7 +97,7 @@ const updateSurveyTemplateSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createSurveyTemplateSchema,
   getAllSurveyTemplateSchema,
   deleteSurveyTemplateSchema,

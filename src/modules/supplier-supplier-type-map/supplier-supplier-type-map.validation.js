@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSupplierTypeMapSchema = Joi.object({
+export const createSupplierTypeMapSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
     "any.required": "Supplier ID is required",
@@ -12,32 +12,32 @@ const createSupplierTypeMapSchema = Joi.object({
   }),
 });
 
-const getAllSupplierTypeMapsSchema = Joi.object({
+export const getAllSupplierTypeMapsSchema = Joi.object({
   supplier_type_id: Joi.string().uuid().optional().messages({
     "string.guid": "Supplier type ID must be a valid UUID",
     "any.required": "Supplier type ID is required",
   }),
 });
 
-const deleteSupplierSupplierTypeMapSchema = Joi.object({
+export const deleteSupplierSupplierTypeMapSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier type map ID must be a valid UUID",
     "any.required": "Supplier type map ID is required",
   }),
 });
 
-const updateSupplierTypeParamsSchema = Joi.object({
+export const updateSupplierTypeParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier type map ID must be a valid UUID",
     "any.required": "Supplier type map ID is required",
   }),
 });
 
-const updateSupplierTypeMapSchema = Joi.object({
+export const updateSupplierTypeMapSchema = Joi.object({
   assign_to_new_and_existing_checklist: Joi.boolean().optional(),
 });
 
-const createSupplierTpeChecklistSchema = Joi.object({
+export const createSupplierTpeChecklistSchema = Joi.object({
   supplier_type_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier type ID must be a valid UUID",
     "any.required": "Supplier type ID is required",
@@ -48,7 +48,8 @@ const createSupplierTpeChecklistSchema = Joi.object({
     "any.required": "construction checklist id is required",
   }),
 });
-module.exports = {
+
+export default {
   createSupplierTypeMapSchema,
   getAllSupplierTypeMapsSchema,
   deleteSupplierSupplierTypeMapSchema,

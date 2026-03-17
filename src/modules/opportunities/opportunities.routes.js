@@ -1,17 +1,16 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
-  createOpportunity
-} = require("./opportunities.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { createOpportunitySchema } = require("./opportunity.validation");
-const { REQUEST_SOURCE } = require("../../config/constants");
+import { createOpportunity } from "./opportunities.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { createOpportunitySchema } from "./opportunity.validation.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
 router.post("/:lead_id", validateRequest(createOpportunitySchema, REQUEST_SOURCE.PARAMS), createOpportunity);
 
-module.exports = router;
+export default router;

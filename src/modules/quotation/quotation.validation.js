@@ -1,33 +1,34 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createQuotationSchema = Joi.object({
+export const createQuotationSchema = Joi.object({
   leads_id: Joi.string().uuid().required().messages({
     "string.guid": "Lead ID must be a valid UUID",
     "any.required": "Lead ID is required",
   }),
 });
 
-const deleteQuotationSchema = Joi.object({
+export const deleteQuotationSchema = Joi.object({
   quotation_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation ID must be a valid UUID",
     "any.required": "Quotation ID is required",
   }),
 });
 
-const updateQuotationVersionParamsSchema = Joi.object({
+export const updateQuotationVersionParamsSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
   }),
 });
 
-const duplicateQuotationVersionSchema = Joi.object({
+export const duplicateQuotationVersionSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
   }),
 });
-const updateQuotationVersionBodySchema = Joi.object({
+
+export const updateQuotationVersionBodySchema = Joi.object({
   location_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Location ID must be a valid UUID",
   }),
@@ -55,7 +56,7 @@ const updateQuotationVersionBodySchema = Joi.object({
   }),
 });
 
-const removePackageFromVersionSchema = Joi.object({
+export const removePackageFromVersionSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
     "any.required": "Quotation Version ID is required",
@@ -66,14 +67,14 @@ const removePackageFromVersionSchema = Joi.object({
   }),
 });
 
-const compareQuotationVersionsParamsSchema = Joi.object({
+export const compareQuotationVersionsParamsSchema = Joi.object({
   quotation_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation ID must be a valid UUID",
     "any.required": "Quotation ID is required",
   }),
 });
 
-const compareQuotationVersionsQuerySchema = Joi.object({
+export const compareQuotationVersionsQuerySchema = Joi.object({
   version_1: Joi.string().uuid().required().messages({
     "string.guid": "Version 1 ID must be a valid UUID",
     "any.required": "Version 1 ID is required",
@@ -87,7 +88,7 @@ const compareQuotationVersionsQuerySchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createQuotationSchema,
   deleteQuotationSchema,
   updateQuotationVersionParamsSchema,

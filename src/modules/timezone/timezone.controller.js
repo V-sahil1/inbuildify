@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.getAllTimezones = async (req, res) => {
+export async function getAllTimezones(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -21,7 +21,7 @@ exports.getAllTimezones = async (req, res) => {
       {
         timezones: keysToCamelCase(dataResult.rows),
       },
-      "Timezones fetched successfully."
+      "Timezones fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching timezones:", error);
@@ -29,4 +29,4 @@ exports.getAllTimezones = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

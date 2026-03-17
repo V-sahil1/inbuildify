@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createJobColorColumn = async (req, res) => {
+export async function createJobColorColumn(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -16,7 +16,7 @@ exports.createJobColorColumn = async (req, res) => {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing builder or company ID."
+        "Unauthorized: Missing builder or company ID.",
       );
     }
 
@@ -26,7 +26,7 @@ exports.createJobColorColumn = async (req, res) => {
       `SELECT job_color_settings_id 
        FROM job_color_settings 
        WHERE builder_id = $1`,
-      [builderId]
+      [builderId],
     );
 
     if (jobColorSettingsResult.rowCount === 0) {
@@ -34,7 +34,7 @@ exports.createJobColorColumn = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job color settings not found for this builder."
+        "Job color settings not found for this builder.",
       );
     }
     const jobColorSettingsId =
@@ -49,7 +49,7 @@ exports.createJobColorColumn = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "When display_option is 'show_in_existing_items_column', both sort_order and width must be null."
+        "When display_option is 'show_in_existing_items_column', both sort_order and width must be null.",
       );
     }
 
@@ -64,7 +64,7 @@ exports.createJobColorColumn = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "sort_order and width are required when display_option is not 'show_in_existing_items_column'."
+          "sort_order and width are required when display_option is not 'show_in_existing_items_column'.",
         );
       }
     }
@@ -75,7 +75,7 @@ exports.createJobColorColumn = async (req, res) => {
          FROM job_color_columns 
          WHERE job_color_settings_id = $1 
          AND sort_order = $2`,
-        [jobColorSettingsId, sort_order]
+        [jobColorSettingsId, sort_order],
       );
 
       if (dupSortCheck.rowCount > 0) {
@@ -83,7 +83,7 @@ exports.createJobColorColumn = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Sort order already exists for this setting."
+          "Sort order already exists for this setting.",
         );
       }
     }
@@ -115,7 +115,7 @@ exports.createJobColorColumn = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color column created successfully."
+      "Job color column created successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -124,9 +124,9 @@ exports.createJobColorColumn = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getAllJobColorColumns = async (req, res) => {
+export async function getAllJobColorColumns(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -183,7 +183,7 @@ exports.getAllJobColorColumns = async (req, res) => {
         limit,
         totalPages: Math.ceil(total / limit),
       },
-      "Job color columns fetched successfully."
+      "Job color columns fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching job color columns:", err);
@@ -191,9 +191,9 @@ exports.getAllJobColorColumns = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateJobColorColumn = async (req, res) => {
+export async function updateJobColorColumn(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -216,7 +216,7 @@ exports.updateJobColorColumn = async (req, res) => {
       return errorResponse(
         res,
         400,
-        "At least one field must be provided to update."
+        "At least one field must be provided to update.",
       );
     }
 
@@ -230,7 +230,7 @@ exports.updateJobColorColumn = async (req, res) => {
       ON jcc.job_color_settings_id = jcs.job_color_settings_id
       WHERE jcc.job_color_column_id = $1 AND jcs.builder_id = $2;
       `,
-      [id, builderId]
+      [id, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -238,7 +238,7 @@ exports.updateJobColorColumn = async (req, res) => {
       return errorResponse(
         res,
         404,
-        "Job color column not found for this builder."
+        "Job color column not found for this builder.",
       );
     }
 
@@ -251,7 +251,7 @@ exports.updateJobColorColumn = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "Cannot update sort_order or width unless you change display_option away from 'show_in_existing_items_column'."
+            "Cannot update sort_order or width unless you change display_option away from 'show_in_existing_items_column'.",
           );
         }
       }
@@ -264,7 +264,7 @@ exports.updateJobColorColumn = async (req, res) => {
           return errorResponse(
             res,
             400,
-            "sort_order and width are required when changing from 'show_in_existing_items_column'."
+            "sort_order and width are required when changing from 'show_in_existing_items_column'.",
           );
         }
       }
@@ -280,7 +280,7 @@ exports.updateJobColorColumn = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "sort_order and width are required when changing display_option to 'dont_show' or 'show_as_separate_column'."
+          "sort_order and width are required when changing display_option to 'dont_show' or 'show_as_separate_column'.",
         );
       }
     }
@@ -294,7 +294,7 @@ exports.updateJobColorColumn = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Do not send sort_order or width when changing display_option to 'show_in_existing_items_column'."
+          "Do not send sort_order or width when changing display_option to 'show_in_existing_items_column'.",
         );
       }
 
@@ -317,7 +317,7 @@ exports.updateJobColorColumn = async (req, res) => {
         AND sort_order = $2
         AND job_color_column_id != $3;
         `,
-        [old.job_color_settings_id, finalSortOrder, id]
+        [old.job_color_settings_id, finalSortOrder, id],
       );
 
       if (duplicate.rowCount > 0) {
@@ -325,7 +325,7 @@ exports.updateJobColorColumn = async (req, res) => {
         return errorResponse(
           res,
           400,
-          "Duplicate sort_order not allowed within the same settings."
+          "Duplicate sort_order not allowed within the same settings.",
         );
       }
     }
@@ -342,7 +342,7 @@ exports.updateJobColorColumn = async (req, res) => {
       WHERE job_color_column_id = $5
       RETURNING *;
       `,
-      [column_name, display_option, finalSortOrder, finalWidth, id]
+      [column_name, display_option, finalSortOrder, finalWidth, id],
     );
 
     await client.query("COMMIT");
@@ -350,7 +350,7 @@ exports.updateJobColorColumn = async (req, res) => {
     return successResponse(
       res,
       keysToCamelCase(result.rows[0]),
-      "Job color column updated successfully."
+      "Job color column updated successfully.",
     );
   } catch (err) {
     await client.query("ROLLBACK");
@@ -359,4 +359,4 @@ exports.updateJobColorColumn = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

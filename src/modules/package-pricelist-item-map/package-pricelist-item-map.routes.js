@@ -1,28 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createPackagePriceListItemMap,
   getAllPackagePriceListItemMap,
   getPackagePricelistItemByPackageId,
   deletePackagePricelistItemMapMap,
   updatePackagePriceListItemMap,
-} = require("./package_pricelist_item_map.controller.js");
-const {
+} from "./package_pricelist_item_map.controller.js";
+import {
   createPriceListItemMapSchema,
   getAllPackagePriceListItemMapSchema,
   getPackagePricelistItemByPackageIdSchema,
   deletePackagePricelistItemMapMapSchema,
   updateackagePricelistItemMapParamsSchema,
   updatePriceListItemMapSchema,
-} = require("./package-pricelist-item-map.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./package-pricelist-item-map.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -31,41 +30,41 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createPriceListItemMapSchema, REQUEST_SOURCE.BODY),
-  createPackagePriceListItemMap
+  createPackagePriceListItemMap,
 );
 
 router.get(
   "/",
   validateRequest(getAllPackagePriceListItemMapSchema, REQUEST_SOURCE.QUERY),
-  getAllPackagePriceListItemMap
+  getAllPackagePriceListItemMap,
 );
 
 router.get(
   "/:package_id",
   validateRequest(
     getPackagePricelistItemByPackageIdSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  getPackagePricelistItemByPackageId
+  getPackagePricelistItemByPackageId,
 );
 
 router.delete(
   "/:id",
   validateRequest(
     deletePackagePricelistItemMapMapSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deletePackagePricelistItemMapMap
+  deletePackagePricelistItemMapMap,
 );
 
 router.put(
   "/:id",
   validateRequest(
     updateackagePricelistItemMapParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updatePriceListItemMapSchema, REQUEST_SOURCE.BODY),
-  updatePackagePriceListItemMap
+  updatePackagePriceListItemMap,
 );
 
-module.exports = router;
+export default router;

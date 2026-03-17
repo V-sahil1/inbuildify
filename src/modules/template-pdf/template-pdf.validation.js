@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* =========================
    Reusable helpers
@@ -157,7 +157,7 @@ function makePartial(schema) {
    CREATE (strict)
 ========================= */
 
-const createTemplatePdfSchema = Joi.object({
+export const createTemplatePdfSchema = Joi.object({
   name: Joi.string().max(200).required(),
 
   invoice_format: invoiceFormatSchema.required(),
@@ -171,7 +171,7 @@ const createTemplatePdfSchema = Joi.object({
    UPDATE (partial)
 ========================= */
 
-const updateTemplatePdfSchema = Joi.object({
+export const updateTemplatePdfSchema = Joi.object({
   // name: Joi.string().max(200).optional(),
 
   invoice_format: makePartial(invoiceFormatSchema).optional(),
@@ -189,11 +189,11 @@ const formatSchemas = {
   maintenance_format: makePartial(maintenanceFormatSchema),
 };
 
-function getFormatValidationSchema(type) {
+export function getFormatValidationSchema(type) {
   return formatSchemas[type];
 }
 
-module.exports = {
+export default {
   createTemplatePdfSchema,
   updateTemplatePdfSchema,
   getFormatValidationSchema,

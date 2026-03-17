@@ -1,26 +1,20 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
-  createLocation,
-  getAllLocation,
-  deleteLocation,
-  updateLocation,
-} = require("./location.controller.js");
-const {
+import { createLocation, getAllLocation, deleteLocation, updateLocation } from "./location.controller.js";
+import {
   createLocationSchema,
   deleteLocationSchema,
   updateLocationParamsSchema,
   updateLocationShema,
   getAllLocationSchema,
-} = require("./location.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./location.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -51,4 +45,4 @@ router.put(
   updateLocation,
 );
 
-module.exports = router;
+export default router;

@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSurveyorSchema = Joi.object({
+export const createSurveyorSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -86,7 +86,7 @@ const createSurveyorSchema = Joi.object({
   zip_postal_code: Joi.string().trim().max(20).required(),
 });
 
-const getAllServeyorSchema = Joi.object({
+export const getAllServeyorSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -101,21 +101,21 @@ const getAllServeyorSchema = Joi.object({
   }),
 });
 
-const deleteSurveyorSchema = Joi.object({
+export const deleteSurveyorSchema = Joi.object({
   surveyor_id: Joi.string().uuid().required().messages({
     "string.guid": "Surveyor ID must be a valid UUID",
     "any.required": "Surveyor ID is required",
   }),
 });
 
-const updateSurveyorIdParamsSchema = Joi.object({
+export const updateSurveyorIdParamsSchema = Joi.object({
   surveyor_id: Joi.string().uuid().required().messages({
     "string.guid": "Surveyor ID must be a valid UUID",
     "any.required": "Surveyor ID is required",
   }),
 });
 
-const updateSurveyorSchema = Joi.object({
+export const updateSurveyorSchema = Joi.object({
   name: Joi.string()
     .trim()
     .min(2)
@@ -202,7 +202,7 @@ const updateSurveyorSchema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createSurveyorSchema,
   getAllServeyorSchema,
   deleteSurveyorSchema,

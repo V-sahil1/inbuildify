@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createRoleTypeSchema = Joi.object({
+export const createRoleTypeSchema = Joi.object({
   type_name: Joi.string().trim().max(100).required(),
   role_id: Joi.string().uuid().required().messages({
     "string.guid": "role ID must be a valid UUID",
@@ -8,7 +8,7 @@ const createRoleTypeSchema = Joi.object({
   }),
 });
 
-const getRoleTypeSchema = Joi.object({
+export const getRoleTypeSchema = Joi.object({
   role: Joi.string().uuid().required().messages({
     "string.guid": "role ID must be a valid UUID",
     "any.required": "role ID is required",
@@ -27,7 +27,7 @@ const getRoleTypeSchema = Joi.object({
   }),
 });
 
-const getAllRoletypeschema = Joi.object({
+export const getAllRoletypeschema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -42,7 +42,7 @@ const getAllRoletypeschema = Joi.object({
   }),
 });
 
-module.exports = {
+export default {
   createRoleTypeSchema,
   getRoleTypeSchema,
   getAllRoletypeschema,

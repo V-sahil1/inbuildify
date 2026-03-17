@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createColor = async (req, res) => {
+export async function createColor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -20,7 +20,7 @@ exports.createColor = async (req, res) => {
       return errorResponse(res, 400, "Color name is required.");
     }
 
-    let finalSortOrder = sort_order || 1;
+    const finalSortOrder = sort_order || 1;
 
     await client.query("BEGIN");
 
@@ -86,9 +86,9 @@ exports.createColor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColors = async (req, res) => {
+export async function getColors(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -149,9 +149,9 @@ exports.getColors = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorById = async (req, res) => {
+export async function getColorById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -186,9 +186,9 @@ exports.getColorById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColor = async (req, res) => {
+export async function updateColor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -284,7 +284,7 @@ exports.updateColor = async (req, res) => {
     updateValues.push(userId);
     paramIndex++;
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
 
     if (updateValues.length === 1) {
       await client.query("ROLLBACK");
@@ -319,9 +319,9 @@ exports.updateColor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColor = async (req, res) => {
+export async function deleteColor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -386,9 +386,9 @@ exports.deleteColor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.copyColor = async (req, res) => {
+export async function copyColor(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -467,7 +467,7 @@ exports.copyColor = async (req, res) => {
       );
     }
 
-    let finalSortOrder = sort_order || maxAllowedSortOrder;
+    const finalSortOrder = sort_order || maxAllowedSortOrder;
 
     const shiftColorsQuery = `
       UPDATE color 
@@ -620,4 +620,4 @@ exports.copyColor = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

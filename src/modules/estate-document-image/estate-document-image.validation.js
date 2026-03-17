@@ -1,10 +1,10 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 /* -----------------------------
    ESTATE IMAGES VALIDATION
 ------------------------------ */
 
-const getEstateImageSchema = Joi.object({
+export const getEstateImageSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "any.required": "Estate ID is required",
     "string.base": "Estate ID must be a string",
@@ -12,7 +12,7 @@ const getEstateImageSchema = Joi.object({
   }),
 });
 
-const updateEstateImageParamsSchema = Joi.object({
+export const updateEstateImageParamsSchema = Joi.object({
   id: Joi.string().uuid().required().messages({
     "any.required": "Estate ID is required",
     "string.base": "Estate ID must be a string",
@@ -20,7 +20,7 @@ const updateEstateImageParamsSchema = Joi.object({
   }),
 });
 
-const updateEstateImageSchema = Joi.object({
+export const updateEstateImageSchema = Joi.object({
   image_url: Joi.string().uri().max(500).allow(null, "").optional(),
   imageUrl: Joi.string().uri().max(500).allow(null, "").optional(),
 }).or("image_url", "imageUrl");
@@ -29,7 +29,7 @@ const updateEstateImageSchema = Joi.object({
    ESTATE DOCUMENTS VALIDATION
 ------------------------------ */
 
-const createEstateDocumentSchema = Joi.object({
+export const createEstateDocumentSchema = Joi.object({
   estate_id: Joi.string().uuid().required().messages({
     "any.required": "Estate ID is required",
     "string.base": "Estate ID must be a string",
@@ -48,7 +48,7 @@ const createEstateDocumentSchema = Joi.object({
   file_url: Joi.string().uri().max(500).allow(null, "").optional(),
 });
 
-const updateEstateDocumentSchema = Joi.object({
+export const updateEstateDocumentSchema = Joi.object({
   document_name: Joi.string()
     .min(2)
     .max(255)
@@ -58,7 +58,7 @@ const updateEstateDocumentSchema = Joi.object({
   fileUrl: Joi.string().uri().max(500).allow(null, "").optional(),
 });
 
-module.exports = {
+export default {
   getEstateImageSchema,
   updateEstateImageParamsSchema,
   updateEstateImageSchema,

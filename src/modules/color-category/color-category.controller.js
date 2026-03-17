@@ -1,8 +1,8 @@
-const getPool = require("../../config/database");
-const { successResponse, errorResponse } = require("../../helper/response");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
-exports.createColorCategory = async (req, res) => {
+export async function createColorCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -32,12 +32,12 @@ exports.createColorCategory = async (req, res) => {
       return errorResponse(res, 400, "Category name is required.");
     }
 
-    let finalSortOrder = sort_order || 1;
+    const finalSortOrder = sort_order || 1;
 
     await client.query("BEGIN");
 
     const colorCheck = await client.query(
-      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      "SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1",
       [color_id, builderId, companyId],
     );
 
@@ -80,7 +80,7 @@ exports.createColorCategory = async (req, res) => {
     // Validate suppliers array if provided
     if (suppliers && suppliers.length > 0) {
       const supplierCheck = await client.query(
-        `SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        "SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true",
         [suppliers, companyId, builderId],
       );
 
@@ -97,7 +97,7 @@ exports.createColorCategory = async (req, res) => {
     // Validate color_group array if provided
     if (color_group && color_group.length > 0) {
       const colorGroupCheck = await client.query(
-        `SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        "SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true",
         [color_group, companyId, builderId],
       );
 
@@ -147,9 +147,9 @@ exports.createColorCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorCategories = async (req, res) => {
+export async function getColorCategories(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -218,9 +218,9 @@ exports.getColorCategories = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorCategoryById = async (req, res) => {
+export async function getColorCategoryById(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -260,9 +260,9 @@ exports.getColorCategoryById = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.updateColorCategory = async (req, res) => {
+export async function updateColorCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -349,7 +349,7 @@ exports.updateColorCategory = async (req, res) => {
 
     if (suppliers && suppliers.length > 0) {
       const supplierCheck = await client.query(
-        `SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3`,
+        "SELECT supplier_id FROM supplier WHERE supplier_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3",
         [suppliers, companyId, builderId],
       );
 
@@ -365,7 +365,7 @@ exports.updateColorCategory = async (req, res) => {
 
     if (color_group && color_group.length > 0) {
       const colorGroupCheck = await client.query(
-        `SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true`,
+        "SELECT color_group_id FROM color_group WHERE color_group_id = ANY($1::uuid[]) AND company_id = $2 AND builder_id = $3 AND status = true",
         [color_group, companyId, builderId],
       );
 
@@ -423,7 +423,7 @@ exports.updateColorCategory = async (req, res) => {
     updateValues.push(userId);
     paramIndex++;
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
 
     if (updateValues.length === 1) {
       await client.query("ROLLBACK");
@@ -458,9 +458,9 @@ exports.updateColorCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.getColorCategoriesByColorId = async (req, res) => {
+export async function getColorCategoriesByColorId(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -474,7 +474,7 @@ exports.getColorCategoriesByColorId = async (req, res) => {
 
     // First verify the color exists and belongs to the user
     const colorCheck = await client.query(
-      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      "SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1",
       [id, builderId, companyId],
     );
 
@@ -506,9 +506,9 @@ exports.getColorCategoriesByColorId = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.deleteColorCategory = async (req, res) => {
+export async function deleteColorCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -571,9 +571,9 @@ exports.deleteColorCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}
 
-exports.copyColorCategory = async (req, res) => {
+export async function copyColorCategory(req, res) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -624,7 +624,7 @@ exports.copyColorCategory = async (req, res) => {
     }
 
     const targetColorCheck = await client.query(
-      `SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1`,
+      "SELECT color_id FROM color WHERE color_id = $1 AND builder_id = $2 AND company_id = $3 AND status = true LIMIT 1",
       [color_id, builderId, companyId],
     );
 
@@ -656,7 +656,7 @@ exports.copyColorCategory = async (req, res) => {
       );
     }
 
-    let finalSortOrder = sort_order || maxAllowedSortOrder;
+    const finalSortOrder = sort_order || maxAllowedSortOrder;
 
     const duplicateCategoryCheck = await client.query(
       `
@@ -789,4 +789,4 @@ exports.copyColorCategory = async (req, res) => {
   } finally {
     client.release();
   }
-};
+}

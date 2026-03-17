@@ -1,10 +1,10 @@
-const getPool = require("../../config/database");
-const { keysToCamelCase } = require("../../utils/common");
+import getPool from "../../config/database.js";
+import { keysToCamelCase } from "../../utils/common.js";
 
 /**
  * CREATE FLOOR PLAN FACADE MAP
  */
-async function createFloorPlanFacadeMap(currentUser, payload) {
+export async function createFloorPlanFacadeMap(currentUser, payload) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -100,7 +100,7 @@ async function createFloorPlanFacadeMap(currentUser, payload) {
 /**
  * GET ALL FLOOR PLAN FACADE MAPS
  */
-async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
+export async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
   const pool = getPool();
 
   const builderId = currentUser.builder_id;
@@ -110,7 +110,7 @@ async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
   const offset = (page - 1) * limit;
 
   let whereClause = "WHERE (fp.company_id = $1 OR fp.builder_id = $2)";
-  let values = [companyId, builderId];
+  const values = [companyId, builderId];
   let paramIndex = 3;
 
   if (floor_plan_id) {
@@ -191,7 +191,7 @@ async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
 /**
  * DELETE FLOOR PLAN FACADE MAP
  */
-async function deleteFloorPlanFacadeMap(currentUser, id) {
+export async function deleteFloorPlanFacadeMap(currentUser, id) {
   const pool = getPool();
   const client = await pool.connect();
 
@@ -233,7 +233,7 @@ async function deleteFloorPlanFacadeMap(currentUser, id) {
   }
 }
 
-module.exports = {
+export default {
   createFloorPlanFacadeMap,
   getFloorPlanFacadeMaps,
   deleteFloorPlanFacadeMap,

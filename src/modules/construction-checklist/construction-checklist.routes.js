@@ -1,24 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
-const {
+
+import {
   createConstructionChecklist,
   getAllConstructionChecklists,
   getConstructionChecklistById,
   updateConstructionChecklist,
   deleteConstructionChecklist,
-} = require("./construction-checklist.controller.js");
-const {
+} from "./construction-checklist.controller.js";
+import {
   createConstructionChecklistValidation,
   updateConstructionChecklistValidation,
   getConstructionChecklistByIdValidation,
   queryValidation,
-} = require("./construction-checklist.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./construction-checklist.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -27,32 +28,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createConstructionChecklistValidation, REQUEST_SOURCE.BODY),
-  createConstructionChecklist
+  createConstructionChecklist,
 );
 
 router.get(
   "/",
   validateRequest(queryValidation, REQUEST_SOURCE.QUERY),
-  getAllConstructionChecklists
+  getAllConstructionChecklists,
 );
 
 router.get(
   "/:construction_checklist_id",
   validateRequest(getConstructionChecklistByIdValidation, REQUEST_SOURCE.PARAMS),
-  getConstructionChecklistById
+  getConstructionChecklistById,
 );
 
 router.put(
   "/:construction_checklist_id",
   validateRequest(getConstructionChecklistByIdValidation, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionChecklistValidation, REQUEST_SOURCE.BODY),
-  updateConstructionChecklist
+  updateConstructionChecklist,
 );
 
 router.delete(
   "/:construction_checklist_id",
   validateRequest(getConstructionChecklistByIdValidation, REQUEST_SOURCE.PARAMS),
-  deleteConstructionChecklist
+  deleteConstructionChecklist,
 );
 
-module.exports = router;
+export default router;

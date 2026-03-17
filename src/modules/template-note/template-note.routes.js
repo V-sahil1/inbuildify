@@ -1,27 +1,27 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createTemplateNote,
   getAllTemplateNotes,
   deleteTemplateNote,
   updateTemplateNote,
   updateTemplateNoteIsActive,
-} = require("./template-note.controller.js");
-const {
+} from "./template-note.controller.js";
+import {
   createTemplateNoteSchema,
   getAllTemplateNotesSchema,
   deleteTemplateNoteSchema,
   updateTemplateNoteParamsSchema,
   updateTemplateNoteSchema,
   updateTemplateNoteIsActiveSchema,
-} = require("./template-note.validation.js");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./template-note.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,31 +30,31 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createTemplateNoteSchema, REQUEST_SOURCE.BODY),
-  createTemplateNote
+  createTemplateNote,
 );
 
 router.get(
   "/",
   validateRequest(getAllTemplateNotesSchema, REQUEST_SOURCE.QUERY),
-  getAllTemplateNotes
+  getAllTemplateNotes,
 );
 
 router.delete(
   "/:template_note_id",
   validateRequest(deleteTemplateNoteSchema, REQUEST_SOURCE.PARAMS),
-  deleteTemplateNote
+  deleteTemplateNote,
 );
 
 router.put(
   "/:template_note_id",
   validateRequest(updateTemplateNoteParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateTemplateNoteSchema, REQUEST_SOURCE.BODY),
-  updateTemplateNote
+  updateTemplateNote,
 );
 
 router.put(
   "/is-active/:template_note_id",
   validateRequest(updateTemplateNoteParamsSchema, REQUEST_SOURCE.PARAMS),
-  updateTemplateNoteIsActive
+  updateTemplateNoteIsActive,
 );
-module.exports = router;
+export default router;

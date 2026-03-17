@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createIntegrationCustomFieldHeader,
   getAllIntegrationCustomFieldHeader,
   deleteIntegrationCustomFieldHeader,
   updateIntegrationCustomFieldHeader,
-} = require("./integration-custom-field-header.controller.js");
-const {
+} from "./integration-custom-field-header.controller.js";
+import {
   createIntegrationCustomFieldHeaderSchema,
   getAllIntegrationCustomFieldHeaderSchema,
   deleteIntegrationCustomFieldHeaderSchema,
   updateIntegrationCustomFieldHeaderParamsSchema,
   updateIntegrationCustomFieldHeaderSchem,
-} = require("./integration-custom-field-header.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./integration-custom-field-header.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -30,38 +29,37 @@ router.post(
   "/",
   validateRequest(
     createIntegrationCustomFieldHeaderSchema,
-    REQUEST_SOURCE.BODY
+    REQUEST_SOURCE.BODY,
   ),
-  createIntegrationCustomFieldHeader
+  createIntegrationCustomFieldHeader,
 );
 
 router.get(
   "/",
   validateRequest(
     getAllIntegrationCustomFieldHeaderSchema,
-    REQUEST_SOURCE.QUERY
+    REQUEST_SOURCE.QUERY,
   ),
-  getAllIntegrationCustomFieldHeader
+  getAllIntegrationCustomFieldHeader,
 );
 
 router.delete(
   "/:integration_custom_field_header_id",
   validateRequest(
     deleteIntegrationCustomFieldHeaderSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deleteIntegrationCustomFieldHeader
+  deleteIntegrationCustomFieldHeader,
 );
 
 router.put(
   "/:integration_custom_field_header_id",
   validateRequest(
     updateIntegrationCustomFieldHeaderParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateIntegrationCustomFieldHeaderSchem, REQUEST_SOURCE.BODY),
-  updateIntegrationCustomFieldHeader
+  updateIntegrationCustomFieldHeader,
 );
 
-
-module.exports = router;
+export default router;

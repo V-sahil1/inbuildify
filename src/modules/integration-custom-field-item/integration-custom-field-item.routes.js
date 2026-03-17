@@ -1,26 +1,25 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const {
+import {
   createIntegrationCustomFieldItem,
   getAllIntegrationCustomFieldItem,
   deleteIntegrationCustomFieldItem,
   updateIntegrationCustomFieldItem,
-} = require("./integration-custom-field-item.controller.js");
-const {
+} from "./integration-custom-field-item.controller.js";
+import {
   createIntegrationCustomFieldItemSchema,
   getAllIntegrationCustomFieldItemSchema,
   deleteIntegrationCustomFieldItemSchema,
   updateIntegrationCustomFieldParamsSchema,
   updateIntegrationCustoFieldItemSchema,
-} = require("./integration-custom-field-item.validation.js");
-
-const { validateRequest } = require("../../middleware/validateRequestMiddleware.js");
-const authMiddleware = require("../../middleware/authMiddleware.js");
-const roleMiddleware = require("../../middleware/roleMiddleware.js");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware.js");
-
-const { REQUEST_SOURCE } = require("../../config/constants.js");
+} from "./integration-custom-field-item.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -29,34 +28,32 @@ router.use(camelToSnakeMiddleware);
 router.post(
   "/",
   validateRequest(createIntegrationCustomFieldItemSchema, REQUEST_SOURCE.BODY),
-  createIntegrationCustomFieldItem
+  createIntegrationCustomFieldItem,
 );
 
 router.get(
   "/",
   validateRequest(getAllIntegrationCustomFieldItemSchema, REQUEST_SOURCE.QUERY),
-  getAllIntegrationCustomFieldItem
+  getAllIntegrationCustomFieldItem,
 );
 
 router.delete(
   "/:integration_custom_field_item_id",
   validateRequest(
     deleteIntegrationCustomFieldItemSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
-  deleteIntegrationCustomFieldItem
+  deleteIntegrationCustomFieldItem,
 );
 
 router.put(
   "/:integration_custom_field_item_id",
   validateRequest(
     updateIntegrationCustomFieldParamsSchema,
-    REQUEST_SOURCE.PARAMS
+    REQUEST_SOURCE.PARAMS,
   ),
   validateRequest(updateIntegrationCustoFieldItemSchema, REQUEST_SOURCE.BODY),
-  updateIntegrationCustomFieldItem
+  updateIntegrationCustomFieldItem,
 );
 
-
-
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const allowedShowReferenceValues = [
   "document_id",
@@ -7,7 +7,7 @@ const allowedShowReferenceValues = [
   "hide_document_id_and_job_id",
 ];
 
-const createGeneralSettigSchema = Joi.object({
+export const createGeneralSettigSchema = Joi.object({
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 
@@ -38,14 +38,14 @@ const createGeneralSettigSchema = Joi.object({
     .default("hide_document_id_and_job_id")
     .messages({
       "any.only": `show_reference_id_in_pdf must be one of: ${allowedShowReferenceValues.join(
-        ", "
+        ", ",
       )}`,
     }),
 
   job_id_label: Joi.string().max(100).allow(null, "").optional(),
 });
 
-const updateGeneralSettingsSchema = Joi.object({
+export const updateGeneralSettingsSchema = Joi.object({
   notification_referral_partner: Joi.boolean().optional().default(false),
   pdf_password_protected: Joi.boolean().optional().default(false),
 
@@ -77,14 +77,14 @@ const updateGeneralSettingsSchema = Joi.object({
     .default("hide_document_id_and_job_id")
     .messages({
       "any.only": `show_reference_id_in_pdf must be one of: ${allowedShowReferenceValues.join(
-        ", "
+        ", ",
       )}`,
     }),
 
   job_id_label: Joi.string().max(100).allow(null, "").optional(),
 });
 
-module.exports = {
+export default {
   createGeneralSettigSchema,
   updateGeneralSettingsSchema,
 };

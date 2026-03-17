@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createSalesStageSchema = Joi.object({
+export const createSalesStageSchema = Joi.object({
   sales_process_id: Joi.string().uuid().required().messages({
     "any.required": "Sales process ID is required",
     "string.guid": "Sales process ID must be a valid UUID",
@@ -30,21 +30,21 @@ const createSalesStageSchema = Joi.object({
   is_active: Joi.boolean().optional(),
 });
 
-const deleteSalesStageSchema = Joi.object({
+export const deleteSalesStageSchema = Joi.object({
   sales_stage_id: Joi.string().uuid().required().messages({
     "any.required": "Sales stage ID is required",
     "string.guid": "Sales stage ID must be a valid UUID",
   }),
 });
 
-const updateSalesStageIdParamsSchema = Joi.object({
+export const updateSalesStageIdParamsSchema = Joi.object({
   sales_stage_id: Joi.string().uuid().required().messages({
     "any.required": "Sales stage ID is required",
     "string.guid": "Sales stage ID must be a valid UUID",
   }),
 });
 
-const updateSalesStageSchema = Joi.object({
+export const updateSalesStageSchema = Joi.object({
   stage_name: Joi.string().max(150).optional().messages({}),
 
   functionality_id: Joi.array()
@@ -65,11 +65,11 @@ const updateSalesStageSchema = Joi.object({
   sort_order: Joi.number().integer().default(1).min(1).optional(),
 });
 
-const updateSalesStageIsActiveSchema = Joi.object({
+export const updateSalesStageIsActiveSchema = Joi.object({
   is_active: Joi.boolean().required(),
 });
 
-const getSalesStageBySalesProcessIdSchema = Joi.object({
+export const getSalesStageBySalesProcessIdSchema = Joi.object({
   sales_process_id: Joi.string().uuid().required().messages({
     "any.required": "Sales process ID is required",
     "string.guid": "Sales process ID must be a valid UUID",
@@ -87,7 +87,8 @@ const getSalesStageBySalesProcessIdSchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
 });
-module.exports = {
+
+export default {
   createSalesStageSchema,
   getSalesStageBySalesProcessIdSchema,
   deleteSalesStageSchema,

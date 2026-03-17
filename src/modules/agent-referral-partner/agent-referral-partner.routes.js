@@ -1,52 +1,52 @@
-const express = require("express");
+import express from "express";
+
 const router = express.Router();
 
-const agentReferralPartnerController = require("./agent-referral-partner.controller");
-const authMiddleware = require("../../middleware/authMiddleware");
-const roleMiddleware = require("../../middleware/roleMiddleware");
-const camelToSnakeMiddleware = require("../../middleware/caseConverterMiddleware");
-
-const {
-    createAgentReferralPartnerSchema,
-    updateAgentReferralPartnerSchema,
-    getAgentReferralPartnerSchema,
-    paramsIdSchema,
-} = require("./agent-referral-partner.validation");
-const { validateRequest } = require("../../middleware/validateRequestMiddleware");
-const { REQUEST_SOURCE } = require("../../config/constants");
+import { createAgentReferralPartner, getAgentReferralPartnerById, getAgentReferralPartners, updateAgentReferralPartner, deleteAgentReferralPartner } from "./agent-referral-partner.controller.js";
+import authMiddleware from "../../middleware/authMiddleware.js";
+import roleMiddleware from "../../middleware/roleMiddleware.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import {
+  createAgentReferralPartnerSchema,
+  updateAgentReferralPartnerSchema,
+  getAgentReferralPartnerSchema,
+  paramsIdSchema,
+} from "./agent-referral-partner.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { REQUEST_SOURCE } from "../../config/constants.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
 router.post(
-    "/",
-    validateRequest(createAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
-    agentReferralPartnerController.createAgentReferralPartner,
+  "/",
+  validateRequest(createAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
+  createAgentReferralPartner,
 );
 
 router.get(
-    "/",
-    validateRequest(getAgentReferralPartnerSchema, REQUEST_SOURCE.QUERY),
-    agentReferralPartnerController.getAgentReferralPartners,
+  "/",
+  validateRequest(getAgentReferralPartnerSchema, REQUEST_SOURCE.QUERY),
+  getAgentReferralPartners,
 );
 
 router.get(
-    "/:partner_id",
-    agentReferralPartnerController.getAgentReferralPartnerById,
+  "/:partner_id",
+  getAgentReferralPartnerById,
 );
 
 router.put(
-    "/:partner_id",
-    validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
-    validateRequest(updateAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
-    agentReferralPartnerController.updateAgentReferralPartner,
+  "/:partner_id",
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateAgentReferralPartnerSchema, REQUEST_SOURCE.BODY),
+  updateAgentReferralPartner,
 );
 
 router.delete(
-    "/:partner_id",
-    validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
-    agentReferralPartnerController.deleteAgentReferralPartner,
+  "/:partner_id",
+  validateRequest(paramsIdSchema, REQUEST_SOURCE.PARAMS),
+  deleteAgentReferralPartner,
 );
 
-module.exports = router;
+export default router;

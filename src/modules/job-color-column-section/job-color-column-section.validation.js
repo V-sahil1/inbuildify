@@ -1,6 +1,6 @@
-const Joi = require("joi");
+import Joi from "joi";
 
-const createJobColorColumnSectionSchema = Joi.object({
+export const createJobColorColumnSectionSchema = Joi.object({
   section_name: Joi.string()
     .trim()
     .max(100)
@@ -21,7 +21,7 @@ const createJobColorColumnSectionSchema = Joi.object({
   }),
 });
 
-const getJobColorColumnSectionsSchema = Joi.object({
+export const getJobColorColumnSectionsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",
@@ -36,21 +36,21 @@ const getJobColorColumnSectionsSchema = Joi.object({
   }),
 });
 
-const deleteJobColorColumnSectionSchema = Joi.object({
+export const deleteJobColorColumnSectionSchema = Joi.object({
   job_color_column_section_id: Joi.string().uuid().required().messages({
     "string.guid": "Job color column section ID must be a valid UUID",
     "any.required": "job color column section ID is required",
   }),
 });
 
-const updateJobColorColumnSectionParamsSchema = Joi.object({
+export const updateJobColorColumnSectionParamsSchema = Joi.object({
   job_color_column_section_id: Joi.string().uuid().required().messages({
     "string.guid": "Job color column section ID must be a valid UUID",
     "any.required": "job color column section ID is required",
   }),
 });
 
-const updateJobColorColumnSectionSchema = Joi.object({
+export const updateJobColorColumnSectionSchema = Joi.object({
   section_name: Joi.string()
     .trim()
     .max(100)
@@ -72,7 +72,8 @@ const updateJobColorColumnSectionSchema = Joi.object({
   .messages({
     "object.min": "At least one field must be provided for update",
   });
-module.exports = {
+
+export default {
   createJobColorColumnSectionSchema,
   getJobColorColumnSectionsSchema,
   deleteJobColorColumnSectionSchema,
