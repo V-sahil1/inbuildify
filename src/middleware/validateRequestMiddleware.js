@@ -30,7 +30,7 @@ export function validateRequest(schema, source = REQUEST_SOURCE.BODY) {
       });
     }
 
-   const { error } = schema.validate(dataToValidate, { abortEarly: false });
+    const { error } = schema.validate(dataToValidate, { abortEarly: false });
 
     if (error) {
       const validationError = validationMessageFormatterHelper(error.details);
