@@ -58,15 +58,11 @@ export const initModels = async () => {
       }
 
       db[model.name] = model;
-      console.log("afhhsfdgdahgfhargsdfshgthgfn");
     } catch (error) {
       console.error(error.stack); // ← full stack trace to find exact issue
     }
   }
-
-  console.log(`\n📊 Models loaded so far: ${Object.keys(db).length - 2}`);
-  console.log("`📋 Registered model names:`", Object.keys(db).filter(k => k !== "sequelize" && k !== "Sequelize"));
-
+  
   // STEP 2: Run associations AFTER all models are loaded
   Object.keys(db).forEach((modelName) => {
     if (modelName === "sequelize" || modelName === "Sequelize") return;
@@ -75,7 +71,7 @@ export const initModels = async () => {
       try {
         model.associate(db);
       } catch (error) {
-        console.error(`❌ Error associating ${modelName}:`, error.message);
+        console.error(` Error associating ${modelName}:`, error.message);
       }
     }
   });

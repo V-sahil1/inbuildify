@@ -101,6 +101,9 @@ class QuotationService {
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
         }
 
+        // Auto-convert lead to opportunity with status Proposal
+        await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, 'Proposal', client);
+
         await client.query("COMMIT");
 
         // Fetch fully enriched version to include lead and contact details mapping
@@ -219,6 +222,9 @@ class QuotationService {
         WHERE house_land_package_id = $2
       `, [versionId, houseLandPackageId]);
 
+      // Auto-convert lead to opportunity with status Proposal
+      await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, 'Proposal', client);
+
       await client.query('COMMIT');
 
       // 6. Fetch fully enriched version (this includes the sum totals requested)
@@ -324,6 +330,10 @@ class QuotationService {
         ? updateData.dwelling_type_id
         : existingVersion.dwelling_type_id;
 
+      const effectiveRangeId = updateData.range_id !== undefined
+        ? updateData.range_id
+        : existingVersion.range_id;
+
       if ((updateData.floor_plan_id || updateData.facade_id) && !effectiveDwellingTypeId) {
         return {
           success: false,
@@ -390,7 +400,14 @@ class QuotationService {
 // Handle package_id array specifically if provided
       if (updateData.package_id && Array.isArray(updateData.package_id)) {
         if (updateData.package_id.length > 0) {
-          // Validate that all packages provided exist and are active
+          if (!effectiveRangeId || !effectiveDwellingTypeId) {
+            return {
+              success: false,
+              message: "Range and Dwelling type must be selected before adding a package",
+            };
+          }
+
+          // Validate that all packages provided exist, are active, and match range/dwelling type
           const packageCheckQuery = `
             SELECT package_id FROM package 
             WHERE package_id = ANY($1::uuid[]) 
@@ -399,14 +416,22 @@ class QuotationService {
               (company_id = $2 AND $2 IS NOT NULL)
               OR (builder_id = $3 AND $3 IS NOT NULL)
             )
+            AND $4::uuid = ANY(range_id)
+            AND $5::uuid = ANY(dwelling_type_id)
           `;
-          const packageCheckResult = await client.query(packageCheckQuery, [updateData.package_id, companyId, builderId]);
+          const packageCheckResult = await client.query(packageCheckQuery, [
+            updateData.package_id,
+            companyId,
+            builderId,
+            effectiveRangeId,
+            effectiveDwellingTypeId,
+          ]);
 
           // Compare expected vs found packages by length (or id inclusion if wanted)
           if (packageCheckResult.rowCount !== updateData.package_id.length) {
             return {
               success: false,
-              message: "One or more provided package IDs are invalid, inactive, or do not belong to your organization",
+              message: "One or more provided package IDs are invalid, inactive, or do not match the selected range and dwelling type",
             };
           }
         }

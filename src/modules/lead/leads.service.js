@@ -1,4 +1,5 @@
 import leadsRepository from "./leads.repository.js";
+import quotationService from "../quotation/quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { generateDynamicReferenceNumber } from "../../utils/common.js";
 import getPool from "../../config/database.js";
@@ -21,13 +22,32 @@ class LeadsService {
         limit: 1,
       });
 
-      if (existingLeads.leads.length > 0 && !forceCreate) {
-        return {
-          success: false,
-          emailExists: true,
-          message: "A lead with this email already exists",
-          existingLead: existingLeads.leads[0],
-        };
+      if (existingLeads.leads.length > 0) {
+        // Fetch sales module settings to check if duplicates are allowed
+        const settingsQueryResult = await getPool().query(
+          `SELECT allow_duplicate_leads FROM sales_module_settings 
+           WHERE builder_id = $1 AND company_id = $2 
+           LIMIT 1`,
+          [builderId, companyId]
+        );
+        
+        const allowDuplicateLeads = settingsQueryResult.rows[0]?.allow_duplicate_leads || false;
+
+        if (!allowDuplicateLeads) {
+          return {
+            success: false,
+            message: "A lead with this email already exists. Duplicate leads are disabled in settings.",
+          };
+        }
+
+        if (!forceCreate) {
+          return {
+            success: false,
+            emailExists: true,
+            message: "A lead with this email already exists",
+            existingLead: existingLeads.leads[0],
+          };
+        }
       }
 
       // Validate leadSourceId if provided

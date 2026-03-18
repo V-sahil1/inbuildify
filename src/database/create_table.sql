@@ -818,7 +818,7 @@ CREATE TABLE users (
   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(100) NOT NULL,
   login_id VARCHAR(100) UNIQUE NOT NULL,
   initials VARCHAR(10),
   phone VARCHAR(20),
@@ -2492,7 +2492,7 @@ CREATE TABLE drive(
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE construction_settings(
@@ -2578,7 +2578,7 @@ CREATE TABLE construction_checklist(
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-)
+);
 
 CREATE TABLE construction_checklist_predecessor(
   construction_checklist_predecessor_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2588,7 +2588,7 @@ CREATE TABLE construction_checklist_predecessor(
   duration INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-)
+);
 
 CREATE TABLE construction_sub_checklist(
   construction_sub_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2599,7 +2599,7 @@ CREATE TABLE construction_sub_checklist(
   sort_order INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-)
+);
 
 CREATE TABLE construction_inspection_checklist(
   construction_inspection_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2956,7 +2956,7 @@ CREATE TABLE master_section_header(
   sort_order int DEFAULT 1,
   status BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE master_section_item(
@@ -3157,7 +3157,7 @@ CREATE TABLE opportunity(
   opportunity_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   opportunity_notes VARCHAR(1000),
-  status VARCHAR(252),                                -- valid  proposel, negotiation, closed
+  status VARCHAR(252),                                -- valid  Proposal, negotiation, closed
   outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

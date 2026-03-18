@@ -65,6 +65,16 @@ export async function createLeadContactMap(req, res) {
       return errorResponse(res, 409, "This contact is already mapped to the lead");
     }
 
+    // Check if the lead already has 2 contacts
+    const countCheck = await client.query(
+      "SELECT COUNT(*) FROM leads_contact_map WHERE leads_id = $1",
+      [leads_id],
+    );
+
+    if (parseInt(countCheck.rows[0].count) >= 2) {
+      return errorResponse(res, 400, "A lead can have a maximum of 2 contacts.");
+    }
+
     const result = await client.query(
       `INSERT INTO leads_contact_map (leads_id, contact_id)
        VALUES ($1, $2) RETURNING *`,

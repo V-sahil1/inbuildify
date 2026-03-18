@@ -282,7 +282,8 @@ class LeadsRepository {
             FROM leads_contact_map lcm
             JOIN users u ON lcm.contact_id = u.users_id
             WHERE lcm.leads_id = l.leads_id
-          ) as lead_contacts
+          ) as lead_contacts,
+          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id
@@ -489,7 +490,8 @@ async getLeadById(leadId, builderId, companyId) {
               'status', inv.status
             ) ORDER BY inv.created_at DESC), '[]'::json)
             FROM invoice inv WHERE inv.leads_id = l.leads_id
-          ) as invoices
+          ) as invoices,
+          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
 
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
@@ -670,11 +672,14 @@ async getLeadById(leadId, builderId, companyId) {
     }
   }
 
-  async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId) {
-    const client = await this.pool.connect();
-    try {
+  async convertLeadToOpportunity(leadId, opportunityNotes, builderId, companyId, status = 'Negotiation', client = null) {
+    let ownClient = false;
+    if (!client) {
+      client = await this.pool.connect();
+      ownClient = true;
       await client.query("BEGIN");
-
+    }
+    try {
       // 1. Verify existence and ownership
       const leadQuery = "SELECT * FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL)) FOR UPDATE";
       const leadResult = await client.query(leadQuery, [leadId, builderId, companyId]);
@@ -685,17 +690,24 @@ async getLeadById(leadId, builderId, companyId) {
 
       const lead = leadResult.rows[0];
 
+      // If already converted, return existing opportunity
       if (lead.status === "Convert") {
-        throw new Error("Lead is already converted");
+        const oppQuery = "SELECT * FROM opportunity WHERE leads_id = $1";
+        const oppResult = await client.query(oppQuery, [leadId]);
+        return keysToCamelCase(oppResult.rows[0]);
+      }
+
+      if (!lead.property_detail_id) {
+        throw new Error("Lead must have a property detail before converting to an opportunity");
       }
 
       // 2. Insert into opportunity table
       const oppQuery = `
         INSERT INTO opportunity (leads_id, opportunity_notes, status)
-        VALUES ($1, $2, 'proposel')
+        VALUES ($1, $2, $3)
         RETURNING *
       `;
-      const oppResult = await client.query(oppQuery, [leadId, opportunityNotes || null]);
+      const oppResult = await client.query(oppQuery, [leadId, opportunityNotes || null, status]);
 
       // 3. Update lead status to Convert
       const updateLeadQuery = `
@@ -705,14 +717,20 @@ async getLeadById(leadId, builderId, companyId) {
       `;
       await client.query(updateLeadQuery, [leadId]);
 
-      await client.query("COMMIT");
+      if (ownClient) {
+        await client.query("COMMIT");
+      }
 
       return keysToCamelCase(oppResult.rows[0]);
     } catch (error) {
-      await client.query("ROLLBACK");
+      if (ownClient) {
+        await client.query("ROLLBACK");
+      }
       throw error;
     } finally {
-      client.release();
+      if (ownClient) {
+        client.release();
+      }
     }
   }
 
