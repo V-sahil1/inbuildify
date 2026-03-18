@@ -24,8 +24,8 @@ export function validateRequest(schema, source = REQUEST_SOURCE.BODY) {
     }
 
     if (dataToValidate === undefined || dataToValidate === null) {
-      return res.status(NOT_ACCEPTABLE.code).json({
-        message: NOT_ACCEPTABLE.message,
+      return res.status(ERRORS.NOT_ACCEPTABLE.code).json({
+        message: ERRORS.NOT_ACCEPTABLE.message,
         errors: ["Request payload is missing."],
       });
     }

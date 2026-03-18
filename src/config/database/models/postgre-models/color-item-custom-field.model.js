@@ -50,4 +50,4 @@ export default (sequelize) => {
   );
 
   return ColorItemCustomField;
-};
+}; 

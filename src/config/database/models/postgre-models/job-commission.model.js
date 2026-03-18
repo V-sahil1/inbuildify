@@ -11,30 +11,23 @@ export class JobCommission extends Model {
     JobCommission.hasMany(models.JobCommissionSubStage, { foreignKey: "job_commission_id", as: "subStages" });
   }
 }
-
 export default (sequelize) => {
-  JobCommission.init(
-    {
-      job_commission_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-      company_id: { type: DataTypes.UUID, allowNull: true },
-      builder_id: { type: DataTypes.UUID, allowNull: true },
-      job_commission_settings_id: { type: DataTypes.UUID, allowNull: true },
-      commission_type: { type: DataTypes.ENUM("outgoing", "incoming"), allowNull: false },
-      name: { type: DataTypes.STRING(150), allowNull: false },
-      recipient: {
-        type: DataTypes.ENUM("sales_person", "reporting_to", "referral_partner", "customer", "other_user"),
-        allowNull: true,
-      },
-      recipient_user_id: { type: DataTypes.UUID, allowNull: true },
-      commission_unit: { type: DataTypes.ENUM("percentage", "amount"), allowNull: false },
-      commission_value: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-      sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
-      created_by: { type: DataTypes.UUID, allowNull: true },
-      updated_by: { type: DataTypes.UUID, allowNull: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    { sequelize, tableName: "job_commission", modelName: "JobCommission", underscored: true }
-  );
+  JobCommission.init({
+    job_commission_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    company_id: { type: DataTypes.UUID, allowNull: true },
+    builder_id: { type: DataTypes.UUID, allowNull: true },
+    job_commission_settings_id: { type: DataTypes.UUID, allowNull: true },
+    commission_type: { type: DataTypes.STRING(50), allowNull: false },
+    name: { type: DataTypes.STRING(150), allowNull: false },
+    recipient: { type: DataTypes.STRING(50), allowNull: true },
+    recipient_user_id: { type: DataTypes.UUID, allowNull: true },
+    commission_unit: { type: DataTypes.STRING(50), allowNull: false },
+    commission_value: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+    created_by: { type: DataTypes.UUID, allowNull: true },
+    updated_by: { type: DataTypes.UUID, allowNull: true },
+    createdAt: { type: DataTypes.DATE },
+    updatedAt: { type: DataTypes.DATE },
+  }, { sequelize, tableName: "job_commission", modelName: "JobCommission", underscored: true });
   return JobCommission;
 };

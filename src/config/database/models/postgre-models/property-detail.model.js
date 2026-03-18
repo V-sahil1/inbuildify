@@ -43,7 +43,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "property_detail", modelName: "PropertyDetail", underscored: true }
+    { sequelize, tableName: "property_detail", modelName: "PropertyDetail", underscored: true },
   );
   return PropertyDetail;
 };

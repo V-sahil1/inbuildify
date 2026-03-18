@@ -5,22 +5,15 @@ export class JobColorColumnSections extends Model {
     JobColorColumnSections.belongsTo(models.JobColorSettings, { foreignKey: "job_color_settings_id", as: "jobColorSettings" });
   }
 }
-
 export default (sequelize) => {
-  JobColorColumnSections.init(
-    {
-      job_color_column_section_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-      job_color_settings_id: { type: DataTypes.UUID, allowNull: false },
-      section_name: {
-        type: DataTypes.ENUM("attach_pdf_beginning", "attach_pdf_end"),
-        allowNull: true,
-      },
-      attachments: { type: DataTypes.STRING(500), allowNull: true },
-      sort_order: { type: DataTypes.INTEGER, defaultValue: 1 },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    { sequelize, tableName: "job_color_column_sections", modelName: "JobColorColumnSections", underscored: true }
-  );
+  JobColorColumnSections.init({
+    job_color_column_section_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    job_color_settings_id: { type: DataTypes.UUID, allowNull: false },
+    section_name: { type: DataTypes.STRING(150), allowNull: true },
+    attachments: { type: DataTypes.STRING(500), allowNull: true },
+    sort_order: { type: DataTypes.INTEGER, defaultValue: 1 },
+    createdAt: { type: DataTypes.DATE },
+    updatedAt: { type: DataTypes.DATE },
+  }, { sequelize, tableName: "job_color_column_sections", modelName: "JobColorColumnSections", underscored: true });
   return JobColorColumnSections;
 };

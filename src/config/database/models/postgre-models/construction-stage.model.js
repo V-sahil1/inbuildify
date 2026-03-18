@@ -3,7 +3,7 @@ import { Model, DataTypes } from "sequelize";
 export class ConstructionStage extends Model {
   static associate(models) {
     ConstructionStage.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    ConstructionStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef" }); // ← changed
     ConstructionStage.belongsTo(models.ConstructionType, { foreignKey: "construction_type_id", as: "constructionType" });
     ConstructionStage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     ConstructionStage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
