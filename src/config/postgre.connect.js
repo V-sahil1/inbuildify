@@ -1,9 +1,10 @@
-import db, { initModels } from "./index.js";
+import db, { initModels } from "./database/models/postgre-models/index.js";
 
 export const connectPostgre = async () => {
   try {
 
     await initModels();
+
     await db.sequelize.authenticate();
     // await db.sequelize.sync({ force: true });
     await db.sequelize.sync({ alter: true });

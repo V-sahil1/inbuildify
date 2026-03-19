@@ -4,10 +4,11 @@ import { pathToFileURL, fileURLToPath } from "url";
 
 import { Sequelize } from "sequelize";
 
-import { env } from "../env.config.js";
+import { env } from "../../../env.config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+console.log("🚀 ~ __dirname:", __dirname);
 
 const DB_NAME = env.DB.DB_NAME;
 const DB_PORT = parseInt(env.DB.DB_PORT);
@@ -34,16 +35,14 @@ const db = {
 };
 
 export const initModels = async () => {
-  const modelsPath = path.join(__dirname, "./models/postgre-models");
-
-  const allFiles = fs.readdirSync(modelsPath);
+  const allFiles = fs.readdirSync(__dirname);
 
   const files = allFiles.filter((file) => file.endsWith(".model.js"));
 
   // STEP 1: Load and initialize ALL models first
   for (const file of files) {
     try {
-      const fileUrl = pathToFileURL(path.join(modelsPath, file)).href;
+      const fileUrl = pathToFileURL(path.join(__dirname, file)).href;
       const modelModule = await import(fileUrl);
       const modelFactory = modelModule.default;
 
@@ -62,7 +61,7 @@ export const initModels = async () => {
       console.error(error.stack); // ← full stack trace to find exact issue
     }
   }
-  
+
   // STEP 2: Run associations AFTER all models are loaded
   Object.keys(db).forEach((modelName) => {
     if (modelName === "sequelize" || modelName === "Sequelize") return;
@@ -76,7 +75,7 @@ export const initModels = async () => {
     }
   });
 
-  console.log(`\n🎉 Total models registered: ${Object.keys(db).length - 2}`);
+  console.log(`\n Total models registered: ${Object.keys(db).length - 2}`);
 };
 
 export default db;

@@ -182,7 +182,7 @@ export async function getAllUsers({ builderId, search, role, role_id, is_active 
 
   const searchFilter = search ? `%${search}%` : "%";
 
-let whereClause = `
+  let whereClause = `
     WHERE
       u.is_deleted = FALSE
       AND u.builder_id = $1
