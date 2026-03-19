@@ -1,3 +1,5 @@
+import { env } from "../config/env.config.js";
+
 export async function isValidRole(client, role_id) {
   const result = await client.query(
     `
@@ -24,8 +26,8 @@ export const REQUEST_SOURCE = {
   FORM_DATA: "formData",
 };
 
-export const ALLOWED_FILE_TYPES = process.env.FILE_TYPES || "image/jpeg|image/png|image/jpg|application/pdf";
-export const ALLOWED_FILE_SIZE = process.env.FILE_SIZE || 5;
+export const ALLOWED_FILE_TYPES = env.AWS.FILE_TYPES || "image/jpeg|image/png|image/jpg|application/pdf";
+export const ALLOWED_FILE_SIZE = env.AWS.FILE_SIZE || 5;
 
 export const ERROR_MESSAGES = {
   FORBIDDEN: "Forbidden",

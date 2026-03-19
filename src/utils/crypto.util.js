@@ -1,7 +1,8 @@
 import crypto from "crypto";
+import { env } from "../config/env.config.js";
 
 const ALGORITHM = "aes-256-cbc";
-const KEY = crypto.createHash("sha256").update(process.env.PASSWORD_SECRET).digest();
+const KEY = crypto.createHash("sha256").update(env.EMAIL.PASSWORD_SECRET).digest();
 const IV_LENGTH = 16;
 
 export function encrypt(plainText) {

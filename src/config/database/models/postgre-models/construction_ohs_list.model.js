@@ -9,38 +9,22 @@ export class ConstructionOhsList extends Model {
     ConstructionOhsList.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
   }
 }
-
 export default (sequelize) => {
-  ConstructionOhsList.init(
-    {
-      construction_ohs_list_id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-      },
-      company_id: { type: DataTypes.UUID, allowNull: true },
-      builder_id: { type: DataTypes.UUID, allowNull: true },
-      construction_ohs_settings_id: { type: DataTypes.UUID, allowNull: true },
-      field_type: {
-        type: DataTypes.ENUM("category", "item"),
-        allowNull: false,
-      },
-      description: { type: DataTypes.STRING(500), allowNull: true },
-      sort_order: { type: DataTypes.INTEGER, defaultValue: 1 },
-      parent_id: { type: DataTypes.UUID, allowNull: true },
-      add_defaults: { type: DataTypes.BOOLEAN, defaultValue: false },
-      field_name: { type: DataTypes.STRING(100), allowNull: true },
-      created_by: { type: DataTypes.UUID, allowNull: true },
-      updated_by: { type: DataTypes.UUID, allowNull: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    {
-      sequelize,
-      tableName: "construction_ohs_list",
-      modelName: "ConstructionOhsList",
-      underscored: true,
-    }
-  );
+  ConstructionOhsList.init({
+    construction_ohs_list_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    company_id: { type: DataTypes.UUID, allowNull: true },
+    builder_id: { type: DataTypes.UUID, allowNull: true },
+    construction_ohs_settings_id: { type: DataTypes.UUID, allowNull: true },
+    field_type: { type: DataTypes.STRING(20), allowNull: false },
+    description: { type: DataTypes.STRING(500), allowNull: true },
+    sort_order: { type: DataTypes.INTEGER, defaultValue: 1 },
+    parent_id: { type: DataTypes.UUID, allowNull: true },
+    add_defaults: { type: DataTypes.BOOLEAN, defaultValue: false },
+    created_by: { type: DataTypes.UUID, allowNull: true },
+    updated_by: { type: DataTypes.UUID, allowNull: true },
+    createdAt: { type: DataTypes.DATE },
+    updatedAt: { type: DataTypes.DATE },
+    field_name: { type: DataTypes.STRING(100), allowNull: true },
+  }, { sequelize, tableName: "construction_ohs_list", modelName: "ConstructionOhsList", underscored: true });
   return ConstructionOhsList;
 };

@@ -1,11 +1,10 @@
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import dotenv from "dotenv";
-
+import { env } from "../config/env.config.js";
 import getPool from "../config/database.js";
 import { errorResponse } from "../helper/response.js";
 
-dotenv.config({ quiet: true });
+const JWT_SECRET = env.JWT.JWT_SECRET;
 
 const handleTokenAuthorization = async (requestId, token, req, res, next) => {
   const pool = getPool();
@@ -14,7 +13,7 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
   try {
     console.info({ requestId, message: "🔄 Validating JWT token" });
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     if (!payload?.userId) {
       console.warn({ requestId, message: "❌ Unauthorized: Invalid token" });
       return errorResponse(

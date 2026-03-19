@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
+import { env } from "../config/env.config.js";
 
 import { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } from "../config/constants.js";
 
@@ -28,20 +29,20 @@ export const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000);
 };
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+const JWT_SECRET = env.JWT.JWT_SECRET;
+const JWT_REFRESH_SECRET = env.JWT.JWT_REFRESH_SECRET;
 
 export const generateAccessToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, {
-    expiresIn: process.env.JWT_SECRET_EXPIRATION || "1d",
+    expiresIn: env.JWT.JWT_SECRET_EXPIRATION || "1d",
   });
 };
 
 export const generateRefreshToken = (userId) => {
   return jwt.sign({ userId }, JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_SECRET_EXPIRATION || "7d",
+    expiresIn: env.JWT.JWT_REFRESH_SECRET_EXPIRATION || "7d",
   });
-}
+};
 export const decrypt = (encryptedText) => {
   if (encryptedText == null || encryptedText === "") {
     return "";
@@ -165,4 +166,4 @@ export default {
   keysToCamelCase,
   allowedFileData,
   generateDynamicReferenceNumber,
-}
+};

@@ -3,14 +3,14 @@ import path from "path";
 import multer from "multer";
 import multerS3 from "multer-s3";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
-
+import { env } from "../config/env.config.js";
 import { allowedFileData } from "./common.js";
 
 export const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+  region: env.AWS.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.AWS.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -84,7 +84,7 @@ export const createUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");
@@ -112,7 +112,7 @@ export const deleteFromS3 = async (fileUrl) => {
   }
 
   try {
-    const bucketName = process.env.S3_BUCKET_NAME;
+    const bucketName = env.AWS.S3_BUCKET_NAME;
     const url = new URL(fileUrl);
     const key = decodeURIComponent(url.pathname.substring(1));
 
@@ -132,7 +132,7 @@ export const createPdfUpload = (folderName = "pdfs") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");
@@ -158,7 +158,7 @@ export const createImageOrPdfUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");

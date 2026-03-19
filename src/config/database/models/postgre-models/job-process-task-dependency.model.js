@@ -6,16 +6,10 @@ export class JobProcessTaskDependency extends Model {
     JobProcessTaskDependency.belongsTo(models.JobProcessTask, { foreignKey: "predecessor_task_id", as: "predecessorTask" });
   }
 }
-
 export default (sequelize) => {
-  JobProcessTaskDependency.init(
-    {
-      task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
-      predecessor_task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    { sequelize, tableName: "job_process_task_dependency", modelName: "JobProcessTaskDependency", underscored: true }
-  );
+  JobProcessTaskDependency.init({
+    task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
+    predecessor_task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
+  }, { sequelize, tableName: "job_process_task_dependency", modelName: "JobProcessTaskDependency", underscored: true, timestamps: false });
   return JobProcessTaskDependency;
 };

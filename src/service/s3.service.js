@@ -1,21 +1,23 @@
-import { S3Client,
+import {
+  S3Client,
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { env } from "../config/env.config.js";
 
 // Configure AWS SDK
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: env.AWS.AWS_REGION || "us-east-1",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.AWS.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS.AWS_SECRET_ACCESS_KEY,
   },
 });
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME;
+const BUCKET_NAME = env.AWS.S3_BUCKET_NAME;
 const UPLOAD_EXPIRATION = 300; // 5 minutes
 const DOWNLOAD_EXPIRATION = 3600; // 5 minutes
 
