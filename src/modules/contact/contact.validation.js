@@ -34,7 +34,7 @@ const addressJsonRule = Joi.object({
     .min(2)
     .max(255)
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
-    .required(),
+    .optional(),
   address_line2: Joi.string()
     .min(2)
     .max(255)

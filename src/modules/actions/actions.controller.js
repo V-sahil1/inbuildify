@@ -64,7 +64,7 @@ export async function createAction(req, res) {
     await client.query("BEGIN");
 
     const checkLeadExists = await client.query(
-      "SELECT * FROM leads WHERE lead_id = $1 AND builder_id = $2 AND is_deleted = false",
+      "SELECT * FROM leads WHERE leads_id = $1 AND builder_id = $2 AND is_deleted = false",
       [lead_id, builderId],
     );
 

@@ -91,7 +91,7 @@ class InvoiceRepository {
       // 4. Update Opportunity status to negotiation
       const updateOppQuery = `
         UPDATE opportunity 
-        SET status = 'negotiation', updated_at = NOW() 
+        SET status = 'Negotiation', updated_at = NOW() 
         WHERE leads_id = $1 AND status != 'closed'
       `;
       await client.query(updateOppQuery, [leads_id]);

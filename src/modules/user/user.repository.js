@@ -212,7 +212,6 @@ let whereClause = `
     queryParams.push(is_active);
   }
 
-  console.log("🚀 ~ getAllUsers ~ whereClause:", whereClause);
   const res = await pool.query(
     `
       SELECT 
@@ -269,7 +268,6 @@ let whereClause = `
     `,
     queryParams,
   );
-  console.log("🚀 ~ getAllUsers ~ res:", res);
 
   return res.rows.map((user) => keysToCamelCase(user));
 }

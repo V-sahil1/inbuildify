@@ -82,7 +82,7 @@ router.patch(
 );
 
 // Assign lead to user
-router.patch(
+router.put(
   "/:leads_id/assign",
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(assignLeadSchema, REQUEST_SOURCE.BODY),

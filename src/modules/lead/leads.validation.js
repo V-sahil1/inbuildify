@@ -7,12 +7,11 @@ export const createLeadSchema = Joi.object({
     "string.max": "Name must not exceed 255 characters",
     "any.required": "Name is required",
   }),
-  email: Joi.string().email().max(255).required().messages({
+  email: Joi.string().email().max(255).optional().allow(null, "").messages({
     "string.email": "Please provide a valid email address",
     "string.max": "Email must not exceed 255 characters",
-    "any.required": "Email is required",
   }),
-  phone: Joi.string().min(10).max(14).required().allow(null, "").messages({
+  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
     "string.min": "Phone must be at least 10 characters long",
     "string.max": "Phone must not exceed 14 characters",
   }),
@@ -149,6 +148,9 @@ export const assignLeadSchema = Joi.object({
   assignee_id: Joi.string().uuid().required().messages({
     "string.guid": "Assignee ID must be a valid UUID",
     "any.required": "Assignee ID is required",
+  }),
+  assignee_note: Joi.string().max(500).optional().allow(null, "").messages({
+    "string.max": "Assignee note must not exceed 500 characters",
   }),
 });
 

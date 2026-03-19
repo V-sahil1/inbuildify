@@ -27,6 +27,15 @@ export async function registerRoot({ name, email, password, role_id }) {
       throw { statusCode: 409, message: "User already exists." };
     }
 
+    const roleCheck = await client.query(
+      "SELECT role_id FROM role WHERE role_id = $1",
+      [role_id],
+    );
+
+    if (roleCheck.rowCount === 0) {
+      throw { statusCode: 400, message: "Invalid role." };
+    }
+
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
