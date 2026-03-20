@@ -535,6 +535,7 @@ async getLeadById(leadId, builderId, companyId) {
         client_profile,
         h_l_budget,
         assignee_id,
+        assignee_note,
         updated_by,
         house_land_package_id,
       } = leadData;
@@ -642,6 +643,11 @@ async getLeadById(leadId, builderId, companyId) {
         updateFields.push(`assignee_id = $${paramIndex++}`);
         values.push(assignee_id);
       }
+      
+      if (assignee_note !== undefined) {
+        updateFields.push(`assignee_note = $${paramIndex++}`);
+        values.push(assignee_note);
+      }
 
       if (house_land_package_id !== undefined) {
         updateFields.push(`house_land_package_id = $${paramIndex++}`);
@@ -690,10 +696,10 @@ async getLeadById(leadId, builderId, companyId) {
 
       const lead = leadResult.rows[0];
 
-      // If already converted, return existing opportunity
+      // If already converted, update status and return existing opportunity
       if (lead.status === "Convert") {
-        const oppQuery = "SELECT * FROM opportunity WHERE leads_id = $1";
-        const oppResult = await client.query(oppQuery, [leadId]);
+        const updateOppStatusQuery = "UPDATE opportunity SET status = $1 WHERE leads_id = $2 RETURNING *";
+        const oppResult = await client.query(updateOppStatusQuery, [status, leadId]);
         return keysToCamelCase(oppResult.rows[0]);
       }
 

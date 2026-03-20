@@ -3,11 +3,14 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import getPool from "../../config/database.js";
-import sendEmail from "../../helper/sendMail.js";
+import sendEmail from "../../service/sendMail.service.js";
 import { upsertCompany } from "../company/company.service.js";
 import { seedBuilderDefaults } from "../../seeder/seed-builder-defaults.js";
 import { generateOtp, generateAccessToken, generateRefreshToken, decrypt as base64Decrypt } from "../../utils/common.js";
 import { encrypt, decrypt } from "../../utils/crypto.util.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { Users } from "../../config/database/models/postgre-models/users.model.js";
+import { Builder } from "../../config/database/models/postgre-models/builder.model.js";
 
 // REGISTER ROOT USER
 export async function registerRoot({ name, email, password, role_id }) {
@@ -27,6 +30,15 @@ export async function registerRoot({ name, email, password, role_id }) {
       throw { statusCode: 409, message: "User already exists." };
     }
 
+    const roleCheck = await client.query(
+      "SELECT role_id FROM role WHERE role_id = $1",
+      [role_id],
+    );
+
+    if (roleCheck.rowCount === 0) {
+      throw { statusCode: 400, message: "Invalid role." };
+    }
+
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -37,13 +49,18 @@ export async function registerRoot({ name, email, password, role_id }) {
       "INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id",
       [name, lowerEmail],
     );
-
     const builder_id = builderRes.rows[0].builder_id;
+    const builderRess = await Builder.create({
+      name: name,
+      email: lowerEmail,
+    });
+    const builderr_id = builderRess.builder_id;
+    // console.log("🚀 ~ registerRoot ~ builderssssssssssssssssssssssssssssssssssr_id:", builderr_id)
 
     // Create root user
     const userRes = await client.query(
       `INSERT INTO users (
-            builder_id, name, email, role_id,
+            builder_id, name, email, role_id, 
             password, otp, expires_at, root_user
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING users_id`,
@@ -58,6 +75,26 @@ export async function registerRoot({ name, email, password, role_id }) {
         true,
       ],
     );
+    // console.log("🚀 ~ registerRoot ~ userRes:", userRes);
+    // console.log(db.Users);
+    // console.log("🚀 ~ registerRoot ~ builder_id:", builder_id);
+    // console.log("🚀 ~ registerRoot ~ name:", name)
+    // console.log("🚀 ~ registerRoot ~ lowerEmail:", lowerEmail)
+    // console.log("🚀 ~ registerRoot ~ role_id:", role_id)
+    // console.log("🚀 ~ registerRoot ~ encrypt:", encrypt)
+    // console.log("🚀 ~ registerRoot ~ otp:", otp)
+    // console.log("🚀 ~ registerRoot ~ expiresAt:", expiresAt)
+
+    await Users.create({
+      builder_id: builderr_id,
+      name: name,
+      email: lowerEmail,
+      role_id: role_id,
+      password: encrypt(password),
+      otp: otp,
+      expires_at: expiresAt,
+      root_user: true,
+    });
 
     const users_id = userRes.rows[0].users_id;
 
@@ -88,6 +125,7 @@ export async function registerRoot({ name, email, password, role_id }) {
 
     // Send OTP Email using helper function
     await sendVerificationEmail(lowerEmail, otp);
+    // console.log("bhwdsnksdjx")
 
     await client.query("COMMIT");
     return { email: lowerEmail };
@@ -112,7 +150,12 @@ export async function verifyEmail({ email, otp }) {
          FROM users WHERE LOWER(email) = $1`,
       [lowerEmail],
     );
-
+    const userRess = await Users.findOne({
+      attributes: ["users_id", "otp", "expires_at", "is_verified"],
+      where: {
+        email: lowerEmail,
+      },
+    });
     if (userRes.rowCount === 0) {
       throw { statusCode: 404, message: "User not found." };
     }
@@ -136,6 +179,16 @@ export async function verifyEmail({ email, otp }) {
          SET is_verified = true, otp = NULL, expires_at = NULL
          WHERE users_id = $1`,
       [user.users_id],
+    );
+    await Users.update(
+      {
+        is_verified: true,
+        otp: null,
+        expires_at: null,
+      },
+      {
+        where: { users_id: userRess.users_id },
+      }
     );
   } finally {
     client.release();

@@ -4,7 +4,7 @@ import builderRepo from "../../repositories/builder.repository.js";
 import tokenRepo from "../../repositories/token.repository.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
-import { sendPasswordEmail, sendLoginIdEmail } from "../../service/email.service.js";
+import { sendPasswordEmail, sendLoginIdEmail } from "../../helper/sendEmail.js";
 import { encrypt } from "../../utils/crypto.util.js";
 
 /* ----------------------------------------

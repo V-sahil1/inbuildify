@@ -3147,6 +3147,7 @@ CREATE TABLE leads (
   client_profile VARCHAR(500),
   h_l_budget NUMERIC(10,2),
   assignee_id UUID REFERENCES users(users_id),
+  assignee_note VARCHAR(500),
   created_by UUID REFERENCES users(users_id),
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),

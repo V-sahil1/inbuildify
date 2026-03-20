@@ -46,13 +46,6 @@ export default [
       */
       "import/newline-after-import": ["error", { count: 1 }],
       "import/no-duplicates": "error",
-      "import/order": [
-        "warn",
-        {
-          groups: ["builtin", "external", "internal"],
-          "newlines-between": "always",
-        },
-      ],
 
       /*
       |--------------------------------------------------------------------------
@@ -131,7 +124,6 @@ export default [
       "consistent-return": "warn",
       "dot-notation": "warn",
       "no-extra-semi": "error",
-      "semi": ["error", "always"],
       "quotes": ["error", "double"],
       "comma-dangle": ["warn", "always-multiline"],
     },

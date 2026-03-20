@@ -13,8 +13,52 @@ class LeadsService {
     forceCreate = false,
   ) {
     try {
-      if (!leadData.name || !leadData.email || !leadData.phone) {
-        throw new Error("Name, Email and Phone are required");
+      // Fetch sales module settings to check mandatory fields
+      const settingsQueryResult = await getPool().query(
+        `SELECT lead_mandatory_option FROM sales_module_settings 
+         WHERE builder_id = $1 AND company_id = $2 
+         LIMIT 1`,
+        [builderId, companyId]
+      );
+      
+      const leadMandatoryOption = settingsQueryResult.rows[0]?.lead_mandatory_option || "email_and_phone";
+
+      if (!leadData.name) {
+        throw new Error("Name is required");
+      }
+
+      const emailProvided = !!(leadData.email && leadData.email.trim());
+      const phoneProvided = !!(leadData.phone && leadData.phone.trim());
+
+      switch (leadMandatoryOption) {
+        case "email_and_phone":
+          if (!emailProvided || !phoneProvided) {
+            throw new Error("Email and Phone are required");
+          }
+          break;
+        case "either_email_or_phone":
+          if (!emailProvided && !phoneProvided) {
+            throw new Error("Either Email or Phone must be provided");
+          }
+          break;
+        case "email_not_mandatory":
+          if (!phoneProvided) {
+            throw new Error("Phone is required");
+          }
+          break;
+        case "phone_not_mandatory":
+          if (!emailProvided) {
+            throw new Error("Email is required");
+          }
+          break;
+        case "email_and_phone_not_mandatory":
+          // Both are optional, no check needed
+          break;
+        default:
+          // Default to both required if option is unknown
+          if (!emailProvided || !phoneProvided) {
+            throw new Error("Email and Phone are required");
+          }
       }
 
       const existingLeads = await leadsRepository.getAllLeads(builderId, companyId, {
@@ -355,7 +399,7 @@ class LeadsService {
     }
   }
 
-  async assignLead(leadId, assigneeId, userId, builderId) {
+  async assignLead(leadId, assigneeId, assigneeNote, userId, builderId) {
     try {
       const existingLead = await leadsRepository.getLeadById(leadId, builderId);
       if (!existingLead) {
@@ -365,9 +409,22 @@ class LeadsService {
         };
       }
 
+      // Check if assignee is a valid user
+      const userCheck = await getPool().query(
+        "SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_active = true AND is_deleted = false LIMIT 1",
+        [assigneeId, builderId]
+      );
+
+      if (userCheck.rowCount === 0) {
+        return {
+          success: false,
+          message: "Invalid assignee: User not found or does not belong to your organization",
+        };
+      }
+
       const updatedLead = await leadsRepository.updateLead(
         leadId,
-        { assigneeId, updatedBy: userId },
+        { assignee_id: assigneeId, assignee_note: assigneeNote, updated_by: userId },
         builderId,
       );
       return {

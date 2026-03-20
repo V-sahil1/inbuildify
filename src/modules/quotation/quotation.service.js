@@ -101,8 +101,9 @@ class QuotationService {
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
         }
 
-        // Auto-convert lead to opportunity with status Proposal
-        await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, 'Proposal', client);
+        // Auto-convert lead to opportunity with status depending on whether previous versions exist
+        const firstTimeConvertStatus = latestVersion ? 'Negotiation' : 'Proposal';
+        await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, firstTimeConvertStatus, client);
 
         await client.query("COMMIT");
 
@@ -180,6 +181,13 @@ class QuotationService {
 
       await client.query('BEGIN');
 
+      // Check if any other quotation versions exist for this lead before inserting new ones
+      const existingVersionCheckResult = await client.query(
+        "SELECT qv.quotation_version_id FROM quotation_version qv JOIN quotation q ON qv.quotation_id = q.quotation_id WHERE q.leads_id = $1 LIMIT 1",
+        [leadsId]
+      );
+      const hlpConvertStatus = existingVersionCheckResult.rowCount > 0 ? 'Negotiation' : 'Proposal';
+
       // 2. Generate Reference Number
       const reference_number = await generateDynamicReferenceNumber({
         prefix: "QT",
@@ -222,8 +230,8 @@ class QuotationService {
         WHERE house_land_package_id = $2
       `, [versionId, houseLandPackageId]);
 
-      // Auto-convert lead to opportunity with status Proposal
-      await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, 'Proposal', client);
+      // Auto-convert lead to opportunity
+      await leadsRepository.convertLeadToOpportunity(leadsId, null, builderId, companyId, hlpConvertStatus, client);
 
       await client.query('COMMIT');
 
@@ -353,7 +361,8 @@ class QuotationService {
       for (const v of validations) {
         if (updateData[v.field] && updateData[v.field] !== null) {
           const result = await client.query(
-            `SELECT ${v.pk}, ${v.statusField} FROM ${v.table} WHERE ${v.pk} = $1 AND (
+            `SELECT ${v.pk}, ${v.statusField}${v.field === 'floor_plan_id' || v.field === 'facade_id' ? ', range_id, dwelling_type_id' : ''} 
+             FROM ${v.table} WHERE ${v.pk} = $1 AND (
               (company_id = $2 AND $2 IS NOT NULL)
               OR (builder_id = $3 AND $3 IS NOT NULL)
             ) LIMIT 1`,
@@ -365,11 +374,28 @@ class QuotationService {
               message: `${v.label} not found or does not belong to your organization`,
             };
           }
-          if (result.rows[0][v.statusField] === false) {
+          const record = result.rows[0];
+          if (record[v.statusField] === false) {
             return {
               success: false,
               message: `${v.label} is currently inactive`,
             };
+          }
+
+          // Consistency check for Range and Dwelling Type
+          if (v.field === "floor_plan_id" || v.field === "facade_id") {
+            if (record.range_id !== effectiveRangeId) {
+              return {
+                success: false,
+                message: `The selected ${v.label} does not match the quotation version's range`,
+              };
+            }
+            if (record.dwelling_type_id !== effectiveDwellingTypeId) {
+              return {
+                success: false,
+                message: `The selected ${v.label} does not match the quotation version's dwelling type`,
+              };
+            }
           }
         }
       }
@@ -553,6 +579,9 @@ class QuotationService {
         FROM quotation_version_custom_section
         WHERE quotation_version_id = $2
       `, [newVersionId, versionId]);
+
+      // After duplicating a version, ensure the opportunity status is 'Negotiation'
+      await leadsRepository.convertLeadToOpportunity(sourceVersion.leads_id, null, builderId, companyId, 'Negotiation', client);
 
       await client.query("COMMIT");
 

@@ -2,7 +2,7 @@ import contactRepository from "./contact.repository.js";
 import userRepository from "../user/user.repository.js";
 import addressRepository from "../../repositories/address.repository.js";
 import tokenRepository from "../../repositories/token.repository.js";
-import emailService from "../../service/email.service.js";
+import emailService from "../../helper/sendEmail.js";
 import { generateStrongPassword, validatePasswordPolicy } from "../../utils/password.util.js";
 import { encrypt } from "../../utils/common.js";
 import getPool from "../../config/database.js";

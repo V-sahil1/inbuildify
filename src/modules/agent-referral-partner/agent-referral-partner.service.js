@@ -4,7 +4,7 @@ import { keysToCamelCase } from "../../utils/common.js";
 import { encrypt } from "../../utils/crypto.util.js";
 import { generateStrongPassword } from "../../utils/password.util.js";
 import getPool from "../../config/database.js";
-import { sendPasswordEmail } from "../../service/email.service.js";
+import { sendPasswordEmail } from "../../helper/sendEmail.js";
 
 export async function createAgentReferralPartner(currentUser, body, client) {
   const {

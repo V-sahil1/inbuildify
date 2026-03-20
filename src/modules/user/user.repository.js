@@ -212,7 +212,6 @@ export async function getAllUsers({ builderId, search, role, role_id, is_active 
     queryParams.push(is_active);
   }
 
-  console.log("🚀 ~ getAllUsers ~ whereClause:", whereClause);
   const res = await pool.query(
     `
       SELECT 
@@ -269,7 +268,6 @@ export async function getAllUsers({ builderId, search, role, role_id, is_active 
     `,
     queryParams,
   );
-  console.log("🚀 ~ getAllUsers ~ res:", res);
 
   return res.rows.map((user) => keysToCamelCase(user));
 }

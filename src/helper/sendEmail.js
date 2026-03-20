@@ -1,4 +1,4 @@
-import sendEmail from "../helper/sendMail.js";
+import sendEmail from "../service/sendMail.service.js";
 
 export async function sendPasswordEmail(email, loginId, password) {
   try {

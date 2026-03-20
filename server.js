@@ -13,6 +13,7 @@ dotenv.config();
 connectPostgre()
   .then(() => console.log("database connected successfully"))
   .catch((error) => console.error("error to connect database", error));
+
 const app = express();
 app.use(
   cors({

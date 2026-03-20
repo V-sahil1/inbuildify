@@ -290,7 +290,7 @@ export async function updateLeadStatus(req, res) {
 export async function assignLead(req, res) {
   try {
     const { leads_id } = req.params;
-    const { assigneeId } = req.body;
+    const { assignee_id, assignee_note } = req.body;
     const userId = req.user?.users_id;
     const builderId = req.user?.builder_id;
 
@@ -302,13 +302,14 @@ export async function assignLead(req, res) {
       );
     }
 
-    if (!assigneeId) {
+    if (!assignee_id) {
       return errorResponse(res, 400, "Assignee ID is required");
     }
 
     const result = await leadsService.assignLead(
       leads_id,
-      assigneeId,
+      assignee_id,
+      assignee_note,
       userId,
       builderId,
     );

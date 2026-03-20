@@ -77,5 +77,7 @@ export const initModels = async () => {
 
   console.log(`\n Total models registered: ${Object.keys(db).length - 2}`);
 };
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
 export default db;
