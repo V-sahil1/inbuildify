@@ -1,4 +1,5 @@
 import getPool from "../config/database.js";
+import { env } from "../config/env.config.js";
 
 const seedEmailTemplates = async () => {
   const pool = await getPool();
@@ -31,7 +32,7 @@ const seedEmailTemplates = async () => {
         Please click the button below to securely create a new password and regain access to your account.<br/><br/>
         If you did not make this request, please contact our support team immediately so we can help safeguard your account.`,
         cta_text: "Reset Password",
-        cta_link: "${process.env.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}",
+        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}",
       },
       {
         key: "invite_user",
@@ -43,7 +44,7 @@ const seedEmailTemplates = async () => {
         Please click the button below to accept your invitation and set up your account.<br/><br/>
         Once your account is set up, you'll be able to collaborate, track updates, and access all tools provided by your team.`,
         cta_text: "Accept Invitation",
-        cta_link: "${process.env.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}",
+        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}",
       },
       {
         key: "quote_accepted",
@@ -55,7 +56,7 @@ const seedEmailTemplates = async () => {
         Please log in to your CRMSimplify dashboard to review the project details, confirm timelines, and start working with your client.<br/><br/>
         Our system ensures all communication and documentation are stored securely for easy access throughout the project.`,
         cta_text: "View Project",
-        cta_link: "${process.env.FRONTEND_BASE_URL}/dashboard/projects/${projectId}",
+        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/projects/${projectId}",
       },
       {
         key: "new_message",
@@ -67,7 +68,7 @@ const seedEmailTemplates = async () => {
         Please click below to log in and check the message details.<br/><br/>
         Keeping all communication within CRMSimplify ensures that nothing gets lost in emails or calls.`,
         cta_text: "Read Message",
-        cta_link: "${process.env.FRONTEND_BASE_URL}/dashboard/messages/${messageId}",
+        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/messages/${messageId}",
       },
       {
         key: "payment_confirmation",
@@ -78,7 +79,7 @@ const seedEmailTemplates = async () => {
         The payment details have been securely recorded in your CRMSimplify account.<br/><br/>
         You can log in to your dashboard anytime to view invoices, track payment history, and manage your financial records.`,
         cta_text: "View Invoice",
-        cta_link: "${process.env.FRONTEND_BASE_URL}/dashboard/payments/${paymentId}",
+        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/payments/${paymentId}",
       },
     ];
 

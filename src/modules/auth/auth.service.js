@@ -1,5 +1,5 @@
 import crypto from "crypto";
-
+import { env } from "../../config/env.config.js";
 import jwt from "jsonwebtoken";
 
 import getPool from "../../config/database.js";
@@ -208,15 +208,15 @@ async function sendVerificationEmail(
   try {
     if (resetPasswordToken) {
       subject = "CRMSimplify - Password Reset Request";
-      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
+      verificationLink = `${env.EMAIL.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}`;
       text = `You requested a password reset. Use the following link to reset your password:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
     } else if (inviteToken) {
       subject = "Invitation to Join";
-      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${process.env.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
+      verificationLink = `You have been invited to join. Please click the following link to accept the invitation: ${env.EMAIL.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}`;
       text = `You have been invited to join. Please click the following link to accept the invitation:\n\n${verificationLink}\n\nThis link will expire in 10 minutes.`;
     } else {
       subject = "OTP for Email Verification";
-      verificationLink = `${process.env.FRONTEND_BASE_URL}/auth/verify-email?email=${email}`;
+      verificationLink = `${env.EMAIL.FRONTEND_BASE_URL}/auth/verify-email?email=${email}`;
       text = `Your OTP for email verification is: ${otp}\n\nPlease verify your email by clicking the following link: ${verificationLink}`;
     }
 
@@ -495,7 +495,7 @@ export async function refreshToken(refreshToken) {
   let decoded;
 
   try {
-    decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    decoded = jwt.verify(refreshToken, env.JWT.JWT_REFRESH_SECRET);
   } catch (err) {
     throw { statusCode: 401, message: "Invalid refresh token." };
   }

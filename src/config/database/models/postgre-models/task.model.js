@@ -10,35 +10,25 @@ export class Task extends Model {
     Task.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
   }
 }
-
 export default (sequelize) => {
-  Task.init(
-    {
-      task_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-      company_id: { type: DataTypes.UUID, allowNull: true },
-      builder_id: { type: DataTypes.UUID, allowNull: true },
-      name: { type: DataTypes.STRING(200), allowNull: false },
-      description: { type: DataTypes.TEXT, allowNull: true },
-      due_date: { type: DataTypes.DATEONLY, allowNull: true },
-      due_time: { type: DataTypes.TIME, allowNull: true },
-      assignee_id: { type: DataTypes.UUID, allowNull: true },
-      link_to: { type: DataTypes.UUID, allowNull: true },
-      link_type: { type: DataTypes.STRING(255), allowNull: true },
-      priority: {
-        type: DataTypes.ENUM("Low", "Medium", "High"),
-        defaultValue: "Medium",
-      },
-      status: {
-        type: DataTypes.ENUM("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped"),
-        defaultValue: "Yet to Start",
-      },
-      attach_files: { type: DataTypes.STRING(500), allowNull: true },
-      created_by: { type: DataTypes.UUID, allowNull: true },
-      updated_by: { type: DataTypes.UUID, allowNull: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    { sequelize, tableName: "task", modelName: "Task", underscored: true }
-  );
+  Task.init({
+    task_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    company_id: { type: DataTypes.UUID, allowNull: true },
+    builder_id: { type: DataTypes.UUID, allowNull: true },
+    name: { type: DataTypes.STRING(200), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    due_date: { type: DataTypes.DATEONLY, allowNull: true },
+    due_time: { type: DataTypes.TIME, allowNull: true },
+    assignee_id: { type: DataTypes.UUID, allowNull: true },
+    link_to: { type: DataTypes.UUID, allowNull: true },
+    link_type: { type: DataTypes.STRING(255), allowNull: true },
+    priority: { type: DataTypes.STRING(20), defaultValue: "Medium" },
+    status: { type: DataTypes.STRING(20), defaultValue: "Yet to Start" },
+    attach_files: { type: DataTypes.STRING(500), allowNull: true },
+    created_by: { type: DataTypes.UUID, allowNull: true },
+    updated_by: { type: DataTypes.UUID, allowNull: true },
+    createdAt: { type: DataTypes.DATE },
+    updatedAt: { type: DataTypes.DATE },
+  }, { sequelize, tableName: "task", modelName: "Task", underscored: true });
   return Task;
 };

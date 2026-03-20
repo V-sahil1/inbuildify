@@ -1,14 +1,13 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 
+import { env } from "./src/config/env.config.js";
 import { errorResponse } from "./src/helper/response.js";
 import generateSwaggerSpec from "./src/config/swagger.js";
 import routes from "./src/routes/index.js";
-import { connectPostgre } from "./src/config/postgre.connect.js";
 
-dotenv.config();
+import { connectPostgre } from "./src/config/database/postgre.connect.js";
 
 connectPostgre()
   .then(() => console.log("database connected successfully"))
@@ -22,7 +21,7 @@ app.use(
 );
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(env.PORT.PORT) || 5000;
 
 routes(app);
 

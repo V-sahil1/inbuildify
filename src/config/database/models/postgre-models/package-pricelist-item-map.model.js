@@ -6,17 +6,11 @@ export class PackagePricelistItemMap extends Model {
     PackagePricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem" });
   }
 }
-
 export default (sequelize) => {
-  PackagePricelistItemMap.init(
-    {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-      package_id: { type: DataTypes.UUID, allowNull: false },
-      price_list_item_id: { type: DataTypes.UUID, allowNull: false },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
-    },
-    { sequelize, tableName: "package_pricelist_item_map", modelName: "PackagePricelistItemMap", underscored: true }
-  );
+  PackagePricelistItemMap.init({
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    package_id: { type: DataTypes.UUID, allowNull: false },
+    price_list_item_id: { type: DataTypes.UUID, allowNull: false },
+  }, { sequelize, tableName: "package_pricelist_item_map", modelName: "PackagePricelistItemMap", underscored: true, timestamps: false });
   return PackagePricelistItemMap;
 };
