@@ -637,8 +637,8 @@ class QuotationRepository {
     try {
       // 1. Version header with grand total
       const versionQuery = `
-        SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id,
-          f.name as facade_name,
+        SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id, qv.floor_plan_id,
+          f.name as facade_name, fp.name as floor_plan_name,
           COALESCE(
             (SELECT SUM(p.cost)
              FROM package p
@@ -662,6 +662,7 @@ class QuotationRepository {
           ) as grand_total_cost
         FROM quotation_version qv
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
+        LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         WHERE qv.quotation_version_id = $1
       `;
       const versionResult = await client.query(versionQuery, [versionId]);

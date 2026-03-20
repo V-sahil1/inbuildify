@@ -638,48 +638,44 @@ class QuotationService {
       };
     }
   }
-
-async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, builderId, companyId) {
+  async compareQuotationVersions(leadsId, versions, showAll, builderId, companyId) {
     try {
       const client = getPool();
+      const versionId1 = versions[0].version_id;
+      const quotationId1 = versions[0].quotation_id;
+      const versionId2 = versions[1].version_id;
+      const quotationId2 = versions[1].quotation_id;
 
-      // 1. Ownership check — verify quotation belongs to builder/company via lead
-      const checkQuery = `
-        SELECT q.quotation_id, q.reference_number, l.leads_id, l.property_detail_id
-        FROM quotation q
+      // 1. Ownership and sanity checks for both versions
+      const checkVersionsQuery = `
+        SELECT qv.quotation_version_id, qv.quotation_id, q.reference_number, l.property_detail_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
         JOIN leads l ON q.leads_id = l.leads_id
-        WHERE q.quotation_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+        WHERE qv.quotation_version_id IN ($1, $2)
+        AND l.leads_id = $3
+        AND (l.builder_id = $4 OR (l.company_id = $5 AND $5 IS NOT NULL))
       `;
-      const checkResult = await client.query(checkQuery, [quotationId, builderId, companyId]);
+      const checkResults = await client.query(checkVersionsQuery, [versionId1, versionId2, leadsId, builderId, companyId]);
 
-      if (checkResult.rowCount === 0) {
-        return { success: false, message: "Quotation not found or unauthorized" };
+      if (checkResults.rowCount < 2 && versionId1 !== versionId2) {
+        return { success: false, message: "One or both quotation versions not found or unauthorized for this lead" };
       }
 
-      const quotationRow = checkResult.rows[0];
-      const propertyDetailId = quotationRow.property_detail_id;
+      const v1Row = checkResults.rows.find(r => r.quotation_version_id === versionId1);
+      const v2Row = checkResults.rows.find(r => r.quotation_version_id === versionId2);
 
-      // 2. Validate both versions belong to this quotation
-      const versionsCheck = await client.query(
-        `SELECT quotation_version_id, quotation_id FROM quotation_version 
-         WHERE quotation_version_id IN ($1, $2)`,
-        [versionId1, versionId2],
-      );
-
-      if (versionsCheck.rowCount < 2) {
-        return { success: false, message: "One or both quotation versions not found" };
+      if (!v1Row || !v2Row) {
+        return { success: false, message: "Could not find matching version data" };
       }
 
-      const allBelongToQuotation = versionsCheck.rows.every(
-        r => r.quotation_id === quotationId,
-      );
-      if (!allBelongToQuotation) {
-        return { success: false, message: "Both versions must belong to the same quotation" };
+      if (v1Row.quotation_id !== quotationId1 || v2Row.quotation_id !== quotationId2) {
+        return { success: false, message: "Version does not belong to the specified quotation" };
       }
 
-      // 3. Fetch property address from property_detail
-      let propertyAddress = null;
-      if (propertyDetailId) {
+      // 2. Fetch property details (handling multiple properties if different)
+      const fetchPropertyDetails = async (propertyDetailId) => {
+        if (!propertyDetailId) return null;
         const pdResult = await client.query(
           `SELECT pd.lot_number, pd.street, pd.address_line1, pd.city, pd.zip_code,
                   s.name as state_name
@@ -690,7 +686,7 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
         );
         if (pdResult.rowCount > 0) {
           const pd = pdResult.rows[0];
-          propertyAddress = {
+          return {
             lotNumber: pd.lot_number,
             street: pd.street,
             addressLine1: pd.address_line1,
@@ -699,9 +695,15 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
             zipCode: pd.zip_code,
           };
         }
-      }
+        return null;
+      };
 
-      // 4. Fetch comparison data for both versions
+      const [propertyAddress1, propertyAddress2] = await Promise.all([
+        fetchPropertyDetails(v1Row.property_detail_id),
+        fetchPropertyDetails(v2Row.property_detail_id),
+      ]);
+
+      // 3. Fetch comparison data for both versions
       const [data1, data2] = await Promise.all([
         quotationRepository.getVersionComparisonData(versionId1),
         quotationRepository.getVersionComparisonData(versionId2),
@@ -714,10 +716,10 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
       const v1No = data1.version.quotationVersionNo;
       const v2No = data2.version.quotationVersionNo;
 
-      // 5. Build items array
+      // 4. Build items array
       const items = [];
 
-      // 5a. Packages — union by package_id
+      // 4a. Packages — union by package_id
       const allPackageIds = new Set([
         ...data1.packages.map(p => p.packageId),
         ...data2.packages.map(p => p.packageId),
@@ -731,27 +733,42 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
           type: "package",
           name: (v1Pkg || v2Pkg).packageName,
           packageId: pkgId,
-          [`version${v1No}Value`]: v1Pkg ? v1Pkg.packageCost : null,
-          [`version${v2No}Value`]: v2Pkg ? v2Pkg.packageCost : null,
+          version1Value: v1Pkg ? v1Pkg.packageCost : null,
+          version2Value: v2Pkg ? v2Pkg.packageCost : null,
         };
 
-        if (showAll || row[`version${v1No}Value`] !== row[`version${v2No}Value`]) {
+        if (showAll || row.version1Value !== row.version2Value) {
           items.push(row);
         }
       }
 
-      // 5b. Facade
-      const facadeRow = {
-        type: "facade",
-        name: data1.version.facadeName || data2.version.facadeName || "-",
-        [`version${v1No}Value`]: data1.version.facadeName || "-",
-        [`version${v2No}Value`]: data2.version.facadeName || "-",
-      };
-      if (showAll || facadeRow[`version${v1No}Value`] !== facadeRow[`version${v2No}Value`]) {
-        items.push(facadeRow);
+      // 4b. Floor Plan
+      if (data1.version.floorPlanName || data2.version.floorPlanName) {
+        const floorPlanRow = {
+          type: "floor_plan",
+          name: data1.version.floorPlanName || data2.version.floorPlanName || "-",
+          version1Value: data1.version.floorPlanName || "-",
+          version2Value: data2.version.floorPlanName || "-",
+        };
+        if (showAll || floorPlanRow.version1Value !== floorPlanRow.version2Value) {
+          items.push(floorPlanRow);
+        }
       }
 
-      // 5c. Pricelist items — union by price_list_item_id
+      // 4c. Facade
+      if (data1.version.facadeName || data2.version.facadeName) {
+        const facadeRow = {
+          type: "facade",
+          name: data1.version.facadeName || data2.version.facadeName || "-",
+          version1Value: data1.version.facadeName || "-",
+          version2Value: data2.version.facadeName || "-",
+        };
+        if (showAll || facadeRow.version1Value !== facadeRow.version2Value) {
+          items.push(facadeRow);
+        }
+      }
+
+      // 4c. Pricelist items — union by price_list_item_id
       const allPricelistItemIds = new Set([
         ...data1.pricelistItems.map(p => p.priceListItemId),
         ...data2.pricelistItems.map(p => p.priceListItemId),
@@ -769,21 +786,18 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
           priceListId: refItem.priceListId,
           priceListName: refItem.priceListName,
           itemCost: refItem.itemCost,
-          [`version${v1No}Quantity`]: v1Item ? v1Item.quantity : null,
-          [`version${v1No}TotalPrice`]: v1Item ? v1Item.totalPrice : null,
-          [`version${v1No}Note`]: v1Item ? v1Item.note : null,
-          [`version${v2No}Quantity`]: v2Item ? v2Item.quantity : null,
-          [`version${v2No}TotalPrice`]: v2Item ? v2No ? v2Item.totalPrice : null : null, // Fixed a typo in existing logic if any, but sticking to logic
-          [`version${v2No}Note`]: v2Item ? v2Item.note : null,
+          version1Quantity: v1Item ? v1Item.quantity : null,
+          version1TotalPrice: v1Item ? v1Item.totalPrice : null,
+          version1Note: v1Item ? v1Item.note : null,
+          version2Quantity: v2Item ? v2Item.quantity : null,
+          version2TotalPrice: v2Item ? v2Item.totalPrice : null,
+          version2Note: v2Item ? v2Item.note : null,
         };
-        
-        // Correcting potential logic error in my replacement above for v2TotalPrice
-        row[`version${v2No}TotalPrice`] = v2Item ? v2Item.totalPrice : null;
 
         const isDifferent =
-          row[`version${v1No}Quantity`] !== row[`version${v2No}Quantity`] ||
-          row[`version${v1No}TotalPrice`] !== row[`version${v2No}TotalPrice`] ||
-          row[`version${v1No}Note`] !== row[`version${v2No}Note`];
+          row.version1Quantity !== row.version2Quantity ||
+          row.version1TotalPrice !== row.version2TotalPrice ||
+          row.version1Note !== row.version2Note;
 
         if (showAll || isDifferent) {
           items.push(row);
@@ -793,17 +807,23 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
       return {
         success: true,
         data: {
-          referenceNumber: quotationRow.reference_number,
-          propertyAddress,
-          [`version${v1No}`]: {
+          version1: {
+            referenceNumber: v1Row.reference_number,
+            propertyAddress: propertyAddress1,
             quotationVersionId: data1.version.quotationVersionId,
             quotationVersionNo: data1.version.quotationVersionNo,
-            grandTotalCost: data1.version.grandTotalCost,
+            totalPackageCost: data1.version.totalPackageCost,
+            totalPricelistCost: data1.version.totalPricelistCost,
+            grandTotal: data1.version.grandTotal,
           },
-          [`version${v2No}`]: {
+          version2: {
+            referenceNumber: v2Row.reference_number,
+            propertyAddress: propertyAddress2,
             quotationVersionId: data2.version.quotationVersionId,
             quotationVersionNo: data2.version.quotationVersionNo,
-            grandTotalCost: data2.version.grandTotalCost,
+            totalPackageCost: data2.version.totalPackageCost,
+            totalPricelistCost: data2.version.totalPricelistCost,
+            grandTotal: data2.version.grandTotal,
           },
           items,
         },
@@ -811,7 +831,10 @@ async compareQuotationVersions(quotationId, versionId1, versionId2, showAll, bui
       };
     } catch (error) {
       console.error("DEBUG: Error in compareQuotationVersions service:", error);
-      return { success: false, message: error.message };
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
   async removePackageFromVersion(versionId, packageId, builderId, companyId) {

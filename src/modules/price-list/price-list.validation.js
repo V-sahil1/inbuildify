@@ -16,7 +16,7 @@ export const createPriceListSchema = Joi.object({
 export const getAllPriceListSchema = Joi.object({
   is_active: Joi.boolean().optional(),
   is_suggested: Joi.boolean().optional(),
-  search: Joi.string().trim().max(200).optional(),
+  search: Joi.string().allow("", null).max(200).optional(),
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

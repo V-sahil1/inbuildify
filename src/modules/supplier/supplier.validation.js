@@ -33,7 +33,7 @@ export const createSupplierSchema = Joi.object({
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
-  website: Joi.string().uri().max(50).allow(null, ""),
+  website: Joi.string().uri().max(255).allow(null, ""),
   address_line1: Joi.string()
     .min(10)
     .max(255)
@@ -204,7 +204,7 @@ export const updateSupplierSchema = Joi.object({
         "Secondery phone can only contain numbers, spaces, +, -, and parentheses",
       "string.max": "Secondery phone cannot exceed 50 characters",
     }),
-  website: Joi.string().uri().allow(null, "").optional(),
+  website: Joi.string().uri().max(255).allow(null, "").optional(),
   address_line1: Joi.string().max(255).allow(null, "").optional(),
   city: Joi.string().max(150).allow(null, "").optional(),
   state_id: Joi.string().uuid().allow(null, "").optional().messages({
