@@ -5,7 +5,7 @@ import { keysToCamelCase } from "../../utils/common.js";
 // Ownership check helper - returns version row or null
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
   const result = await client.query(
-    `SELECT qv.quotation_version_id, qv.location_id, qv.dwelling_type_id, qv.is_approve
+    `SELECT qv.quotation_version_id, qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve
      FROM quotation_version qv
      JOIN quotation q ON qv.quotation_id = q.quotation_id
      JOIN leads l ON q.leads_id = l.leads_id
@@ -43,13 +43,15 @@ export async function createPricelistItemMap(req, res) {
     }
 
     // Check that location_id and dwelling_type_id are set on the version
-    if (!version.location_id || !version.dwelling_type_id) {
+    if (!version.dwelling_type_id) {
       return errorResponse(res, 400, "Quotation version must have both location and dwelling type selected before adding pricelist items");
     }
 
     // Validate price list item exists, is active, and belongs to user's org
     const itemCheck = await client.query(
-      `SELECT price_list_item_id, item_description, short_description, cost, cost_type, uom FROM price_list_item WHERE price_list_item_id = $1 AND status = 'active' AND (
+      `SELECT price_list_item_id, item_description, short_description, cost, cost_type, uom, range_id, dwelling_type_id 
+       FROM price_list_item 
+       WHERE price_list_item_id = $1 AND status = 'active' AND (
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       ) LIMIT 1`,
@@ -58,6 +60,21 @@ export async function createPricelistItemMap(req, res) {
 
     if (itemCheck.rowCount === 0) {
       return errorResponse(res, 404, "Price list item not found, inactive, or does not belong to your organization");
+    }
+
+    const item = itemCheck.rows[0];
+
+    // Check that range_id and dwelling_type_id match
+    if (item.range_id && item.range_id.length > 0) {
+      if (!item.range_id.includes(version.range_id)) {
+        return errorResponse(res, 400, "Price list item is not available for the selected quotation version range");
+      }
+    }
+
+    if (item.dwelling_type_id && item.dwelling_type_id.length > 0) {
+      if (!item.dwelling_type_id.includes(version.dwelling_type_id)) {
+        return errorResponse(res, 400, "Price list item is not available for the selected quotation version dwelling type");
+      }
     }
 
     if (itemCheck.rows[0].cost_type === "Included" && quantity !== undefined && quantity !== null) {

@@ -67,24 +67,36 @@ export const removePackageFromVersionSchema = Joi.object({
   }),
 });
 
-export const compareQuotationVersionsParamsSchema = Joi.object({
-  quotation_id: Joi.string().uuid().required().messages({
-    "string.guid": "Quotation ID must be a valid UUID",
-    "any.required": "Quotation ID is required",
+export const compareQuotationVersionsBodySchema = Joi.object({
+  versions: Joi.array()
+    .items(
+      Joi.object({
+        quotation_id: Joi.string().uuid().required().messages({
+          "string.guid": "Quotation ID must be a valid UUID",
+          "any.required": "Quotation ID is required",
+        }),
+        version_id: Joi.string().uuid().required().messages({
+          "string.guid": "Version ID must be a valid UUID",
+          "any.required": "Version ID is required",
+        }),
+      })
+    )
+    .length(2)
+    .required()
+    .messages({
+      "array.base": "Versions must be an array of length 2",
+      "array.length": "You must provide exactly two versions to compare",
+      "any.required": "Versions are required",
+    }),
+  show_all: Joi.boolean().optional().default(true).messages({
+    "boolean.base": "show_all must be a boolean",
   }),
 });
 
-export const compareQuotationVersionsQuerySchema = Joi.object({
-  version_1: Joi.string().uuid().required().messages({
-    "string.guid": "Version 1 ID must be a valid UUID",
-    "any.required": "Version 1 ID is required",
-  }),
-  version_2: Joi.string().uuid().required().messages({
-    "string.guid": "Version 2 ID must be a valid UUID",
-    "any.required": "Version 2 ID is required",
-  }),
-  show_all: Joi.boolean().optional().default(true).messages({
-    "boolean.base": "show_all must be a boolean",
+export const compareQuotationVersionsParamsSchema = Joi.object({
+  leads_id: Joi.string().uuid().required().messages({
+    "string.guid": "Lead ID must be a valid UUID",
+    "any.required": "Lead ID is required",
   }),
 });
 
@@ -95,6 +107,6 @@ export default {
   updateQuotationVersionBodySchema,
   duplicateQuotationVersionSchema,
   compareQuotationVersionsParamsSchema,
-  compareQuotationVersionsQuerySchema,
+  compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema
 };

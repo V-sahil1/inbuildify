@@ -408,6 +408,7 @@ export async function getAllPriceListItems(req, res) {
       range_id,
       location_id,
       sort_order,
+      search,
     } = req.query;
 
     page = parseInt(page, 10);
@@ -423,6 +424,20 @@ export async function getAllPriceListItems(req, res) {
 
     conditions.push(`pli.company_id = $${index++}`);
     values.push(companyId);
+
+    if (search) {
+      const searchVal = `%${search}%`;
+      conditions.push(`(
+        pli.item_description ILIKE $${index} OR 
+        pli.short_description ILIKE $${index} OR 
+        pli.cost_type ILIKE $${index} OR 
+        pli.cost_option ILIKE $${index} OR
+        EXISTS (SELECT 1 FROM range r WHERE r.range_id = ANY(pli.range_id) AND r.name ILIKE $${index}) OR
+        EXISTS (SELECT 1 FROM dwelling_type dt WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.name ILIKE $${index})
+      )`);
+      values.push(searchVal);
+      index++;
+    }
 
     if (status) {
       conditions.push(`pli.status = $${index++}`);
@@ -782,14 +797,18 @@ export async function updatePriceListItem(req, res) {
       (field) => req.body[field] !== undefined,
     );
 
+    const updatingFieldsExceptSortOrder = fieldsToCheck
+      .filter((field) => field !== "sort_order")
+      .some((field) => req.body[field] !== undefined);
+
     if (currentStatus === "active" && statusInBody) {
       if (requestedStatusInactive) {
-        if (updatingOtherFields) {
+        if (updatingFieldsExceptSortOrder) {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
             403,
-            "To deactivate an active price list item, 'status' must be the only field provided in the request.",
+            "To deactivate an active price list item, only 'status' and 'sort_order' are allowed in the request.",
           );
         }
       }
@@ -797,34 +816,36 @@ export async function updatePriceListItem(req, res) {
 
     if (currentStatus === "inactive") {
       if (requestedStatusActive) {
-        if (updatingOtherFields) {
+        if (updatingFieldsExceptSortOrder) {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
             403,
-            "To activate an inactive price list item, 'status' must be the only field provided in the request.",
+            "To activate an inactive price list item, only 'status' and 'sort_order' can be updated.",
           );
         }
       }
 
-      if (updatingOtherFields) {
+      if (updatingFieldsExceptSortOrder) {
         if (!requestedStatusActive) {
           await client.query("ROLLBACK");
           return errorResponse(
             res,
             403,
-            "Cannot update non-'status' fields when the price list item is currently Inactive. Only 'status' can be changed (to 'Active').",
+            "Cannot update non-'sort_order' and non-'status' fields when the price list item is currently Inactive.",
           );
         }
       }
 
       if (statusInBody && requestedStatusInactive) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Price list item is already Inactive. 'status' can only be updated to 'Active' from this state.",
-        );
+        if (updatingFieldsExceptSortOrder) {
+          await client.query("ROLLBACK");
+          return errorResponse(
+            res,
+            403,
+            "Price list item is already Inactive. Only 'sort_order' or 'status' (to 'Active') can be updated.",
+          );
+        }
       }
     }
 

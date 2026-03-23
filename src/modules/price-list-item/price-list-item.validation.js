@@ -169,6 +169,7 @@ export const getAllPriceListItemSchema = Joi.object({
     "number.min": "Limit must be at least 1",
     "number.max": "Limit must not exceed 100",
   }),
+  search: Joi.string().allow(null, "").max(2000).optional(),
 });
 
 export const deletePriceListItemSchema = Joi.object({

@@ -14,13 +14,21 @@ import {
   updateQuotationVersionBodySchema,
   duplicateQuotationVersionSchema,
   compareQuotationVersionsParamsSchema,
-  compareQuotationVersionsQuerySchema,
+  compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema,
 } from "./quotation.validation.js";
 import quotationController from "./quotation.controller.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
+
+router.post(
+  "/compare/:leads_id",
+  validateRequest(compareQuotationVersionsParamsSchema, REQUEST_SOURCE.PARAMS),
+  camelToSnakeMiddleware,
+  validateRequest(compareQuotationVersionsBodySchema, REQUEST_SOURCE.BODY),
+  quotationController.compareQuotationVersions,
+);
 
 router.post(
   "/:leads_id",
@@ -60,13 +68,6 @@ router.post(
   validateRequest(duplicateQuotationVersionSchema, REQUEST_SOURCE.PARAMS),
   camelToSnakeMiddleware,
   quotationController.duplicateQuotationVersion,
-);
-
-router.get(
-  "/compare/:quotation_id",
-  validateRequest(compareQuotationVersionsParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(compareQuotationVersionsQuerySchema, REQUEST_SOURCE.QUERY),
-  quotationController.compareQuotationVersions,
 );
 
 router.delete(

@@ -628,63 +628,6 @@ export async function updateSupplier(req, res) {
       "induction_pack_url",
     ];
 
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined,
-    );
-
-    // if (statusInBody && typeof requestedStatus !== "boolean") {
-    //   await client.query("ROLLBACK");
-    //   return errorResponse(
-    //     res,
-    //     400,
-    //     "The 'status' field must be a boolean (true or false).",
-    //   );
-    // }
-
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active supplier, 'status' must be the only field provided in the request.",
-        );
-      }
-    }
-
-    if (currentStatus === false) {
-      if (statusInBody && requestedStatus === true) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive supplier, 'status' must be the only field provided in the request.",
-          );
-        }
-      }
-
-      const performingActivation = statusInBody && requestedStatus === true;
-
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the supplier is currently Inactive. Only 'status' can be changed (to true/Active).",
-        );
-      }
-
-      if (statusInBody && requestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Supplier is already Inactive. 'status' can only be updated to true (Active) from this state.",
-        );
-      }
-    }
-
     if (company_name) {
       const duplicateName = await client.query(
         `SELECT supplier_id FROM supplier

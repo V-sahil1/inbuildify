@@ -176,8 +176,8 @@ export async function duplicateQuotationVersion(req, res) {
 
 export async function compareQuotationVersions(req, res) {
   try {
-    const { quotation_id } = req.params;
-    const { version_1, version_2, show_all } = req.query;
+    const { leads_id } = req.params;
+    const { versions, show_all } = req.body;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -185,12 +185,11 @@ export async function compareQuotationVersions(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing");
     }
 
-    const showAll = show_all !== "false";
+    const showAll = show_all !== false;
 
     const result = await quotationService.compareQuotationVersions(
-      quotation_id,
-      version_1,
-      version_2,
+      leads_id,
+      versions,
       showAll,
       builderId,
       companyId,
@@ -206,8 +205,6 @@ export async function compareQuotationVersions(req, res) {
     return errorResponse(res, 500, "Internal server error");
   }
 }
-
-
 
 export const removePackageFromVersion = async (req, res) => {
   try {

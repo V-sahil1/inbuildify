@@ -3407,3 +3407,35 @@ CREATE TABLE property_detail(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE action(
+  action_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  action_type VARCHAR(50) CHECK (action_type IN ('task', 'note', 'appointment', 'sms')) NOT NULL,
+
+  --note
+  notes_or_description_or_message VARCHAR(500),
+  tag_id UUID REFERENCES tag(tag_id) ON DELETE SET NULL,
+  send_to_customer BOOLEAN DEFAULT FALSE,
+  create_follow_up_task BOOLEAN DEFAULT FALSE,
+  attach_file VARCHAR(500),
+
+  --sms
+  users_id UUID[] DEFAULT '{}',
+  
+  --appointment
+  name_or_title VARCHAR(255),
+  due_date DATE,
+  end_date DATE,
+  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+  start_time TIME,
+  end_time TIME,
+
+  --task
+  priority VARCHAR(255),             -- valid low, medium, high
+  status VARCHAR(255),          -- valid completed, yet_to_start, in_progress, skipped, cancelled
+  --link_to column need to decide
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

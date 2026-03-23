@@ -298,8 +298,8 @@ export async function getAllPriceList(req, res) {
     }
 
     if (search) {
-      conditions.push(`LOWER(name) LIKE $${index}`);
-      values.push(`%${search.toLowerCase()}%`);
+      conditions.push(`name ILIKE $${index}`);
+      values.push(`%${search.trim()}%`);
       index++;
     }
 
