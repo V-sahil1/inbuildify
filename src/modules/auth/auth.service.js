@@ -50,12 +50,13 @@ export async function registerRoot({ name, email, password, role_id }) {
       [name, lowerEmail],
     );
     const builder_id = builderRes.rows[0].builder_id;
-    const builderRess = await Builder.create({
-      name: name,
-      email: lowerEmail,
-    });
-    const builderr_id = builderRess.builder_id;
-    // console.log("🚀 ~ registerRoot ~ builderssssssssssssssssssssssssssssssssssr_id:", builderr_id)
+    console.log("🚀 ~ registerRoot ~ builder_id:", builder_id)
+    // const builderRess = await Builder.create({
+    //   name: name,
+    //   email: lowerEmail,
+    // });
+    // const builderr_id = builderRess.builder_id;
+    // // console.log("🚀 ~ registerRoot ~ builderssssssssssssssssssssssssssssssssssr_id:", builderr_id)
 
     // Create root user
     const userRes = await client.query(
@@ -85,16 +86,16 @@ export async function registerRoot({ name, email, password, role_id }) {
     // console.log("🚀 ~ registerRoot ~ otp:", otp)
     // console.log("🚀 ~ registerRoot ~ expiresAt:", expiresAt)
 
-    await Users.create({
-      builder_id: builderr_id,
-      name: name,
-      email: lowerEmail,
-      role_id: role_id,
-      password: encrypt(password),
-      otp: otp,
-      expires_at: expiresAt,
-      root_user: true,
-    });
+    // await Users.create({
+    //   builder_id: builderr_id,
+    //   name: name,
+    //   email: lowerEmail,
+    //   role_id: role_id,
+    //   password: encrypt(password),
+    //   otp: otp,
+    //   expires_at: expiresAt,
+    //   root_user: true,
+    // });
 
     const users_id = userRes.rows[0].users_id;
 
@@ -150,12 +151,12 @@ export async function verifyEmail({ email, otp }) {
          FROM users WHERE LOWER(email) = $1`,
       [lowerEmail],
     );
-    const userRess = await Users.findOne({
-      attributes: ["users_id", "otp", "expires_at", "is_verified"],
-      where: {
-        email: lowerEmail,
-      },
-    });
+    // const userRess = await Users.findOne({
+    //   attributes: ["users_id", "otp", "expires_at", "is_verified"],
+    //   where: {
+    //     email: lowerEmail,
+    //   },
+    // });
     if (userRes.rowCount === 0) {
       throw { statusCode: 404, message: "User not found." };
     }
@@ -180,16 +181,16 @@ export async function verifyEmail({ email, otp }) {
          WHERE users_id = $1`,
       [user.users_id],
     );
-    await Users.update(
-      {
-        is_verified: true,
-        otp: null,
-        expires_at: null,
-      },
-      {
-        where: { users_id: userRess.users_id },
-      }
-    );
+    // await Users.update(
+    //   {
+    //     is_verified: true,
+    //     otp: null,
+    //     expires_at: null,
+    //   },
+    //   {
+    //     where: { users_id: userRess.users_id },
+    //   }
+    // );
   } finally {
     client.release();
   }
@@ -237,9 +238,15 @@ export async function resendOtp(email) {
 
     const userRes = await client.query(
       `SELECT users_id, is_verified, otp_resend_count, last_otp_sent_at
-         FROM users WHERE LOWER(email) = $1`,
+       FROM users WHERE LOWER(email) = $1`,
       [lowerEmail],
     );
+    // const userRess = await Users.findOne({
+    //   attributes: ["users_id", "otp_resend_count", "last_otp_sent_at", "is_verified"],
+    //   where: {
+    //     email: lowerEmail,
+    //   },
+    // });
 
     if (userRes.rowCount === 0) {
       throw { statusCode: 404, message: "User not found." };
@@ -281,7 +288,13 @@ export async function resendOtp(email) {
          WHERE users_id = $5`,
       [otp, expiresAt, resendCount + 1, now, user.users_id],
     );
-
+    //    await client.query(
+    //   `UPDATE users
+    //      SET otp = $1, expires_at = $2,
+    //          otp_resend_count = $3, last_otp_sent_at = $4
+    //      WHERE users_id = $5`,
+    //   [otp, expiresAt, resendCount + 1, now, user.users_id],
+    // );
     return { otpResendCount: resendCount + 1 };
   } finally {
     client.release();
@@ -301,6 +314,7 @@ export async function login({ email, login_id, password }) {
         "SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE",
         [lowerEmail],
       );
+
     } else if (login_id) {
       userRes = await client.query(
         "SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE",

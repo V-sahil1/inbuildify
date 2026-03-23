@@ -1,4 +1,4 @@
-import db, { initModels } from "./models/postgre-models/index.js";
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
 export const connectPostgre = async () => {
   try {

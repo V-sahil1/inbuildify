@@ -323,7 +323,7 @@ export async function assignLead(req, res) {
     console.error("Assign lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
-};
+}
 
 export const removeHLPackage = async (req, res) => {
   try {

@@ -7,7 +7,7 @@ import { errorResponse } from "./src/helper/response.js";
 import generateSwaggerSpec from "./src/config/swagger.js";
 import routes from "./src/routes/index.js";
 
-import { connectPostgre } from "./src/config/database/postgre.connect.js";
+import { connectPostgre } from "./src/config/postgre.connect.js";
 
 connectPostgre()
   .then(() => console.log("database connected successfully"))

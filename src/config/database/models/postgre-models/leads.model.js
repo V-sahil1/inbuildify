@@ -42,6 +42,7 @@ export default (sequelize) => {
       prelim_agreement: { type: DataTypes.DATEONLY, allowNull: true },
       client_profile: { type: DataTypes.STRING(500), allowNull: true },
       h_l_budget: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+      assignee_note: { type: DataTypes.STRING(150), allowNull: true },
       assignee_id: { type: DataTypes.UUID, allowNull: true },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },
