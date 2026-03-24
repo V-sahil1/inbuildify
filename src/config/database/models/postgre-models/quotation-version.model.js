@@ -1,0 +1,35 @@
+import { Model, DataTypes } from "sequelize";
+
+export class QuotationVersion extends Model {
+  static associate(models) {
+    QuotationVersion.belongsTo(models.Quotation, { foreignKey: "quotation_id", as: "quotation" });
+    QuotationVersion.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
+    QuotationVersion.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade" });
+    QuotationVersion.hasMany(models.Job, { foreignKey: "quotation_version_id", as: "jobs" });
+    QuotationVersion.hasMany(models.QuotationVersionPricelistItemMap, { foreignKey: "quotation_version_id", as: "pricelistItemMaps" });
+    QuotationVersion.hasMany(models.QuotationVersionCustomSection, { foreignKey: "quotation_version_id", as: "customSections" });
+    QuotationVersion.hasMany(models.QuotationVersionPackageMap, { foreignKey: "quotation_version_id", as: "packageMaps" });
+  }
+}
+
+export default (sequelize) => {
+  QuotationVersion.init(
+    {
+      quotation_version_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      quotation_id: { type: DataTypes.UUID, allowNull: true },
+      quotation_version_no: { type: DataTypes.INTEGER, allowNull: true },
+      location_id: { type: DataTypes.UUID, allowNull: true },
+      range_id: { type: DataTypes.UUID, allowNull: true },
+      dwelling_type_id: { type: DataTypes.UUID, allowNull: true },
+      floor_plan_id: { type: DataTypes.UUID, allowNull: true },
+      facade_id: { type: DataTypes.UUID, allowNull: true },
+      is_approve: { type: DataTypes.BOOLEAN, defaultValue: false },
+      sketch_number: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+      package_id: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },
+      createdAt: { type: DataTypes.DATE },
+      updatedAt: { type: DataTypes.DATE },
+    },
+    { sequelize, tableName: "quotation_version", modelName: "QuotationVersion", underscored: true }
+  );
+  return QuotationVersion;
+};

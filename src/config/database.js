@@ -1,5 +1,6 @@
-const { Pool } = require("pg");
-const pgConfig = require("../config/pg");
+import { Pool } from "pg";
+
+import pgConfig from "../config/pg.js";
 
 let poolClient;
 
@@ -37,7 +38,7 @@ const getPool = () => {
           console.log(
             `Pool Status - Total: ${poolStatus}, Idle: ${idleCount}, Active: ${
               poolStatus - idleCount
-            }`
+            }`,
           );
 
           // Alert if pool is near capacity
@@ -49,7 +50,7 @@ const getPool = () => {
                 maxConnections: pgConfig.max,
                 idleConnections: idleCount,
                 activeConnections: poolStatus - idleCount,
-              }
+              },
             );
           }
         }
@@ -80,4 +81,4 @@ const getPool = () => {
   return poolClient;
 };
 
-module.exports = getPool;
+export default getPool;

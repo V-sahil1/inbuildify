@@ -818,7 +818,7 @@ CREATE TABLE users (
   users_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   builder_id UUID NOT NULL REFERENCES builder(builder_id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(100) NOT NULL,
   login_id VARCHAR(100) UNIQUE NOT NULL,
   initials VARCHAR(10),
   phone VARCHAR(20),
@@ -2492,7 +2492,7 @@ CREATE TABLE drive(
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL)),
+  CONSTRAINT chk_construction_setting_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
 );
 
 CREATE TABLE construction_settings(
@@ -2578,7 +2578,7 @@ CREATE TABLE construction_checklist(
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT chk_construction_option_scope CHECK ((company_id IS NOT NULL) OR (builder_id IS NOT NULL))
-)
+);
 
 CREATE TABLE construction_checklist_predecessor(
   construction_checklist_predecessor_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2588,7 +2588,7 @@ CREATE TABLE construction_checklist_predecessor(
   duration INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-)
+);
 
 CREATE TABLE construction_sub_checklist(
   construction_sub_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2599,7 +2599,7 @@ CREATE TABLE construction_sub_checklist(
   sort_order INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-)
+);
 
 CREATE TABLE construction_inspection_checklist(
   construction_inspection_checklist_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -2956,7 +2956,7 @@ CREATE TABLE master_section_header(
   sort_order int DEFAULT 1,
   status BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE master_section_item(
@@ -3147,6 +3147,7 @@ CREATE TABLE leads (
   client_profile VARCHAR(500),
   h_l_budget NUMERIC(10,2),
   assignee_id UUID REFERENCES users(users_id),
+  assignee_note VARCHAR(500),
   created_by UUID REFERENCES users(users_id),
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -3157,7 +3158,7 @@ CREATE TABLE opportunity(
   opportunity_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   opportunity_notes VARCHAR(1000),
-  status VARCHAR(252),                                -- valid  proposel, negotiation, closed
+  status VARCHAR(252),                                -- valid  Proposal, negotiation, closed
   outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -3406,4 +3407,35 @@ CREATE TABLE property_detail(
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE action(
+  action_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  action_type VARCHAR(50) CHECK (action_type IN ('task', 'note', 'appointment', 'sms')) NOT NULL,
+
+  --note
+  notes_or_description_or_message VARCHAR(500),
+  tag_id UUID REFERENCES tag(tag_id) ON DELETE SET NULL,
+  send_to_customer BOOLEAN DEFAULT FALSE,
+  create_follow_up_task BOOLEAN DEFAULT FALSE,
+  attach_file VARCHAR(500),
+
+  --sms
+  users_id UUID[] DEFAULT '{}',
   
+  --appointment
+  name_or_title VARCHAR(255),
+  due_date DATE,
+  end_date DATE,
+  location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
+  start_time TIME,
+  end_time TIME,
+
+  --task
+  priority VARCHAR(255),             -- valid low, medium, high
+  status VARCHAR(255),          -- valid completed, yet_to_start, in_progress, skipped, cancelled
+  --link_to column need to decide
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

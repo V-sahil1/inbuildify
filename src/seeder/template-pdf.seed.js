@@ -1,6 +1,6 @@
-const getPool = require("../config/database");
-const pdfTemplates = require("../templates/pdf-template.json");
-const { keysToCamelCase, keysToSnakeCase } = require("../utils/common");
+import getPool from "../config/database.js";
+import pdfTemplates from "../templates/pdf-template.json" with { type: "json" };
+import { keysToCamelCase, keysToSnakeCase } from "../utils/common.js";
 
 /**
  * Convert camelCase key to Title Case
@@ -25,7 +25,7 @@ function keyToTitle(key) {
  * - Creates one row per format
  * - Safe to run multiple times
  */
-async function seedInitialPdfTemplates({
+export async function seedInitialPdfTemplates({
   company_id = null,
   builder_id = null,
   created_by,
@@ -40,7 +40,9 @@ async function seedInitialPdfTemplates({
   const client = externalClient || (await pool.connect());
 
   try {
-    if (!useExternalClient) await client.query("BEGIN");
+    if (!useExternalClient) {
+      await client.query("BEGIN");
+    }
 
     for (const [key, templateJson] of Object.entries(pdfTemplates)) {
       const name = keyToTitle(key);
@@ -65,19 +67,25 @@ async function seedInitialPdfTemplates({
           name,
           keysToSnakeCase(templateJson),
           created_by,
-        ]
+        ],
       );
     }
 
-    if (!useExternalClient) await client.query("COMMIT");
+    if (!useExternalClient) {
+      await client.query("COMMIT");
+    }
   } catch (err) {
-    if (!useExternalClient) await client.query("ROLLBACK");
+    if (!useExternalClient) {
+      await client.query("ROLLBACK");
+    }
     throw err;
   } finally {
-    if (!useExternalClient) client.release();
+    if (!useExternalClient) {
+      client.release();
+    }
   }
 }
 
-module.exports = {
+export default {
   seedInitialPdfTemplates,
 };

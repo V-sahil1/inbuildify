@@ -1,0 +1,484 @@
+import getPool from "../../config/database.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
+import { keysToCamelCase } from "../../utils/common.js";
+
+export async function createIntegrationCustomFieldItem(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const createdBy = req.user?.users_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID.",
+      );
+    }
+
+    const {
+      header1_id,
+      header2_id,
+      value1,
+      value2,
+      assignee_user_id,
+    } = req.body;
+
+    if (!header1_id) {
+      return errorResponse(res, 400, "header1_id is required.");
+    }
+
+    await client.query("BEGIN");
+
+    const checkHeader1Query = `
+      SELECT integration_custom_field_header_id 
+      FROM integration_custom_field_header 
+      WHERE integration_custom_field_header_id = $1 
+        AND (builder_id = $2 OR company_id = $3);
+    `;
+    const checkHeader1Result = await client.query(checkHeader1Query, [
+      header1_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (checkHeader1Result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(
+        res,
+        400,
+        "Invalid header1_id: not owned by this builder/company.",
+      );
+    }
+    if (header2_id) {
+      const checkHeader2Query = `
+        SELECT integration_custom_field_header_id 
+        FROM integration_custom_field_header 
+        WHERE integration_custom_field_header_id = $1 
+          AND (builder_id = $2 OR company_id = $3);
+      `;
+      const checkHeader2Result = await client.query(checkHeader2Query, [
+        header2_id,
+        builderId,
+        companyId,
+      ]);
+
+      if (checkHeader2Result.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid header2_id: not owned by this builder/company.",
+        );
+      }
+    }
+
+    if (assignee_user_id) {
+      const userCheckQuery = "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;";
+      const userCheckResult = await client.query(userCheckQuery, [
+        assignee_user_id,
+      ]);
+
+      if (userCheckResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid assignee_user_id: user not found.",
+        );
+      }
+    }
+
+    const insertQuery = `
+      INSERT INTO integration_custom_field_item (
+        company_id,
+        builder_id,
+        header1_id,
+        header2_id,
+        value1,
+        value2,
+        assignee_user_id,
+        created_by,
+        updated_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *;
+    `;
+
+    const insertResult = await client.query(insertQuery, [
+      companyId,
+      builderId,
+      header1_id,
+      header2_id,
+      value1 || null,
+      value2 || null,
+      assignee_user_id || null,
+      createdBy,
+      createdBy,
+    ]);
+
+    await client.query("COMMIT");
+
+    let assigneeDetails = null;
+    if (assignee_user_id) {
+      const assigneeQuery = `
+        SELECT users_id, name
+        FROM users 
+        WHERE users_id = $1 AND is_deleted = false;
+      `;
+      const assigneeResult = await client.query(assigneeQuery, [assignee_user_id]);
+      if (assigneeResult.rows.length > 0) {
+        assigneeDetails = {
+          id: assigneeResult.rows[0].users_id,
+          name: assigneeResult.rows[0].name,
+        };
+      }
+    }
+
+    const responseData = {
+      ...keysToCamelCase(insertResult.rows[0]),
+      assigneeUser: assigneeDetails,
+    };
+
+    return successResponse(
+      res,
+      responseData,
+      "Integration custom field item created successfully.",
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error creating integration custom field item:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+}
+
+export async function getAllIntegrationCustomFieldItem(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
+    }
+
+    const { page = 1, limit = 25 } = req.query;
+    const limitValue = parseInt(limit, 10);
+    const pageValue = parseInt(page, 10);
+    const offset = (pageValue - 1) * limitValue;
+
+    const dataQuery = `
+      SELECT *
+      FROM integration_custom_field_item
+      WHERE builder_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3;
+    `;
+    const dataResult = await client.query(dataQuery, [
+      builderId,
+      limitValue,
+      offset,
+    ]);
+
+    // Get assignee user details for all items
+    const itemsWithAssignee = await Promise.all(
+      dataResult.rows.map(async (item) => {
+        let assigneeDetails = null;
+        if (item.assignee_user_id) {
+          const assigneeQuery = `
+            SELECT users_id, name
+            FROM users 
+            WHERE users_id = $1 AND is_deleted = false;
+          `;
+          const assigneeResult = await client.query(assigneeQuery, [item.assignee_user_id]);
+          if (assigneeResult.rows.length > 0) {
+            assigneeDetails = {
+              id: assigneeResult.rows[0].users_id,
+              name: assigneeResult.rows[0].name,
+            };
+          }
+        }
+
+        return {
+          ...keysToCamelCase(item),
+          assigneeUser: assigneeDetails,
+        };
+      }),
+    );
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM integration_custom_field_item
+      WHERE builder_id = $1;
+    `;
+    const countResult = await client.query(countQuery, [builderId]);
+    const totalRecords = parseInt(countResult.rows[0].total, 10);
+    const totalPages = Math.ceil(totalRecords / limitValue);
+
+    return successResponse(
+      res,
+      {
+        items: itemsWithAssignee,
+        pagination: {
+          currentPage: pageValue,
+          totalPages,
+          totalRecords,
+          limit: limitValue,
+        },
+      },
+      "Integration custom field items fetched successfully.",
+    );
+  } catch (error) {
+    console.error("Error fetching integration custom field items:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteIntegrationCustomFieldItem(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { integration_custom_field_item_id } = req.params;
+    const builderId = req.user?.builder_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
+    }
+
+    const checkQuery = `
+      SELECT integration_custom_field_item_id 
+      FROM integration_custom_field_item
+      WHERE integration_custom_field_item_id = $1 AND builder_id = $2;
+    `;
+    const checkResult = await client.query(checkQuery, [
+      integration_custom_field_item_id,
+      builderId,
+    ]);
+
+    if (checkResult.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "No integration custom field item found for this builder.",
+      );
+    }
+
+    const deleteQuery = `
+      DELETE FROM integration_custom_field_item
+      WHERE integration_custom_field_item_id = $1 AND builder_id = $2;
+    `;
+    await client.query(deleteQuery, [
+      integration_custom_field_item_id,
+      builderId,
+    ]);
+
+    return successResponse(
+      res,
+      null,
+      "Integration custom field item deleted successfully.",
+    );
+  } catch (error) {
+    console.error("Error deleting integration custom field item:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error.");
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateIntegrationCustomFieldItem(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { integration_custom_field_item_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID.",
+      );
+    }
+
+    const {
+      header1_id,
+      header2_id,
+      value1,
+      value2,
+      assignee_user_id,
+    } = req.body;
+
+    const checkItemQuery = `
+      SELECT * FROM integration_custom_field_item
+      WHERE integration_custom_field_item_id = $1
+      AND (builder_id = $2 OR company_id = $3);
+    `;
+    const checkItemResult = await client.query(checkItemQuery, [
+      integration_custom_field_item_id,
+      builderId,
+      companyId,
+    ]);
+
+    if (checkItemResult.rowCount === 0) {
+      return errorResponse(
+        res,
+        404,
+        "No integration custom field item found for this user.",
+      );
+    }
+
+    if (header1_id) {
+      const header1Query = `
+        SELECT integration_custom_field_header_id 
+        FROM integration_custom_field_header 
+        WHERE integration_custom_field_header_id = $1 
+        AND (builder_id = $2 OR company_id = $3);
+      `;
+      const header1Result = await client.query(header1Query, [
+        header1_id,
+        builderId,
+        companyId,
+      ]);
+      if (header1Result.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid header1_id. It does not belong to this builder or company.",
+        );
+      }
+    }
+
+    if (header2_id) {
+      const header2Query = `
+        SELECT integration_custom_field_header_id 
+        FROM integration_custom_field_header 
+        WHERE integration_custom_field_header_id = $1 
+        AND (builder_id = $2 OR company_id = $3);
+      `;
+      const header2Result = await client.query(header2Query, [
+        header2_id,
+        builderId,
+        companyId,
+      ]);
+      if (header2Result.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid header2_id. It does not belong to this builder or company.",
+        );
+      }
+    }
+
+    if (assignee_user_id) {
+      const userCheckQuery = `
+        SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false;
+      `;
+      const userCheckResult = await client.query(userCheckQuery, [
+        assignee_user_id,
+      ]);
+      if (userCheckResult.rowCount === 0) {
+        return errorResponse(res, 400, "Invalid assignee_user_id.");
+      }
+    }
+
+    const fields = [];
+    const values = [];
+    let i = 1;
+
+    if (header1_id !== undefined) {
+      fields.push(`header1_id = $${i++}`);
+      values.push(header1_id);
+    }
+
+    if (header2_id !== undefined) {
+      fields.push(`header2_id = $${i++}`);
+      values.push(header2_id);
+    }
+
+    if (value1 !== undefined) {
+      fields.push(`value1 = $${i++}`);
+      values.push(value1);
+    }
+
+    if (value2 !== undefined) {
+      fields.push(`value2 = $${i++}`);
+      values.push(value2);
+    }
+
+    if (assignee_user_id !== undefined) {
+      fields.push(`assignee_user_id = $${i++}`);
+      values.push(assignee_user_id);
+    }
+
+    if (fields.length === 0) {
+      return errorResponse(res, 400, "No fields provided to update.");
+    }
+
+    fields.push(`updated_by = $${i++}`);
+    values.push(userId);
+
+    fields.push("updated_at = NOW()");
+
+    const updateQuery = `
+      UPDATE integration_custom_field_item
+      SET ${fields.join(", ")}
+      WHERE integration_custom_field_item_id = $${i++}
+      AND (builder_id = $${i++} OR company_id = $${i})
+      RETURNING *;
+    `;
+
+    values.push(integration_custom_field_item_id, builderId, companyId);
+
+    const updateResult = await client.query(updateQuery, values);
+
+    if (updateResult.rowCount === 0) {
+      return errorResponse(res, 404, "Failed to update record.");
+    }
+
+    // Get assignee user details for response
+    let assigneeDetails = null;
+    const updatedItem = updateResult.rows[0];
+    if (updatedItem.assignee_user_id) {
+      const assigneeQuery = `
+        SELECT users_id, name
+        FROM users 
+        WHERE users_id = $1 AND is_deleted = false AND is_verified = true;
+      `;
+      const assigneeResult = await client.query(assigneeQuery, [updatedItem.assignee_user_id]);
+      if (assigneeResult.rows.length > 0) {
+        assigneeDetails = {
+          id: assigneeResult.rows[0].users_id,
+          name: assigneeResult.rows[0].name,
+        };
+      }
+    }
+
+    const responseData = {
+      ...keysToCamelCase(updatedItem),
+      assigneeUser: assigneeDetails,
+    };
+
+    return successResponse(
+      res,
+      responseData,
+      "Integration custom field item updated successfully.",
+    );
+  } catch (error) {
+    console.error("Error updating integration custom field item:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+}

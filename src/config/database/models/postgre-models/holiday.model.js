@@ -1,0 +1,31 @@
+import { Model, DataTypes } from "sequelize";
+
+export class Holiday extends Model {
+  static associate(models) {
+    Holiday.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
+    Holiday.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    Holiday.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
+    Holiday.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+  }
+}
+
+export default (sequelize) => {
+  Holiday.init(
+    {
+      holiday_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      company_id: { type: DataTypes.UUID, allowNull: true },
+      builder_id: { type: DataTypes.UUID, allowNull: true },
+      state: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },
+      holiday_start_date: { type: DataTypes.DATEONLY, allowNull: false },
+      holiday_end_date: { type: DataTypes.DATEONLY, allowNull: false },
+      holiday_description: { type: DataTypes.STRING(500), allowNull: false },
+      status: { type: DataTypes.BOOLEAN, defaultValue: true },
+      created_by: { type: DataTypes.UUID, allowNull: true },
+      updated_by: { type: DataTypes.UUID, allowNull: true },
+      createdAt: { type: DataTypes.DATE },
+      updatedAt: { type: DataTypes.DATE },
+    },
+    { sequelize, tableName: "holiday", modelName: "Holiday", underscored: true }
+  );
+  return Holiday;
+};

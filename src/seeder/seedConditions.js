@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database.js";
 
 const seedConditions = async () => {
   const pool = await getPool();
@@ -49,7 +49,7 @@ const seedConditions = async () => {
         VALUES ($1, $2)
         ON CONFLICT (name) DO NOTHING;
         `,
-        [condition.name, condition.description]
+        [condition.name, condition.description],
       );
     }
 

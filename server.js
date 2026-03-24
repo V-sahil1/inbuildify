@@ -1,10 +1,17 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const { errorResponse } = require("./src/helper/response.js");
-const swaggerUi = require('swagger-ui-express');
-const generateSwaggerSpec = require("./src/config/swagger");
-dotenv.config();  
+import express from "express";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+
+import { env } from "./src/config/env.config.js";
+import { errorResponse } from "./src/helper/response.js";
+import generateSwaggerSpec from "./src/config/swagger.js";
+import routes from "./src/routes/index.js";
+
+// import { connectPostgre } from "./src/config/postgre.connect.js";
+
+// connectPostgre()
+//   .then(() => console.log("database connected successfully"))
+//   .catch((error) => console.error("error to connect database", error));
 
 const app = express();
 app.use(
@@ -14,9 +21,9 @@ app.use(
 );
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(env.PORT.PORT) || 5000;
 
-require("./src/routes/index")(app);
+routes(app);
 
 const swaggerSpec = generateSwaggerSpec(app);
 

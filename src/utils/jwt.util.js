@@ -1,25 +1,26 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
+import { env } from "../config/env.config.js";
 
-module.exports.generateAccessToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
-};
+export function generateAccessToken(userId) {
+  return jwt.sign({ userId }, env.JWT.JWT_SECRET, { expiresIn: "15m" });
+}
 
-module.exports.generateRefreshToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
-};
+export function generateRefreshToken(userId) {
+  return jwt.sign({ userId }, env.JWT.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+}
 
-module.exports.verifyAccessToken = (token) => {
+export function verifyAccessToken(token) {
   try {
-    return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    return jwt.verify(token, env.JWT.JWT_SECRET);
   } catch {
     return null;
   }
-};
+}
 
-module.exports.verifyRefreshToken = (token) => {
+export function verifyRefreshToken(token) {
   try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    return jwt.verify(token, env.JWT.JWT_REFRESH_SECRET);
   } catch {
     return null;
   }
-};
+}

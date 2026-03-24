@@ -1,7 +1,7 @@
 /**
  * Seed default construction_settings for a new builder
  */
-async function seedConstructionSettings({ company_id, builder_id, created_by, client }) {
+export async function seedConstructionSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO construction_settings (
       company_id, builder_id,
@@ -32,8 +32,8 @@ async function seedConstructionSettings({ company_id, builder_id, created_by, cl
       90, 'claim', $3, $3
     )
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedConstructionSettings };
+export default { seedConstructionSettings };

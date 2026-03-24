@@ -1,7 +1,7 @@
 /**
  * Seed default maintenance_settings for a new builder
  */
-async function seedMaintenanceSettings({ company_id, builder_id, created_by, client }) {
+export async function seedMaintenanceSettings({ company_id, builder_id, created_by, client }) {
   await client.query(
     `INSERT INTO maintenance_settings (
       company_id, builder_id,
@@ -13,8 +13,8 @@ async function seedMaintenanceSettings({ company_id, builder_id, created_by, cli
       created_by, updated_by
     ) VALUES ($1, $2, false, false, false, false, false, false, false, 'handover_date', $3, $3)
     ON CONFLICT (company_id, builder_id) DO NOTHING`,
-    [company_id, builder_id, created_by]
+    [company_id, builder_id, created_by],
   );
 }
 
-module.exports = { seedMaintenanceSettings };
+export default { seedMaintenanceSettings };

@@ -1,4 +1,4 @@
-const getPool = require("../config/database");
+import getPool from "../config/database.js";
 
 const seedCountriesAndStates = async () => {
   const pool = await getPool();
@@ -60,7 +60,7 @@ const seedCountriesAndStates = async () => {
         ON CONFLICT (name) DO UPDATE SET updated_at = NOW()
         RETURNING country_id;
         `,
-        [countryName]
+        [countryName],
       );
 
       const countryId = countryResult.rows[0].country_id;
@@ -72,7 +72,7 @@ const seedCountriesAndStates = async () => {
           VALUES ($1, $2)
           ON CONFLICT (country_id, name) DO UPDATE SET updated_at = NOW();
           `,
-          [stateName, countryId]
+          [stateName, countryId],
         );
       }
     }

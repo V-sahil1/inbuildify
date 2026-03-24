@@ -1,0 +1,67 @@
+import Joi from "joi";
+
+/* -----------------------------
+   ESTATE IMAGES VALIDATION
+------------------------------ */
+
+export const getEstateImageSchema = Joi.object({
+  estate_id: Joi.string().uuid().required().messages({
+    "any.required": "Estate ID is required",
+    "string.base": "Estate ID must be a string",
+    "string.uuid": "Estate ID must be a valid UUID",
+  }),
+});
+
+export const updateEstateImageParamsSchema = Joi.object({
+  id: Joi.string().uuid().required().messages({
+    "any.required": "Estate ID is required",
+    "string.base": "Estate ID must be a string",
+    "string.uuid": "Estate ID must be a valid UUID",
+  }),
+});
+
+export const updateEstateImageSchema = Joi.object({
+  image_url: Joi.string().uri().max(500).allow(null, "").optional(),
+  imageUrl: Joi.string().uri().max(500).allow(null, "").optional(),
+}).or("image_url", "imageUrl");
+
+/* -----------------------------
+   ESTATE DOCUMENTS VALIDATION
+------------------------------ */
+
+export const createEstateDocumentSchema = Joi.object({
+  estate_id: Joi.string().uuid().required().messages({
+    "any.required": "Estate ID is required",
+    "string.base": "Estate ID must be a string",
+    "string.uuid": "Estate ID must be a valid UUID",
+  }),
+  document_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .required()
+    .messages({
+      "any.required": "Document name is required",
+      "string.base": "Document name must be a string",
+      "string.max": "Document name must not exceed 255 characters",
+    }),
+  file_url: Joi.string().uri().max(500).allow(null, "").optional(),
+});
+
+export const updateEstateDocumentSchema = Joi.object({
+  document_name: Joi.string()
+    .min(2)
+    .max(255)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional(),
+  file_url: Joi.string().uri().max(500).allow(null, "").optional(),
+  fileUrl: Joi.string().uri().max(500).allow(null, "").optional(),
+});
+
+export default {
+  getEstateImageSchema,
+  updateEstateImageParamsSchema,
+  updateEstateImageSchema,
+  createEstateDocumentSchema,
+  updateEstateDocumentSchema,
+};

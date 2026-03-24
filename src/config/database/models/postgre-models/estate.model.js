@@ -1,0 +1,43 @@
+import { Model, DataTypes } from "sequelize";
+
+export class Estate extends Model {
+  static associate(models) {
+    Estate.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
+    Estate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    Estate.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    Estate.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
+    Estate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
+    Estate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Estate.hasMany(models.EstateDocuments, { foreignKey: "estate_id", as: "documents" });
+    Estate.hasMany(models.EstateImages, { foreignKey: "estate_id", as: "images" });
+    Estate.hasMany(models.EstateStages, { foreignKey: "estate_id", as: "stages" });
+    Estate.hasMany(models.Lot, { foreignKey: "estate_id", as: "lots" });
+  }
+}
+
+export default (sequelize) => {
+  Estate.init(
+    {
+      estate_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      company_id: { type: DataTypes.UUID, allowNull: true },
+      builder_id: { type: DataTypes.UUID, allowNull: true },
+      name: { type: DataTypes.STRING(150), allowNull: false },
+      street_name: { type: DataTypes.STRING(150), allowNull: true },
+      city: { type: DataTypes.STRING(100), allowNull: true },
+      state_id: { type: DataTypes.UUID, allowNull: true },
+      country_id: { type: DataTypes.UUID, allowNull: true },
+      zip: { type: DataTypes.STRING(20), allowNull: true },
+      estate_logo: { type: DataTypes.STRING(500), allowNull: true },
+      website: { type: DataTypes.STRING(255), allowNull: true },
+      description: { type: DataTypes.TEXT, allowNull: true },
+      status: { type: DataTypes.BOOLEAN, defaultValue: true },
+      featured: { type: DataTypes.BOOLEAN, defaultValue: false },
+      created_by: { type: DataTypes.UUID, allowNull: true },
+      updated_by: { type: DataTypes.UUID, allowNull: true },
+      createdAt: { type: DataTypes.DATE },
+      updatedAt: { type: DataTypes.DATE },
+    },
+    { sequelize, tableName: "estate", modelName: "Estate", underscored: true }
+  );
+  return Estate;
+};

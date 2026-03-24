@@ -1,4 +1,4 @@
-function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
+export function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
   const sets = [];
   const values = [idValue];
   let paramIndex = 2;
@@ -11,7 +11,9 @@ function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
     }
   }
 
-  if (sets.length === 0) return null;
+  if (sets.length === 0) {
+    return null;
+  }
 
   const query = `
     UPDATE ${table}
@@ -24,4 +26,4 @@ function buildDynamicUpdate({ table, idColumn, idValue, payload, fieldMap }) {
   return { query, values };
 }
 
-module.exports = { buildDynamicUpdate };
+export default { buildDynamicUpdate };

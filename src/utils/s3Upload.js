@@ -1,15 +1,16 @@
-const multer = require("multer");
-const multerS3 = require("multer-s3");
-const { S3Client } = require("@aws-sdk/client-s3");
-const path = require("path");
-const { allowedFileData } = require("./common");
-const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
+import path from "path";
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+import multer from "multer";
+import multerS3 from "multer-s3";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { env } from "../config/env.config.js";
+import { allowedFileData } from "./common.js";
+
+export const s3Client = new S3Client({
+  region: env.AWS.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.AWS.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -17,21 +18,21 @@ const fileData = allowedFileData();
 const fileFilter = (req, file, cb) => {
   const types = (fileData?.types || "").toLowerCase().split("|");
   const extension = path.extname(file.originalname).toLowerCase().replace(".", "");
-  
+
   const isMimeAllowed = types.includes(file.mimetype.toLowerCase());
   const isExtAllowed = types.some(t => t.includes(extension) || t === extension);
 
   if (isMimeAllowed || isExtAllowed) {
     return cb(null, true);
-  } else {
-    const allowedList = types
-      .map((t) => t.replace("image/", "").toUpperCase())
-      .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
-      .filter((v, i, arr) => arr.indexOf(v) === i)
-      .join(", ");
-    const message = `Invalid file type. Only the following are allowed: ${allowedList}.`;
-    cb(new Error(message));
   }
+  const allowedList = types
+    .map((t) => t.replace("image/", "").toUpperCase())
+    .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(", ");
+  const message = `Invalid file type. Only the following are allowed: ${allowedList}.`;
+  cb(new Error(message));
+
 };
 
 const pdfFileFilter = (req, file, cb) => {
@@ -45,22 +46,22 @@ const pdfFileFilter = (req, file, cb) => {
 
   if (mimetype && extname) {
     return cb(null, true);
-  } else {
-    const message = "Invalid file type. Only PDF files are allowed.";
-    cb(new Error(message));
   }
+  const message = "Invalid file type. Only PDF files are allowed.";
+  cb(new Error(message));
+
 };
 
 // Helper to attach file field metadata to Multer middleware for Swagger gen
 const wrapMulter = (upload) => {
   const methodsToWrap = ["single", "array", "fields", "any"];
-  
+
   methodsToWrap.forEach((method) => {
     const original = upload[method];
     if (original) {
       upload[method] = function (...args) {
         const mw = original.apply(this, args);
-        
+
         if (method === "single") {
           mw.fileFields = [{ name: args[0], maxCount: 1 }];
         } else if (method === "array") {
@@ -68,9 +69,9 @@ const wrapMulter = (upload) => {
         } else if (method === "fields") {
           mw.fileFields = args[0] || [];
         } else if (method === "any") {
-           mw.fileFields = "any";
+          mw.fileFields = "any";
         }
-        
+
         return mw;
       };
     }
@@ -79,18 +80,18 @@ const wrapMulter = (upload) => {
   return upload;
 };
 
-const createUpload = (folderName = "uploads") =>
+export const createUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");
         const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
-      metadata: function (req, file, cb) {
+      metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
           originalName: file.originalname,
@@ -99,17 +100,19 @@ const createUpload = (folderName = "uploads") =>
       },
       contentType: multerS3.AUTO_CONTENT_TYPE,
     }),
-    fileFilter: fileFilter,
+    fileFilter,
     limits: {
       fileSize: fileData.size * 1024 * 1024,
     },
   }));
 
-const deleteFromS3 = async (fileUrl) => {
-  if (!fileUrl) return;
+export const deleteFromS3 = async (fileUrl) => {
+  if (!fileUrl) {
+    return;
+  }
 
   try {
-    const bucketName = process.env.S3_BUCKET_NAME;
+    const bucketName = env.AWS.S3_BUCKET_NAME;
     const url = new URL(fileUrl);
     const key = decodeURIComponent(url.pathname.substring(1));
 
@@ -125,18 +128,18 @@ const deleteFromS3 = async (fileUrl) => {
   }
 };
 
-const createPdfUpload = (folderName = "pdfs") =>
+export const createPdfUpload = (folderName = "pdfs") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");
         const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
-      metadata: function (req, file, cb) {
+      metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
           originalName: file.originalname,
@@ -151,18 +154,18 @@ const createPdfUpload = (folderName = "pdfs") =>
     },
   }));
 
-const createImageOrPdfUpload = (folderName = "uploads") =>
+export const createImageOrPdfUpload = (folderName = "uploads") =>
   wrapMulter(multer({
     storage: multerS3({
       s3: s3Client,
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: env.AWS.S3_BUCKET_NAME,
       key: function (req, file, cb) {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const originalName = file.originalname.replace(/\s+/g, "_");
         const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
         cb(null, filename);
       },
-      metadata: function (req, file, cb) {
+      metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
           originalName: file.originalname,
@@ -203,22 +206,22 @@ const createImageOrPdfUpload = (folderName = "uploads") =>
 
       if (mimetype && extname) {
         return cb(null, true);
-      } else {
-        const imageList = allowedImageExtensions
-          .map((t) => t.replace(".", "").toUpperCase())
-          .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
-          .filter((v, i, arr) => arr.indexOf(v) === i)
-          .join(", ");
-        const message = `Invalid file type. Only following are allowed: ${imageList}, PDF.`;
-        cb(new Error(message));
       }
+      const imageList = allowedImageExtensions
+        .map((t) => t.replace(".", "").toUpperCase())
+        .map((t) => (t === "JPG" || t === "JPEG" ? "JPG/JPEG" : t))
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .join(", ");
+      const message = `Invalid file type. Only following are allowed: ${imageList}, PDF.`;
+      cb(new Error(message));
+
     },
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB limit for both images and PDFs
     },
   }));
 
-const handleMulterError = (error, req, res, next) => {
+export const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       // Check if this is from the new imageOrPdfUpload function
@@ -236,7 +239,7 @@ const handleMulterError = (error, req, res, next) => {
       return res.status(400).json({
         success: false,
         statusCode: 400,
-        message: `Unexpected field name for file upload.`,
+        message: "Unexpected field name for file upload.",
         data: null,
       });
     }
@@ -253,7 +256,7 @@ const handleMulterError = (error, req, res, next) => {
   next(error);
 };
 
-module.exports = {
+export default {
   createUpload,
   createPdfUpload,
   createImageOrPdfUpload,
