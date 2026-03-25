@@ -411,25 +411,34 @@ class LeadsService {
 
       // Check if assignee is a valid user
       const userCheck = await getPool().query(
-        "SELECT users_id FROM users WHERE users_id = $1 AND builder_id = $2 AND is_active = true AND is_deleted = false LIMIT 1",
-        [assigneeId, builderId]
+        "SELECT users_id, name FROM users WHERE users_id = $1 AND builder_id = $2 AND is_active = true AND is_deleted = false LIMIT 1",
+        [assigneeId, builderId],
       );
 
       if (userCheck.rowCount === 0) {
         return {
           success: false,
-          message: "Invalid assignee: User not found or does not belong to your organization",
+          message:
+            "Invalid assignee: User not found or does not belong to your organization",
         };
       }
 
       const updatedLead = await leadsRepository.updateLead(
         leadId,
-        { assignee_id: assigneeId, assignee_note: assigneeNote, updated_by: userId },
+        {
+          assignee_id: assigneeId,
+          assignee_note: assigneeNote,
+          updated_by: userId,
+        },
         builderId,
       );
+
       return {
         success: true,
-        data: updatedLead,
+        data: {
+          ...updatedLead,
+          assigneeName: userCheck.rows[0].name,
+        },
         message: "Lead assigned successfully",
       };
     } catch (error) {

@@ -79,7 +79,7 @@ class QuotationService {
           latestVersion ? latestVersion.dwelling_type_id : null,
           latestVersion ? latestVersion.floor_plan_id : null,
           latestVersion ? latestVersion.facade_id : null,
-          latestVersion ? latestVersion.package_id : [],
+          latestVersion ? latestVersion.package_id : null,
         ]);
         const quotationVersion = versionResult.rows[0];
 
@@ -211,7 +211,7 @@ class QuotationService {
         INSERT INTO quotation_version (
           quotation_id, quotation_version_no, location_id, range_id,
           dwelling_type_id, floor_plan_id, facade_id, is_approve, package_id
-        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, '{}')
+        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, NULL)
         RETURNING quotation_version_id
       `;
       const versionResult = await client.query(insertVersionQuery, [
@@ -416,107 +416,48 @@ class QuotationService {
         }
 
        // Clear related selections ONLY if they are not being explicitly updated right now
-        if (updateData.package_id === undefined) updateData.package_id = [];
+        if (updateData.package_id === undefined) updateData.package_id = null;
         // Delete related pricelist item mappings
         await client.query(
           "DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1",
           [versionId],
         );
       }
-// Handle package_id array specifically if provided
-      if (updateData.package_id && Array.isArray(updateData.package_id)) {
-        if (updateData.package_id.length > 0) {
-          if (!effectiveRangeId || !effectiveDwellingTypeId) {
-            return {
-              success: false,
-              message: "Range and Dwelling type must be selected before adding a package",
-            };
-          }
-
-          // Validate that all packages provided exist, are active, and match range/dwelling type
-          const packageCheckQuery = `
-            SELECT package_id FROM package 
-            WHERE package_id = ANY($1::uuid[]) 
-            AND status = true 
-            AND (
-              (company_id = $2 AND $2 IS NOT NULL)
-              OR (builder_id = $3 AND $3 IS NOT NULL)
-            )
-            AND $4::uuid = ANY(range_id)
-            AND $5::uuid = ANY(dwelling_type_id)
-          `;
-          const packageCheckResult = await client.query(packageCheckQuery, [
-            updateData.package_id,
-            companyId,
-            builderId,
-            effectiveRangeId,
-            effectiveDwellingTypeId,
-          ]);
-
-          // Compare expected vs found packages by length (or id inclusion if wanted)
-          if (packageCheckResult.rowCount !== updateData.package_id.length) {
-            return {
-              success: false,
-              message: "One or more provided package IDs are invalid, inactive, or do not match the selected range and dwelling type",
-            };
-          }
-        }
-
-        // If range or dwelling type changed, we start fresh (packages are cleared).
-        // Otherwise, we combine existing packages with any new ones provided.
-        let mergedPackageIds;
-        if (rangeChanged || dwellingTypeChanged) {
-          mergedPackageIds = new Set();
-        } else {
-          mergedPackageIds = new Set(existingVersion.package_id || []);
+// Handle package_id specifically if provided
+      if (updateData.package_id) {
+        if (!effectiveRangeId || !effectiveDwellingTypeId) {
+          return {
+            success: false,
+            message: "Range and Dwelling type must be selected before adding a package",
+          };
         }
         
-        for (const pid of updateData.package_id) {
-          mergedPackageIds.add(pid);
+        // Validate that the package provided exists, is active, and matches range/dwelling type
+        const packageCheckQuery = `
+          SELECT package_id FROM package 
+          WHERE package_id = $1
+          AND status = true 
+          AND (
+            (company_id = $2 AND $2 IS NOT NULL)
+            OR (builder_id = $3 AND $3 IS NOT NULL)
+          )
+          AND $4::uuid = ANY(range_id)
+          AND $5::uuid = ANY(dwelling_type_id)
+        `;
+        const packageCheckResult = await client.query(packageCheckQuery, [
+          updateData.package_id,
+          companyId,
+          builderId,
+          effectiveRangeId,
+          effectiveDwellingTypeId,
+        ]);
+
+        if (packageCheckResult.rowCount === 0) {
+          return {
+            success: false,
+            message: "The provided package ID is invalid, inactive, or does not match the selected range and dwelling type",
+          };
         }
-
-        updateData.package_id = Array.from(mergedPackageIds);
-      }
-
-      // Handle package_id array specifically if provided
-      if (updateData.package_id && Array.isArray(updateData.package_id)) {
-        if (updateData.package_id.length > 0) {
-          // Validate that all packages provided exist and are active
-          const packageCheckQuery = `
-            SELECT package_id FROM package 
-            WHERE package_id = ANY($1::uuid[]) 
-            AND status = true 
-            AND (
-              (company_id = $2 AND $2 IS NOT NULL)
-              OR (builder_id = $3 AND $3 IS NOT NULL)
-            )
-          `;
-          const packageCheckResult = await client.query(packageCheckQuery, [updateData.package_id, companyId, builderId]);
-
-          // Compare expected vs found packages by length (or id inclusion if wanted)
-          if (packageCheckResult.rowCount !== updateData.package_id.length) {
-            return {
-              success: false,
-              message: "One or more provided package IDs are invalid, inactive, or do not belong to your organization",
-            };
-          }
-        }
-
-        // Build the unique set of package IDs safely.
-        // If range or dwelling type changed, we start fresh (packages are cleared).
-        // Otherwise, we combine existing packages with any new ones provided.
-        let mergedPackageIds;
-        if (rangeChanged || dwellingTypeChanged) {
-          mergedPackageIds = new Set();
-        } else {
-          mergedPackageIds = new Set(existingVersion.package_id || []);
-        }
-        
-        for (const pid of updateData.package_id) {
-          mergedPackageIds.add(pid);
-        }
-
-        updateData.package_id = Array.from(mergedPackageIds);
       }
 
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
@@ -595,7 +536,7 @@ class QuotationService {
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
         sourceVersion.facade_id,
-        sourceVersion.package_id || []
+        sourceVersion.package_id || null
       ];
       
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
@@ -760,25 +701,17 @@ class QuotationService {
       // 4. Build items array
       const items = [];
 
-      // 4a. Packages — union by package_id
-      const allPackageIds = new Set([
-        ...data1.packages.map(p => p.packageId),
-        ...data2.packages.map(p => p.packageId),
-      ]);
-
-      for (const pkgId of allPackageIds) {
-        const v1Pkg = data1.packages.find(p => p.packageId === pkgId);
-        const v2Pkg = data2.packages.find(p => p.packageId === pkgId);
-
+      // 4a. Package
+      if (data1.package || data2.package) {
         const row = {
           type: "package",
-          name: (v1Pkg || v2Pkg).packageName,
-          packageId: pkgId,
-          [`version${v1No}Value`]: v1Pkg ? v1Pkg.packageCost : null,
-          [`version${v2No}Value`]: v2Pkg ? v2Pkg.packageCost : null,
+          name: (data1.package || data2.package).packageName,
+          packageId: (data1.package || data2.package).packageId,
+          version1Value: data1.package ? data1.package.packageCost : null,
+          version2Value: data2.package ? data2.package.packageCost : null,
         };
 
-        if (showAll || row[`version${v1No}Value`] !== row[`version${v2No}Value`]) {
+        if (showAll || row.version1Value !== row.version2Value) {
           items.push(row);
         }
       }
@@ -834,14 +767,11 @@ class QuotationService {
           version2TotalPrice: v2Item ? v2Item.totalPrice : null,
           version2Note: v2Item ? v2Item.note : null,
         };
-        
-        // Correcting potential logic error in my replacement above for v2TotalPrice
-        row[`version${v2No}TotalPrice`] = v2Item ? v2Item.totalPrice : null;
 
         const isDifferent =
-          row[`version${v1No}Quantity`] !== row[`version${v2No}Quantity`] ||
-          row[`version${v1No}TotalPrice`] !== row[`version${v2No}TotalPrice`] ||
-          row[`version${v1No}Note`] !== row[`version${v2No}Note`];
+          row.version1Quantity !== row.version2Quantity ||
+          row.version1TotalPrice !== row.version2TotalPrice ||
+          row.version1Note !== row.version2Note;
 
         if (showAll || isDifferent) {
           items.push(row);
@@ -904,67 +834,7 @@ class QuotationService {
 
       const existingVersion = checkResult.rows[0];
 
-      if (!existingVersion.package_id || !existingVersion.package_id.includes(packageId)) {
-        return {
-          success: false,
-          message: "Package ID does not exist in this quotation version",
-        };
-      }
-
-      if (existingVersion.is_approve === true) {
-        return {
-          success: false,
-          message: "This quotation version is already approved and cannot be modified",
-        };
-      }
-
-      const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
-      if (existingVersion.quotation_version_no !== currentMaxVersion) {
-        return {
-          success: false,
-          message: "Only the latest quotation version can be modified",
-        };
-      }
-
-      const updated = await quotationRepository.removePackageFromVersion(versionId, packageId, builderId, companyId);
-
-      return {
-        success: true,
-        data: updated,
-        message: "Package removed from quotation version successfully",
-      };
-    } catch (error) {
-      console.error("DEBUG: Error in removePackageFromVersion service:", error);
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
-    try {
-      const client = getPool();
-
-      // Verify the version belongs to a lead the user can access
-      const checkQuery = `
-        SELECT qv.*, q.leads_id
-        FROM quotation_version qv
-        JOIN quotation q ON qv.quotation_id = q.quotation_id
-        JOIN leads l ON q.leads_id = l.leads_id
-        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
-      `;
-      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
-
-      if (checkResult.rowCount === 0) {
-        return {
-          success: false,
-          message: "Quotation version not found or unauthorized",
-        };
-      }
-
-      const existingVersion = checkResult.rows[0];
-
-      if (!existingVersion.package_id || !existingVersion.package_id.includes(packageId)) {
+      if (!existingVersion.package_id || existingVersion.package_id !== packageId) {
         return {
           success: false,
           message: "Package ID does not exist in this quotation version",

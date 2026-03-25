@@ -3324,7 +3324,7 @@ CREATE TABLE quotation_version(
   dwelling_type_id UUID REFERENCES dwelling_type(dwelling_type_id) ON DELETE SET NULL,
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
-  package_id UUID[] DEFAULT '{}'
+  package_id UUID REFERENCES package(package_id) ON DELETE SET NULL,
   is_approve BOOLEAN DEFAULT FALSE,
   sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -3408,33 +3408,29 @@ CREATE TABLE property_detail(
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE action(
+CREATE TABLE actions(
   action_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   action_type VARCHAR(50) CHECK (action_type IN ('task', 'note', 'appointment', 'sms')) NOT NULL,
 
-  --note
-  notes_or_description_or_message VARCHAR(500),
-  tag_id UUID REFERENCES tag(tag_id) ON DELETE SET NULL,
-  send_to_customer BOOLEAN DEFAULT FALSE,
-  create_follow_up_task BOOLEAN DEFAULT FALSE,
+  description VARCHAR(500),
+  notes_tag_id UUID[] DEFAULT '{}',
+  send_to_customer BOOLEAN,
+  create_follow_up_task BOOLEAN,
   attach_file VARCHAR(500),
 
-  --sms
   users_id UUID[] DEFAULT '{}',
   
-  --appointment
-  name_or_title VARCHAR(255),
+  name VARCHAR(255),
   due_date DATE,
   end_date DATE,
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
   start_time TIME,
   end_time TIME,
 
-  --task
   priority VARCHAR(255),             -- valid low, medium, high
   status VARCHAR(255),          -- valid completed, yet_to_start, in_progress, skipped, cancelled
-  --link_to column need to decide
+  link_to_user UUID REFERENCES users(users_id) ON DELETE SET NULL,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

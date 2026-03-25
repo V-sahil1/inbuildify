@@ -11,10 +11,9 @@ export const createLeadSchema = Joi.object({
     "string.email": "Please provide a valid email address",
     "string.max": "Email must not exceed 255 characters",
   }),
-  phone: Joi.string().min(10).max(14).required().allow(null, "").messages({
+  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
     "string.min": "Phone must be at least 10 characters long",
     "string.max": "Phone must not exceed 14 characters",
-    "any.required": "Phone is required",
   }),
   notes: Joi.string().max(1000).optional().allow(null, "").messages({
     "string.max": "Notes must not exceed 1000 characters",
@@ -168,7 +167,7 @@ export const getAllLeadsQuerySchema = Joi.object({
     "number.max": "Limit must not exceed 100",
   }),
   status: Joi.string()
-    .valid("New", "Working", "Convert")
+    .valid("New", "Working", "Convert", "Proposal", "Negotiation", "Closed")
     .optional(),
 
   rating: Joi.string().valid("Hot", "Warm", "Cold", "None").optional(),
@@ -179,6 +178,19 @@ export const getAllLeadsQuerySchema = Joi.object({
   search: Joi.string().max(100).optional().messages({
     "string.max": "Search term must not exceed 100 characters",
   }),
+  created_at: Joi.string()
+    .valid(
+      "last_15_minutes",
+      "last_1_hour",
+      "last_2_hours",
+      "last_24_hours",
+      "today",
+      "yesterday",
+      "last_7_days",
+      "last_15_days",
+      "last_30_days"
+    )
+    .optional(),
 });
 
 export const convertLeadToOpportunitySchema = Joi.object({

@@ -7,8 +7,23 @@ export const createHolidaySchema = Joi.object({
     .messages({
       "string.guid": "state id must be a valid UUID",
     }),
-  holiday_start_date: Joi.date().required(),
-  holiday_end_date: Joi.date().required(),
+  holiday_start_date: Joi.date().required().messages({
+    "any.required": "Please select start date first",
+  }),
+  holiday_end_date: Joi.date()
+    .required()
+    .messages({
+      "any.required": "Holiday end date is required",
+    })
+    .when("holiday_start_date", {
+      is: Joi.exist(),
+      then: Joi.date().min(Joi.ref("holiday_start_date")).messages({
+        "date.min": "Holiday end date must be after or equal to holiday start date",
+      }),
+      otherwise: Joi.any().forbidden().messages({
+        "any.unknown": "Please select start date first",
+      }),
+    }),
   holiday_description: Joi.string()
     .trim()
     .min(2)
@@ -82,7 +97,17 @@ export const updateHolidaySchema = Joi.object({
       "string.guid": "state id must be a valid UUID",
     }),
   holiday_start_date: Joi.date().optional(),
-  holiday_end_date: Joi.date().optional(),
+  holiday_end_date: Joi.date()
+    .optional()
+    .when("holiday_start_date", {
+      is: Joi.exist(),
+      then: Joi.date().min(Joi.ref("holiday_start_date")).messages({
+        "date.min": "Holiday end date must be after or equal to holiday start date",
+      }),
+      otherwise: Joi.any().forbidden().messages({
+        "any.unknown": "Please select start date first",
+      }),
+    }),
   holiday_description: Joi.string()
     .trim()
     .min(2)

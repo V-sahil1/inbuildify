@@ -202,7 +202,8 @@ class LeadsRepository {
         region_id,
         assignee_id,
         search,
-        email, // Add email filter
+        email, 
+        created_at, 
       } = filters;
 
       const offset = (page - 1) * limit;
@@ -210,9 +211,57 @@ class LeadsRepository {
       const queryParams = [builderId, companyId];
       let paramIndex = 3;
 
+      if (created_at) {
+        let dateFilter;
+        let dateFilterEnd;
+        const now = new Date();
+
+        switch (created_at.toLowerCase()) {
+          case "last_15_minutes":
+            dateFilter = new Date(now.getTime() - 15 * 60 * 1000);
+            break;
+          case "last_1_hour":
+            dateFilter = new Date(now.getTime() - 60 * 60 * 1000);
+            break;
+          case "last_2_hours":
+            dateFilter = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+            break;
+          case "last_24_hours":
+            dateFilter = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case "today":
+            dateFilter = new Date(now.setHours(0, 0, 0, 0));
+            break;
+          case "yesterday":
+            dateFilter = new Date(new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000);
+            dateFilterEnd = new Date(new Date().setHours(0, 0, 0, 0));
+            break;
+          case "last_7_days":
+            dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "last_15_days":
+            dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+            break;
+          case "last_30_days":
+            dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+        }
+
+        if (dateFilter && dateFilterEnd) {
+          whereConditions.push(
+            `l.created_at >= $${paramIndex++} AND l.created_at < $${paramIndex++}`,
+          );
+          queryParams.push(dateFilter.toISOString(), dateFilterEnd.toISOString());
+        } else if (dateFilter) {
+          whereConditions.push(`l.created_at >= $${paramIndex++}`);
+          queryParams.push(dateFilter.toISOString());
+        }
+      }
+
       if (status) {
-        whereConditions.push(`l.status = $${paramIndex++}`);
+        whereConditions.push(`(l.status = $${paramIndex} OR EXISTS (SELECT 1 FROM opportunity o WHERE o.leads_id = l.leads_id AND o.status = $${paramIndex}))`);
         queryParams.push(status);
+        paramIndex++;
       }
 
       if (rating) {
@@ -244,14 +293,12 @@ class LeadsRepository {
         whereConditions.push(`(
           l.name ILIKE $${paramIndex++} OR 
           l.email ILIKE $${paramIndex++} OR 
-          l.phone ILIKE $${paramIndex++} OR 
-          l.reference_number ILIKE $${paramIndex++}
+          l.phone ILIKE $${paramIndex++}
         )`);
         queryParams.push(
           `%${search}%`,
           `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
+          `%${search}%`
         );
       }
 
@@ -412,9 +459,9 @@ async getLeadById(leadId, builderId, companyId) {
                   'is_approve', qv.is_approve,
                   'sketch_number', qv.sketch_number,
                   'total_package_cost', COALESCE(
-                    (SELECT SUM(p.cost)
+                    (SELECT p.cost
                      FROM package p
-                     WHERE p.package_id = ANY(qv.package_id)), 0
+                     WHERE p.package_id = qv.package_id), 0
                   ),
                   'total_pricelist_cost', COALESCE(
                     (SELECT SUM(total_price)
@@ -423,21 +470,21 @@ async getLeadById(leadId, builderId, companyId) {
                   ),
                   'grand_total_cost', (
                     COALESCE(
-                      (SELECT SUM(p.cost)
+                      (SELECT p.cost
                        FROM package p
-                       WHERE p.package_id = ANY(qv.package_id)), 0
+                       WHERE p.package_id = qv.package_id), 0
                     ) + COALESCE(
                       (SELECT SUM(total_price)
                        FROM quotation_version_pricelist_item_map qvpim
                        WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
                     )
                   ),
-                  'package_maps', (
-                    SELECT COALESCE(json_agg(json_build_object(
+                  'package', (
+                    SELECT json_build_object(
                       'package_id', p.package_id,
                       'package_name', p.name
-                    )), '[]'::json)
-                    FROM package p WHERE p.package_id = ANY(qv.package_id)
+                    )
+                    FROM package p WHERE p.package_id = qv.package_id
                   ),
                   'pricelist_item_maps', (
                     SELECT COALESCE(json_agg(json_build_object(

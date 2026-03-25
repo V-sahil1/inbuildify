@@ -97,11 +97,12 @@ export async function getAllLeads(req, res) {
       limit: parseInt(req.query.limit) || 25,
       status: req.query.status,
       rating: req.query.rating,
-      leadSourceId: req.query.leadSourceId,
-      clientTypeId: req.query.clientTypeId,
-      regionId: req.query.regionId,
-      assigneeId: req.query.assigneeId,
+      lead_source_id: req.query.lead_source_id,
+      client_type_id: req.query.client_type_id,
+      region_id: req.query.region_id,
+      assignee_id: req.query.assignee_id,
       search: req.query.search,
+      created_at: req.query.created_at,
     };
 
     const result = await leadsService.getAllLeads(builderId, companyId, filters);
@@ -348,6 +349,3 @@ export const removeHLPackage = async (req, res) => {
     return errorResponse(res, 500, "Internal server error");
   }
 };
-
-
-

@@ -200,7 +200,22 @@ export async function createPackage(req, res) {
           )
           FROM package_group pg
           WHERE pg.package_group_id = ANY(p.package_group_id)
-        ) as package_group_data
+        ) as package_group_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'price_list_item_id', pli.price_list_item_id,
+              'item_description', pli.item_description,
+              'short_description', pli.short_description,
+              'cost', pli.cost,
+              'cost_type', pli.cost_type,
+              'uom', pli.uom
+            )
+          )
+          FROM package_pricelist_item_map ppm
+          JOIN price_list_item pli ON ppm.price_list_item_id = pli.price_list_item_id
+          WHERE ppm.package_id = p.package_id
+        ) as pricelist_items_data
       FROM package p
       WHERE p.package_id = $1
     `;
@@ -226,6 +241,7 @@ export async function createPackage(req, res) {
       range: createdPackage.rangeData || [],
       dwellingType: createdPackage.dwellingTypeData || [],
       packageGroup: createdPackage.packageGroupData || [],
+      pricelistItems: createdPackage.pricelistItemsData || [],
       createdBy: createdPackage.createdBy,
       updatedBy: createdPackage.updatedBy,
       createdAt: createdPackage.createdAt,
@@ -406,7 +422,22 @@ export async function getAllPackages(req, res) {
           )
           FROM package_group pg
           WHERE pg.package_group_id = ANY(p.package_group_id)
-        ) as package_group_data
+        ) as package_group_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'price_list_item_id', pli.price_list_item_id,
+              'item_description', pli.item_description,
+              'short_description', pli.short_description,
+              'cost', pli.cost,
+              'cost_type', pli.cost_type,
+              'uom', pli.uom
+            )
+          )
+          FROM package_pricelist_item_map ppm
+          JOIN price_list_item pli ON ppm.price_list_item_id = pli.price_list_item_id
+          WHERE ppm.package_id = p.package_id
+        ) as pricelist_items_data
       FROM package p
       ${whereClause}
       ${orderBy}
@@ -431,6 +462,7 @@ export async function getAllPackages(req, res) {
         packageGroup: pkg.packageGroupData || [],
         range: pkg.rangeData || [],
         dwellingType: pkg.dwellingTypeData || [],
+        pricelistItems: pkg.pricelistItemsData || [],
         createdBy: pkg.createdBy,
         updatedBy: pkg.updatedBy,
         createdAt: pkg.createdAt,
@@ -812,7 +844,22 @@ export async function updatePackage(req, res) {
           )
           FROM package_group pg
           WHERE pg.package_group_id = ANY(p.package_group_id)
-        ) as package_group_data
+        ) as package_group_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'price_list_item_id', pli.price_list_item_id,
+              'item_description', pli.item_description,
+              'short_description', pli.short_description,
+              'cost', pli.cost,
+              'cost_type', pli.cost_type,
+              'uom', pli.uom
+            )
+          )
+          FROM package_pricelist_item_map ppm
+          JOIN price_list_item pli ON ppm.price_list_item_id = pli.price_list_item_id
+          WHERE ppm.package_id = p.package_id
+        ) as pricelist_items_data
       FROM package p
       WHERE p.package_id = $1
     `;
@@ -838,6 +885,7 @@ export async function updatePackage(req, res) {
       range: updatedPackage.rangeData || [],
       dwellingType: updatedPackage.dwellingTypeData || [],
       packageGroup: updatedPackage.packageGroupData || [],
+      pricelistItems: updatedPackage.pricelistItemsData || [],
       createdBy: updatedPackage.createdBy,
       updatedBy: updatedPackage.updatedBy,
       createdAt: updatedPackage.createdAt,
