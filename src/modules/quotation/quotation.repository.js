@@ -48,7 +48,7 @@ class QuotationRepository {
                     'cost', p.cost
                   )
                   FROM package p
-                  WHERE p.package_id = ANY(qv.package_id) LIMIT 1
+                  WHERE p.package_id = qv.package_id LIMIT 1
                 ),
                 'total_package_cost', COALESCE(
                   (SELECT p.cost
@@ -321,7 +321,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
+            WHERE p.package_id = qv.package_id LIMIT 1
           ) as package,
           COALESCE(
             (SELECT p.cost
@@ -335,9 +335,9 @@ class QuotationRepository {
           ) as total_pricelist_cost,
           (
             COALESCE(
-              (SELECT p.cost
+               (SELECT p.cost
                FROM package p
-               WHERE p.package_id = qv.package_id), 0
+                WHERE p.package_id = qv.package_id), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
                FROM quotation_version_pricelist_item_map qvpim
@@ -476,7 +476,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
+            WHERE p.package_id = qv.package_id LIMIT 1
           ) as package,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
@@ -573,7 +573,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
+            WHERE p.package_id = qv.package_id LIMIT 1
           ) as package,
           COALESCE(
             (SELECT p.cost

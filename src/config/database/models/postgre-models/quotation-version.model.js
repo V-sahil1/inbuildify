@@ -25,7 +25,7 @@ export default (sequelize) => {
       facade_id: { type: DataTypes.UUID, allowNull: true },
       is_approve: { type: DataTypes.BOOLEAN, defaultValue: false },
       sketch_number: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
-      package_id: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },
+      package_id: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

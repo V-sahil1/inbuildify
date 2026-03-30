@@ -31,6 +31,10 @@ export const createAppointmentSchema = Joi.object({
     "string.guid": "link_to ID must be a valid UUID",
   }),
 
+  lead_id: Joi.string().uuid().optional().messages({
+    "string.guid": "lead ID must be a valid UUID",
+  }),
+
   select_users: Joi.array().items(Joi.string().uuid()).default([]).messages({
     "string.guid": "users ID must be a valid UUID",
   }),
@@ -52,6 +56,14 @@ export const getAllAppointmentSchema = Joi.object({
 
   location_id: Joi.string().uuid().optional().messages({
     "string.guid": "location ID must be a valid UUID",
+  }),
+
+  link_to: Joi.string().uuid().optional().messages({
+    "string.guid": "link_to ID must be a valid UUID",
+  }),
+
+  lead_id: Joi.string().uuid().optional().messages({
+    "string.guid": "lead ID must be a valid UUID",
   }),
 
   is_deleted: Joi.boolean().optional(),

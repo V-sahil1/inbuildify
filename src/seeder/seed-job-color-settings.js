@@ -1,31 +1,26 @@
+import db from "../config/database/models/postgre-models/index.js";
+
 /**
  * Seed default job_color_settings for a new builder
  */
-export async function seedJobColorSettings({ company_id, builder_id, created_by, client }) {
-  const existing = await client.query(
-    `SELECT job_color_settings_id FROM job_color_settings
-     WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL)
-     LIMIT 1`,
-    [company_id, builder_id],
-  );
+export async function seedJobColorSettings({ company_id, builder_id, created_by, transaction }) {
+  const { JobColorSettings } = db;
 
-  if (existing.rowCount === 0) {
-    await client.query(
-      `INSERT INTO job_color_settings (
-        job_color_settings_id,
-        company_id, 
-        builder_id,
-        hide_color_item_images, 
-        hide_color_item_price,
-        exit_color_code,
-        page_orientation_portrait,
-        header_text,
-        created_by, 
-        updated_by
-      ) VALUES (gen_random_uuid(), $1, $2, FALSE, FALSE, FALSE, TRUE, NULL, $3, $3)`,
-      [company_id, builder_id, created_by],
-    );
-  }
+  await JobColorSettings.findOrCreate({
+    where: { company_id, builder_id },
+    defaults: {
+      company_id,
+      builder_id,
+      hide_color_item_images: false,
+      hide_color_item_price: false,
+      exit_color_code: false,
+      page_orientation_portrait: true,
+      header_text: null,
+      created_by,
+      updated_by: created_by,
+    },
+    transaction,
+  });
 }
 
 export default { seedJobColorSettings };

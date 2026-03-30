@@ -484,7 +484,7 @@ async getLeadById(leadId, builderId, companyId) {
                       'package_id', p.package_id,
                       'package_name', p.name
                     )
-                    FROM package p WHERE p.package_id = ANY(qv.package_id) LIMIT 1
+                    FROM package p WHERE p.package_id = qv.package_id LIMIT 1
                   ),
                   'pricelist_item_maps', (
                     SELECT COALESCE(json_agg(json_build_object(

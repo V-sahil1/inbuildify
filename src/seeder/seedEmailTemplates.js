@@ -1,29 +1,17 @@
-import getPool from "../config/database.js";
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
 import { env } from "../config/env.config.js";
 
 const seedEmailTemplates = async () => {
-  const pool = await getPool();
-  const client = await pool.connect();
   try {
     console.log("🌱 Starting email_templates seeding...");
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS email_templates (
-        template_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        template_key VARCHAR(100) UNIQUE NOT NULL,
-        category VARCHAR(100) NOT NULL,
-        subject VARCHAR(255) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        cta_text VARCHAR(100),
-        cta_link TEXT,
-        created_at TIMESTAMP DEFAULT now()
-      );
-    `);
+    // Initialize Sequelize models
+    await initModels();
+    const { EmailTemplates } = db;
 
     const templates = [
       {
-        key: "password_reset",
+        template_key: "password_reset",
         category: "Authentication",
         subject: "CRMSimplify - Password Reset Request",
         title: "Reset Your Password",
@@ -32,10 +20,10 @@ const seedEmailTemplates = async () => {
         Please click the button below to securely create a new password and regain access to your account.<br/><br/>
         If you did not make this request, please contact our support team immediately so we can help safeguard your account.`,
         cta_text: "Reset Password",
-        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/auth/reset-password?token=${resetPasswordToken}&email=${email}",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/auth/reset-password?token=\${resetPasswordToken}&email=\${email}`,
       },
       {
-        key: "invite_user",
+        template_key: "invite_user",
         category: "User Onboarding",
         subject: "You're Invited to Join CRMSimplify",
         title: "Welcome to CRMSimplify",
@@ -44,10 +32,10 @@ const seedEmailTemplates = async () => {
         Please click the button below to accept your invitation and set up your account.<br/><br/>
         Once your account is set up, you'll be able to collaborate, track updates, and access all tools provided by your team.`,
         cta_text: "Accept Invitation",
-        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/auth/accept-invite?token=${inviteToken}&email=${email}",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/auth/accept-invite?token=\${inviteToken}&email=\${email}`,
       },
       {
-        key: "quote_accepted",
+        template_key: "quote_accepted",
         category: "Project",
         subject: "Your Quote Has Been Accepted",
         title: "Quote Accepted – Next Steps",
@@ -56,10 +44,10 @@ const seedEmailTemplates = async () => {
         Please log in to your CRMSimplify dashboard to review the project details, confirm timelines, and start working with your client.<br/><br/>
         Our system ensures all communication and documentation are stored securely for easy access throughout the project.`,
         cta_text: "View Project",
-        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/projects/${projectId}",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/dashboard/projects/\${projectId}`,
       },
       {
-        key: "new_message",
+        template_key: "new_message",
         category: "Communication",
         subject: "You Have a New Message",
         title: "New Message Notification",
@@ -68,10 +56,10 @@ const seedEmailTemplates = async () => {
         Please click below to log in and check the message details.<br/><br/>
         Keeping all communication within CRMSimplify ensures that nothing gets lost in emails or calls.`,
         cta_text: "Read Message",
-        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/messages/${messageId}",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/dashboard/messages/\${messageId}`,
       },
       {
-        key: "payment_confirmation",
+        template_key: "payment_confirmation",
         category: "Payments",
         subject: "Payment Confirmation – CRMSimplify",
         title: "Payment Successful",
@@ -79,34 +67,28 @@ const seedEmailTemplates = async () => {
         The payment details have been securely recorded in your CRMSimplify account.<br/><br/>
         You can log in to your dashboard anytime to view invoices, track payment history, and manage your financial records.`,
         cta_text: "View Invoice",
-        cta_link: "${env.EMAIL.FRONTEND_BASE_URL}/dashboard/payments/${paymentId}",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/dashboard/payments/\${paymentId}`,
       },
     ];
 
     for (const template of templates) {
-      await client.query(
-        `
-        INSERT INTO email_templates (template_key, category, subject, title, message, cta_text, cta_link)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (template_key) DO NOTHING;
-        `,
-        [
-          template.key,
-          template.category,
-          template.subject,
-          template.title,
-          template.message,
-          template.cta_text,
-          template.cta_link,
-        ],
-      );
+      const [record, created] = await EmailTemplates.findOrCreate({
+        where: { template_key: template.template_key },
+        defaults: template,
+      });
+
+      if (created) {
+        console.log(`✅ Created email template: ${template.template_key}`);
+      } else {
+        console.log(`ℹ️ Email template already exists: ${template.template_key}`);
+      }
     }
 
     console.log("✅ Email templates seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
   } finally {
-    client.release();
+    if (db.sequelize) await db.sequelize.close();
     process.exit(0);
   }
 };

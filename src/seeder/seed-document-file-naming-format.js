@@ -1,28 +1,22 @@
+import db from "../config/database/models/postgre-models/index.js";
+
 /**
  * Seed default document_file_naming_format for a new builder
  */
-export async function seedDocumentFileNamingFormat({ company_id, builder_id, created_by, client }) {
-  // document_file_naming_format has no unique constraint on (company_id, builder_id)
-  const existing = await client.query(
-    `SELECT document_file_naming_format_id FROM document_file_naming_format
-     WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL)
-     LIMIT 1`,
-    [company_id, builder_id],
-  );
+export async function seedDocumentFileNamingFormat({ company_id, builder_id, created_by, transaction }) {
+  const { DocumentFileNamingFormat } = db;
 
-  if (existing.rowCount === 0) {
-    await client.query(
-      `INSERT INTO document_file_naming_format (
-        document_file_naming_format_id,
-        company_id, 
-        builder_id,
-        naming_format,
-        created_by, 
-        updated_by
-      ) VALUES (gen_random_uuid(), $1, $2, NULL, $3, $3)`,
-      [company_id, builder_id, created_by],
-    );
-  }
+  await DocumentFileNamingFormat.findOrCreate({
+    where: { company_id, builder_id },
+    defaults: {
+      company_id,
+      builder_id,
+      naming_format: null,
+      created_by,
+      updated_by: created_by,
+    },
+    transaction,
+  });
 }
 
 export default { seedDocumentFileNamingFormat };

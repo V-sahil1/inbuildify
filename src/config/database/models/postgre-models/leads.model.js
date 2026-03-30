@@ -16,6 +16,8 @@ export class Leads extends Model {
     Leads.hasMany(models.Quotation, { foreignKey: "leads_id", as: "quotations" });
     Leads.hasMany(models.Opportunity, { foreignKey: "leads_id", as: "opportunities" });
     Leads.hasMany(models.LeadsContactMap, { foreignKey: "leads_id", as: "contactMaps" });
+    Leads.hasMany(models.Appointment, { foreignKey: "lead_id", as: "appointments" });
+    Leads.hasMany(models.Task, { foreignKey: "lead_id", as: "tasks" });
   }
 }
 

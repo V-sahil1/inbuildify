@@ -36,10 +36,10 @@ import { seedInitialPdfTemplates } from "./template-pdf.seed.js";
  * @param {string|null} params.company_id
  * @param {string} params.builder_id
  * @param {string} params.created_by - users_id of the root user
- * @param {Object} params.client - pg client (within a transaction)
+ * @param {Object} params.transaction - Sequelize transaction
  */
-export async function seedBuilderDefaults({ company_id, builder_id, created_by, client }) {
-  const ctx = { company_id, builder_id, created_by, client };
+export async function seedBuilderDefaults({ company_id, builder_id, created_by, transaction }) {
+  const ctx = { company_id, builder_id, created_by, transaction };
 
   console.log("🌱 Seeding default settings for builder:", builder_id);
 
@@ -113,7 +113,7 @@ export async function seedBuilderDefaults({ company_id, builder_id, created_by, 
   await seedTemplateEmail(ctx);
 
   // 21. PDF Templates (existing seeder)
-  await seedInitialPdfTemplates({ company_id, builder_id, created_by, client });
+  await seedInitialPdfTemplates({ company_id, builder_id, created_by, transaction });
 
   console.log("✅ All default settings seeded for builder:", builder_id);
 }

@@ -147,6 +147,8 @@ import hlPackageLotPackageMapRoutes from "../modules/hl-package-lot-package-map/
 import quotationVersionCustomSectionRoutes from "../modules/quotation-version-custom-section/quotation-version-custom-section.routes.js";
 import quotationVersionPackageMapRoutes from "../modules/quotation-version-package-map/quotation-version-package-map.routes.js";
 import quotationVersionPricelistItemMapRoutes from "../modules/quotation-version-price-list/quotation-version-pricelist-item-map.routes.js";
+import smsRoutes from "../modules/sms/sms.routes.js";
+import notesRoutes from "../modules/notes/notes.routes.js";
 
 export default function (app) {
   app.use("/country", countryRoutes);
@@ -315,4 +317,6 @@ export default function (app) {
   app.use("/hl-package-lot-package-map", hlPackageLotPackageMapRoutes);
   app.use("/quotation-version-custom-section", quotationVersionCustomSectionRoutes);
   app.use("/quotation-version-pricelist-item-map", quotationVersionPricelistItemMapRoutes);
+  app.use("/sms", smsRoutes);
+  app.use("/notes", notesRoutes);
 }

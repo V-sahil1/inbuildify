@@ -34,6 +34,10 @@ export const createTaskSchema = Joi.object({
 
   link_type: Joi.string().min(2).max(255).optional(),
 
+  lead_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.uuid": "Lead ID must be a valid UUID",
+  }),
+
   priority: Joi.string()
     .max(20)
     .valid("Low", "Medium", "High")
@@ -66,6 +70,10 @@ export const getAllTaskSchema = Joi.object({
   }),
 
   link_type: Joi.string().max(255).allow(null, "").optional(),
+
+  lead_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.uuid": "Lead ID must be a valid UUID",
+  }),
 
   priority: Joi.string().max(20).valid("Low", "Medium", "High").optional(),
 

@@ -1,20 +1,14 @@
 import getPool from "../config/database.js";
 
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
+
 const seedCategories = async () => {
-  const pool = await getPool();
-  const client = await pool.connect();
   try {
     console.log("🌱 Starting categories seeding...");
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS admin_category (
-        admin_category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(100) UNIQUE NOT NULL,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT now(),
-        updated_at TIMESTAMP DEFAULT now()
-      );
-    `);
+    // Initialize Sequelize models
+    await initModels();
+    const { AdminCategory } = db;
 
     const adminCategories = [
       {
@@ -52,21 +46,23 @@ const seedCategories = async () => {
     ];
 
     for (const adminCategory of adminCategories) {
-      await client.query(
-        `
-        INSERT INTO admin_category (name, description)
-        VALUES ($1, $2)
-        ON CONFLICT (name) DO NOTHING;
-        `,
-        [adminCategory.name, adminCategory.description],
-      );
+      const [record, created] = await AdminCategory.findOrCreate({
+        where: { name: adminCategory.name },
+        defaults: adminCategory,
+      });
+
+      if (created) {
+        console.log(`✅ Created admin category: ${adminCategory.name}`);
+      } else {
+        console.log(`ℹ️ Admin category already exists: ${adminCategory.name}`);
+      }
     }
 
     console.log("✅ Categories seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
   } finally {
-    client.release();
+    if (db.sequelize) await db.sequelize.close();
     process.exit(0);
   }
 };

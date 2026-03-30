@@ -1,37 +1,32 @@
+import db from "../config/database/models/postgre-models/index.js";
+
 /**
  * Seed default maintenance_settings for a new builder
  */
-export async function seedMaintenanceSettings({ company_id, builder_id, created_by, client }) {
-  const existing = await client.query(
-    `SELECT maintenance_settings_id FROM maintenance_settings
-     WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL)
-     LIMIT 1`,
-    [company_id, builder_id],
-  );
+export async function seedMaintenanceSettings({ company_id, builder_id, created_by, transaction }) {
+  const { MaintenanceSettings } = db;
 
-  if (existing.rowCount === 0) {
-    await client.query(
-      `INSERT INTO maintenance_settings (
-        maintenance_settings_id,
-        company_id, 
-        builder_id,
-        area_enabled, 
-        supplier_enabled,
-        allow_completion_without_supplier_response,
-        request_date_enabled, 
-        task_date_enabled,
-        repair_cost_enabled, 
-        hours_spent_enabled,
-        maintenance_start_date,
-        maintenance_period_days,
-        maintenance_duration_days,
-        supervisor_roles,
-        created_by, 
-        updated_by
-      ) VALUES (gen_random_uuid(), $1, $2, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 'handover_date', 0, 0, '{}', $3, $3)`,
-      [company_id, builder_id, created_by],
-    );
-  }
+  await MaintenanceSettings.findOrCreate({
+    where: { company_id, builder_id },
+    defaults: {
+      company_id,
+      builder_id,
+      area_enabled: false,
+      supplier_enabled: false,
+      allow_completion_without_supplier_response: false,
+      request_date_enabled: false,
+      task_date_enabled: false,
+      repair_cost_enabled: false,
+      hours_spent_enabled: false,
+      maintenance_start_date: "handover_date",
+      maintenance_period_days: 0,
+      maintenance_duration_days: 0,
+      supervisor_roles: [],
+      created_by,
+      updated_by: created_by,
+    },
+    transaction,
+  });
 }
 
 export default { seedMaintenanceSettings };

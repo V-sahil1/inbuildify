@@ -2309,6 +2309,7 @@ CREATE TABLE task (
       assignee_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
       link_to UUID REFERENCES users(users_id) ON DELETE SET NULL,
       link_type VARCHAR(255),
+      lead_id UUID REFERENCES leads(leads_id) ON DELETE SET NULL,
       priority VARCHAR(20) CHECK (priority IN ('Low', 'Medium', 'High')) DEFAULT 'Medium',
       status VARCHAR(20) CHECK (status IN ('Yet to Start', 'In Progress', 'Completed', 'Cancelled', 'Skipped')) DEFAULT 'Yet to Start',
       attach_files VARCHAR(500),
@@ -2691,6 +2692,7 @@ CREATE TABLE appointment(
   end_time TIME NOT NULL,
   location_id UUID REFERENCES location(location_id) ON DELETE SET NULL,
   link_to UUID,
+  lead_id UUID REFERENCES leads(leads_id) ON DELETE SET NULL,
   select_users UUID[] DEFAULT '{}',
   notes VARCHAR(255),
   is_deleted BOOLEAN DEFAULT FALSE,
@@ -3432,6 +3434,27 @@ CREATE TABLE actions(
   status VARCHAR(255),          -- valid completed, yet_to_start, in_progress, skipped, cancelled
   link_to_user UUID REFERENCES users(users_id) ON DELETE SET NULL,
 
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE notes(
+  notes_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  description VARCHAR(500),
+  note_tag_id UUID[] DEFAULT '{}',
+  send_to_customer BOOLEAN DEFAULT FALSE,
+  create_follow_up_task BOOLEAN DEFAULT FALSE,
+  attach_file VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE sms(
+  sms_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
+  recipient_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  message VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

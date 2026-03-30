@@ -18,6 +18,7 @@ export async function createAppointment(req, res) {
       end_time,
       location_id,
       link_to,
+      lead_id,
       select_users,
       notes,
       send_appointment_customer,
@@ -61,6 +62,23 @@ export async function createAppointment(req, res) {
       }
     }
 
+    if (lead_id) {
+      const leadCheck = await client.query(
+        `SELECT leads_id 
+         FROM leads 
+         WHERE leads_id = $1 AND (company_id = $2 OR builder_id = $3)`,
+        [lead_id, companyId, builderId],
+      );
+
+      if (leadCheck.rowCount === 0) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid lead_id. Lead not found for this builder/company.",
+        );
+      }
+    }
+
     if (select_users && select_users.length > 0) {
       const userCheck = await client.query(
         `SELECT users_id 
@@ -101,6 +119,7 @@ export async function createAppointment(req, res) {
         end_time,
         location_id,
         link_to,
+        lead_id,
         select_users,
         notes,
         send_appointment_customer,
@@ -116,7 +135,8 @@ export async function createAppointment(req, res) {
         $10,
         $11,
         $12,
-        $13
+        $13,
+        $14
       )
       RETURNING 
         appointment_id,
@@ -127,6 +147,7 @@ export async function createAppointment(req, res) {
         start_time,
         end_time,
         link_to,
+        lead_id,
         select_users,
         notes,
         send_appointment_customer,
@@ -146,6 +167,7 @@ export async function createAppointment(req, res) {
       end_time,
       location_id || null,
       link_to || null,
+      lead_id || null,
       select_users || [],
       notes || null,
       send_appointment_customer || false,
@@ -199,6 +221,7 @@ export async function createAppointment(req, res) {
       endTime: appointmentData.endTime,
       location: locationData,
       linkTo: appointmentData.linkTo,
+      leadId: appointmentData.leadId,
       selectUsers: selectUsersData,
       notes: appointmentData.notes,
       sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
@@ -240,7 +263,7 @@ export async function getAllAppointments(req, res) {
     limit = parseInt(limit);
 
     const offset = (page - 1) * limit;
-    const { title, date, location_id, link_to, is_deleted } = req.query;
+    const { title, date, location_id, link_to, lead_id, is_deleted } = req.query;
 
     const whereClauses = [];
     const values = [];
@@ -279,6 +302,12 @@ export async function getAllAppointments(req, res) {
       values.push(link_to);
       idx++;
     }
+    
+    if (lead_id) {
+      whereClauses.push(`a.lead_id = $${idx}`);
+      values.push(lead_id);
+      idx++;
+    }
 
     if (is_deleted === undefined) {
       whereClauses.push("a.is_deleted = false");
@@ -310,6 +339,7 @@ export async function getAllAppointments(req, res) {
           ELSE '[]'::json
         END AS location,  
         a.link_to,
+        a.lead_id,
         a.select_users,
         a.notes,
         a.send_appointment_customer,

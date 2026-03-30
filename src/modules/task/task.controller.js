@@ -22,6 +22,7 @@ export async function createTask(req, res) {
       assignee_id,
       link_to,
       link_type,
+      lead_id,
       priority = "Medium",
       status = "Yet to Start",
     } = req.body;
@@ -57,6 +58,22 @@ export async function createTask(req, res) {
       }
     }
 
+    if (lead_id) {
+      const leadCheck = await client.query(
+        "SELECT leads_id FROM leads WHERE leads_id = $1 AND (company_id = $2 OR builder_id = $3)",
+        [lead_id, companyId, builderId],
+      );
+
+      if (leadCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return errorResponse(
+          res,
+          400,
+          "Invalid lead_id. Lead not found for this builder/company.",
+        );
+      }
+    }
+
     function isValidDate(dateString) {
       const date = new Date(dateString);
       return (
@@ -79,13 +96,14 @@ export async function createTask(req, res) {
         assignee_id,
         link_to,
         link_type,
+        lead_id,
         priority,
         status,
         attach_files,
         created_by,
         updated_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *
     `;
 
@@ -99,6 +117,7 @@ export async function createTask(req, res) {
       assignee_id || null,
       link_to || null,
       link_type || null,
+      lead_id || null,
       priority,
       status,
       attach_files,
@@ -138,6 +157,7 @@ export async function createTask(req, res) {
       "assigneeName",
       "linkTo",
       "linkType",
+      "leadId",
       "priority",
       "status",
       "attachFiles",
@@ -184,6 +204,7 @@ export async function getAllTasks(req, res) {
       assignee_id,
       link_to,
       link_type,
+      lead_id,
     } = req.query;
 
     const pageValue = parseInt(page, 10);
@@ -237,6 +258,12 @@ export async function getAllTasks(req, res) {
     if (link_type) {
       filters.push(`t.link_type = $${index}`);
       values.push(link_type);
+      index++;
+    }
+
+    if (lead_id) {
+      filters.push(`t.lead_id = $${index}`);
+      values.push(lead_id);
       index++;
     }
 
@@ -337,6 +364,7 @@ export async function getAllTasks(req, res) {
         "assigneeName",
         "linkTo",
         "linkType",
+        "leadId",
         "priority",
         "status",
         "attachFiles",
@@ -651,6 +679,7 @@ export async function updateTask(req, res) {
       "assigneeName",
       "linkTo",
       "linkType",
+      "leadId",
       "priority",
       "status",
       "attachFiles",

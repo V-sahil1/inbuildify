@@ -1,21 +1,12 @@
-import getPool from "../config/database.js";
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
 const seedConditions = async () => {
-  const pool = await getPool();
-  const client = await pool.connect();
   try {
     console.log("🌱 Starting conditions seeding...");
 
-    // Create conditions table if it doesn't exist
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS conditions (
-        condition_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(100) UNIQUE NOT NULL,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT now(),
-        updated_at TIMESTAMP DEFAULT now()
-      );
-    `);
+    // Initialize Sequelize models
+    await initModels();
+    const { Conditions } = db;
 
     // Static conditions to seed
     const conditions = [
@@ -43,21 +34,23 @@ const seedConditions = async () => {
 
     // Insert each condition if not already present
     for (const condition of conditions) {
-      await client.query(
-        `
-        INSERT INTO conditions (name, description)
-        VALUES ($1, $2)
-        ON CONFLICT (name) DO NOTHING;
-        `,
-        [condition.name, condition.description],
-      );
+      const [record, created] = await Conditions.findOrCreate({
+        where: { name: condition.name },
+        defaults: condition,
+      });
+
+      if (created) {
+        console.log(`✅ Created condition: ${condition.name}`);
+      } else {
+        console.log(`ℹ️ Condition already exists: ${condition.name}`);
+      }
     }
 
     console.log("✅ Conditions seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
   } finally {
-    client.release();
+    if (db.sequelize) await db.sequelize.close();
     process.exit(0);
   }
 };

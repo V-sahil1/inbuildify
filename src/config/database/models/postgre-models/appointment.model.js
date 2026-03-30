@@ -7,6 +7,7 @@ export class Appointment extends Model {
     Appointment.belongsTo(models.Users, { foreignKey: "link_to", as: "linkedUser" });
     Appointment.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Appointment.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Appointment.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead" });
   }
 }
 
@@ -47,6 +48,10 @@ export default (sequelize) => {
         allowNull: true,
       },
       link_to: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      lead_id: {
         type: DataTypes.UUID,
         allowNull: true,
       },

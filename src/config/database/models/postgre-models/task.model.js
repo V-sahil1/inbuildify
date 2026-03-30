@@ -8,6 +8,7 @@ export class Task extends Model {
     Task.belongsTo(models.Users, { foreignKey: "link_to", as: "linkedUser" });
     Task.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Task.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Task.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead" });
   }
 }
 export default (sequelize) => {
@@ -22,6 +23,7 @@ export default (sequelize) => {
     assignee_id: { type: DataTypes.UUID, allowNull: true },
     link_to: { type: DataTypes.UUID, allowNull: true },
     link_type: { type: DataTypes.STRING(255), allowNull: true },
+    lead_id: { type: DataTypes.UUID, allowNull: true },
     priority: { type: DataTypes.STRING(20), defaultValue: "Medium" },
     status: { type: DataTypes.STRING(20), defaultValue: "Yet to Start" },
     attach_files: { type: DataTypes.STRING(500), allowNull: true },

@@ -88,7 +88,7 @@ export async function registerRoot({ name, email, password, role_id }) {
       company_id,
       builder_id,
       created_by: users_id,
-      client: t.connection, // pass raw connection if seedBuilderDefaults needs it
+      transaction: t, // Use the Sequelize transaction
     });
 
     return { email: lowerEmail };

@@ -1,23 +1,12 @@
-import getPool from "../config/database.js";
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
 const seedServices = async () => {
-  const pool = await getPool();
-  const client = await pool.connect();
-
   try {
     console.log("🌱 Starting services seeding...");
 
-    // Ensure the table exists
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS service (
-        service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        service VARCHAR(100) NOT NULL,
-        builder_id UUID DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT now(),
-        updated_at TIMESTAMP DEFAULT now(),
-        FOREIGN KEY (builder_id) REFERENCES builder(builder_id) ON DELETE SET NULL
-      );
-    `);
+    // Initialize Sequelize models
+    await initModels();
+    const { Service } = db;
 
     // Static seed data
     const services = [
@@ -28,23 +17,25 @@ const seedServices = async () => {
       { service: "Interior Design" },
     ];
 
-    // Insert data (ignore duplicates)
+    // Insert data (ignore duplicates by checking existence)
     for (const s of services) {
-      await client.query(
-        `
-        INSERT INTO service (service)
-        VALUES ($1)
-        ON CONFLICT (service_id) DO NOTHING;
-        `,
-        [s.service],
-      );
+      const [record, created] = await Service.findOrCreate({
+        where: { service: s.service },
+        defaults: s,
+      });
+
+      if (created) {
+        console.log(`✅ Created service: ${s.service}`);
+      } else {
+        console.log(`ℹ️ Service already exists: ${s.service}`);
+      }
     }
 
     console.log("✅ Services seeding completed.");
   } catch (error) {
     console.error("❌ Service seeding failed:", error);
   } finally {
-    client.release();
+    if (db.sequelize) await db.sequelize.close();
     process.exit(0);
   }
 };
