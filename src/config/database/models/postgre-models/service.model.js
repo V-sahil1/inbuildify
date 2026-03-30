@@ -16,7 +16,19 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "service", modelName: "Service", underscored: true }
+    {
+      sequelize,
+      tableName: "service",
+      modelName: "Service",
+      underscored: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ["service", "builder_id"],
+          name: "uq_service_builder",
+        },
+      ],
+    }
   );
   return Service;
 };

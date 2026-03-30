@@ -14,7 +14,7 @@ export default (sequelize) => {
         defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
-      name: { type: DataTypes.STRING(100), allowNull: false },
+      name: { type: DataTypes.STRING(100), allowNull: false, unique: true },
       description: { type: DataTypes.TEXT, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
