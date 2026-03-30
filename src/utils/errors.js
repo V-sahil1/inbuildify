@@ -1,4 +1,4 @@
- const constants = {
+const constants = {
   HTTP_CODE_400_MESSAGE: "Bad Request",
   HTTP_CODE_400_CODE: 400,
   HTTP_CODE_401_MESSAGE: "Unauthorized",

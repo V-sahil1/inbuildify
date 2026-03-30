@@ -11,7 +11,7 @@ export class JobProcessStage extends Model {
 export default (sequelize) => {
   JobProcessStage.init(
     {
-      stage_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      stage_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: false },
       builder_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(200), allowNull: false },

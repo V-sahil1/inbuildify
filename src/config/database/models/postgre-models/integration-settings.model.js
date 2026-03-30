@@ -14,7 +14,7 @@ export class IntegrationSettings extends Model {
 export default (sequelize) => {
   IntegrationSettings.init(
     {
-      integration_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      integration_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       automatically_send_welcome_email: { type: DataTypes.BOOLEAN, defaultValue: false },

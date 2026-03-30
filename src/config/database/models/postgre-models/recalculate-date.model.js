@@ -12,7 +12,7 @@ export class RecalculateDate extends Model {
 export default (sequelize) => {
   RecalculateDate.init(
     {
-      recalculate_date_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      recalculate_date_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       recalculate_workflow_job_estimated_dates: { type: DataTypes.BOOLEAN, defaultValue: false },

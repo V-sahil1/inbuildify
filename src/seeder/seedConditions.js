@@ -9,7 +9,7 @@ const seedConditions = async () => {
     // Create conditions table if it doesn't exist
     await client.query(`
       CREATE TABLE IF NOT EXISTS conditions (
-        condition_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        condition_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) UNIQUE NOT NULL,
         description TEXT,
         created_at TIMESTAMP DEFAULT now(),

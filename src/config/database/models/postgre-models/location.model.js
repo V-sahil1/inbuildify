@@ -12,7 +12,7 @@ export class Location extends Model {
 export default (sequelize) => {
   Location.init(
     {
-      location_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      location_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

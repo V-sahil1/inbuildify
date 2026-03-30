@@ -13,10 +13,14 @@ export async function seedConstructionOhsSettings({ company_id, builder_id, crea
   if (existing.rowCount === 0) {
     await client.query(
       `INSERT INTO construction_ohs_settings (
-        company_id, builder_id,
-        signature_required, minimum_audits,
-        created_by, updated_by
-      ) VALUES ($1, $2, false, 0, $3, $3)`,
+        construction_ohs_settings_id,
+        company_id, 
+        builder_id,
+        signature_required, 
+        minimum_audits,
+        created_by, 
+        updated_by
+      ) VALUES (gen_random_uuid(), $1, $2, FALSE, 0, $3, $3)`,
       [company_id, builder_id, created_by],
     );
   }

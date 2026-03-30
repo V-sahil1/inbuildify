@@ -8,7 +8,7 @@ export class GeneralSettings extends Model {
 }
 export default (sequelize) => {
   GeneralSettings.init({
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     notification_referral_partner: { type: DataTypes.BOOLEAN, defaultValue: false },

@@ -9,7 +9,7 @@ export class LeadsContactMap extends Model {
 export default (sequelize) => {
   LeadsContactMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       leads_id: { type: DataTypes.UUID, allowNull: true },
       contact_id: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },

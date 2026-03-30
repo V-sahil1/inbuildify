@@ -11,7 +11,7 @@ export class ConstructionOhsList extends Model {
 }
 export default (sequelize) => {
   ConstructionOhsList.init({
-    construction_ohs_list_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    construction_ohs_list_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     construction_ohs_settings_id: { type: DataTypes.UUID, allowNull: true },

@@ -8,7 +8,7 @@ export class PackagePricelistItemMap extends Model {
 }
 export default (sequelize) => {
   PackagePricelistItemMap.init({
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     package_id: { type: DataTypes.UUID, allowNull: false },
     price_list_item_id: { type: DataTypes.UUID, allowNull: false },
   }, { sequelize, tableName: "package_pricelist_item_map", modelName: "PackagePricelistItemMap", underscored: true, timestamps: false });

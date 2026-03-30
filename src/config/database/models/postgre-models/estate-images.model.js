@@ -8,7 +8,7 @@ export class EstateImages extends Model {
 }
 export default (sequelize) => {
   EstateImages.init({
-    estate_image_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    estate_image_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     estate_id: { type: DataTypes.UUID, allowNull: true },
     image_url: { type: DataTypes.STRING(500), allowNull: true },
     uploaded_by: { type: DataTypes.UUID, allowNull: true },

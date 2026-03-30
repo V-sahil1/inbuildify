@@ -13,7 +13,7 @@ export class QuotationSettings extends Model {
 export default (sequelize) => {
   QuotationSettings.init(
     {
-      quotation_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      quotation_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       allow_save_as_new_version: { type: DataTypes.BOOLEAN, defaultValue: false },

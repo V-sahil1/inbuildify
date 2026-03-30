@@ -9,7 +9,7 @@ const seedEmailTemplates = async () => {
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS email_templates (
-        template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        template_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         template_key VARCHAR(100) UNIQUE NOT NULL,
         category VARCHAR(100) NOT NULL,
         subject VARCHAR(255) NOT NULL,

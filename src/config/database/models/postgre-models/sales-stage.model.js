@@ -9,7 +9,7 @@ export class SalesStage extends Model {
 }
 export default (sequelize) => {
   SalesStage.init({
-    sales_stage_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    sales_stage_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     sales_process_id: { type: DataTypes.UUID, allowNull: false },
     stage_name: { type: DataTypes.STRING(150), allowNull: false },
     functionality_id: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },

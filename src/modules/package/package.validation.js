@@ -42,14 +42,12 @@ export const createPackageSchema = Joi.object({
 });
 
 export const getAllPackagesSchema = Joi.object({
-  name: Joi.string().max(200).optional(),
+  search: Joi.string().max(200).optional().allow(""),
   status: Joi.boolean().optional(),
-  cost: Joi.number()
-    .precision(2)
-    .min(0)
-    .max(9999999999.99)
-    .optional()
-    .allow(null),
+
+  package_group_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Package group ID must be a valid UUID",
+  }),
 
   range_id: Joi.string().uuid().optional().messages({
     "string.guid": "Range ID must be a valid UUID",
@@ -59,15 +57,13 @@ export const getAllPackagesSchema = Joi.object({
     "string.guid": "Dwelling type ID must be a valid UUID",
   }),
 
-  package_group_id: Joi.string().uuid().optional().messages({
-    "string.guid": "Package group ID must be a valid UUID",
-  }),
+  range_name: Joi.string().optional().allow(""),
+  dwelling_type_name: Joi.string().optional().allow(""),
+  package_group_name: Joi.string().optional().allow(""),
 
-  sort_order: Joi.number().integer().optional(),
-
-  add: Joi.boolean().optional(),
-
-  remove: Joi.boolean().optional(),
+  name: Joi.string().valid("asc", "desc").optional(),
+  cost: Joi.string().valid("asc", "desc").optional(),
+  builder_cost: Joi.string().valid("asc", "desc").optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",

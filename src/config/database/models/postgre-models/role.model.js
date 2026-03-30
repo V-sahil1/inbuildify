@@ -14,8 +14,9 @@ export class Role extends Model {
 export default (sequelize) => {
   Role.init(
     {
-      role_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      role_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       name: { type: DataTypes.STRING(150), allowNull: false },
+      description: { type: DataTypes.TEXT, allowNull: true },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },

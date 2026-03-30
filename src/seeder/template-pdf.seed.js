@@ -1,3 +1,4 @@
+
 import getPool from "../config/database.js";
 import pdfTemplates from "../templates/pdf-template.json" with { type: "json" };
 import { keysToCamelCase, keysToSnakeCase } from "../utils/common.js";
@@ -20,11 +21,6 @@ function keyToTitle(key) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/**
- * Seed initial PDF templates
- * - Creates one row per format
- * - Safe to run multiple times
- */
 export async function seedInitialPdfTemplates({
   company_id = null,
   builder_id = null,
@@ -47,28 +43,36 @@ export async function seedInitialPdfTemplates({
     for (const [key, templateJson] of Object.entries(pdfTemplates)) {
       const name = keyToTitle(key);
 
-      await client.query(
-        `
-        INSERT INTO template_pdf (
-          company_id,
-          builder_id,
-          name,
-          template_json,
-          created_by,
-          updated_by
-        )
-        VALUES ($1, $2, $3, $4, $5, $5)
-        ON CONFLICT (company_id, builder_id, name)
-        DO NOTHING
-        `,
-        [
-          company_id,
-          builder_id,
-          name,
-          keysToSnakeCase(templateJson),
-          created_by,
-        ],
+      const existing = await client.query(
+        `SELECT template_pdf_id FROM template_pdf
+         WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL) AND name = $3
+         LIMIT 1`,
+        [company_id, builder_id, name],
       );
+
+      if (existing.rowCount === 0) {
+        await client.query(
+          `
+          INSERT INTO template_pdf (
+            template_pdf_id,
+            company_id,
+            builder_id,
+            name,
+            template_json,
+            created_by,
+            updated_by
+          )
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $5)
+          `,
+          [
+            company_id,
+            builder_id,
+            name,
+            keysToSnakeCase(templateJson),
+            created_by,
+          ],
+        );
+      }
     }
 
     if (!useExternalClient) {

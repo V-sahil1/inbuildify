@@ -205,6 +205,7 @@ export async function createPackage(req, res) {
           SELECT json_agg(
             jsonb_build_object(
               'price_list_item_id', pli.price_list_item_id,
+              'id', ppm.id,
               'item_description', pli.item_description,
               'short_description', pli.short_description,
               'cost', pli.cost,
@@ -284,14 +285,17 @@ export async function getAllPackages(req, res) {
     const offset = (page - 1) * limitValue;
 
     const {
-      name,
-      cost,
+      search,
       status,
-      sort_order,
-      dwelling_type_id,
+      package_group_id,
       range_id,
-      add,
-      remove,
+      dwelling_type_id,
+      range_name,
+      dwelling_type_name,
+      package_group_name,
+      name: sort_name,
+      cost: sort_cost,
+      builder_cost: sort_builder_cost,
     } = req.query;
 
     const conditions = [];
@@ -302,19 +306,10 @@ export async function getAllPackages(req, res) {
     values.push(builderId);
     i++;
 
-    if (name !== undefined && name.trim() !== "") {
-      conditions.push(`LOWER(name) LIKE LOWER($${i})`);
-      values.push(`%${name.trim()}%`);
-      i++;
-    }
-
-    if (cost !== undefined && cost !== "") {
-      const numCost = Number(cost);
-      if (isNaN(numCost)) {
-        return errorResponse(res, 400, "cost must be a valid number");
-      }
-      conditions.push(`cost = $${i}`);
-      values.push(numCost);
+    if (search !== undefined && search.trim() !== "") {
+      const searchVal = `%${search.trim().toLowerCase()}%`;
+      conditions.push(`(LOWER(p.name) LIKE $${i} OR CAST(p.cost AS TEXT) LIKE $${i})`);
+      values.push(searchVal);
       i++;
     }
 
@@ -326,9 +321,10 @@ export async function getAllPackages(req, res) {
       values.push(status === "true");
       i++;
     }
-    if (dwelling_type_id !== undefined && dwelling_type_id !== "") {
-      conditions.push(`$${i} = ANY(p.dwelling_type_id)`);
-      values.push(dwelling_type_id);
+
+    if (package_group_id !== undefined && package_group_id !== "") {
+      conditions.push(`$${i} = ANY(p.package_group_id)`);
+      values.push(package_group_id);
       i++;
     }
 
@@ -338,43 +334,59 @@ export async function getAllPackages(req, res) {
       i++;
     }
 
-    if (add !== undefined && add !== "") {
-      if (!["true", "false"].includes(add)) {
-        return errorResponse(
-          res,
-          400,
-          "allow_add_item_from_pricelist must be true or false",
-        );
-      }
-      conditions.push(`allow_add_item_from_pricelist = $${i}`);
-      values.push(add === "true");
+    if (dwelling_type_id !== undefined && dwelling_type_id !== "") {
+      conditions.push(`$${i} = ANY(p.dwelling_type_id)`);
+      values.push(dwelling_type_id);
       i++;
     }
 
-    if (remove !== undefined && remove !== "") {
-      if (!["true", "false"].includes(remove)) {
-        return errorResponse(
-          res,
-          400,
-          "allow_remove_package_items must be true or false",
-        );
-      }
-      conditions.push(`allow_remove_package_items = $${i}`);
-      values.push(remove === "true");
+    if (package_group_id !== undefined && package_group_id !== "") {
+      conditions.push(`$${i} = ANY(p.package_group_id)`);
+      values.push(package_group_id);
       i++;
     }
 
-    if (sort_order !== undefined && sort_order !== "") {
-      const sortValue = Number(sort_order);
-      if (isNaN(sortValue)) {
-        return errorResponse(res, 400, "sort_order must be a valid number");
-      }
-      conditions.push(`sort_order = $${i}`);
-      values.push(sortValue);
+    if (range_name !== undefined && range_name.trim() !== "") {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM range r WHERE r.range_id = ANY(p.range_id) AND LOWER(r.name) LIKE LOWER($${i}))`,
+      );
+      values.push(`%${range_name.trim()}%`);
       i++;
     }
 
-    const orderBy = "ORDER BY sort_order ASC";
+    if (dwelling_type_name !== undefined && dwelling_type_name.trim() !== "") {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM dwelling_type dt WHERE dt.dwelling_type_id = ANY(p.dwelling_type_id) AND LOWER(dt.name) LIKE LOWER($${i}))`,
+      );
+      values.push(`%${dwelling_type_name.trim()}%`);
+      i++;
+    }
+
+    if (package_group_name !== undefined && package_group_name.trim() !== "") {
+      conditions.push(
+        `EXISTS (SELECT 1 FROM package_group pg WHERE pg.package_group_id = ANY(p.package_group_id) AND LOWER(pg.name) LIKE LOWER($${i}))`,
+      );
+      values.push(`%${package_group_name.trim()}%`);
+      i++;
+    }
+
+    let sortBy = "sort_order";
+    let sortOrder = "ASC";
+
+    if (sort_name) {
+      sortBy = `LOWER(p.name)`;
+      sortOrder = sort_name.toUpperCase() === "DESC" ? "DESC" : "ASC";
+    } else if (sort_cost) {
+      sortBy = "p.cost";
+      sortOrder = sort_cost.toUpperCase() === "DESC" ? "DESC" : "ASC";
+    } else if (sort_builder_cost) {
+      sortBy = "p.builder_cost";
+      sortOrder = sort_builder_cost.toUpperCase() === "DESC" ? "DESC" : "ASC";
+    } else {
+      sortBy = "p.sort_order";
+    }
+
+    const orderBy = `ORDER BY ${sortBy} ${sortOrder} NULLS LAST`;
 
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`
@@ -427,6 +439,7 @@ export async function getAllPackages(req, res) {
           SELECT json_agg(
             jsonb_build_object(
               'price_list_item_id', pli.price_list_item_id,
+              'id', ppm.id,
               'item_description', pli.item_description,
               'short_description', pli.short_description,
               'cost', pli.cost,

@@ -11,7 +11,7 @@ export class CustomField extends Model {
 }
 export default (sequelize) => {
   CustomField.init({
-    custom_field_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    custom_field_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     module_id: { type: DataTypes.UUID, allowNull: false },

@@ -13,7 +13,7 @@ export class ConstructionInspectionChecklist extends Model {
 }
 export default (sequelize) => {
   ConstructionInspectionChecklist.init({
-    construction_inspection_checklist_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    construction_inspection_checklist_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     builder: { type: DataTypes.UUID, allowNull: true },

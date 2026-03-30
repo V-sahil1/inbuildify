@@ -13,7 +13,7 @@ export class LotPackageGroup extends Model {
 export default (sequelize) => {
   LotPackageGroup.init(
     {
-      lot_package_group_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      lot_package_group_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       group_name: { type: DataTypes.STRING(255), allowNull: false },

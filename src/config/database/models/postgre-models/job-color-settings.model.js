@@ -14,7 +14,7 @@ export class JobColorSettings extends Model {
 export default (sequelize) => {
   JobColorSettings.init(
     {
-      job_color_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_color_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       hide_color_item_images: { type: DataTypes.BOOLEAN, defaultValue: false },

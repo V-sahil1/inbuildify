@@ -11,7 +11,7 @@ export default (sequelize) => {
     {
       condition_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       name: { type: DataTypes.STRING(100), allowNull: false },

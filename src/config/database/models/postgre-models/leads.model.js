@@ -6,6 +6,9 @@ export class Leads extends Model {
     Leads.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
     Leads.belongsTo(models.LeadSource, { foreignKey: "lead_source_id", as: "leadSource" });
     Leads.belongsTo(models.ClientType, { foreignKey: "client_type_id", as: "clientType" });
+    Leads.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    Leads.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage" });
+    Leads.belongsTo(models.PropertyDetail, { foreignKey: "property_detail_id", as: "propertyDetail" });
     Leads.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
     Leads.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Leads.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
@@ -19,7 +22,7 @@ export class Leads extends Model {
 export default (sequelize) => {
   Leads.init(
     {
-      leads_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      leads_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       reference_number: { type: DataTypes.STRING(30), allowNull: false },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
@@ -42,7 +45,7 @@ export default (sequelize) => {
       prelim_agreement: { type: DataTypes.DATEONLY, allowNull: true },
       client_profile: { type: DataTypes.STRING(500), allowNull: true },
       h_l_budget: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
-      assignee_note: { type: DataTypes.STRING(150), allowNull: true },
+      assignee_note: { type: DataTypes.STRING(500), allowNull: true },
       assignee_id: { type: DataTypes.UUID, allowNull: true },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },

@@ -9,7 +9,7 @@ export class MasterSectionItem extends Model {
 export default (sequelize) => {
   MasterSectionItem.init(
     {
-      master_section_item_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      master_section_item_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       master_section_header_id: { type: DataTypes.UUID, allowNull: true },
       item_name: { type: DataTypes.STRING(2000), allowNull: false },
       effective_start_date: { type: DataTypes.DATEONLY, allowNull: true },

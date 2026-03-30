@@ -7,7 +7,7 @@ export class JobColorColumns extends Model {
 }
 export default (sequelize) => {
   JobColorColumns.init({
-    job_color_column_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    job_color_column_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     job_color_settings_id: { type: DataTypes.UUID, allowNull: false },
     column_name: { type: DataTypes.STRING(150), allowNull: false },
     display_option: { type: DataTypes.STRING(50), allowNull: false },

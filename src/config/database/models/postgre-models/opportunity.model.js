@@ -10,7 +10,7 @@ export class Opportunity extends Model {
 export default (sequelize) => {
   Opportunity.init(
     {
-      opportunity_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      opportunity_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       leads_id: { type: DataTypes.UUID, allowNull: true },
       opportunity_notes: { type: DataTypes.STRING(1000), allowNull: true },
       status: { type: DataTypes.STRING(252), allowNull: true },

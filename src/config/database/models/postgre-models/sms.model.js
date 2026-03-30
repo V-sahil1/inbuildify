@@ -9,7 +9,7 @@ export class Sms extends Model {
 export default (sequelize) => {
   Sms.init(
     {
-      sms_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      sms_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       action_id: { type: DataTypes.UUID, allowNull: false },
       recipient: { type: DataTypes.ARRAY(DataTypes.UUID), allowNull: false },
       message: { type: DataTypes.STRING(500), allowNull: false },

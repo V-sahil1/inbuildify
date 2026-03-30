@@ -10,7 +10,7 @@ export class Contractor extends Model {
 export default (sequelize) => {
   Contractor.init(
     {
-      contractor_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      contractor_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
       builder_id: { type: DataTypes.UUID, allowNull: false },

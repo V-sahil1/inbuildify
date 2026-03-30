@@ -10,7 +10,7 @@ export class QuotationVersionPricelistItemMap extends Model {
 export default (sequelize) => {
   QuotationVersionPricelistItemMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       quotation_version_id: { type: DataTypes.UUID, allowNull: true },
       price_list_item_id: { type: DataTypes.UUID, allowNull: true },
       quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: true },

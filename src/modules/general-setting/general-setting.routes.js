@@ -13,7 +13,7 @@ import { REQUEST_SOURCE } from "../../config/constants.js";
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
-
+//not Use
 router.post(
   "/",
   validateRequest(createGeneralSettigSchema, REQUEST_SOURCE.BODY),

@@ -13,7 +13,7 @@ export class MasterSection extends Model {
 export default (sequelize) => {
   MasterSection.init(
     {
-      master_section_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      master_section_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       master_name: { type: DataTypes.STRING(255), allowNull: false },

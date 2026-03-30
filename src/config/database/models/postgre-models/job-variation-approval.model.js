@@ -13,7 +13,7 @@ export class JobVariationApproval extends Model {
 export default (sequelize) => {
   JobVariationApproval.init(
     {
-      job_variation_approval_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_variation_approval_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       role_id: { type: DataTypes.UUID, allowNull: false },

@@ -118,6 +118,8 @@ export async function createPricelistItemMap(req, res) {
       itemCost: itemCost,
       costType: itemCheckRow.cost_type,
       uom: itemCheckRow.uom,
+      rangeId: itemCheckRow.range_id,
+      dwellingTypeId: itemCheckRow.dwelling_type_id,
       quantity: createdRow.quantity,
       totalPrice: createdRow.total_price,
       note: createdRow.note,
@@ -153,6 +155,15 @@ export async function getPricelistItemsByVersionId(req, res) {
       return errorResponse(res, 404, "Quotation version not found or does not belong to your organization");
     }
 
+    const { quantity, item_cost, total_price } = req.query;
+
+    const sortFields = [];
+    if (quantity) sortFields.push(`m.quantity ${quantity.toUpperCase()}`);
+    if (item_cost) sortFields.push(`pli.cost ${item_cost.toUpperCase()}`);
+    if (total_price) sortFields.push(`m.total_price ${total_price.toUpperCase()}`);
+
+    const orderBy = sortFields.length > 0 ? `ORDER BY ${sortFields.join(", ")}` : "ORDER BY m.created_at ASC";
+
     const result = await client.query(
       `SELECT 
          m.id, 
@@ -163,6 +174,8 @@ export async function getPricelistItemsByVersionId(req, res) {
          pli.cost as item_cost, 
          pli.cost_type, 
          pli.uom,
+         pli.range_id,
+         pli.dwelling_type_id,
          m.quantity, 
          m.total_price, 
          m.note, 
@@ -171,7 +184,7 @@ export async function getPricelistItemsByVersionId(req, res) {
        FROM quotation_version_pricelist_item_map m
        LEFT JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        WHERE m.quotation_version_id = $1
-       ORDER BY m.created_at ASC`,
+       ${orderBy}`,
       [quotation_version_id],
     );
 
@@ -205,7 +218,7 @@ export async function updatePricelistItemMap(req, res) {
 
     // Check ownership and get existing data
     const checkResult = await client.query(
-      `SELECT m.*, pli.item_description, pli.short_description, pli.cost as item_cost, pli.cost_type, pli.uom, qv.location_id, qv.dwelling_type_id, qv.is_approve
+      `SELECT m.*, pli.item_description, pli.short_description, pli.cost as item_cost, pli.cost_type, pli.uom, pli.range_id, pli.dwelling_type_id, qv.location_id, qv.dwelling_type_id as version_dwelling_type_id, qv.is_approve
        FROM quotation_version_pricelist_item_map m
        JOIN price_list_item pli ON m.price_list_item_id = pli.price_list_item_id
        JOIN quotation_version qv ON m.quotation_version_id = qv.quotation_version_id
@@ -227,7 +240,7 @@ export async function updatePricelistItemMap(req, res) {
     }
 
     // Check that location_id and dwelling_type_id are still set
-    if (!checkResult.rows[0].location_id || !checkResult.rows[0].dwelling_type_id) {
+    if (!checkResult.rows[0].location_id || !checkResult.rows[0].version_dwelling_type_id) {
       return errorResponse(res, 400, "Quotation version must have both location and dwelling type selected before updating pricelist items");
     }
 
@@ -287,6 +300,8 @@ export async function updatePricelistItemMap(req, res) {
       itemCost: itemCost,
       costType: existingRow.cost_type,
       uom: existingRow.uom,
+      rangeId: existingRow.range_id,
+      dwellingTypeId: existingRow.dwelling_type_id,
       quantity: updatedRow.quantity,
       totalPrice: updatedRow.total_price,
       note: updatedRow.note,

@@ -7,11 +7,11 @@ import { errorResponse } from "./src/helper/response.js";
 import generateSwaggerSpec from "./src/config/swagger.js";
 import routes from "./src/routes/index.js";
 
-// import { connectPostgre } from "./src/config/postgre.connect.js";
+import { connectPostgre } from "./src/config/postgre.connect.js";
 
-// connectPostgre()
-//   .then(() => console.log("database connected successfully"))
-//   .catch((error) => console.error("error to connect database", error));
+connectPostgre()
+  .then(() => console.log("database connected successfully"))
+  .catch((error) => console.error("error to connect database", error));
 
 const app = express();
 app.use(
@@ -21,7 +21,7 @@ app.use(
 );
 app.use(express.json());
 
-const PORT = Number(env.PORT.PORT) || 5000;
+const PORT = Number(env.PORT) || 5000;
 
 routes(app);
 

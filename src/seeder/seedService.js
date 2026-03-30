@@ -10,7 +10,7 @@ const seedServices = async () => {
     // Ensure the table exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS service (
-        service_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         service VARCHAR(100) NOT NULL,
         builder_id UUID DEFAULT NULL,
         created_at TIMESTAMP DEFAULT now(),

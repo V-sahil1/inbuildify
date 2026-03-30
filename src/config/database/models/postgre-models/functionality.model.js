@@ -9,7 +9,7 @@ export class Functionality extends Model {
 export default (sequelize) => {
   Functionality.init(
     {
-      functionality_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      functionality_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       screen_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(150), allowNull: false },
       createdAt: { type: DataTypes.DATE },

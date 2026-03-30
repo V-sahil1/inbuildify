@@ -9,7 +9,7 @@ export class Timezones extends Model {
 export default (sequelize) => {
   Timezones.init(
     {
-      timezone_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      timezone_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       country_code: { type: DataTypes.STRING(2), allowNull: false },
       timezone_name: { type: DataTypes.STRING(100), allowNull: false },
       display_name: { type: DataTypes.STRING(150), allowNull: false },

@@ -16,7 +16,7 @@ export class Supplier extends Model {
 export default (sequelize) => {
   Supplier.init(
     {
-      supplier_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      supplier_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       supplier_type_id: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },

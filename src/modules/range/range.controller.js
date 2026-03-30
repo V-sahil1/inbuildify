@@ -1,41 +1,605 @@
-import getPool from "../../config/database.js";
+// import getPool from "../../config/database.js";
+// import { errorResponse, successResponse } from "../../helper/response.js";
+// import { keysToCamelCase } from "../../utils/common.js";
+// import { deleteFromS3 } from "../../utils/s3Upload.js";
+
+// export async function getAllRanges(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const builderId = req.user.builder_id;
+
+//     const dataQuery = `
+//       SELECT 
+//         *
+//       FROM range
+//       WHERE builder_id = $1
+//       ORDER BY sort_order ASC;
+//     `;
+
+//     const dataResult = await client.query(dataQuery, [builderId]);
+
+//     return successResponse(
+//       res,
+//       keysToCamelCase(dataResult.rows),
+//       "Ranges fetched successfully.",
+//     );
+//   } catch (error) {
+//     console.error("Error fetching ranges:", error);
+//     return errorResponse(res, 500, error.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
+
+// export async function createRange(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const builderId = req.user?.builder_id;
+//     const companyId = req.user?.company_id;
+//     const createdBy = req.user?.user_id;
+
+//     const { name, user_id, sort_order, bg_color, font_color, is_active } =
+//       req.body;
+
+//     const logo_image = req.files?.logoUrl?.[0]?.location || null;
+//     const header_image = req.files?.headerUrl?.[0]?.location || null;
+
+//     if (!builderId) {
+//       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
+//     }
+
+//     await client.query("BEGIN");
+
+//     let userIdArray = [];
+
+//     if (user_id) {
+//       if (Array.isArray(user_id)) {
+//         userIdArray = user_id;
+//       } else if (typeof user_id === "string") {
+//         // JSON string array → ["id1","id2"]
+//         if (user_id.trim().startsWith("[")) {
+//           userIdArray = JSON.parse(user_id);
+//         } else {
+//           // CSV → "id1,id2,id3"
+//           userIdArray = user_id.split(",").map((x) => x.trim());
+//         }
+//       }
+//     }
+
+//     // If empty, set null
+//     if (userIdArray.length === 0) {
+//       userIdArray = null;
+//     }
+
+//     if (userIdArray) {
+//       const checkQuery = `
+//         SELECT users_id 
+//         FROM users 
+//         WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
+//       `;
+
+//       const check = await client.query(checkQuery, [userIdArray]);
+
+//       if (check.rowCount !== userIdArray.length) {
+//         await client.query("ROLLBACK");
+//         return errorResponse(res, 400, "One or more user IDs are invalid.");
+//       }
+//     }
+
+//     const dupCheck = await client.query(
+//       "SELECT range_id FROM range WHERE builder_id = $1 AND LOWER(name) = LOWER($2)",
+//       [builderId, name],
+//     );
+
+//     if (dupCheck.rowCount > 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 400, "Range name already exists.");
+//     }
+
+//     let finalSortOrder = sort_order;
+
+//     if (finalSortOrder === undefined || finalSortOrder === null) {
+//       finalSortOrder = 1;
+//     }
+
+//     const maxSortOrderQuery = `
+//   SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+//   FROM range
+//   WHERE builder_id = $1;
+// `;
+
+//     const maxSortOrderResult = await client.query(maxSortOrderQuery, [
+//       builderId,
+//     ]);
+
+//     const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+
+//     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(
+//         res,
+//         400,
+//         `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
+//       );
+//     }
+
+//     const shiftSortOrderQuery = `
+//   UPDATE range
+//   SET sort_order = sort_order + 1
+//   WHERE sort_order >= $1
+//     AND builder_id = $2;
+// `;
+
+//     await client.query(shiftSortOrderQuery, [finalSortOrder, builderId]);
+
+//     const insertQuery = `
+//       INSERT INTO range (
+//         company_id,
+//         builder_id,
+//         name,
+//         logo_url,
+//         header_url,
+//         user_id,
+//         sort_order,
+//         bg_color,
+//         font_color,
+//         is_active,
+//         created_by,
+//         updated_by
+//       )
+//       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+//       RETURNING *;
+//     `;
+
+//     const values = [
+//       companyId,
+//       builderId,
+//       name,
+//       logo_image,
+//       header_image,
+//       userIdArray,
+//       finalSortOrder,
+//       bg_color || null,
+//       font_color || null,
+//       is_active ?? true,
+//       createdBy,
+//       createdBy,
+//     ];
+
+//     const result = await client.query(insertQuery, values);
+
+//     await client.query("COMMIT");
+
+//     return successResponse(
+//       res,
+//       keysToCamelCase(result.rows[0]),
+//       "Range created successfully.",
+//     );
+//   } catch (err) {
+//     await client.query("ROLLBACK");
+//     console.error("Error creating range:", err);
+//     return errorResponse(res, 500, err.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
+
+// export async function updateRange(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const { range_id } = req.params;
+//     const builderId = req.user?.builder_id;
+//     const userId = req.user?.user_id;
+
+//     if (!builderId) {
+//       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
+//     }
+
+//     let { name, user_id, sort_order, bg_color, font_color } = req.body;
+
+//     const logo_image = req.files?.logoUrl?.[0]?.location || req.body.logo_url;
+//     const header_image =
+//       req.files?.headerUrl?.[0]?.location || req.body.header_url;
+
+//     await client.query("BEGIN");
+
+//     const rangeCheck = await client.query(
+//       "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
+//       [range_id, builderId],
+//     );
+
+//     if (rangeCheck.rowCount === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 404, "Range not found for this builder.");
+//     }
+
+//     const rangeActiveCheck = await client.query(
+//       "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true",
+//       [range_id, builderId],
+//     );
+
+//     if (rangeActiveCheck.rowCount === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 404, "Inactive range.");
+//     }
+
+//     const existingRange = rangeCheck.rows[0];
+
+//     if (user_id) {
+//       try {
+//         if (typeof user_id === "string" && user_id.trim().startsWith("[")) {
+//           user_id = JSON.parse(user_id);
+//         } else if (
+//           typeof user_id === "string" &&
+//           user_id.startsWith("{") &&
+//           user_id.endsWith("}")
+//         ) {
+//           user_id = [user_id.replace(/[{}"]/g, "")];
+//         } else if (typeof user_id === "string" && user_id.includes(",")) {
+//           user_id = user_id.split(",").map((x) => x.trim());
+//         } else if (typeof user_id === "string") {
+//           user_id = [user_id.trim()];
+//         } else if (!Array.isArray(user_id)) {
+//           return errorResponse(res, 400, "Invalid user_id format.");
+//         }
+//       } catch (e) {
+//         return errorResponse(res, 400, "Invalid user_id format.");
+//       }
+//     }
+
+//     if (user_id && user_id.length > 0) {
+//       const userCheck = await client.query(
+//         "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
+//         [user_id],
+//       );
+
+//       if (userCheck.rowCount !== user_id.length) {
+//         await client.query("ROLLBACK");
+//         return errorResponse(
+//           res,
+//           400,
+//           "One or more user IDs are invalid or do not exist.",
+//         );
+//       }
+//     }
+
+//     if (name) {
+//       const dupName = await client.query(
+//         `SELECT 1 FROM range 
+//          WHERE builder_id = $1 
+//          AND LOWER(name) = LOWER($2) 
+//          AND range_id != $3`,
+//         [builderId, name.trim(), range_id],
+//       );
+
+//       if (dupName.rowCount > 0) {
+//         await client.query("ROLLBACK");
+//         return errorResponse(res, 400, "Range name already exists.");
+//       }
+//     }
+
+//     const existingSortOrder = existingRange.sort_order;
+
+//     if (sort_order !== undefined && sort_order !== null) {
+//       const maxSortQuery = `
+//     SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
+//     FROM range
+//     WHERE builder_id = $1
+//   `;
+
+//       const maxSortResult = await client.query(maxSortQuery, [builderId]);
+//       const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+
+//       if (sort_order < 1 || sort_order > maxSortOrder) {
+//         await client.query("ROLLBACK");
+//         return errorResponse(
+//           res,
+//           400,
+//           `Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`,
+//         );
+//       }
+
+//       if (sort_order !== existingSortOrder) {
+//         if (sort_order > existingSortOrder) {
+//           await client.query(
+//             `
+//         UPDATE range
+//         SET sort_order = sort_order - 1
+//         WHERE sort_order > $1
+//           AND sort_order <= $2
+//           AND range_id != $3
+//           AND builder_id = $4
+//         `,
+//             [existingSortOrder, sort_order, range_id, builderId],
+//           );
+//         } else {
+//           await client.query(
+//             `
+//         UPDATE range
+//         SET sort_order = sort_order + 1
+//         WHERE sort_order >= $1
+//           AND sort_order < $2
+//           AND range_id != $3
+//           AND builder_id = $4
+//         `,
+//             [sort_order, existingSortOrder, range_id, builderId],
+//           );
+//         }
+//       }
+//     }
+
+//     const fields = [];
+//     const values = [];
+//     let i = 1;
+
+//     if (name) {
+//       fields.push(`name = $${i++}`);
+//       values.push(name.trim());
+//     }
+
+//     if (user_id) {
+//       fields.push(`user_id = $${i++}`);
+//       values.push(user_id);
+//     }
+
+//     if (sort_order !== undefined) {
+//       fields.push(`sort_order = $${i++}`);
+//       values.push(sort_order);
+//     }
+
+//     if (bg_color) {
+//       fields.push(`bg_color = $${i++}`);
+//       values.push(bg_color);
+//     }
+
+//     if (font_color) {
+//       fields.push(`font_color = $${i++}`);
+//       values.push(font_color);
+//     }
+
+//     const updatedLogoUrl = existingRange.logo_url;
+//     if (logo_image !== undefined) {
+//       if (!logo_image) {
+//         fields.push(`logo_url = $${i++}`);
+//         values.push(null);
+//       } else {
+//         if (existingRange.logo_url && existingRange.logo_url !== logo_image) {
+//           await deleteFromS3(existingRange.logo_url);
+//         }
+//         fields.push(`logo_url = $${i++}`);
+//         values.push(logo_image);
+//       }
+//     }
+
+//     const updatedHeaderUrl = existingRange.header_url;
+//     if (header_image !== undefined) {
+//       if (!header_image) {
+//         fields.push(`header_url = $${i++}`);
+//         values.push(null);
+//       } else {
+//         if (
+//           existingRange.header_url &&
+//           existingRange.header_url !== header_image
+//         ) {
+//           await deleteFromS3(existingRange.header_url);
+//         }
+//         fields.push(`header_url = $${i++}`);
+//         values.push(header_image);
+//       }
+//     }
+
+//     if (fields.length === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 400, "No fields provided to update.");
+//     }
+
+//     fields.push(`updated_by = $${i++}`);
+//     values.push(userId);
+
+//     fields.push("updated_at = NOW()");
+
+//     const updateQuery = `
+//       UPDATE range
+//       SET ${fields.join(", ")}
+//       WHERE range_id = $${i} AND builder_id = $${i + 1}
+//       RETURNING *;
+//     `;
+
+//     values.push(range_id, builderId);
+
+//     const updateResult = await client.query(updateQuery, values);
+//     await client.query("COMMIT");
+
+//     const finalData = {
+//       ...updateResult.rows[0],
+//       logo_url: updatedLogoUrl,
+//       header_url: updatedHeaderUrl,
+//     };
+
+//     return successResponse(
+//       res,
+//       keysToCamelCase(finalData),
+//       "Range updated successfully.",
+//     );
+//   } catch (err) {
+//     await client.query("ROLLBACK");
+//     console.error("Error updating range:", err);
+//     return errorResponse(res, 500, err.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
+
+// export async function deleteRange(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   const { range_id } = req.params;
+//   const builderId = req.user.builder_id;
+//   try {
+//     const checkRangeExists = await client.query(
+//       "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
+//       [range_id, builderId],
+//     );
+//     if (checkRangeExists.rowCount === 0) {
+//       return errorResponse(res, 404, "Range not found for this builder");
+//     }
+
+//     const deletedSortOrder = checkRangeExists.rows[0].sort_order;
+
+//     await client.query("BEGIN");
+
+//     // Remove range_id from all price_list_item records that reference it
+//     const updatePriceListItemsQuery = `
+//       UPDATE price_list_item 
+//       SET range_id = array_remove(range_id, $1)
+//       WHERE $1 = ANY(range_id)
+//     `;
+
+//     await client.query(updatePriceListItemsQuery, [range_id]);
+
+//     // Remove range_id from all package records that reference it
+//     const updatePackagesQuery = `
+//       UPDATE package 
+//       SET range_id = array_remove(range_id, $1)
+//       WHERE $1 = ANY(range_id)
+//     `;
+
+//     await client.query(updatePackagesQuery, [range_id]);
+
+//     // Delete the range
+//     const query = "DELETE FROM range WHERE range_id = $1 AND builder_id = $2";
+//     const result = await client.query(query, [range_id, builderId]);
+
+//     await client.query(
+//       "UPDATE range SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
+//       [deletedSortOrder, builderId],
+//     );
+
+//     await client.query("COMMIT");
+
+//     return successResponse(
+//       res,
+//       keysToCamelCase(result.rows[0]),
+//       "Range deleted successfully.",
+//     );
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     console.error(error);
+//     return errorResponse(res, 500, error?.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
+
+// export async function updateRangeActive(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const builderId = req.user?.builder_id;
+//     const userId = req.user?.user_id;
+//     const { range_id } = req.params;
+//     const { is_active } = req.body;
+
+//     if (!range_id) {
+//       return errorResponse(res, 400, "range id is required");
+//     }
+
+//     if (typeof is_active !== "boolean") {
+//       return errorResponse(
+//         res,
+//         400,
+//         "is_active must be boolean (true or false)",
+//       );
+//     }
+
+//     const existing = await client.query(
+//       `
+//       SELECT range_id
+//       FROM range
+//       WHERE range_id = $1
+//         AND builder_id = $2
+//       `,
+//       [range_id, builderId],
+//     );
+
+//     if (existing.rowCount === 0) {
+//       return errorResponse(res, 404, "range not found for this builder");
+//     }
+
+//     const updateQuery = `
+//       UPDATE range
+//       SET
+//         is_active = $1,
+//         updated_by = $2,
+//         updated_at = NOW()
+//       WHERE range_id = $3
+//       RETURNING *;
+//     `;
+
+//     const updated = await client.query(updateQuery, [
+//       is_active,
+//       userId,
+//       range_id,
+//     ]);
+
+//     return successResponse(
+//       res,
+//       keysToCamelCase(updated.rows[0]),
+//       "Range status updated successfully.",
+//     );
+//   } catch (error) {
+//     console.error("Error updating range is_active:", error);
+//     return errorResponse(res, 500, error?.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
+
+import { Op, literal } from "sequelize";
 import { errorResponse, successResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
+import db from "../../config/database/models/postgre-models/index.js";
 
+// ─────────────────────────────────────────────
+// GET ALL RANGES
+// ─────────────────────────────────────────────
 export async function getAllRanges(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user.builder_id;
 
-    const dataQuery = `
-      SELECT 
-        *
-      FROM range
-      WHERE builder_id = $1
-      ORDER BY sort_order ASC;
-    `;
+    const { Range } = db;
 
-    const dataResult = await client.query(dataQuery, [builderId]);
+    const ranges = await Range.findAll({
+      where: { builder_id: builderId },
+      order: [["sort_order", "ASC"]],
+    });
 
     return successResponse(
       res,
-      keysToCamelCase(dataResult.rows),
+      keysToCamelCase(ranges.map((r) => r.toJSON())),
       "Ranges fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching ranges:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }
 
+// ─────────────────────────────────────────────
+// CREATE RANGE
+// ─────────────────────────────────────────────
 export async function createRange(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { sequelize, Range, Users } = db;
+  const t = await sequelize.transaction();
 
   try {
     const builderId = req.user?.builder_id;
@@ -49,77 +613,67 @@ export async function createRange(req, res) {
     const header_image = req.files?.headerUrl?.[0]?.location || null;
 
     if (!builderId) {
+      await t.rollback();
       return errorResponse(res, 401, "Unauthorized: Missing builder ID.");
     }
 
-    await client.query("BEGIN");
-
+    // ── Parse user_id ──────────────────────────────────────────
     let userIdArray = [];
 
     if (user_id) {
       if (Array.isArray(user_id)) {
         userIdArray = user_id;
       } else if (typeof user_id === "string") {
-        // JSON string array → ["id1","id2"]
         if (user_id.trim().startsWith("[")) {
           userIdArray = JSON.parse(user_id);
         } else {
-          // CSV → "id1,id2,id3"
           userIdArray = user_id.split(",").map((x) => x.trim());
         }
       }
     }
 
-    // If empty, set null
-    if (userIdArray.length === 0) {
-      userIdArray = null;
-    }
+    if (userIdArray.length === 0) userIdArray = null;
 
+    // ── Validate user IDs ──────────────────────────────────────
     if (userIdArray) {
-      const checkQuery = `
-        SELECT users_id 
-        FROM users 
-        WHERE users_id = ANY($1::uuid[]) AND is_deleted = false
-      `;
+      const validUsers = await Users.count({
+        where: {
+          users_id: { [Op.in]: userIdArray },
+          is_deleted: false,
+        },
+        transaction: t,
+      });
 
-      const check = await client.query(checkQuery, [userIdArray]);
-
-      if (check.rowCount !== userIdArray.length) {
-        await client.query("ROLLBACK");
+      if (validUsers !== userIdArray.length) {
+        await t.rollback();
         return errorResponse(res, 400, "One or more user IDs are invalid.");
       }
     }
 
-    const dupCheck = await client.query(
-      "SELECT range_id FROM range WHERE builder_id = $1 AND LOWER(name) = LOWER($2)",
-      [builderId, name],
-    );
+    // ── Duplicate name check ───────────────────────────────────
+    const dupCheck = await Range.findOne({
+      where: {
+        builder_id: builderId,
+        [Op.and]: literal(`LOWER(name) = LOWER('${name.replace(/'/g, "''")}')`),
+      },
+      transaction: t,
+    });
 
-    if (dupCheck.rowCount > 0) {
-      await client.query("ROLLBACK");
+    if (dupCheck) {
+      await t.rollback();
       return errorResponse(res, 400, "Range name already exists.");
     }
 
-    let finalSortOrder = sort_order;
+    // ── Determine sort_order ───────────────────────────────────
+    let finalSortOrder = sort_order ?? 1;
 
-    if (finalSortOrder === undefined || finalSortOrder === null) {
-      finalSortOrder = 1;
-    }
-
-    const maxSortOrderQuery = `
-  SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-  FROM range
-  WHERE builder_id = $1;
-`;
-
-    const maxSortOrderResult = await client.query(maxSortOrderQuery, [
-      builderId,
-    ]);
-
-    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+    const maxSortOrder = (await Range.max("sort_order", {
+      where: { builder_id: builderId },
+      transaction: t,
+    })) ?? 0;
 
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-      await client.query("ROLLBACK");
+      await t.rollback();
       return errorResponse(
         res,
         400,
@@ -127,70 +681,55 @@ export async function createRange(req, res) {
       );
     }
 
-    const shiftSortOrderQuery = `
-  UPDATE range
-  SET sort_order = sort_order + 1
-  WHERE sort_order >= $1
-    AND builder_id = $2;
-`;
+    // ── Shift existing sort_orders up ─────────────────────────
+    await Range.increment("sort_order", {
+      by: 1,
+      where: {
+        sort_order: { [Op.gte]: finalSortOrder },
+        builder_id: builderId,
+      },
+      transaction: t,
+    });
 
-    await client.query(shiftSortOrderQuery, [finalSortOrder, builderId]);
-
-    const insertQuery = `
-      INSERT INTO range (
-        company_id,
-        builder_id,
+    // ── Insert new range ───────────────────────────────────────
+    const newRange = await Range.create(
+      {
+        company_id: companyId,
+        builder_id: builderId,
         name,
-        logo_url,
-        header_url,
-        user_id,
-        sort_order,
-        bg_color,
-        font_color,
-        is_active,
-        created_by,
-        updated_by
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-      RETURNING *;
-    `;
+        logo_url: logo_image,
+        header_url: header_image,
+        user_id: userIdArray,
+        sort_order: finalSortOrder,
+        bg_color: bg_color || null,
+        font_color: font_color || null,
+        is_active: is_active ?? true,
+        created_by: createdBy,
+        updated_by: createdBy,
+      },
+      { transaction: t },
+    );
 
-    const values = [
-      companyId,
-      builderId,
-      name,
-      logo_image,
-      header_image,
-      userIdArray,
-      finalSortOrder,
-      bg_color || null,
-      font_color || null,
-      is_active ?? true,
-      createdBy,
-      createdBy,
-    ];
-
-    const result = await client.query(insertQuery, values);
-
-    await client.query("COMMIT");
+    await t.commit();
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(newRange.toJSON()),
       "Range created successfully.",
     );
   } catch (err) {
-    await client.query("ROLLBACK");
+    await t.rollback();
     console.error("Error creating range:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }
 
+// ─────────────────────────────────────────────
+// UPDATE RANGE
+// ─────────────────────────────────────────────
 export async function updateRange(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { sequelize, Range, Users } = db;
+  const t = await sequelize.transaction();
 
   try {
     const { range_id } = req.params;
@@ -198,6 +737,7 @@ export async function updateRange(req, res) {
     const userId = req.user?.user_id;
 
     if (!builderId) {
+      await t.rollback();
       return errorResponse(res, 401, "Unauthorized: Builder ID missing.");
     }
 
@@ -207,30 +747,23 @@ export async function updateRange(req, res) {
     const header_image =
       req.files?.headerUrl?.[0]?.location || req.body.header_url;
 
-    await client.query("BEGIN");
+    // ── Fetch existing range ───────────────────────────────────
+    const existingRange = await Range.findOne({
+      where: { range_id, builder_id: builderId },
+      transaction: t,
+    });
 
-    const rangeCheck = await client.query(
-      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
-      [range_id, builderId],
-    );
-
-    if (rangeCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
+    if (!existingRange) {
+      await t.rollback();
       return errorResponse(res, 404, "Range not found for this builder.");
     }
 
-    const rangeActiveCheck = await client.query(
-      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2 AND is_active = true",
-      [range_id, builderId],
-    );
-
-    if (rangeActiveCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
+    if (!existingRange.is_active) {
+      await t.rollback();
       return errorResponse(res, 404, "Inactive range.");
     }
 
-    const existingRange = rangeCheck.rows[0];
-
+    // ── Parse user_id ──────────────────────────────────────────
     if (user_id) {
       try {
         if (typeof user_id === "string" && user_id.trim().startsWith("[")) {
@@ -246,21 +779,27 @@ export async function updateRange(req, res) {
         } else if (typeof user_id === "string") {
           user_id = [user_id.trim()];
         } else if (!Array.isArray(user_id)) {
+          await t.rollback();
           return errorResponse(res, 400, "Invalid user_id format.");
         }
-      } catch (e) {
+      } catch {
+        await t.rollback();
         return errorResponse(res, 400, "Invalid user_id format.");
       }
     }
 
+    // ── Validate user IDs ──────────────────────────────────────
     if (user_id && user_id.length > 0) {
-      const userCheck = await client.query(
-        "SELECT users_id FROM users WHERE users_id = ANY($1::uuid[]) AND is_deleted = false",
-        [user_id],
-      );
+      const validUsers = await Users.count({
+        where: {
+          users_id: { [Op.in]: user_id },
+          is_deleted: false,
+        },
+        transaction: t,
+      });
 
-      if (userCheck.rowCount !== user_id.length) {
-        await client.query("ROLLBACK");
+      if (validUsers !== user_id.length) {
+        await t.rollback();
         return errorResponse(
           res,
           400,
@@ -269,35 +808,36 @@ export async function updateRange(req, res) {
       }
     }
 
+    // ── Duplicate name check ───────────────────────────────────
     if (name) {
-      const dupName = await client.query(
-        `SELECT 1 FROM range 
-         WHERE builder_id = $1 
-         AND LOWER(name) = LOWER($2) 
-         AND range_id != $3`,
-        [builderId, name.trim(), range_id],
-      );
+      const dupName = await Range.findOne({
+        where: {
+          builder_id: builderId,
+          range_id: { [Op.ne]: range_id },
+          [Op.and]: literal(
+            `LOWER(name) = LOWER('${name.trim().replace(/'/g, "''")}')`,
+          ),
+        },
+        transaction: t,
+      });
 
-      if (dupName.rowCount > 0) {
-        await client.query("ROLLBACK");
+      if (dupName) {
+        await t.rollback();
         return errorResponse(res, 400, "Range name already exists.");
       }
     }
 
+    // ── Sort order rebalancing ─────────────────────────────────
     const existingSortOrder = existingRange.sort_order;
 
     if (sort_order !== undefined && sort_order !== null) {
-      const maxSortQuery = `
-    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-    FROM range
-    WHERE builder_id = $1
-  `;
-
-      const maxSortResult = await client.query(maxSortQuery, [builderId]);
-      const maxSortOrder = maxSortResult.rows[0].max_sort_order;
+      const maxSortOrder = (await Range.max("sort_order", {
+        where: { builder_id: builderId },
+        transaction: t,
+      })) ?? 0;
 
       if (sort_order < 1 || sort_order > maxSortOrder) {
-        await client.query("ROLLBACK");
+        await t.rollback();
         return errorResponse(
           res,
           400,
@@ -307,81 +847,56 @@ export async function updateRange(req, res) {
 
       if (sort_order !== existingSortOrder) {
         if (sort_order > existingSortOrder) {
-          await client.query(
-            `
-        UPDATE range
-        SET sort_order = sort_order - 1
-        WHERE sort_order > $1
-          AND sort_order <= $2
-          AND range_id != $3
-          AND builder_id = $4
-        `,
-            [existingSortOrder, sort_order, range_id, builderId],
-          );
+          // Moving down: shift affected rows up
+          await Range.decrement("sort_order", {
+            by: 1,
+            where: {
+              sort_order: { [Op.gt]: existingSortOrder, [Op.lte]: sort_order },
+              range_id: { [Op.ne]: range_id },
+              builder_id: builderId,
+            },
+            transaction: t,
+          });
         } else {
-          await client.query(
-            `
-        UPDATE range
-        SET sort_order = sort_order + 1
-        WHERE sort_order >= $1
-          AND sort_order < $2
-          AND range_id != $3
-          AND builder_id = $4
-        `,
-            [sort_order, existingSortOrder, range_id, builderId],
-          );
+          // Moving up: shift affected rows down
+          await Range.increment("sort_order", {
+            by: 1,
+            where: {
+              sort_order: { [Op.gte]: sort_order, [Op.lt]: existingSortOrder },
+              range_id: { [Op.ne]: range_id },
+              builder_id: builderId,
+            },
+            transaction: t,
+          });
         }
       }
     }
 
-    const fields = [];
-    const values = [];
-    let i = 1;
+    // ── Build update payload ───────────────────────────────────
+    const updatePayload = { updated_by: userId, updatedAt: new Date() };
 
-    if (name) {
-      fields.push(`name = $${i++}`);
-      values.push(name.trim());
-    }
+    if (name) updatePayload.name = name.trim();
+    if (user_id) updatePayload.user_id = user_id;
+    if (sort_order !== undefined) updatePayload.sort_order = sort_order;
+    if (bg_color) updatePayload.bg_color = bg_color;
+    if (font_color) updatePayload.font_color = font_color;
 
-    if (user_id) {
-      fields.push(`user_id = $${i++}`);
-      values.push(user_id);
-    }
-
-    if (sort_order !== undefined) {
-      fields.push(`sort_order = $${i++}`);
-      values.push(sort_order);
-    }
-
-    if (bg_color) {
-      fields.push(`bg_color = $${i++}`);
-      values.push(bg_color);
-    }
-
-    if (font_color) {
-      fields.push(`font_color = $${i++}`);
-      values.push(font_color);
-    }
-
-    const updatedLogoUrl = existingRange.logo_url;
+    // ── Handle logo URL ────────────────────────────────────────
     if (logo_image !== undefined) {
       if (!logo_image) {
-        fields.push(`logo_url = $${i++}`);
-        values.push(null);
+        updatePayload.logo_url = null;
       } else {
         if (existingRange.logo_url && existingRange.logo_url !== logo_image) {
           await deleteFromS3(existingRange.logo_url);
         }
-        fields.push(`logo_url = $${i++}`);
-        values.push(logo_image);
+        updatePayload.logo_url = logo_image;
       }
     }
 
-    const updatedHeaderUrl = existingRange.header_url;
+    // ── Handle header URL ──────────────────────────────────────
     if (header_image !== undefined) {
       if (!header_image) {
-        fields.push(`header_url = $${i++}`);
-        values.push(null);
+        updatePayload.header_url = null;
       } else {
         if (
           existingRange.header_url &&
@@ -389,119 +904,99 @@ export async function updateRange(req, res) {
         ) {
           await deleteFromS3(existingRange.header_url);
         }
-        fields.push(`header_url = $${i++}`);
-        values.push(header_image);
+        updatePayload.header_url = header_image;
       }
     }
 
-    if (fields.length === 0) {
-      await client.query("ROLLBACK");
+    // updated_by + updatedAt are always set — check for anything beyond those 2
+    if (Object.keys(updatePayload).length <= 2) {
+      await t.rollback();
       return errorResponse(res, 400, "No fields provided to update.");
     }
 
-    fields.push(`updated_by = $${i++}`);
-    values.push(userId);
+    await existingRange.update(updatePayload, { transaction: t });
 
-    fields.push("updated_at = NOW()");
-
-    const updateQuery = `
-      UPDATE range
-      SET ${fields.join(", ")}
-      WHERE range_id = $${i} AND builder_id = $${i + 1}
-      RETURNING *;
-    `;
-
-    values.push(range_id, builderId);
-
-    const updateResult = await client.query(updateQuery, values);
-    await client.query("COMMIT");
-
-    const finalData = {
-      ...updateResult.rows[0],
-      logo_url: updatedLogoUrl,
-      header_url: updatedHeaderUrl,
-    };
+    await t.commit();
 
     return successResponse(
       res,
-      keysToCamelCase(finalData),
+      keysToCamelCase(existingRange.toJSON()),
       "Range updated successfully.",
     );
   } catch (err) {
-    await client.query("ROLLBACK");
+    await t.rollback();
     console.error("Error updating range:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }
 
+// ─────────────────────────────────────────────
+// DELETE RANGE
+// ─────────────────────────────────────────────
 export async function deleteRange(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { sequelize, Range, Package, PriceListItem } = db;
+  const t = await sequelize.transaction();
 
-  const { range_id } = req.params;
-  const builderId = req.user.builder_id;
   try {
-    const checkRangeExists = await client.query(
-      "SELECT * FROM range WHERE range_id = $1 AND builder_id = $2",
-      [range_id, builderId],
-    );
-    if (checkRangeExists.rowCount === 0) {
+    const { range_id } = req.params;
+    const builderId = req.user.builder_id;
+
+    const existingRange = await Range.findOne({
+      where: { range_id, builder_id: builderId },
+      transaction: t,
+    });
+
+    if (!existingRange) {
+      await t.rollback();
       return errorResponse(res, 404, "Range not found for this builder");
     }
 
-    const deletedSortOrder = checkRangeExists.rows[0].sort_order;
+    const deletedSortOrder = existingRange.sort_order;
 
-    await client.query("BEGIN");
-
-    // Remove range_id from all price_list_item records that reference it
-    const updatePriceListItemsQuery = `
-      UPDATE price_list_item 
-      SET range_id = array_remove(range_id, $1)
-      WHERE $1 = ANY(range_id)
-    `;
-
-    await client.query(updatePriceListItemsQuery, [range_id]);
-
-    // Remove range_id from all package records that reference it
-    const updatePackagesQuery = `
-      UPDATE package 
-      SET range_id = array_remove(range_id, $1)
-      WHERE $1 = ANY(range_id)
-    `;
-
-    await client.query(updatePackagesQuery, [range_id]);
-
-    // Delete the range
-    const query = "DELETE FROM range WHERE range_id = $1 AND builder_id = $2";
-    const result = await client.query(query, [range_id, builderId]);
-
-    await client.query(
-      "UPDATE range SET sort_order = sort_order - 1 WHERE sort_order > $1 AND builder_id = $2",
-      [deletedSortOrder, builderId],
+    // ── Remove range_id from price_list_item arrays ────────────
+    await PriceListItem.update(
+      { range_id: literal(`array_remove(range_id, '${range_id}'::uuid)`) },
+      { where: literal(`'${range_id}'::uuid = ANY(range_id)`), transaction: t },
     );
 
-    await client.query("COMMIT");
+    // ── Remove range_id from package arrays ───────────────────
+    await Package.update(
+      { range_id: literal(`array_remove(range_id, '${range_id}'::uuid)`) },
+      { where: literal(`'${range_id}'::uuid = ANY(range_id)`), transaction: t },
+    );
+
+    // ── Delete the range ───────────────────────────────────────
+    await existingRange.destroy({ transaction: t });
+
+    // ── Compact sort_orders ────────────────────────────────────
+    await Range.decrement("sort_order", {
+      by: 1,
+      where: {
+        sort_order: { [Op.gt]: deletedSortOrder },
+        builder_id: builderId,
+      },
+      transaction: t,
+    });
+
+    await t.commit();
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(existingRange.toJSON()),
       "Range deleted successfully.",
     );
   } catch (error) {
-    await client.query("ROLLBACK");
+    await t.rollback();
     console.error(error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }
 
+// ─────────────────────────────────────────────
+// UPDATE RANGE ACTIVE STATUS
+// ─────────────────────────────────────────────
 export async function updateRangeActive(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
+  const { Range } = db;
   try {
     const builderId = req.user?.builder_id;
     const userId = req.user?.user_id;
@@ -513,52 +1008,30 @@ export async function updateRangeActive(req, res) {
     }
 
     if (typeof is_active !== "boolean") {
-      return errorResponse(
-        res,
-        400,
-        "is_active must be boolean (true or false)",
-      );
+      return errorResponse(res, 400, "is_active must be boolean (true or false)");
     }
 
-    const existing = await client.query(
-      `
-      SELECT range_id
-      FROM range
-      WHERE range_id = $1
-        AND builder_id = $2
-      `,
-      [range_id, builderId],
-    );
+    const existingRange = await Range.findOne({
+      where: { range_id, builder_id: builderId },
+    });
 
-    if (existing.rowCount === 0) {
+    if (!existingRange) {
       return errorResponse(res, 404, "range not found for this builder");
     }
 
-    const updateQuery = `
-      UPDATE range
-      SET
-        is_active = $1,
-        updated_by = $2,
-        updated_at = NOW()
-      WHERE range_id = $3
-      RETURNING *;
-    `;
-
-    const updated = await client.query(updateQuery, [
+    await existingRange.update({
       is_active,
-      userId,
-      range_id,
-    ]);
+      updated_by: userId,
+      updatedAt: new Date(),
+    });
 
     return successResponse(
       res,
-      keysToCamelCase(updated.rows[0]),
+      keysToCamelCase(existingRange.toJSON()),
       "Range status updated successfully.",
     );
   } catch (error) {
     console.error("Error updating range is_active:", error);
     return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }

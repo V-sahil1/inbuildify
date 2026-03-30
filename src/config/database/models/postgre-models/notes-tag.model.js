@@ -12,7 +12,7 @@ export class NotesTag extends Model {
 export default (sequelize) => {
   NotesTag.init(
     {
-      notes_tag_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      notes_tag_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(100), allowNull: false },

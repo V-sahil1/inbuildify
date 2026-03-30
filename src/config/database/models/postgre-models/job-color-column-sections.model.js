@@ -7,7 +7,7 @@ export class JobColorColumnSections extends Model {
 }
 export default (sequelize) => {
   JobColorColumnSections.init({
-    job_color_column_section_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    job_color_column_section_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     job_color_settings_id: { type: DataTypes.UUID, allowNull: false },
     section_name: { type: DataTypes.STRING(150), allowNull: true },
     attachments: { type: DataTypes.STRING(500), allowNull: true },

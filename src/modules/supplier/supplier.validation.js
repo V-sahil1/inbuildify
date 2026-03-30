@@ -49,7 +49,7 @@ export const createSupplierSchema = Joi.object({
   }),
   zip_code: Joi.string().min(4).max(4).allow(null, "").optional(),
   lead_time: Joi.string().min(2).max(100).allow(null, "").optional(),
-  status: Joi.boolean().default(true),
+  status: Joi.boolean().default(true).optional(),
   emails: Joi.array()
     .items(Joi.string().email({ tlds: { allow: false } }))
     .unique()

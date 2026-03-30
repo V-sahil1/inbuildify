@@ -8,7 +8,7 @@ export const successResponse = (res, data, message = "Success") => {
 };
 
 export const errorResponse = (res, statusCode = 500, message = "Internal Server Error") => {
-  res.status(statusCode).json({
+res.status(statusCode).json({
     success: false,
     statusCode,
     message,

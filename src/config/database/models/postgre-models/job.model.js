@@ -10,7 +10,7 @@ export class Job extends Model {
 export default (sequelize) => {
   Job.init(
     {
-      job_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       reference_number: { type: DataTypes.STRING(30), allowNull: false },
       opportunity_id: { type: DataTypes.UUID, allowNull: true },
       quotation_version_id: { type: DataTypes.UUID, allowNull: true },

@@ -12,7 +12,7 @@ export class RoleType extends Model {
 export default (sequelize) => {
   RoleType.init(
     {
-      role_type_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      role_type_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       role_id: { type: DataTypes.UUID, allowNull: false },
       type_name: { type: DataTypes.STRING(100), allowNull: false },
       created_by: { type: DataTypes.UUID, allowNull: true },

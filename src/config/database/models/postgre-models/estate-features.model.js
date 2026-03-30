@@ -9,7 +9,7 @@ export class EstateFeatures extends Model {
 export default (sequelize) => {
   EstateFeatures.init(
     {
-      estate_feature_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      estate_feature_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       estate_id: { type: DataTypes.UUID, allowNull: true },
       feature_name: { type: DataTypes.STRING(255), allowNull: false },
       createdAt: { type: DataTypes.DATE },

@@ -1,5 +1,11 @@
-total 50 models are created ! from drive remaning 
+createChecklist  created by chatgpt 
 
-color-item-custom-field.model enum remending ("text", "checkbox", "dropdown_list", "radio_button") this all enum remanding to add 
+getAllChecklist,createChecklist both are created and verify 
 
-construction_ohs_list.model into enum remending to instert .ENUM("category", "item"),
+
+updateChecklist this is remindng 
+
+
+accure some errror into updateChecklist this controlleer,company route ,custom filed service errror can accure 
+
+

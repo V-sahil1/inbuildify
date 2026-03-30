@@ -13,14 +13,14 @@ function getEnvValue(name) {
 
 export const env = {
   NODE_ENV: (PROCESSENV.NODE_ENV) || "development",
-
+  PORT: getEnvValue("PORT"),
   DB: {
     DB_NAME: getEnvValue("DB_NAME"),
     DB_PORT: getEnvValue("DB_PORT"),
     DB_USER: getEnvValue("DB_USER"),
     DB_PASSWORD: getEnvValue("DB_PASSWORD"),
     DB_HOST: getEnvValue("DB_HOST"),
-    DATABASE_URL: getEnvValue("DATABASE_URL"),
+    DATABASE_URL: PROCESSENV.DATABASE_URL || null,
   },
 
   JWT: {
@@ -45,8 +45,4 @@ export const env = {
     FILE_TYPES: getEnvValue("FILE_TYPES"),
     FILE_SIZE: getEnvValue("FILE_SIZE"),
   },
-
-  PORT: {
-    PORT: getEnvValue("PORT"),
-  }
 };

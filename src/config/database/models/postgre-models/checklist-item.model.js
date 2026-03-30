@@ -9,7 +9,7 @@ export class ChecklistItem extends Model {
 }
 export default (sequelize) => {
   ChecklistItem.init({
-    checklist_item_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    checklist_item_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     checklist_id: { type: DataTypes.UUID, allowNull: false },
     construction_type_id: { type: DataTypes.UUID, allowNull: true },
     construction_stage_id: { type: DataTypes.UUID, allowNull: true },

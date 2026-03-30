@@ -12,7 +12,7 @@ export class DocumentFileNamingFormat extends Model {
 export default (sequelize) => {
   DocumentFileNamingFormat.init(
     {
-      document_file_naming_format_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      document_file_naming_format_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       naming_format: { type: DataTypes.STRING(255), allowNull: true },

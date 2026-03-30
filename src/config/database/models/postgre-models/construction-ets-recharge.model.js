@@ -16,7 +16,7 @@ export default (sequelize) => {
     {
       construction_ets_recharge_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       company_id: { type: DataTypes.UUID, allowNull: true },
@@ -34,6 +34,13 @@ export default (sequelize) => {
       tableName: "construction_ets_recharge",
       modelName: "ConstructionEtsRecharge",
       underscored: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ["company_id", "builder_id"],
+          name: "uq_construction_ets_recharge_scope",
+        },
+      ],
     }
   );
   return ConstructionEtsRecharge;

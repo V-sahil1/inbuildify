@@ -9,7 +9,7 @@ export class FloorPlanPricelistItemMap extends Model {
 export default (sequelize) => {
   FloorPlanPricelistItemMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       floor_plan_id: { type: DataTypes.UUID, allowNull: true },
       price_list_item_id: { type: DataTypes.UUID, allowNull: true },
       include_default: { type: DataTypes.BOOLEAN, defaultValue: false },

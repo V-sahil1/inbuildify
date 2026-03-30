@@ -12,7 +12,7 @@ export class Holiday extends Model {
 export default (sequelize) => {
   Holiday.init(
     {
-      holiday_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      holiday_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       state: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },

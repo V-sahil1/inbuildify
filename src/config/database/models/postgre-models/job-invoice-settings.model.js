@@ -13,7 +13,7 @@ export class JobInvoiceSettings extends Model {
 export default (sequelize) => {
   JobInvoiceSettings.init(
     {
-      job_invoice_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_invoice_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       show_invoice_summary_in_pdf: { type: DataTypes.BOOLEAN, defaultValue: false },

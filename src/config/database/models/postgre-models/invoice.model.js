@@ -9,7 +9,7 @@ export class Invoice extends Model {
 export default (sequelize) => {
   Invoice.init(
     {
-      invoice_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      invoice_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       leads_id: { type: DataTypes.UUID, allowNull: true },
       reference_number: { type: DataTypes.STRING(30), allowNull: true },
       generate_invoice: { type: DataTypes.BOOLEAN, defaultValue: false },

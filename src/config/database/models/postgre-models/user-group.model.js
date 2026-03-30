@@ -12,7 +12,7 @@ export class UserGroup extends Model {
 export default (sequelize) => {
   UserGroup.init(
     {
-      user_group_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      user_group_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(100), allowNull: false },

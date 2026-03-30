@@ -10,7 +10,7 @@ export class EstateStages extends Model {
 export default (sequelize) => {
   EstateStages.init(
     {
-      estate_stage_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      estate_stage_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       estate_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },
       release_date: { type: DataTypes.DATEONLY, allowNull: true },

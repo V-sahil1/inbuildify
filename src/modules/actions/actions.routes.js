@@ -1,21 +1,69 @@
 import express from "express";
 
 const router = express.Router();
-import { createAction, getAction, updateAction } from "./actions.controller.js";
+
+import {
+  createAction,
+  getActions,
+  updateAction,
+  deleteAction,
+} from "./actions.controller.js";
+import {
+  createActionParamsSchema,
+  createActionBodySchema,
+  getActionsParamsSchema,
+  getActionsQuerySchema,
+  updateActionParamsSchema,
+  updateActionBodySchema,
+  deleteActionParamsSchema,
+} from "./actions.validation.js";
+import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
-import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
-import { createActionSchema, getActionSchema, updateActionSchema } from "./actions.validation.js";
+import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
-import { handleMulterError, createUpload } from "../../utils/s3Upload.js";
+import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
 const upload = createUpload("action");
 
-router.post("/:lead_id", upload.single("attachment"), handleMulterError, validateRequest(createActionSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(createActionSchema.body, REQUEST_SOURCE.BODY), createAction);
-router.put("/:action_id", upload.single("attachment"), handleMulterError, validateRequest(updateActionSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(updateActionSchema.body, REQUEST_SOURCE.BODY), updateAction);
-router.get("/:lead_id", validateRequest(getActionSchema.params, REQUEST_SOURCE.PARAMS), validateRequest(getActionSchema.query, REQUEST_SOURCE.QUERY), getAction);
+// Create action for a lead
+router.post(
+  "/:leads_id",
+  upload.fields([{ name: "attachFile", maxCount: 1 }]),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(createActionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(createActionBodySchema, REQUEST_SOURCE.FORM_DATA),
+  createAction,
+);
+
+// Get actions for a lead
+router.get(
+  "/:leads_id",
+  validateRequest(getActionsParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(getActionsQuerySchema, REQUEST_SOURCE.QUERY),
+  getActions,
+);
+
+// Update an action
+router.put(
+  "/:action_id",
+  upload.fields([{ name: "attachFile", maxCount: 1 }]),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(updateActionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateActionBodySchema, REQUEST_SOURCE.FORM_DATA),
+  updateAction,
+);
+
+// Delete an action
+router.delete(
+  "/:action_id",
+  validateRequest(deleteActionParamsSchema, REQUEST_SOURCE.PARAMS),
+  deleteAction,
+);
 
 export default router;

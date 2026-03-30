@@ -9,7 +9,7 @@ export class Notes extends Model {
 export default (sequelize) => {
   Notes.init(
     {
-      notes_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      notes_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       action_id: { type: DataTypes.UUID, allowNull: false },
       message: { type: DataTypes.STRING(500), allowNull: false },
       tags: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },

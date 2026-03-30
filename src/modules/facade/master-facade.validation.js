@@ -116,6 +116,7 @@ export const getMasterFacadeByIdSchema = Joi.object({
 
 export const getMasterFacadesSchema = Joi.object({
   name: Joi.string().max(150).optional(),
+  search: Joi.string().allow("", null).max(150).optional(),
   range_id: Joi.string().optional(),
   dwelling_type_id: Joi.string().optional(),
   location_id: Joi.string().uuid().optional(),

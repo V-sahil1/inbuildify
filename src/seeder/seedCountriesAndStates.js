@@ -1,32 +1,16 @@
-import getPool from "../config/database.js";
 
-const seedCountriesAndStates = async () => {
-  const pool = await getPool();
-  const client = await pool.connect();
+import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
+/**
+ * Core country/state seeding logic.
+ */
+export const seedCountriesAndStates = async () => {
   try {
     console.log("🌱 Starting country/state seeding...");
 
-    await client.query(`
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-      CREATE TABLE IF NOT EXISTS country (
-        country_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS state (
-        state_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        country_id UUID NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-        CONSTRAINT fk_country FOREIGN KEY (country_id) REFERENCES country(country_id) ON DELETE CASCADE,
-        CONSTRAINT unique_state_per_country UNIQUE (country_id, name)
-      );
-    `);
+    // Initialize Sequelize models
+    await initModels();
+    const { Country, State } = db;
 
     const data = {
       australia: {
@@ -53,37 +37,46 @@ const seedCountriesAndStates = async () => {
     };
 
     for (const [countryName, details] of Object.entries(data)) {
-      const countryResult = await client.query(
-        `
-        INSERT INTO country (name)
-        VALUES ($1)
-        ON CONFLICT (name) DO UPDATE SET updated_at = NOW()
-        RETURNING country_id;
-        `,
-        [countryName],
-      );
+      const [country, countryCreated] = await Country.findOrCreate({
+        where: { name: countryName },
+        defaults: {},
+      });
 
-      const countryId = countryResult.rows[0].country_id;
+      if (countryCreated) {
+        console.log(`✅ Created country: ${countryName}`);
+      } else {
+        console.log(`ℹ️ Country already exists: ${countryName}`);
+      }
 
       for (const stateName of details.states) {
-        await client.query(
-          `
-          INSERT INTO state (name, country_id)
-          VALUES ($1, $2)
-          ON CONFLICT (country_id, name) DO UPDATE SET updated_at = NOW();
-          `,
-          [stateName, countryId],
-        );
+        const [state, stateCreated] = await State.findOrCreate({
+          where: { name: stateName, country_id: country.country_id },
+          defaults: {},
+        });
+
+        if (stateCreated) {
+          console.log(`   ✅ Created state: ${stateName}`);
+        } else {
+          console.log(`   ℹ️ State already exists: ${stateName}`);
+        }
       }
     }
 
     console.log("✅ Countries and states seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
-  } finally {
-    client.release();
-    process.exit(0);
+    throw error;
   }
 };
 
-seedCountriesAndStates();
+// Check if run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedCountriesAndStates()
+    .catch((err) => console.error(err))
+    .finally(async () => {
+      if (db.sequelize) await db.sequelize.close();
+      process.exit(0);
+    });
+}
+
+export default { seedCountriesAndStates };

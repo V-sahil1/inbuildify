@@ -12,7 +12,7 @@ export default (sequelize) => {
     {
       category_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       builder_id: {

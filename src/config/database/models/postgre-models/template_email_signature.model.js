@@ -12,7 +12,7 @@ export class TemplateEmailSignature extends Model {
 export default (sequelize) => {
   TemplateEmailSignature.init(
     {
-      template_email_signature_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      template_email_signature_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       include_email_signature: { type: DataTypes.BOOLEAN, defaultValue: false },

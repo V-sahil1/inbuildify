@@ -10,8 +10,8 @@ export class Country extends Model {
 export default (sequelize) => {
   Country.init(
     {
-      country_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-      name: { type: DataTypes.STRING(100), allowNull: false },
+      country_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
+      name: { type: DataTypes.STRING(100), allowNull: false, unique: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

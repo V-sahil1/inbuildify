@@ -5,7 +5,7 @@ export class StatusLogs extends Model {
 }
 export default (sequelize) => {
   StatusLogs.init({
-    status_log_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    status_log_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     request_id: { type: DataTypes.UUID, allowNull: false },
     status_code: { type: DataTypes.INTEGER, allowNull: false },
     error: { type: DataTypes.TEXT, allowNull: true },

@@ -15,27 +15,27 @@ export default (sequelize) => {
     {
       builder_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       name: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING(150),
         allowNull: false,
       },
       email: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
+        type: DataTypes.STRING(150),
+        allowNull: true,
       },
       logo: {
         type: DataTypes.STRING(500),
         allowNull: true,
       },
       abn_number: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING(20),
         allowNull: true,
       },
       phone_number: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(50),
         allowNull: true,
       },
       company_id: {

@@ -13,7 +13,7 @@ export class DocumentCommonFolder extends Model {
 export default (sequelize) => {
   DocumentCommonFolder.init(
     {
-      document_common_folder_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      document_common_folder_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

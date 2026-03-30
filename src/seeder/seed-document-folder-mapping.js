@@ -13,10 +13,21 @@ export async function seedDocumentFolderMapping({ company_id, builder_id, create
   if (existing.rowCount === 0) {
     await client.query(
       `INSERT INTO document_folder_mapping (
-        company_id, builder_id,
+        document_folder_mapping_id,
+        company_id, 
+        builder_id,
+        signed_quotation,
+        signed_color,
+        signed_variation,
+        signed_maintenance,
+        signed_contract_document,
+        compliance_certificate,
+        purchase_order,
+        job_documents,
         select_all_files_from_folder,
-        created_by, updated_by
-      ) VALUES ($1, $2, false, $3, $3)`,
+        created_by, 
+        updated_by
+      ) VALUES (gen_random_uuid(), $1, $2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, FALSE, $3, $3)`,
       [company_id, builder_id, created_by],
     );
   }

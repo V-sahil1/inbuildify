@@ -12,7 +12,7 @@ export class DocumentFolderMapping extends Model {
 export default (sequelize) => {
   DocumentFolderMapping.init(
     {
-      document_folder_mapping_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      document_folder_mapping_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       signed_quotation: { type: DataTypes.UUID, allowNull: true },

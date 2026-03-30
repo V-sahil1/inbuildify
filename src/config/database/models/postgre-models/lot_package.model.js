@@ -15,7 +15,7 @@ export class LotPackage extends Model {
 export default (sequelize) => {
   LotPackage.init(
     {
-      lot_package_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      lot_package_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       lot_id: { type: DataTypes.UUID, allowNull: true },
       package_name: { type: DataTypes.STRING(255), allowNull: false },
       dwelling_type_id: { type: DataTypes.UUID, allowNull: true },

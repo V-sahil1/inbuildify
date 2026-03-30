@@ -13,7 +13,7 @@ export class LeadSource extends Model {
 export default (sequelize) => {
   LeadSource.init(
     {
-      lead_source_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      lead_source_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },
@@ -25,7 +25,8 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "lead_source", modelName: "LeadSource", underscored: true }
+    { sequelize, tableName: "lead_source", modelName: "LeadSource", underscored: true,
+      indexes: [{ unique: true, fields: ["company_id", "builder_id", "name"] }] }
   );
   return LeadSource;
 };

@@ -9,7 +9,7 @@ export class SupplierContacts extends Model {
 export default (sequelize) => {
   SupplierContacts.init(
     {
-      supplier_contact_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      supplier_contact_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       supplier_id: { type: DataTypes.UUID, allowNull: false },
       contact_name: { type: DataTypes.STRING(150), allowNull: false },
       email: { type: DataTypes.STRING(150), allowNull: true },

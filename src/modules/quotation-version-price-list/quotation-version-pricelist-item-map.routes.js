@@ -12,6 +12,7 @@ import {
   getByVersionParamsSchema,
   updatePricelistItemMapSchema,
   idParamsSchema,
+  getPricelistItemsByVersionIdQuerySchema,
 } from "./quotation-version-pricelist-item-map.validation.js";
 import { createPricelistItemMap, getPricelistItemsByVersionId, updatePricelistItemMap, deletePricelistItemMap } from "./quotation-version-pricelist-item-map.controller.js";
 
@@ -28,6 +29,7 @@ router.post(
 router.get(
   "/:quotation_version_id",
   validateRequest(getByVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(getPricelistItemsByVersionIdQuerySchema, REQUEST_SOURCE.QUERY),
   getPricelistItemsByVersionId,
 );
 

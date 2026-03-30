@@ -12,7 +12,7 @@ export class PortalSettings extends Model {
 export default (sequelize) => {
   PortalSettings.init(
     {
-      portal_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      portal_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       send_login_credentials_to_customer: { type: DataTypes.BOOLEAN, defaultValue: false },

@@ -8,7 +8,7 @@ export class QuotationVersionPackageMap extends Model {
 }
 export default (sequelize) => {
   QuotationVersionPackageMap.init({
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     quotation_version_id: { type: DataTypes.UUID, allowNull: true },
     package_id: { type: DataTypes.UUID, allowNull: true },
     createdAt: { type: DataTypes.DATE },

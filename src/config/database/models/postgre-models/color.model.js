@@ -13,7 +13,7 @@ export class Color extends Model {
 export default (sequelize) => {
   Color.init(
     {
-      color_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      color_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       color_name: { type: DataTypes.STRING(255), allowNull: false },

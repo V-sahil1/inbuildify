@@ -8,7 +8,7 @@ export class CostCenterChecklistMap extends Model {
 }
 export default (sequelize) => {
   CostCenterChecklistMap.init({
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     cost_center_id: { type: DataTypes.UUID, allowNull: false },
     construction_checklist_id: { type: DataTypes.UUID, allowNull: false },
     createdAt: { type: DataTypes.DATE },

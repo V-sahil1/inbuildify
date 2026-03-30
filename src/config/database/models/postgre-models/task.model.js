@@ -12,7 +12,7 @@ export class Task extends Model {
 }
 export default (sequelize) => {
   Task.init({
-    task_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    task_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     name: { type: DataTypes.STRING(200), allowNull: false },

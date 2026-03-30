@@ -13,9 +13,13 @@ export async function seedDocumentFileNamingFormat({ company_id, builder_id, cre
   if (existing.rowCount === 0) {
     await client.query(
       `INSERT INTO document_file_naming_format (
-        company_id, builder_id,
-        created_by, updated_by
-      ) VALUES ($1, $2, $3, $3)`,
+        document_file_naming_format_id,
+        company_id, 
+        builder_id,
+        naming_format,
+        created_by, 
+        updated_by
+      ) VALUES (gen_random_uuid(), $1, $2, NULL, $3, $3)`,
       [company_id, builder_id, created_by],
     );
   }

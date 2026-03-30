@@ -15,7 +15,7 @@ export class HouseLandPackage extends Model {
 export default (sequelize) => {
   HouseLandPackage.init(
     {
-      house_land_package_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      house_land_package_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       title: { type: DataTypes.STRING(255), allowNull: true },

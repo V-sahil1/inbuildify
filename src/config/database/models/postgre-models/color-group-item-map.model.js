@@ -10,7 +10,7 @@ export class ColorGroupItemMap extends Model {
 export default (sequelize) => {
   ColorGroupItemMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       color_group_id: { type: DataTypes.UUID, allowNull: true },
       color_item_id: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },

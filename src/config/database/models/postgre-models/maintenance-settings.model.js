@@ -10,7 +10,7 @@ export class MaintenanceSettings extends Model {
 }
 export default (sequelize) => {
   MaintenanceSettings.init({
-    maintenance_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    maintenance_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     area_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },

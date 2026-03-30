@@ -9,7 +9,7 @@ export class WorkflowProcessTask extends Model {
 export default (sequelize) => {
   WorkflowProcessTask.init(
     {
-      workflow_process_task_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      workflow_process_task_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       workflow_process_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(200), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },

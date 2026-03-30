@@ -14,7 +14,7 @@ export class Facade extends Model {
 export default (sequelize) => {
   Facade.init(
     {
-      facade_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      facade_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       location_id: { type: DataTypes.UUID, allowNull: true },

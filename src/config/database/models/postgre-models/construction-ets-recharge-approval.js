@@ -14,7 +14,7 @@ export default (sequelize) => {
     {
       construction_ets_recharge_approval_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       construction_ets_recharge_id: { type: DataTypes.UUID, allowNull: false },

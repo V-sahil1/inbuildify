@@ -11,7 +11,7 @@ export default (sequelize) => {
     {
       color_item_custom_field_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       color_item: {

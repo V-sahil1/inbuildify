@@ -2,22 +2,109 @@ import { Model, DataTypes } from "sequelize";
 
 export class Actions extends Model {
   static associate(models) {
-    Actions.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Actions.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead" });
-    Actions.belongsTo(models.Users, { foreignKey: "created_by_id", as: "createdByUser" });
-    Actions.belongsTo(models.Users, { foreignKey: "updated_by_id", as: "updatedByUser" });
+    Actions.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    Actions.belongsTo(models.Location, { foreignKey: "location_id", as: "location" });
+    Actions.belongsTo(models.Users, { foreignKey: "link_to_user", as: "linkToUser" });
+    Actions.hasMany(models.Sms, { foreignKey: "action_id", as: "sms" });
+    Actions.hasMany(models.Notes, { foreignKey: "action_id", as: "notes" });
   }
 }
+
 export default (sequelize) => {
-  Actions.init({
-    action_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-    type: { type: DataTypes.ENUM("NOTES","SMS","APPOINTMENT","TASK"), allowNull: false },
-    builder_id: { type: DataTypes.UUID, allowNull: false },
-    lead_id: { type: DataTypes.UUID, allowNull: false },
-    created_by_id: { type: DataTypes.UUID, allowNull: false },
-    updated_by_id: { type: DataTypes.UUID, allowNull: false },
-    createdAt: { type: DataTypes.DATE },
-    updatedAt: { type: DataTypes.DATE },
-  }, { sequelize, tableName: "actions", modelName: "Actions", underscored: true });
+  Actions.init(
+    {
+      action_id: {
+        type: DataTypes.UUID,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
+        primaryKey: true,
+      },
+      leads_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      action_type: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        validate: {
+          isIn: [["task", "note", "appointment", "sms"]],
+        },
+      },
+      description: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+      },
+      notes_tag_id: {
+        type: DataTypes.ARRAY(DataTypes.UUID),
+        defaultValue: [],
+      },
+      send_to_customer: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+      },
+      create_follow_up_task: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+      },
+      attach_file: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+      },
+      users_id: {
+        type: DataTypes.ARRAY(DataTypes.UUID),
+        defaultValue: [],
+      },
+      name: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      due_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+      },
+      end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+      },
+      location_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      start_time: {
+        type: DataTypes.TIME,
+        allowNull: true,
+      },
+      end_time: {
+        type: DataTypes.TIME,
+        allowNull: true,
+      },
+      priority: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      status: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      link_to_user: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        field: "updated_at",
+      },
+    },
+    {
+      sequelize,
+      tableName: "actions",
+      modelName: "Actions",
+      underscored: true,
+      timestamps: true,
+    }
+  );
   return Actions;
 };

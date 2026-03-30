@@ -2,9 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class BuilderInsurer extends Model {
   static associate(models) {
-    BuilderInsurer.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    BuilderInsurer.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    BuilderInsurer.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
+    BuilderInsurer.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    BuilderInsurer.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
   }
 }
 
@@ -13,12 +12,13 @@ export default (sequelize) => {
     {
       builder_insurer_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       builder_id: {
         type: DataTypes.UUID,
         allowNull: false,
+        unique: true,
       },
       insurer_name: {
         type: DataTypes.STRING(150),
@@ -41,10 +41,6 @@ export default (sequelize) => {
         allowNull: true,
       },
       state_id: {
-        type: DataTypes.UUID,
-        allowNull: true,
-      },
-      country_id: {
         type: DataTypes.UUID,
         allowNull: true,
       },

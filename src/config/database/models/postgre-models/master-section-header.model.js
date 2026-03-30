@@ -10,7 +10,7 @@ export class MasterSectionHeader extends Model {
 export default (sequelize) => {
   MasterSectionHeader.init(
     {
-      master_section_header_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      master_section_header_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       master_section: { type: DataTypes.UUID, allowNull: true },
       heading_name: { type: DataTypes.STRING(255), allowNull: false },
       effective_start_date: { type: DataTypes.DATEONLY, allowNull: true },

@@ -9,6 +9,7 @@ import {
   updateNoteTag,
   updateNoteTagIsActive,
 } from "./note-tag.controller.js";
+
 import {
   createNoteTageSchema,
   getAllNoteTagSchema,
@@ -27,22 +28,16 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createNoteTageSchema, REQUEST_SOURCE.BODY),
-  createNotesTag,
-);
-
 router.get(
   "/",
   validateRequest(getAllNoteTagSchema, REQUEST_SOURCE.PARAMS),
   getAllNoteTag,
 );
 
-router.delete(
-  "/:id",
-  validateRequest(deleteNoteTagSchema, REQUEST_SOURCE.PARAMS),
-  deleteNoteTag,
+router.post(
+  "/",
+  validateRequest(createNoteTageSchema, REQUEST_SOURCE.BODY),
+  createNotesTag,
 );
 
 router.put(
@@ -57,6 +52,12 @@ router.put(
   validateRequest(updateNoteTagIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateNoteTagIsActiveSchema, REQUEST_SOURCE.BODY),
   updateNoteTagIsActive,
+);
+
+router.delete(
+  "/:id",
+  validateRequest(deleteNoteTagSchema, REQUEST_SOURCE.PARAMS),
+  deleteNoteTag,
 );
 
 export default router;

@@ -12,7 +12,7 @@ export class SchedulerSettings extends Model {
 export default (sequelize) => {
   SchedulerSettings.init(
     {
-      scheduler_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      scheduler_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       receiver_of_replies: { type: DataTypes.ARRAY(DataTypes.UUID), defaultValue: [] },

@@ -141,7 +141,7 @@ export async function getAllPriceList(req, res) {
     const companyId = req.user.company_id;
     const userId = req.user?.users_id;
 
-    let { page = 1, limit = 25, is_active, is_suggested, search } = req.query;
+    let { page = 1, limit = 25, is_active, is_suggested, search,location_id } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -262,7 +262,7 @@ export async function getAllPriceList(req, res) {
 
       await client.query(insertQuery, insertValues);
 
-      if (!is_active && !is_suggested && !search) {
+      if (!is_active && !is_suggested && !search && !location_id) {
         return successResponse(
           res,
           {
@@ -302,7 +302,11 @@ export async function getAllPriceList(req, res) {
       values.push(`%${search.trim()}%`);
       index++;
     }
-
+    if (location_id) {
+      conditions.push(`location = $${index}`);
+      values.push(location_id);
+      index++;
+    }
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(" AND ")}`
       : "";

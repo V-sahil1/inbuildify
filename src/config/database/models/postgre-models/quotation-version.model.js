@@ -15,7 +15,7 @@ export class QuotationVersion extends Model {
 export default (sequelize) => {
   QuotationVersion.init(
     {
-      quotation_version_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      quotation_version_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       quotation_id: { type: DataTypes.UUID, allowNull: true },
       quotation_version_no: { type: DataTypes.INTEGER, allowNull: true },
       location_id: { type: DataTypes.UUID, allowNull: true },

@@ -12,7 +12,7 @@ export class Quotation extends Model {
 export default (sequelize) => {
   Quotation.init(
     {
-      quotation_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      quotation_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       leads_id: { type: DataTypes.UUID, allowNull: true },
       reference_number: { type: DataTypes.STRING(30), allowNull: true },
       is_hl_package_quotation: { type: DataTypes.BOOLEAN, defaultValue: false },

@@ -209,6 +209,7 @@ export async function getMasterFacades(req, res) {
     cost_type,
     location_id,
     status,
+    search,
     page = 1,
     limit = 25,
   } = req.query;
@@ -262,7 +263,11 @@ export async function getMasterFacades(req, res) {
       queryParams.push(`%${name}%`);
       paramIndex++;
     }
-
+    if (search) {
+      baseQuery += ` AND (f.name ILIKE $${paramIndex} OR f.cost::TEXT ILIKE $${paramIndex})`;
+      queryParams.push(`%${search.trim().toLowerCase()}%`);
+      paramIndex++;
+    }
     if (location_id) {
       baseQuery += ` AND f.location_id = $${paramIndex}`;
       queryParams.push(location_id);
@@ -314,6 +319,17 @@ export async function getMasterFacades(req, res) {
     if (name) {
       countQuery += ` AND f.name ILIKE $${countIndex}`;
       countParams.push(`%${name}%`);
+      countIndex++;
+    }
+    if (search) {
+      countQuery += ` AND (f.name ILIKE $${countIndex} OR f.cost::TEXT ILIKE $${countIndex})`;
+      countParams.push(`%${search.trim().toLowerCase()}%`);
+      countIndex++;
+    }
+
+    if (search) {
+      countQuery += ` AND (f.name ILIKE $${countIndex} OR f.cost::TEXT ILIKE $${countIndex})`;
+      countParams.push(`%${search.trim().toLowerCase()}%`);
       countIndex++;
     }
 

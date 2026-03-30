@@ -1,105 +1,71 @@
 import crypto from "crypto";
 import { env } from "../../config/env.config.js";
 import jwt from "jsonwebtoken";
-
 import getPool from "../../config/database.js";
 import sendEmail from "../../service/sendMail.service.js";
-import { upsertCompany } from "../company/company.service.js";
+import { upsertCompanyService } from "../company/company.service.js";
 import { seedBuilderDefaults } from "../../seeder/seed-builder-defaults.js";
 import { generateOtp, generateAccessToken, generateRefreshToken, decrypt as base64Decrypt } from "../../utils/common.js";
 import { encrypt, decrypt } from "../../utils/crypto.util.js";
 import db from "../../config/database/models/postgre-models/index.js";
-import { Users } from "../../config/database/models/postgre-models/users.model.js";
-import { Builder } from "../../config/database/models/postgre-models/builder.model.js";
+import { Op } from "sequelize";
+// import { upsertCompany } from "../company/company.controller.js";
+
+// import { Users } from "../../config/database/models/postgre-models/users.model.js";
+// import { Builder } from "../../config/database/models/postgre-models/builder.model.js";
+// import { Role } from "../../config/database/models/postgre-models/role.model.js";
 
 // REGISTER ROOT USER
 export async function registerRoot({ name, email, password, role_id }) {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const lowerEmail = email.toLowerCase();
-
-    // Check if root already exists
-    const rootCheck = await client.query(
-      "SELECT users_id FROM users WHERE LOWER(email) = $1",
-      [lowerEmail],
-    );
-
-    if (rootCheck.rowCount > 0) {
-      throw { statusCode: 409, message: "User already exists." };
+  const lowerEmail = email.toLowerCase();
+  const { Users, Builder, Role, sequelize } = db;
+  // Check if root already exists
+  const existingUser = await Users.findOne({
+    where: {
+      email: sequelize.where(
+        sequelize.fn("LOWER", sequelize.col("email")),
+        lowerEmail
+      )
     }
+  });
+  if (existingUser) {
+    throw { statusCode: 409, message: "User already exists." };
+  }
 
-    const roleCheck = await client.query(
-      "SELECT role_id FROM role WHERE role_id = $1",
-      [role_id],
-    );
+  // Check if role exists
+  const roleExists = await db.Role.findByPk(role_id);
+  if (!roleExists) {
+    throw { statusCode: 400, message: "Invalid role." };
+  }
 
-    if (roleCheck.rowCount === 0) {
-      throw { statusCode: 400, message: "Invalid role." };
-    }
+  const otp = generateOtp();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await client.query("BEGIN");
-
+  const result = await sequelize.transaction(async (t) => {
     // Create builder
-    const builderRes = await client.query(
-      "INSERT INTO builder (name, email) VALUES ($1, $2) RETURNING builder_id",
-      [name, lowerEmail],
+    const builder = await Builder.create(
+      { name, email: lowerEmail },
+      { transaction: t }
     );
-    const builder_id = builderRes.rows[0].builder_id;
-    console.log("🚀 ~ registerRoot ~ builder_id:", builder_id)
-    // const builderRess = await Builder.create({
-    //   name: name,
-    //   email: lowerEmail,
-    // });
-    // const builderr_id = builderRess.builder_id;
-    // // console.log("🚀 ~ registerRoot ~ builderssssssssssssssssssssssssssssssssssr_id:", builderr_id)
+    const builder_id = builder.builder_id;
 
     // Create root user
-    const userRes = await client.query(
-      `INSERT INTO users (
-            builder_id, name, email, role_id, 
-            password, otp, expires_at, root_user
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         RETURNING users_id`,
-      [
+    const user = await Users.create(
+      {
         builder_id,
         name,
-        lowerEmail,
+        email: lowerEmail,
         role_id,
-        encrypt(password),
+        password: encrypt(password),
         otp,
-        expiresAt,
-        true,
-      ],
+        expires_at: sequelize.literal("NOW() + INTERVAL '10 minutes'"),
+        root_user: true,
+      },
+      { transaction: t }
     );
-    // console.log("🚀 ~ registerRoot ~ userRes:", userRes);
-    // console.log(db.Users);
-    // console.log("🚀 ~ registerRoot ~ builder_id:", builder_id);
-    // console.log("🚀 ~ registerRoot ~ name:", name)
-    // console.log("🚀 ~ registerRoot ~ lowerEmail:", lowerEmail)
-    // console.log("🚀 ~ registerRoot ~ role_id:", role_id)
-    // console.log("🚀 ~ registerRoot ~ encrypt:", encrypt)
-    // console.log("🚀 ~ registerRoot ~ otp:", otp)
-    // console.log("🚀 ~ registerRoot ~ expiresAt:", expiresAt)
+    const users_id = user.users_id;
 
-    // await Users.create({
-    //   builder_id: builderr_id,
-    //   name: name,
-    //   email: lowerEmail,
-    //   role_id: role_id,
-    //   password: encrypt(password),
-    //   otp: otp,
-    //   expires_at: expiresAt,
-    //   root_user: true,
-    // });
-
-    const users_id = userRes.rows[0].users_id;
-
-    // Create default company for the new user
+    // Create default company for the new builder
     const defaultCompanyPayload = {
       name: `${name}'s Company`,
       abn_number: null,
@@ -112,89 +78,234 @@ export async function registerRoot({ name, email, password, role_id }) {
       email_signature_logo: null,
       company_logo: null,
     };
-    //create and update api
-    const companyResult = await upsertCompany(builder_id, defaultCompanyPayload, client);
+
+    // upsertCompanyService now accepts a Sequelize transaction — pass t
+    const companyResult = await upsertCompanyService(builder_id, defaultCompanyPayload, t);
     const company_id = companyResult?.companyId || null;
 
-    // Seed all default settings for the new builder
+    // Seed all default settings
     await seedBuilderDefaults({
       company_id,
       builder_id,
       created_by: users_id,
-      client,
+      client: t.connection, // pass raw connection if seedBuilderDefaults needs it
     });
 
-    // Send OTP Email using helper function
-    await sendVerificationEmail(lowerEmail, otp);
-    // console.log("bhwdsnksdjx")
-
-    await client.query("COMMIT");
     return { email: lowerEmail };
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
+
+  // Send OTP email OUTSIDE transaction (side effect, non-rollbackable)
+  await sendVerificationEmail(lowerEmail, otp);
+
+  return result;
 }
+// export async function registerRoot({ name, email, password, role_id }) {
+//   const { sequelize, Builder, Users, Role } = db;
+//   console.log("sequelize:", !!sequelize);
+//   console.log("Users:", !!Users);
+//   console.log("Builder:", !!Builder);
+//   console.log("Role:", !!Role);
+
+//   const lowerEmail = email.toLowerCase();
+//   console.log("🚀 ~ registerRoot ~ lowerEmail:", lowerEmail)
+
+//   // Use a managed transaction
+//   const result = await sequelize.transaction(async (t) => {
+
+//     // Check if user already exists
+//     const existingUser = await Users.findOne({
+//       where: sequelize.where(
+//         sequelize.fn("LOWER", sequelize.col("email")),
+//         lowerEmail
+//       ),
+//       transaction: t,
+//     });
+//     console.log("🚀 ~ registerRoot ~ existingUser:", existingUser)
+
+//     if (existingUser) {
+//       throw { statusCode: 409, message: "User already exists." };
+//     }
+
+//     // Check if role exists
+//     const roleExists = await Role.findOne({
+//       where: { role_id },
+//       transaction: t,
+//     });
+//     console.log("🚀 ~ registerRoot ~ roleExists:", roleExists)
+
+//     if (!roleExists) {
+//       throw { statusCode: 400, message: "Invalid role." };
+//     }
+
+//     const otp = generateOtp();
+//     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+//     // Create builder
+//     const builder = await Builder.create(
+//       { name, email: lowerEmail },
+//       { transaction: t }
+//     );
+//     console.log("🚀 ~ registerRoot ~ builder:", builder)
+//     const builder_id = builder.builder_id;
+//     console.log("🚀 ~ registerRoot ~ builder_id:", builder_id)
+
+//     // Create root user
+//     const user = await Users.create(
+//       {
+//         builder_id,
+//         name,
+//         email: lowerEmail,
+//         role_id,
+//         password: encrypt(password),
+//         otp,
+//         expires_at: expiresAt,
+//         root_user: true,
+//       },
+//       { transaction: t }
+//     );
+//     const users_id = user.users_id;
+//     console.log("🚀 ~ registerRoot ~ users_id:", users_id)
+
+//     // Create default company for the new builder
+//     const defaultCompanyPayload = {
+//       name: `${name}'s Company`,
+//       abn_number: null,
+//       timezone_id: null,
+//       address: null,
+//       bank_name: null,
+//       account_name: null,
+//       account_number: null,
+//       account_bsb: null,
+//       email_signature_logo: null,
+//       company_logo: null,
+//     };
+
+//     // upsertCompany must accept a Sequelize transaction option
+//     const companyResult = await upsertCompany(builder_id, defaultCompanyPayload, t);
+//     const company_id = companyResult?.companyId || null;
+
+//     // Seed all default settings for the new builder
+//     await seedBuilderDefaults({
+//       company_id,
+//       builder_id,
+//       created_by: users_id,
+//       transaction: t, // pass `t` instead of raw `client`
+//     });
+
+//     // Send OTP email — outside DB ops, but inside transaction scope
+//     // so a send failure still triggers a rollback
+//     await sendVerificationEmail(lowerEmail, otp);
+
+//     return { email: lowerEmail };
+//   }).catch((err) => {
+//     console.error("Transaction error full:", err);  // 👈 add this
+//     throw err;
+//   });
+
+//   console.log("🚀 ~ registerRoot ~ result:", result)
+
+//   return result;
+// }
 
 // VERIFY EMAIL
 export async function verifyEmail({ email, otp }) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const lowerEmail = email.toLowerCase();
+  const { Users, sequelize } = db;
 
-  try {
-    const lowerEmail = email.toLowerCase();
+  const user = await db.Users.findOne({
+    attributes: ["users_id", "otp", "expires_at", "is_verified"],
+    where: {
+      [Op.and]: [
+        sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("email")),
+          lowerEmail
+        )
+      ]
+    },
+  });
+  console.log("🚀 ~ verifyEmail ~ user:", user)
 
-    const userRes = await client.query(
-      `SELECT users_id, otp, expires_at, is_verified
-         FROM users WHERE LOWER(email) = $1`,
-      [lowerEmail],
-    );
-    // const userRess = await Users.findOne({
-    //   attributes: ["users_id", "otp", "expires_at", "is_verified"],
-    //   where: {
-    //     email: lowerEmail,
-    //   },
-    // });
-    if (userRes.rowCount === 0) {
-      throw { statusCode: 404, message: "User not found." };
-    }
-
-    const user = userRes.rows[0];
-
-    if (user.is_verified) {
-      throw { statusCode: 400, message: "Email already verified." };
-    }
-
-    if (user.otp !== otp) {
-      throw { statusCode: 400, message: "Invalid OTP." };
-    }
-
-    if (new Date() > user.expires_at) {
-      throw { statusCode: 400, message: "OTP expired." };
-    }
-
-    await client.query(
-      `UPDATE users
-         SET is_verified = true, otp = NULL, expires_at = NULL
-         WHERE users_id = $1`,
-      [user.users_id],
-    );
-    // await Users.update(
-    //   {
-    //     is_verified: true,
-    //     otp: null,
-    //     expires_at: null,
-    //   },
-    //   {
-    //     where: { users_id: userRess.users_id },
-    //   }
-    // );
-  } finally {
-    client.release();
+  if (!user) {
+    throw { statusCode: 404, message: "User not found." };
   }
+
+  if (user.is_verified) {
+    throw { statusCode: 400, message: "Email already verified." };
+  }
+
+  if (user.otp !== otp) {
+    throw { statusCode: 400, message: "Invalid OTP." };
+  }
+  // 10 minutes
+  // Let JS Date handle the comparison — both are
+  console.log(String(new Date()));
+  console.log(String(user.expires_at));
+
+  if (new Date() > new Date(user.expires_at)) {
+    throw { statusCode: 400, message: "OTP expired." };
+  }
+
+  await Users.update(
+    { is_verified: true, otp: null, expires_at: null },
+    { where: { users_id: user.users_id } }
+  );
 }
+// export async function verifyEmail({ email, otp }) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const lowerEmail = email.toLowerCase();
+
+//     const userRes = await client.query(
+//       `SELECT users_id, otp, expires_at, is_verified
+//          FROM users WHERE LOWER(email) = $1`,
+//       [lowerEmail],
+//     );
+//     // const userRess = await Users.findOne({
+//     //   attributes: ["users_id", "otp", "expires_at", "is_verified"],
+//     //   where: {
+//     //     email: lowerEmail,
+//     //   },
+//     // });
+//     if (userRes.rowCount === 0) {
+//       throw { statusCode: 404, message: "User not found." };
+//     }
+
+//     const user = userRes.rows[0];
+
+//     if (user.is_verified) {
+//       throw { statusCode: 400, message: "Email already verified." };
+//     }
+
+//     if (user.otp !== otp) {
+//       throw { statusCode: 400, message: "Invalid OTP." };
+//     }
+
+//     if (new Date() > user.expires_at) {
+//       throw { statusCode: 400, message: "OTP expired." };
+//     }
+
+//     await client.query(
+//       `UPDATE users
+//          SET is_verified = true, otp = NULL, expires_at = NULL
+//          WHERE users_id = $1`,
+//       [user.users_id],
+//     );
+//     // await Users.update(
+//     //   {
+//     //     is_verified: true,
+//     //     otp: null,
+//     //     expires_at: null,
+//     //   },
+//     //   {
+//     //     where: { users_id: userRess.users_id },
+//     //   }
+//     // );
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // Helper function to send verification email
 async function sendVerificationEmail(
@@ -230,317 +341,600 @@ async function sendVerificationEmail(
 
 // RESEND OTP
 export async function resendOtp(email) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const lowerEmail = email.toLowerCase();
+  const { Users, sequelize } = db;
 
-  try {
-    const lowerEmail = email.toLowerCase();
+  const user = await Users.findOne({
+    attributes: ["users_id", "otp_resend_count", "last_otp_sent_at", "is_verified"],
+    where: sequelize.where(
+      sequelize.fn("LOWER", sequelize.col("email")),
+      lowerEmail
+    ),
+  });
 
-    const userRes = await client.query(
-      `SELECT users_id, is_verified, otp_resend_count, last_otp_sent_at
-       FROM users WHERE LOWER(email) = $1`,
-      [lowerEmail],
-    );
-    // const userRess = await Users.findOne({
-    //   attributes: ["users_id", "otp_resend_count", "last_otp_sent_at", "is_verified"],
-    //   where: {
-    //     email: lowerEmail,
-    //   },
-    // });
-
-    if (userRes.rowCount === 0) {
-      throw { statusCode: 404, message: "User not found." };
-    }
-
-    const user = userRes.rows[0];
-
-    if (user.is_verified) {
-      throw { statusCode: 400, message: "User already verified." };
-    }
-
-    // rate limit: 4 per hour
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 3600000);
-
-    let resendCount = user.otp_resend_count || 0;
-    const lastSent = user.last_otp_sent_at;
-
-    if (lastSent && new Date(lastSent) > oneHourAgo) {
-      if (resendCount >= 4) {
-        throw {
-          statusCode: 429,
-          message: "OTP resend limit reached. Please try again after 1 hour.",
-        };
-      }
-    } else {
-      resendCount = 0; // reset
-    }
-
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await sendVerificationEmail(lowerEmail, otp);
-
-    await client.query(
-      `UPDATE users
-         SET otp = $1, expires_at = $2,
-             otp_resend_count = $3, last_otp_sent_at = $4
-         WHERE users_id = $5`,
-      [otp, expiresAt, resendCount + 1, now, user.users_id],
-    );
-    //    await client.query(
-    //   `UPDATE users
-    //      SET otp = $1, expires_at = $2,
-    //          otp_resend_count = $3, last_otp_sent_at = $4
-    //      WHERE users_id = $5`,
-    //   [otp, expiresAt, resendCount + 1, now, user.users_id],
-    // );
-    return { otpResendCount: resendCount + 1 };
-  } finally {
-    client.release();
+  if (!user) {
+    throw { statusCode: 404, message: "User not found." };
   }
+
+  if (user.is_verified) {
+    throw { statusCode: 400, message: "User already verified." };
+  }
+
+  // Rate limit: 4 per hour
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 3600000);
+
+  let resendCount = user.otp_resend_count || 0;
+  const lastSent = user.last_otp_sent_at;
+
+  if (lastSent && new Date(lastSent) > oneHourAgo) {
+    if (resendCount >= 4) {
+      throw {
+        statusCode: 429,
+        message: "OTP resend limit reached. Please try again after 1 hour.",
+      };
+    }
+  } else {
+    resendCount = 0; // reset count if outside 1-hour window
+  }
+
+  const otp = generateOtp();
+
+  await sendVerificationEmail(lowerEmail, otp);
+
+  await Users.update(
+    {
+      otp,
+      expires_at: sequelize.literal("NOW() + INTERVAL '10 minutes'"), // timezone-safe
+      otp_resend_count: resendCount + 1,
+      last_otp_sent_at: now,
+    },
+    {
+      where: { users_id: user.users_id },
+    }
+  );
+
+  return { otpResendCount: resendCount + 1 };
 }
+
+// export async function resendOtp(email) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const lowerEmail = email.toLowerCase();
+
+//     const userRes = await client.query(
+//       `SELECT users_id, is_verified, otp_resend_count, last_otp_sent_at
+//        FROM users WHERE LOWER(email) = $1`,
+//       [lowerEmail],
+//     );
+//     // const userRess = await Users.findOne({
+//     //   attributes: ["users_id", "otp_resend_count", "last_otp_sent_at", "is_verified"],
+//     //   where: {
+//     //     email: lowerEmail,
+//     //   },
+//     // });
+
+//     if (userRes.rowCount === 0) {
+//       throw { statusCode: 404, message: "User not found." };
+//     }
+
+//     const user = userRes.rows[0];
+
+//     if (user.is_verified) {
+//       throw { statusCode: 400, message: "User already verified." };
+//     }
+
+//     // rate limit: 4 per hour
+//     const now = new Date();
+//     const oneHourAgo = new Date(now.getTime() - 3600000);
+
+//     let resendCount = user.otp_resend_count || 0;
+//     const lastSent = user.last_otp_sent_at;
+
+//     if (lastSent && new Date(lastSent) > oneHourAgo) {
+//       if (resendCount >= 4) {
+//         throw {
+//           statusCode: 429,
+//           message: "OTP resend limit reached. Please try again after 1 hour.",
+//         };
+//       }
+//     } else {
+//       resendCount = 0; // reset
+//     }
+
+//     const otp = generateOtp();
+//     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+//     await sendVerificationEmail(lowerEmail, otp);
+
+//     await client.query(
+//       `UPDATE users
+//          SET otp = $1, expires_at = $2,
+//              otp_resend_count = $3, last_otp_sent_at = $4
+//          WHERE users_id = $5`,
+//       [otp, expiresAt, resendCount + 1, now, user.users_id],
+//     );
+//     //    await client.query(
+//     //   `UPDATE users
+//     //      SET otp = $1, expires_at = $2,
+//     //          otp_resend_count = $3, last_otp_sent_at = $4
+//     //      WHERE users_id = $5`,
+//     //   [otp, expiresAt, resendCount + 1, now, user.users_id],
+//     // );
+//     return { otpResendCount: resendCount + 1 };
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // LOGIN
 export async function login({ email, login_id, password }) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { Users, UsersToken, sequelize } = db;
 
+  // Build where clause based on email or login_id
+  let whereClause;
+  if (email) {
+    const lowerEmail = email.toLowerCase();
+    whereClause = sequelize.where(
+      sequelize.fn("LOWER", sequelize.col("email")),
+      lowerEmail
+    );
+  } else if (login_id) {
+    whereClause = { login_id };
+  } else {
+    throw { statusCode: 400, message: "Email or login ID is required." };
+  }
+
+  const user = await Users.findOne({
+    where: {
+      [Op.and]: [whereClause, { is_deleted: false }],
+    },
+  });
+
+  if (!user) {
+    throw { statusCode: 401, message: "Invalid credentials." };
+  }
+
+  if (!user.is_active) {
+    throw { statusCode: 403, message: "Account deactivated." };
+  }
+
+  if (user.is_locked) {
+    throw { statusCode: 403, message: "Account locked." };
+  }
+
+  if (!user.is_verified) {
+    throw { statusCode: 400, message: "Please verify your email first." };
+  }
+
+  // Decrypt password with fallback
+  let decryptedPassword;
   try {
-    let userRes;
-    if (email) {
-      const lowerEmail = email.toLowerCase();
-      userRes = await client.query(
-        "SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE",
-        [lowerEmail],
-      );
-
-    } else if (login_id) {
-      userRes = await client.query(
-        "SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE",
-        [login_id],
-      );
-    } else {
-      throw { statusCode: 400, message: "Email or login ID is required." };
-    }
-
-    if (userRes.rowCount === 0) {
-      throw { statusCode: 401, message: "Invalid credentials." };
-    }
-
-    const user = userRes.rows[0];
-
-    if (!user.is_active) {
-      throw { statusCode: 403, message: "Account deactivated." };
-    }
-
-    if (user.is_locked) {
-      throw { statusCode: 403, message: "Account locked." };
-    }
-
-    if (!user.is_verified) {
-      throw { statusCode: 400, message: "Please verify your email first." };
-    }
-
-    let decryptedPassword;
+    decryptedPassword = decrypt(user.password);
+  } catch (decryptError) {
     try {
-      decryptedPassword = decrypt(user.password);
-    } catch (decryptError) {
-      // Try fallback for old Base64 encryption
-      try {
-        decryptedPassword = base64Decrypt(user.password);
-      } catch (fallbackError) {
-        console.error(
-          "Fallback decryption also failed:",
-          fallbackError.message,
-        );
-        throw { statusCode: 500, message: "Invalid password format." };
-      }
+      decryptedPassword = base64Decrypt(user.password);
+    } catch (fallbackError) {
+      console.error("Fallback decryption also failed:", fallbackError.message);
+      throw { statusCode: 500, message: "Invalid password format." };
     }
-    //for wrong password incress failed_attempts count
-    if (decryptedPassword !== password) {
-      await client.query(
-        "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE users_id = $1",
-        [user.users_id],
-      );
-      //set_locked as true for too many attempt
-      if (user.failed_attempts + 1 >= 5) {
-        await client.query(
-          "UPDATE users SET is_locked = true WHERE users_id = $1",
-          [user.users_id],
-        );
-      }
+  }
 
-      throw { statusCode: 401, message: "Invalid email or password." };
-    }
+  // Wrong password — increment failed_attempts
+  if (decryptedPassword !== password) {
+    const newFailedAttempts = (user.failed_attempts || 0) + 1;
 
-    // RESET FAILED ATTEMPTS
-    await client.query(
-      "UPDATE users SET failed_attempts = 0 WHERE users_id = $1",
-      [user.users_id],
+    await Users.update(
+      {
+        failed_attempts: newFailedAttempts,
+        // Lock account if 5 or more failed attempts
+        ...(newFailedAttempts >= 5 && { is_locked: true }),
+      },
+      { where: { users_id: user.users_id } }
     );
 
-    // CHECK IF USER NEEDS TO CHANGE PASSWORD
-    if (user.next_login_password_change) {
-      return {
-        requirePasswordChange: true,
-        message: "You must change your password before continuing.",
-        user: {
-          id: user.users_id,
-          email: user.email,
-          role_id: user.role_id,
-        },
-      };
-    }
+    throw { statusCode: 401, message: "Invalid email or password." };
+  }
 
-    const accessToken = generateAccessToken(user.users_id);
-    const refreshToken = generateRefreshToken(user.users_id);
+  // Reset failed attempts on successful password match
+  await Users.update(
+    { failed_attempts: 0 },
+    { where: { users_id: user.users_id } }
+  );
 
-    await client.query(
-      `INSERT INTO users_token (user_id, access_token, refresh_token)
-         VALUES ($1, $2, $3)`,
-      [user.users_id, accessToken, refreshToken],
-    );
-
+  // Force password change if required
+  if (user.next_login_password_change) {
     return {
-      accessToken,
-      refreshToken,
+      requirePasswordChange: true,
+      message: "You must change your password before continuing.",
       user: {
         id: user.users_id,
         email: user.email,
         role_id: user.role_id,
       },
     };
-  } finally {
-    client.release();
   }
+
+  const accessToken = generateAccessToken(user.users_id);
+  const refreshToken = generateRefreshToken(user.users_id);
+
+  await UsersToken.create({
+    user_id: user.users_id,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.users_id,
+      email: user.email,
+      role_id: user.role_id,
+    },
+  };
 }
+// export async function login({ email, login_id, password }) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     let userRes;
+//     if (email) {
+//       const lowerEmail = email.toLowerCase();
+//       userRes = await client.query(
+//         "SELECT * FROM users WHERE LOWER(email) = $1 AND is_deleted = FALSE",
+//         [lowerEmail],
+//       );
+
+//     } else if (login_id) {
+//       userRes = await client.query(
+//         "SELECT * FROM users WHERE login_id = $1 AND is_deleted = FALSE",
+//         [login_id],
+//       );
+//     } else {
+//       throw { statusCode: 400, message: "Email or login ID is required." };
+//     }
+
+//     if (userRes.rowCount === 0) {
+//       throw { statusCode: 401, message: "Invalid credentials." };
+//     }
+
+//     const user = userRes.rows[0];
+
+//     if (!user.is_active) {
+//       throw { statusCode: 403, message: "Account deactivated." };
+//     }
+
+//     if (user.is_locked) {
+//       throw { statusCode: 403, message: "Account locked." };
+//     }
+
+//     if (!user.is_verified) {
+//       throw { statusCode: 400, message: "Please verify your email first." };
+//     }
+
+//     let decryptedPassword;
+//     try {
+//       decryptedPassword = decrypt(user.password);
+//     } catch (decryptError) {
+//       // Try fallback for old Base64 encryption
+//       try {
+//         decryptedPassword = base64Decrypt(user.password);
+//       } catch (fallbackError) {
+//         console.error(
+//           "Fallback decryption also failed:",
+//           fallbackError.message,
+//         );
+//         throw { statusCode: 500, message: "Invalid password format." };
+//       }
+//     }
+//     //for wrong password incress failed_attempts count
+//     if (decryptedPassword !== password) {
+//       await client.query(
+//         "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE users_id = $1",
+//         [user.users_id],
+//       );
+//       //set_locked as true for too many attempt
+//       if (user.failed_attempts + 1 >= 5) {
+//         await client.query(
+//           "UPDATE users SET is_locked = true WHERE users_id = $1",
+//           [user.users_id],
+//         );
+//       }
+
+//       throw { statusCode: 401, message: "Invalid email or password." };
+//     }
+
+//     // RESET FAILED ATTEMPTS
+//     await client.query(
+//       "UPDATE users SET failed_attempts = 0 WHERE users_id = $1",
+//       [user.users_id],
+//     );
+
+//     // CHECK IF USER NEEDS TO CHANGE PASSWORD
+//     if (user.next_login_password_change) {
+//       return {
+//         requirePasswordChange: true,
+//         message: "You must change your password before continuing.",
+//         user: {
+//           id: user.users_id,
+//           email: user.email,
+//           role_id: user.role_id,
+//         },
+//       };
+//     }
+
+//     const accessToken = generateAccessToken(user.users_id);
+//     const refreshToken = generateRefreshToken(user.users_id);
+
+//     await client.query(
+//       `INSERT INTO users_token (user_id, access_token, refresh_token)
+//          VALUES ($1, $2, $3)`,
+//       [user.users_id, accessToken, refreshToken],
+//     );
+
+//     return {
+//       accessToken,
+//       refreshToken,
+//       user: {
+//         id: user.users_id,
+//         email: user.email,
+//         role_id: user.role_id,
+//       },
+//     };
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // LOGOUT
 export async function logout(user) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { UsersToken } = db;
 
-  try {
-    await client.query(
-      `DELETE FROM users_token
-         WHERE user_id = $1 AND access_token = $2`,
-      [user.user_id, user.access_token],
-    );
-  } finally {
-    client.release();
-  }
+  await UsersToken.destroy({
+    where: {
+      user_id: user.user_id,
+      access_token: user.access_token,
+    },
+  });
 }
+
+// export async function logout(user) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     await client.query(
+//       `DELETE FROM users_token
+//          WHERE user_id = $1 AND access_token = $2`,
+//       [user.user_id, user.access_token],
+//     );
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // FORGOT PASSWORD
+
+//forget
 export async function forgotPassword(email) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { Users, sequelize } = db;
 
-  try {
-    const lowerEmail = email.toLowerCase();
+  const lowerEmail = email.toLowerCase();
 
-    const userRes = await client.query(
-      "SELECT users_id FROM users WHERE LOWER(email) = $1",
-      [lowerEmail],
-    );
+  const user = await Users.findOne({
+    attributes: ["users_id"],
+    where: sequelize.where(
+      sequelize.fn("LOWER", sequelize.col("email")),
+      lowerEmail
+    ),
+  });
 
-    if (userRes.rowCount === 0) {
-      throw { statusCode: 404, message: "No user found." };
-    }
-
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await sendVerificationEmail(lowerEmail, null, token);
-
-    await client.query(
-      `UPDATE users
-         SET reset_password_token = $1, reset_token_expires_at = $2
-         WHERE LOWER(email) = $3`,
-      [token, expiresAt, lowerEmail],
-    );
-  } finally {
-    client.release();
+  if (!user) {
+    throw { statusCode: 404, message: "No user found." };
   }
+
+  const token = crypto.randomUUID();
+
+  // Save to DB first, then send email
+  await Users.update(
+    {
+      reset_password_token: token,
+      reset_token_expires_at: sequelize.literal("NOW() + INTERVAL '10 minutes'"),
+    },
+    {
+      where: sequelize.where(
+        sequelize.fn("LOWER", sequelize.col("email")),
+        lowerEmail
+      ),
+    }
+  );
+
+  await sendVerificationEmail(lowerEmail, null, token);
 }
+// export async function forgotPassword(email) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const lowerEmail = email.toLowerCase();
+
+//     const userRes = await client.query(
+//       "SELECT users_id FROM users WHERE LOWER(email) = $1",
+//       [lowerEmail],
+//     );
+
+//     if (userRes.rowCount === 0) {
+//       throw { statusCode: 404, message: "No user found." };
+//     }
+
+//     const token = crypto.randomUUID();
+//     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+//     await sendVerificationEmail(lowerEmail, null, token);
+
+//     await client.query(
+//       `UPDATE users
+//          SET reset_password_token = $1, reset_token_expires_at = $2
+//          WHERE LOWER(email) = $3`,
+//       [token, expiresAt, lowerEmail],
+//     );
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // RESET PASSWORD
 export async function resetPassword({ email, resetPasswordToken, password }) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { Users, sequelize } = db;
 
-  try {
-    const lowerEmail = email.toLowerCase();
+  const lowerEmail = email.toLowerCase();
 
-    const resUser = await client.query(
-      `SELECT users_id, reset_token_expires_at
-         FROM users
-         WHERE LOWER(email) = $1 AND reset_password_token = $2`,
-      [lowerEmail, resetPasswordToken],
-    );
+  const user = await Users.findOne({
+    attributes: ["users_id", "reset_token_expires_at"],
+    where: {
+      [Op.and]: [
+        sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("email")),
+          lowerEmail
+        ),
+        { reset_password_token: resetPasswordToken },
+      ],
+    },
+  });
 
-    if (resUser.rowCount === 0) {
-      throw { statusCode: 400, message: "Invalid reset token." };
-    }
-
-    const user = resUser.rows[0];
-
-    if (new Date() > user.reset_token_expires_at) {
-      throw { statusCode: 400, message: "Reset token expired." };
-    }
-
-    await client.query(
-      `UPDATE users
-         SET password = $1,
-             reset_password_token = NULL,
-             reset_token_expires_at = NULL,
-             next_login_password_change = false
-         WHERE users_id = $2`,
-      [encrypt(password), user.users_id],
-    );
-  } finally {
-    client.release();
+  if (!user) {
+    throw { statusCode: 400, message: "Invalid reset token." };
   }
+
+  // Timezone-safe comparison
+  if (new Date() > new Date(user.reset_token_expires_at)) {
+    throw { statusCode: 400, message: "Reset token expired." };
+  }
+
+  await Users.update(
+    {
+      password: encrypt(password),
+      reset_password_token: null,
+      reset_token_expires_at: null,
+      next_login_password_change: false,
+    },
+    { where: { users_id: user.users_id } }
+  );
 }
+// export async function resetPassword({ email, resetPasswordToken, password }) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const lowerEmail = email.toLowerCase();
+
+//     const resUser = await client.query(
+//       `SELECT users_id, reset_token_expires_at
+//          FROM users
+//          WHERE LOWER(email) = $1 AND reset_password_token = $2`,
+//       [lowerEmail, resetPasswordToken],
+//     );
+
+//     if (resUser.rowCount === 0) {
+//       throw { statusCode: 400, message: "Invalid reset token." };
+//     }
+
+//     const user = resUser.rows[0];
+
+//     if (new Date() > user.reset_token_expires_at) {
+//       throw { statusCode: 400, message: "Reset token expired." };
+//     }
+
+//     await client.query(
+//       `UPDATE users
+//          SET password = $1,
+//              reset_password_token = NULL,
+//              reset_token_expires_at = NULL,
+//              next_login_password_change = false
+//          WHERE users_id = $2`,
+//       [encrypt(password), user.users_id],
+//     );
+//   } finally {
+//     client.release();
+//   }
+// }
 
 // REFRESH TOKEN
-export async function refreshToken(refreshToken) {
-  let decoded;
+// export async function refreshToken(refreshToken) {
+//   let decoded;
 
+//   try {
+//     decoded = jwt.verify(refreshToken, env.JWT.JWT_REFRESH_SECRET);
+//   } catch (err) {
+//     throw { statusCode: 401, message: "Invalid refresh token." };
+//   }
+
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const checkToken = await client.query(
+//       `SELECT * FROM users_token
+//          WHERE user_id = $1 AND refresh_token = $2`,
+//       [decoded.userId, refreshToken],
+//     );
+
+//     if (checkToken.rowCount === 0) {
+//       throw { statusCode: 401, message: "Token expired or invalid." };
+//     }
+
+//     const newAccessToken = generateAccessToken(decoded.userId);
+
+//     await client.query(
+//       `UPDATE users_token SET access_token = $1
+//          WHERE user_id = $2 AND refresh_token = $3`,
+//       [newAccessToken, decoded.userId, refreshToken],
+//     );
+
+//     return { accessToken: newAccessToken };
+//   } finally {
+//     client.release();
+//   }
+// }
+export async function refreshToken(refreshToken) {
+  const { UsersToken } = db;
+
+  let decoded;
   try {
     decoded = jwt.verify(refreshToken, env.JWT.JWT_REFRESH_SECRET);
   } catch (err) {
     throw { statusCode: 401, message: "Invalid refresh token." };
   }
 
-  const pool = getPool();
-  const client = await pool.connect();
+  const token = await UsersToken.findOne({
+    where: {
+      user_id: decoded.userId,
+      refresh_token: refreshToken,
+    },
+  });
 
-  try {
-    const checkToken = await client.query(
-      `SELECT * FROM users_token
-         WHERE user_id = $1 AND refresh_token = $2`,
-      [decoded.userId, refreshToken],
-    );
-
-    if (checkToken.rowCount === 0) {
-      throw { statusCode: 401, message: "Token expired or invalid." };
-    }
-
-    const newAccessToken = generateAccessToken(decoded.userId);
-
-    await client.query(
-      `UPDATE users_token SET access_token = $1
-         WHERE user_id = $2 AND refresh_token = $3`,
-      [newAccessToken, decoded.userId, refreshToken],
-    );
-
-    return { accessToken: newAccessToken };
-  } finally {
-    client.release();
+  if (!token) {
+    throw { statusCode: 401, message: "Token expired or invalid." };
   }
-}
+
+  const newAccessToken = generateAccessToken(decoded.userId);
+
+  await UsersToken.update(
+    { access_token: newAccessToken },
+    {
+      where: {
+        user_id: decoded.userId,
+        refresh_token: refreshToken,
+      },
+    }
+  );
+
+  return { accessToken: newAccessToken };
+} 
 
 export default {
   login,

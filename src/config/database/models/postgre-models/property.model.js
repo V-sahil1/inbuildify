@@ -10,7 +10,7 @@ export class Property extends Model {
 export default (sequelize) => {
   Property.init(
     {
-      property_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      property_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       leads_id: { type: DataTypes.UUID, allowNull: true },
       lot_no: { type: DataTypes.INTEGER, allowNull: true },
       street_no: { type: DataTypes.INTEGER, allowNull: true },

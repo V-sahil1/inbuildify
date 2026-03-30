@@ -15,7 +15,7 @@ export class FloorPlan extends Model {
 export default (sequelize) => {
   FloorPlan.init(
     {
-      floor_plan_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      floor_plan_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

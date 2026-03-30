@@ -54,39 +54,32 @@ export const createPropertySchema = Joi.object({
 });
 
 export const updatePropertySchema = Joi.object({
-  address: Joi.object({
-    address_line1: Joi.string()
-      .max(255)
-      .messages({
-        "string.empty": "Address line 1 cannot be empty",
-      }),
-    address_line2: Joi.string().allow("", null).max(255),
-    city: Joi.string()
-      .max(100)
-      .messages({
-        "string.empty": "City cannot be empty",
-      }),
-    state_id: Joi.string()
-      .uuid()
-      .messages({
-        "string.guid": "State ID must be a valid UUID",
-      }),
-    country_id: Joi.string()
-      .uuid()
-      .messages({
-        "string.guid": "Country ID must be a valid UUID",
-      }),
-    zip_code: Joi.string()
-      .max(20)
-      .messages({
-        "string.empty": "Zip code cannot be empty",
-      }),
-  }).optional(),
-  lot_no: Joi.number().integer().allow(null).optional(),
-  street_no: Joi.number().integer().allow(null).optional(),
-  estate_name: Joi.string().allow("", null).max(150),
-  title_status: Joi.string().valid("ESTIMATED", "ACTUAL").optional(),
-  title_date: Joi.date().optional(),
+  lot_number: Joi.string().allow("", null).max(255).optional(),
+  street: Joi.string().allow("", null).max(255).optional(),
+  address_line1: Joi.string().allow("", null).max(255).optional(),
+  address_line2: Joi.string().allow("", null).max(255).optional(),
+  city: Joi.string().allow("", null).max(255).optional(),
+  state_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.guid": "State ID must be a valid UUID",
+  }),
+  country_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.guid": "Country ID must be a valid UUID",
+  }),
+  zip_code: Joi.string().allow("", null).max(10).optional(),
+  estate_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.guid": "Estate ID must be a valid UUID",
+  }),
+  estate_stage_id: Joi.string().uuid().allow(null).optional().messages({
+    "string.guid": "Estate Stage ID must be a valid UUID",
+  }),
+  estate_name: Joi.string().allow("", null).max(255).optional(),
+  title_status: Joi.string().valid("available",
+    "sold",
+    "reserved",
+    "pending",
+    "under_contract",
+    "off_market",).allow("", null).optional(),
+  title_date: Joi.date().allow(null).optional(),
   compaction_report: Joi.string()
     .valid("available",
       "not_available",).allow("", null)
@@ -110,7 +103,7 @@ export const getPropertyByLeadSchema = Joi.object({
 });
 
 export const updatePropertyParamSchema = Joi.object({
-  property_id: Joi.string().uuid().required().messages({
+  property_detail_id: Joi.string().uuid().required().messages({
     "string.guid": "Property ID must be a valid UUID",
     "any.required": "Property ID is required",
   }),

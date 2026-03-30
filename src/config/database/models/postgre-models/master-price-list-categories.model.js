@@ -13,7 +13,7 @@ export class MasterPriceListCategories extends Model {
 export default (sequelize) => {
   MasterPriceListCategories.init(
     {
-      master_price_list_category_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      master_price_list_category_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: false },
       builder_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(200), allowNull: false },

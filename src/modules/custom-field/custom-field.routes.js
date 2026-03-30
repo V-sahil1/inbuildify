@@ -32,29 +32,28 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createCustomFieldSchema, REQUEST_SOURCE.BODY),
-  createCustomField,
-);
-
 router.get(
   "/",
   validateRequest(getAllCustomFieldSchema, REQUEST_SOURCE.QUERY),
   getAllCustomFields,
 );
 
-router.delete(
-  "/:id",
-  validateRequest(deleteCustomFieldSchema, REQUEST_SOURCE.PARAMS),
-  deleteCustomField,
+router.post(
+  "/",
+  validateRequest(createCustomFieldSchema, REQUEST_SOURCE.BODY),
+  createCustomField,
 );
-
 router.put(
   "/:id",
   validateRequest(updateCustomFieldIdParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateCustomFieldSchema, REQUEST_SOURCE.BODY),
   updateCustomField,
+);
+
+router.delete(
+  "/:id",
+  validateRequest(deleteCustomFieldSchema, REQUEST_SOURCE.PARAMS),
+  deleteCustomField,
 );
 
 router.put(

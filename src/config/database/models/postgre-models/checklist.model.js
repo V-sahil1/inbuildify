@@ -2,10 +2,37 @@ import { Model, DataTypes } from "sequelize";
 
 export class Checklist extends Model {
   static associate(models) {
-    Checklist.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Checklist.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Checklist.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
-    Checklist.hasMany(models.ChecklistItem, { foreignKey: "checklist_id", as: "checklistItems" });
+    // ✅ existing correct ones
+    Checklist.belongsTo(models.Builder, {
+      foreignKey: "builder_id",
+      as: "builder"
+    });
+
+    Checklist.belongsTo(models.Users, {
+      foreignKey: "created_by",
+      as: "createdByUser"
+    });
+
+    Checklist.belongsTo(models.Users, {
+      foreignKey: "updated_by",
+      as: "updatedByUser"
+    });
+
+    Checklist.hasMany(models.ChecklistItem, {
+      foreignKey: "checklist_id",
+      as: "checklistItems"
+    });
+
+    // ✅ MISSING ones — add these
+    Checklist.belongsTo(models.Screen, {
+      foreignKey: "screen_id",
+      as: "screen"
+    });
+
+    Checklist.belongsTo(models.Functionality, {
+      foreignKey: "functionality_id",
+      as: "functionality"
+    });
   }
 }
 
@@ -14,7 +41,7 @@ export default (sequelize) => {
     {
       checklist_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       builder_id: {
@@ -25,14 +52,25 @@ export default (sequelize) => {
         type: DataTypes.STRING(150),
         allowNull: false,
       },
+
+      // ✅ add references here too
       screen_id: {
         type: DataTypes.UUID,
         allowNull: false,
+        references: {
+          model: "screen",
+          key: "screen_id",
+        },
       },
       functionality_id: {
         type: DataTypes.UUID,
         allowNull: false,
+        references: {
+          model: "functionality",
+          key: "functionality_id",
+        },
       },
+
       is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
@@ -49,12 +87,8 @@ export default (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
-      createdAt: {
-        type: DataTypes.DATE,
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-      },
+      createdAt: { type: DataTypes.DATE },
+      updatedAt: { type: DataTypes.DATE },
     },
     {
       sequelize,

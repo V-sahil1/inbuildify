@@ -12,7 +12,7 @@ export class JobWorkflowSettings extends Model {
 export default (sequelize) => {
   JobWorkflowSettings.init(
     {
-      job_workflow_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_workflow_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       show_all_tasks_to_all_roles: { type: DataTypes.BOOLEAN, defaultValue: false },

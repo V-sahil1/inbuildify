@@ -8,7 +8,7 @@ export class SupplierTypeConstructionChecklistMap extends Model {
 }
 export default (sequelize) => {
   SupplierTypeConstructionChecklistMap.init({
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     supplier_type_id: { type: DataTypes.UUID, allowNull: false },
     construction_checklist_id: { type: DataTypes.UUID, allowNull: false },
     createdAt: { type: DataTypes.DATE },

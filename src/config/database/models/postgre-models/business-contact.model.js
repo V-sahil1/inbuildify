@@ -9,7 +9,7 @@ export class BusinessContact extends Model {
 }
 export default (sequelize) => {
   BusinessContact.init({
-    business_contact_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    business_contact_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     leads_id: { type: DataTypes.UUID, allowNull: true },
     contact_type: { type: DataTypes.STRING(50), allowNull: false },
     name: { type: DataTypes.STRING(255), allowNull: false },

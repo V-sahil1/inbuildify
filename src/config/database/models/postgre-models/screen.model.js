@@ -11,7 +11,7 @@ export class Screen extends Model {
 export default (sequelize) => {
   Screen.init(
     {
-      screen_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      screen_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       name: { type: DataTypes.STRING(150), allowNull: false },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },

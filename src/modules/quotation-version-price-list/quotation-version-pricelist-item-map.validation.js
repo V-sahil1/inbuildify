@@ -42,9 +42,16 @@ export const idParamsSchema = Joi.object({
   }),
 });
 
+export const getPricelistItemsByVersionIdQuerySchema = Joi.object({
+  quantity: Joi.string().valid("asc", "desc").optional(),
+  item_cost: Joi.string().valid("asc", "desc").optional(),
+  total_price: Joi.string().valid("asc", "desc").optional(),
+});
+
 export default {
   createPricelistItemMapSchema,
   getByVersionParamsSchema,
   updatePricelistItemMapSchema,
   idParamsSchema,
+  getPricelistItemsByVersionIdQuerySchema,
 };

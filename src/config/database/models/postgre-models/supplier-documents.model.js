@@ -9,7 +9,7 @@ export class SupplierDocuments extends Model {
 export default (sequelize) => {
   SupplierDocuments.init(
     {
-      supplier_document_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      supplier_document_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       supplier_id: { type: DataTypes.UUID, allowNull: false },
       work_cover_url: { type: DataTypes.STRING(500), allowNull: true },
       pl_insurance_url: { type: DataTypes.STRING(500), allowNull: true },

@@ -10,7 +10,7 @@ export class HLPackageCommissionMap extends Model {
 export default (sequelize) => {
   HLPackageCommissionMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       house_land_package_id: { type: DataTypes.UUID, allowNull: true },
       total_commission: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
       job_commission_id: { type: DataTypes.UUID, allowNull: true },

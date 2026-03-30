@@ -11,7 +11,7 @@ export class DocumentCommonSubfolder extends Model {
 export default (sequelize) => {
   DocumentCommonSubfolder.init(
     {
-      document_common_subfolder_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      document_common_subfolder_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       document_common_folder_id: { type: DataTypes.UUID, allowNull: false },
       parent_subfolder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

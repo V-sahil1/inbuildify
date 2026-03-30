@@ -15,7 +15,7 @@ export default (sequelize) => {
     {
       contract_format_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       company_id: { type: DataTypes.UUID, allowNull: true },

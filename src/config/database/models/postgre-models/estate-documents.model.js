@@ -9,7 +9,7 @@ export class EstateDocuments extends Model {
 }
 export default (sequelize) => {
   EstateDocuments.init({
-    estate_document_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    estate_document_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     estate_id: { type: DataTypes.UUID, allowNull: true },
     document_name: { type: DataTypes.STRING(255), allowNull: true },
     file_url: { type: DataTypes.STRING(500), allowNull: true },

@@ -7,7 +7,7 @@ export class JobForm extends Model {
 }
 export default (sequelize) => {
   JobForm.init({
-    job_form_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    job_form_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     leads_id: { type: DataTypes.UUID, allowNull: true },
     street_name: { type: DataTypes.STRING(255), allowNull: false },
     land_developer: { type: DataTypes.STRING(255), allowNull: true },

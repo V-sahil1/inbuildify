@@ -5,7 +5,7 @@ export class EmailTemplates extends Model {
 }
 export default (sequelize) => {
   EmailTemplates.init({
-    template_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    template_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     template_key: { type: DataTypes.STRING(100), allowNull: false },
     category: { type: DataTypes.STRING(100), allowNull: false },
     subject: { type: DataTypes.STRING(255), allowNull: false },

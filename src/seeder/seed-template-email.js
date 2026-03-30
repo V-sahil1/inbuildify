@@ -1,9 +1,12 @@
+
+
 /**
  * Seed default template_email records for a new builder.
  * Inserts standard email templates (password reset, invite, quote, message, payment).
  */
 export async function seedTemplateEmail({ company_id, builder_id, created_by, client }) {
   const templates = [
+// ... (templates array)
     {
       name: "Password Reset",
       type: "standard",
@@ -68,14 +71,32 @@ export async function seedTemplateEmail({ company_id, builder_id, created_by, cl
   ];
 
   for (const tpl of templates) {
-    await client.query(
-      `INSERT INTO template_email (
-        company_id, builder_id, name, type, subject, email_content,
-        is_active, created_by, updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)
-      ON CONFLICT (company_id, builder_id, name) DO NOTHING`,
-      [company_id, builder_id, tpl.name, tpl.type, tpl.subject, tpl.email_content, created_by],
+    const existing = await client.query(
+      `SELECT template_email_id FROM template_email
+       WHERE (company_id = $1 OR $1 IS NULL) AND (builder_id = $2 OR $2 IS NULL) AND name = $3
+       LIMIT 1`,
+      [company_id, builder_id, tpl.name],
     );
+
+    if (existing.rowCount === 0) {
+      await client.query(
+        `INSERT INTO template_email (
+          template_email_id,
+          company_id, 
+          builder_id, 
+          name, 
+          type, 
+          subject, 
+          email_content,
+          additional_recipient_users,
+          additional_recipient_groups,
+          is_active, 
+          created_by, 
+          updated_by
+        ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, '{}', '{}', TRUE, $7, $7)`,
+        [company_id, builder_id, tpl.name, tpl.type, tpl.subject, tpl.email_content, created_by],
+      );
+    }
   }
 }
 

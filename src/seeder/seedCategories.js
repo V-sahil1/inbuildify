@@ -8,7 +8,7 @@ const seedCategories = async () => {
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_category (
-        admin_category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        admin_category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) UNIQUE NOT NULL,
         description TEXT,
         created_at TIMESTAMP DEFAULT now(),

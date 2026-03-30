@@ -4,7 +4,7 @@ export class Company extends Model {
   static associate(models) {
     Company.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
     Company.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
-    Company.hasMany(models.Users, { foreignKey: "company_id", as: "users" });
+    Company.belongsTo(models.Timezones, { foreignKey: "timezone_id", as: "timezone", onDelete: "CASCADE" });
   }
 }
 
@@ -13,8 +13,9 @@ export default (sequelize) => {
     {
       company_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
+        field: "company_id",
       },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

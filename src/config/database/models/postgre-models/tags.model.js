@@ -9,7 +9,7 @@ export class Tags extends Model {
 export default (sequelize) => {
   Tags.init(
     {
-      tag_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      tag_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       builder_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(100), allowNull: false },
       is_deleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },

@@ -14,8 +14,9 @@ import { upsertBuilderSchema } from "./builder.validation.js";
 router.use(authMiddleware);
 router.use(roleMiddleware);
 const upload = createUpload("builder-logo");
-
+//not currently use this api
 router.get("/all", getAllBuilders);
+
 router.get("/", getMyBuilderProfile);
 router.post(
   "/",

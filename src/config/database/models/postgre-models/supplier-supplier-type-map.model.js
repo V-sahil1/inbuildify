@@ -10,7 +10,7 @@ export class SupplierSupplierTypeMap extends Model {
 export default (sequelize) => {
   SupplierSupplierTypeMap.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       supplier_id: { type: DataTypes.UUID, allowNull: false },
       supplier_type_id: { type: DataTypes.UUID, allowNull: false },
       is_recommended: { type: DataTypes.BOOLEAN, defaultValue: false },

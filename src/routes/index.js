@@ -55,7 +55,7 @@ import passwordPolicyRoutes from "../modules/password-policy/password-policy.rou
 import userRoleMappingRoutes from "../modules/user-role-mapping/user-role-mapping.routes.js";
 import userPasswordHistoryRoutes from "../modules/user-password-history/user-password-history.routes.js";
 import salesModuleSettingRoutes from "../modules/sales-module-setting/sales-module-setting.routes.js";
-import salesProcessRoutes from "../modules/sales-proccess/sales-process.routes.js";
+import salesProcessRoutes from "../modules/sales-proccess/sales-process.route.js";
 import salesProcessStageFunctionalityRoutes from "../modules/sales-proccess-stage-functionality/sales-process-stage-functionality.routes.js";
 import salesStageRoutes from "../modules/sales-stage/sales-stage.routes.js";
 import leadLostReasonRoutes from "../modules/lead-lost-reason/lead-lost-reason.routes.js";

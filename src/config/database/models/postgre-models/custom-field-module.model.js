@@ -9,7 +9,7 @@ export class CustomFieldModule extends Model {
 export default (sequelize) => {
   CustomFieldModule.init(
     {
-      module_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      module_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },
       createdAt: { type: DataTypes.DATE },

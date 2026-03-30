@@ -9,7 +9,7 @@ export class JobInvoiceStagePayments extends Model {
 export default (sequelize) => {
   JobInvoiceStagePayments.init(
     {
-      job_invoice_stage_payment_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_invoice_stage_payment_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       job_invoice_settings_id: { type: DataTypes.UUID, allowNull: false },
       description: { type: DataTypes.STRING(150), allowNull: false },
       percentage: { type: DataTypes.DECIMAL(5, 2), allowNull: true },

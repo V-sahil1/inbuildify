@@ -27,12 +27,6 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createChecklistSchema, REQUEST_SOURCE.BODY),
-  createChecklist,
-);
-
 router.get("/", getAllChecklist);
 
 router.get(
@@ -41,10 +35,10 @@ router.get(
   getAllChecklist,
 );
 
-router.delete(
-  "/:checklist_id",
-  validateRequest(deleteChecklistSchema, REQUEST_SOURCE.PARAMS),
-  deleteChecklist,
+router.post(
+  "/",
+  validateRequest(createChecklistSchema, REQUEST_SOURCE.BODY),
+  createChecklist,
 );
 
 router.put(
@@ -58,6 +52,12 @@ router.put(
   "/is-active/:checklist_id",
   validateRequest(updateChecklistParamsSchema, REQUEST_SOURCE.PARAMS),
   updateChecklistIsActive,
+);
+
+router.delete(
+  "/:checklist_id",
+  validateRequest(deleteChecklistSchema, REQUEST_SOURCE.PARAMS),
+  deleteChecklist,
 );
 
 export default router;

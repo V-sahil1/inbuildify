@@ -9,7 +9,7 @@ export class QuotationVersionCustomSection extends Model {
 export default (sequelize) => {
   QuotationVersionCustomSection.init(
     {
-      custom_section_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      custom_section_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       quotation_version_id: { type: DataTypes.UUID, allowNull: true },
       file_url: { type: DataTypes.STRING(500), allowNull: true },
       sort_order: { type: DataTypes.INTEGER, allowNull: true },

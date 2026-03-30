@@ -13,7 +13,7 @@ export class PriceList extends Model {
 export default (sequelize) => {
   PriceList.init(
     {
-      price_list_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      price_list_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(200), allowNull: false },

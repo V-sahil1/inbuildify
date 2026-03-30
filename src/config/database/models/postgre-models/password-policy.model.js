@@ -12,7 +12,7 @@ export class PasswordPolicy extends Model {
 export default (sequelize) => {
   PasswordPolicy.init(
     {
-      password_policy_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      password_policy_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       expires_in_days: { type: DataTypes.INTEGER, defaultValue: 90 },
@@ -26,7 +26,8 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "password_policy", modelName: "PasswordPolicy", underscored: true }
+    { sequelize, tableName: "password_policy", modelName: "PasswordPolicy", underscored: true,
+      indexes: [{ unique: true, fields: ["company_id", "builder_id"] }] }
   );
   return PasswordPolicy;
 };

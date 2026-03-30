@@ -13,7 +13,7 @@ export class RolePermission extends Model {
 export default (sequelize) => {
   RolePermission.init(
     {
-      role_permission_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      role_permission_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       role_id: { type: DataTypes.UUID, allowNull: false },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
@@ -28,7 +28,8 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "role_permission", modelName: "RolePermission", underscored: true }
+    { sequelize, tableName: "role_permission", modelName: "RolePermission", underscored: true,
+      indexes: [{ unique: true, fields: ["role_id", "module_name", "company_id", "builder_id"] }] }
   );
   return RolePermission;
 };

@@ -11,7 +11,7 @@ export class JobProcessTask extends Model {
 export default (sequelize) => {
   JobProcessTask.init(
     {
-      job_process_task_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      job_process_task_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       sub_stage_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(200), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },

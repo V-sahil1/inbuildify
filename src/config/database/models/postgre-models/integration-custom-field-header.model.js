@@ -14,7 +14,7 @@ export class IntegrationCustomFieldHeader extends Model {
 export default (sequelize) => {
   IntegrationCustomFieldHeader.init(
     {
-      integration_custom_field_header_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      integration_custom_field_header_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       header_name: { type: DataTypes.STRING(150), allowNull: false },

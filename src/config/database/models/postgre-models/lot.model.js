@@ -16,7 +16,7 @@ export class Lot extends Model {
 export default (sequelize) => {
   Lot.init(
     {
-      lot_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      lot_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       estate_id: { type: DataTypes.UUID, allowNull: true },

@@ -7,7 +7,7 @@ export class ColorItemCustomField extends Model {
 }
 export default (sequelize) => {
   ColorItemCustomField.init({
-    color_item_custom_field_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    color_item_custom_field_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     color_item: { type: DataTypes.UUID, allowNull: true },
     field_type: { type: DataTypes.STRING(255), allowNull: true },
     field_name: { type: DataTypes.STRING(255), allowNull: true },

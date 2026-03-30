@@ -1,7 +1,11 @@
 /**
  * Seed default general_settings for a new builder
  */
-export async function seedGeneralSettings({ company_id, builder_id, created_by, client }) {
+export async function seedGeneralSettings({
+  company_id,
+  builder_id,
+  client,
+}) {
   // general_settings has no unique constraint on (company_id, builder_id)
   const existing = await client.query(
     `SELECT id FROM general_settings
@@ -13,11 +17,18 @@ export async function seedGeneralSettings({ company_id, builder_id, created_by, 
   if (existing.rowCount === 0) {
     await client.query(
       `INSERT INTO general_settings (
-        company_id, builder_id,
-        notification_referral_partner, pdf_password_protected,
-        round_of_cost, negative_value_show, negative_value_color,
-        show_reference_id_in_pdf
-      ) VALUES ($1, $2, false, false, false, true, '#FF0000', 'hide_document_id_and_job_id')`,
+        id,
+        company_id, 
+        builder_id,
+        notification_referral_partner,
+        pdf_password_protected,
+        pdf_password,
+        round_of_cost,
+        negative_value_show,
+        negative_value_color,
+        show_reference_id_in_pdf,
+        job_id_label
+      ) VALUES (gen_random_uuid(), $1, $2, FALSE, FALSE, NULL, FALSE, TRUE, NULL, 'hide_document_id_and_job_id', NULL)`,
       [company_id, builder_id],
     );
   }

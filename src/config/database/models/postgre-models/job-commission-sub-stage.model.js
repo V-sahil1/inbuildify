@@ -9,7 +9,7 @@ export class JobCommissionSubStage extends Model {
 }
 export default (sequelize) => {
   JobCommissionSubStage.init({
-    job_commission_sub_stage_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    job_commission_sub_stage_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     job_commission_id: { type: DataTypes.UUID, allowNull: false },
     name: { type: DataTypes.STRING(150), allowNull: false },
     commission_unit: { type: DataTypes.ENUM("percentage", "amount"), allowNull: false },

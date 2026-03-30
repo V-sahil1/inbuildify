@@ -48,7 +48,7 @@ class QuotationRepository {
                     'cost', p.cost
                   )
                   FROM package p
-                  WHERE p.package_id = qv.package_id
+                  WHERE p.package_id = ANY(qv.package_id) LIMIT 1
                 ),
                 'total_package_cost', COALESCE(
                   (SELECT p.cost
@@ -265,7 +265,9 @@ class QuotationRepository {
     } finally {
       client.release();
     }
-  }async getVersionsByQuotationId(quotationId) {
+  }
+
+  async getVersionsByQuotationId(quotationId) {
     const client = await this.pool.connect();
     try {
       const query = `
@@ -319,7 +321,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = qv.package_id
+            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
           ) as package,
           COALESCE(
             (SELECT p.cost
@@ -345,7 +347,7 @@ class QuotationRepository {
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
           (
-       SELECT COALESCE(json_agg(json_build_object(
+        SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
               'users_id', u.users_id,
               'address', jsonb_build_object(
@@ -382,6 +384,7 @@ class QuotationRepository {
       client.release();
     }
   }
+
   async updateQuotationVersion(versionId, updateData) {
     const client = await this.pool.connect();
     try {
@@ -473,7 +476,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = qv.package_id
+            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
           ) as package,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
@@ -497,7 +500,6 @@ class QuotationRepository {
             LEFT JOIN address a ON u.address_id = a.address_id
             WHERE lcm.leads_id = leads.leads_id
           ) as lead_contacts,
-          qv.created_at, qv.updated_at,
           qv.created_at, qv.updated_at
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -514,7 +516,9 @@ class QuotationRepository {
     } finally {
       client.release();
     }
-  }async getQuotationVersionDetailsById(versionId) {
+  }
+
+  async getQuotationVersionDetailsById(versionId) {
     const client = await this.pool.connect();
     try {
       const enrichQuery = `
@@ -569,7 +573,7 @@ class QuotationRepository {
               'cost', p.cost
             )
             FROM package p
-            WHERE p.package_id = qv.package_id
+            WHERE p.package_id = ANY(qv.package_id) LIMIT 1
           ) as package,
           COALESCE(
             (SELECT p.cost

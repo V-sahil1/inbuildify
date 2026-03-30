@@ -10,7 +10,7 @@ export class ConstructionSettings extends Model {
 }
 export default (sequelize) => {
   ConstructionSettings.init({
-    construction_setting_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    construction_setting_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     company_id: { type: DataTypes.UUID, allowNull: true },
     builder_id: { type: DataTypes.UUID, allowNull: true },
     suppliers_tradies_madatory_to_complete_checklist: { type: DataTypes.BOOLEAN, defaultValue: false },

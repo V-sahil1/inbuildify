@@ -9,7 +9,7 @@ export class SurveyTemplateQuestions extends Model {
 }
 export default (sequelize) => {
   SurveyTemplateQuestions.init({
-    survey_question_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    survey_question_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
     survey_template_id: { type: DataTypes.UUID, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: false },
     option_type: { type: DataTypes.STRING(50), allowNull: false },

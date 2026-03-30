@@ -11,7 +11,7 @@ export default (sequelize) => {
     {
       construction_sub_checklist_id: {
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
         primaryKey: true,
       },
       construction_checklist_id: { type: DataTypes.UUID, allowNull: false },

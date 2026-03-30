@@ -12,7 +12,7 @@ export class SalesModuleSettings extends Model {
 export default (sequelize) => {
   SalesModuleSettings.init(
     {
-      sales_module_settings_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      sales_module_settings_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       company_id: { type: DataTypes.UUID, allowNull: true },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       allow_duplicate_leads: { type: DataTypes.BOOLEAN, defaultValue: false },

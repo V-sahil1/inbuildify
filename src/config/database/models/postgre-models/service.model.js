@@ -9,7 +9,7 @@ export class Service extends Model {
 export default (sequelize) => {
   Service.init(
     {
-      service_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      service_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       service: { type: DataTypes.STRING(100), allowNull: false },
       builder_id: { type: DataTypes.UUID, allowNull: true },
       is_deleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },

@@ -9,7 +9,7 @@ export class Customer extends Model {
 export default (sequelize) => {
   Customer.init(
     {
-      customer_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      customer_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
       builder_id: { type: DataTypes.UUID, allowNull: false },
