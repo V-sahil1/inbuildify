@@ -22,7 +22,11 @@ export const convertOpportunitySchema = {
         }),
         otherwise: Joi.forbidden(),
       }),
-    job_note: Joi.string().max(1000).optional().allow(null, "").messages({
+    job_note: Joi.string().max(1000).when("out_come", {
+      is: "won",
+      then: Joi.optional().allow(null, ""),
+      otherwise: Joi.forbidden(),
+    }).messages({
       "string.max": "Job note must not exceed 1000 characters",
     }),
     send_email: Joi.boolean()
@@ -30,6 +34,26 @@ export const convertOpportunitySchema = {
         is: "won",
         then: Joi.optional().default(false),
         otherwise: Joi.forbidden(),
+      }),
+    lead_lost_reason_id: Joi.string()
+      .uuid()
+      .when("out_come", {
+        is: "lost",
+        then: Joi.required().messages({
+          "any.required": "Lead lost reason ID is required when status is LOST",
+          "string.guid": "Lead lost reason ID must be a valid UUID",
+        }),
+        otherwise: Joi.forbidden(),
+      }),
+    lead_lost_comment: Joi.string()
+      .max(1000)
+      .when("out_come", {
+        is: "lost",
+        then: Joi.optional().allow(null, ""),
+        otherwise: Joi.forbidden(),
+      })
+      .messages({
+        "string.max": "Lead lost comment must not exceed 1000 characters",
       }),
   }),
 };

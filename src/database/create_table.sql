@@ -3150,6 +3150,8 @@ CREATE TABLE leads (
   h_l_budget NUMERIC(10,2),
   assignee_id UUID REFERENCES users(users_id),
   assignee_note VARCHAR(500),
+  lead_lost_reason_id UUID REFERENCES lead_lost_reason(lead_lost_reason_id) ON DELETE SET NULL,
+  lead_lost_comment VARCHAR(1000),
   created_by UUID REFERENCES users(users_id),
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -3445,6 +3447,7 @@ CREATE TABLE notes(
   note_tag_id UUID[] DEFAULT '{}',
   send_to_customer BOOLEAN DEFAULT FALSE,
   create_follow_up_task BOOLEAN DEFAULT FALSE,
+  task_id UUID REFERENCES task(task_id) ON DELETE SET NULL,
   attach_file VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -538,7 +538,8 @@ async getLeadById(leadId, builderId, companyId) {
             ) ORDER BY inv.created_at DESC), '[]'::json)
             FROM invoice inv WHERE inv.leads_id = l.leads_id
           ) as invoices,
-          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
+          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status,
+          (SELECT opportunity_id FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_id
 
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id

@@ -13,7 +13,9 @@ export async function createNote(req, res) {
       description, 
       note_tag_id, 
       send_to_customer, 
-      create_follow_up_task 
+      create_follow_up_task,
+      task_name,
+      due_date
     } = req.body;
 
     const attach_file = req.file?.location || null;
@@ -51,6 +53,30 @@ export async function createNote(req, res) {
       }
     }
 
+    // Create follow-up task if requested
+    let createdTaskId = null;
+    if (create_follow_up_task === true || create_follow_up_task === "true") {
+      const taskInsertQuery = `
+        INSERT INTO task (
+          company_id, builder_id, name, due_date, lead_id, 
+          assignee_id, created_by, updated_by, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING task_id
+      `;
+      const taskResult = await client.query(taskInsertQuery, [
+        companyId,
+        builderId,
+        task_name,
+        due_date,
+        leads_id,
+        req.user.users_id,
+        req.user.users_id,
+        req.user.users_id,
+        "Yet to Start"
+      ]);
+      createdTaskId = taskResult.rows[0].task_id;
+    }
+
     const insertQuery = `
       INSERT INTO notes (
         leads_id, 
@@ -58,11 +84,12 @@ export async function createNote(req, res) {
         note_tag_id, 
         send_to_customer, 
         create_follow_up_task, 
+        task_id,
         attach_file,
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
       RETURNING *
     `;
 
@@ -72,14 +99,25 @@ export async function createNote(req, res) {
       note_tag_id || "{}",
       send_to_customer || false,
       create_follow_up_task || false,
+      createdTaskId,
       attach_file,
     ]);
+
+    const enrichedNoteQuery = `
+      SELECT n.*,
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
+         FROM notes_tag nt 
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+      FROM notes n
+      WHERE n.notes_id = $1
+    `;
+    const enrichedNoteResult = await client.query(enrichedNoteQuery, [result.rows[0].notes_id]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(enrichedNoteResult.rows[0]),
       "Note created successfully."
     );
   } catch (err) {
@@ -127,7 +165,11 @@ export async function getAllNotes(req, res) {
     const totalRecords = parseInt(countResult.rows[0].count, 10);
 
     const selectQuery = `
-      SELECT n.* FROM notes n
+      SELECT n.*,
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
+         FROM notes_tag nt 
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+      FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
       ${whereClause} 
       ORDER BY n.created_at DESC 
@@ -162,11 +204,16 @@ export async function getNoteById(req, res) {
   const client = await pool.connect();
 
   try {
+    const { notes_id } = req.params;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
     const query = `
-      SELECT n.* FROM notes n
+      SELECT n.*,
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
+         FROM notes_tag nt 
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+      FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
       WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)
     `;
@@ -284,11 +331,21 @@ export async function updateNote(req, res) {
       await deleteFromS3(oldFile);
     }
 
+    const enrichedNoteQuery = `
+      SELECT n.*,
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
+         FROM notes_tag nt 
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+      FROM notes n
+      WHERE n.notes_id = $1
+    `;
+    const enrichedNoteResult = await client.query(enrichedNoteQuery, [notes_id]);
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(enrichedNoteResult.rows[0]),
       "Note updated successfully."
     );
   } catch (err) {

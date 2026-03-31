@@ -477,54 +477,54 @@ export async function updatePriceList(req, res) {
     const current = existing.rows[0];
     const currentIsActive = current.is_active;
 
-    const updatingOtherFields = [
-      req.body.name,
-      req.body.sort_order,
-      req.body.show_in_view_list,
-    ].some((val) => val !== undefined);
+    // const updatingOtherFields = [
+    //   req.body.name,
+    //   req.body.sort_order,
+    //   req.body.show_in_view_list,
+    // ].some((val) => val !== undefined);
 
-    const requestedIsActiveTrue = is_active === true || is_active === "true";
-    const requestedIsActiveFalse = is_active === false || is_active === "false";
+    // const requestedIsActiveTrue = is_active === true || is_active === "true";
+    // const requestedIsActiveFalse = is_active === false || is_active === "false";
 
-    if (currentIsActive === true && is_active !== undefined) {
-      if (requestedIsActiveFalse) {
-        if (updatingOtherFields) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active price list, 'is_active' must be the only field provided in the request.",
-          );
-        }
-      }
-    }
+    // if (currentIsActive === true && is_active !== undefined) {
+    //   if (requestedIsActiveFalse) {
+    //     if (updatingOtherFields) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To deactivate an active price list, 'is_active' must be the only field provided in the request.",
+    //       );
+    //     }
+    //   }
+    // }
 
-    if (currentIsActive === false) {
-      const performingActivation = is_active === true || is_active === "true";
+    // if (currentIsActive === false) {
+    //   const performingActivation = is_active === true || is_active === "true";
 
-      if (is_active !== undefined) {
-        if (is_active === false || is_active === "false") {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Price list is already inactive. 'is_active' can only be updated to true from this state.",
-          );
-        }
-      }
+    //   if (is_active !== undefined) {
+    //     if (is_active === false || is_active === "false") {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "Price list is already inactive. 'is_active' can only be updated to true from this state.",
+    //       );
+    //     }
+    //   }
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'is_active' fields when price list is currently inactive. Only 'is_active' can be changed (to true).",
-        );
-      }
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'is_active' fields when price list is currently inactive. Only 'is_active' can be changed (to true).",
+    //     );
+      // }
 
-      if (performingActivation && updatingOtherFields) {
-      }
-    }
+    //   if (performingActivation && updatingOtherFields) {
+    //   }
+    // }
 
     if (name && name.trim() !== current.name) {
       const nameCheck = await client.query(

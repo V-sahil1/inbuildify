@@ -241,7 +241,9 @@ export const updatePriceListItemSchema = Joi.object({
   dwelling_type_id: Joi.array().items(Joi.string().uuid()).optional().messages({
     "array.includes": "Each dwelling type ID must be a valid UUID",
   }),
+  conditions: Joi.array().items(conditionSchema).max(4).optional(),
 })
+
   .min(1)
   .messages({
     "object.min": "At least one field is required to update.",

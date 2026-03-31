@@ -8,6 +8,13 @@ export const createOpportunitySchema = Joi.object({
   }),
 });
 
+export const getAllOpportunitiesSchema = Joi.object({
+  lead_id: Joi.string().uuid().optional().messages({
+    "string.guid": "lead_id must be a valid UUID",
+  }),
+});
+
 export default {
   createOpportunitySchema,
+  getAllOpportunitiesSchema,
 };

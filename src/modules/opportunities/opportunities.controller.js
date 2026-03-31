@@ -42,3 +42,37 @@ export async function createOpportunity(req, res) {
     client.release();
   }
 }
+
+export async function getAllOpportunities(req, res) {
+  const pool = getPool();
+  try {
+    const { lead_id } = req.query;
+    const builderId = req.user.builder_id;
+
+    let query = `
+      SELECT o.*, l.name as lead_name, l.reference_number
+      FROM opportunity o
+      JOIN leads l ON o.leads_id = l.leads_id
+      WHERE l.builder_id = $1
+    `;
+    const params = [builderId];
+
+    if (lead_id) {
+      query += " AND o.leads_id = $2";
+      params.push(lead_id);
+    }
+
+    query += " ORDER BY o.created_at DESC";
+
+    const result = await pool.query(query, params);
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.rows),
+      "Opportunities fetched successfully",
+    );
+  } catch (error) {
+    console.error("Get all opportunities error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}

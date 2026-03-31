@@ -4,7 +4,14 @@ import { keysToCamelCase } from "../../utils/common.js";
 
 export async function convertOpportunityToJob(req, res) {
   const { opportunity_id } = req.params;
-  const { out_come, quotation_version_id, job_note, send_email } = req.body;
+  const {
+    out_come,
+    quotation_version_id,
+    job_note,
+    send_email,
+    lead_lost_reason_id,
+    lead_lost_comment,
+  } = req.body;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -14,7 +21,7 @@ export async function convertOpportunityToJob(req, res) {
 
     // 1. Check if opportunity exists and get the lead's reference number
     const oppQuery = `
-      SELECT o.opportunity_id, o.status, o.outcome, l.reference_number
+      SELECT o.opportunity_id, o.status, o.outcome, l.reference_number, l.leads_id
       FROM opportunity o
       JOIN leads l ON o.leads_id = l.leads_id
       WHERE o.opportunity_id = $1
@@ -30,10 +37,24 @@ export async function convertOpportunityToJob(req, res) {
 
     // 2. Logic for out_come = "lost"
     if (out_come === "lost") {
+      // Update opportunity
       await client.query(
-        "UPDATE opportunity SET status = 'closed', outcome = $1, opportunity_notes = COALESCE($2, opportunity_notes), updated_at = NOW() WHERE opportunity_id = $3",
-        ["lost", job_note || null, opportunity_id],
+        "UPDATE opportunity SET status = 'Close', outcome = 'lost', updated_at = NOW() WHERE opportunity_id = $1",
+        [opportunity_id],
       );
+
+      // Update lead with lost reason and comment (Note: status is NOT changed per user request)
+      const updateLeadQuery = `
+        UPDATE leads 
+        SET lead_lost_reason_id = $1, lead_lost_comment = $2, updated_at = NOW() 
+        WHERE leads_id = $3
+      `;
+      await client.query(updateLeadQuery, [
+        lead_lost_reason_id,
+        lead_lost_comment || null,
+        opportunity.leads_id,
+      ]);
+
       await client.query("COMMIT");
       return successResponse(res, {}, "Opportunity marked as lost and closed.");
     }

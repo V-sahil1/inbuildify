@@ -12,12 +12,14 @@ export class Leads extends Model {
     Leads.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
     Leads.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Leads.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Leads.belongsTo(models.LeadLostReason, { foreignKey: "lead_lost_reason_id", as: "leadLostReason" });
     Leads.hasMany(models.Invoice, { foreignKey: "leads_id", as: "invoices" });
     Leads.hasMany(models.Quotation, { foreignKey: "leads_id", as: "quotations" });
     Leads.hasMany(models.Opportunity, { foreignKey: "leads_id", as: "opportunities" });
     Leads.hasMany(models.LeadsContactMap, { foreignKey: "leads_id", as: "contactMaps" });
     Leads.hasMany(models.Appointment, { foreignKey: "lead_id", as: "appointments" });
     Leads.hasMany(models.Task, { foreignKey: "lead_id", as: "tasks" });
+
   }
 }
 
@@ -53,6 +55,8 @@ export default (sequelize) => {
       updated_by: { type: DataTypes.UUID, allowNull: true },
       house_land_package_id: { type: DataTypes.UUID, allowNull: true },
       property_detail_id: { type: DataTypes.UUID, allowNull: true },
+      lead_lost_reason_id: { type: DataTypes.UUID, allowNull: true },
+      lead_lost_comment: { type: DataTypes.STRING(1000), allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

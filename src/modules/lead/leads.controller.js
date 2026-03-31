@@ -349,3 +349,27 @@ export const removeHLPackage = async (req, res) => {
     return errorResponse(res, 500, "Internal server error");
   }
 };
+
+export async function getAllLeadActions(req, res) {
+  try {
+    const { leads_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+    }
+
+    const result = await leadsService.getAllLeadActions(leads_id, builderId, companyId);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 404, result.message);
+
+  } catch (error) {
+    console.error("Get all lead actions error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+

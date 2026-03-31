@@ -24,6 +24,7 @@ class QuotationRepository {
       const query = `
         SELECT 
           q.*,
+          (SELECT opportunity_id FROM opportunity WHERE leads_id = q.leads_id LIMIT 1) as opportunity_id,
           COALESCE(
             json_agg(
               json_build_object(

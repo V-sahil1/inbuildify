@@ -13,6 +13,20 @@ export const createNoteSchema = Joi.object({
   }),
   send_to_customer: Joi.boolean().optional(),
   create_follow_up_task: Joi.boolean().optional(),
+  task_name: Joi.string().max(200).when("create_follow_up_task", {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }).messages({
+    "any.required": "task_name is required when creating a follow-up task",
+  }),
+  due_date: Joi.date().iso().when("create_follow_up_task", {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }).messages({
+    "any.required": "due_date is required when creating a follow-up task",
+  }),
   attach_file: Joi.any().optional(), // Handled by multer, but can be passed in req.file
 });
 

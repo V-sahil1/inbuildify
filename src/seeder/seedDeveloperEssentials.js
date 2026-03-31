@@ -5,6 +5,8 @@ import { seedTimezones } from "./seed-timezones.js";
 import { seedScreensAndFunctionalities } from "./seed-screens-functionalities.js";
 import { seedCustomFieldModules } from "./seed-custom-field-module.js";
 import { seedComplianceTypes } from "./seed-compliance-type.js";
+import { seedRoleTypes } from "./seed-role-type.js";
+
 
 /**
  * Core seeding logic — can be called from connectPostgre or run standalone.
@@ -15,6 +17,10 @@ export const runDeveloperEssentialSeeds = async () => {
 
   // 1. Seed Roles
   await seedRoles();
+
+  // 1.1 Seed Role Types
+  await seedRoleTypes();
+
 
   // 2. Seed Countries and States
   await seedCountriesAndStates();

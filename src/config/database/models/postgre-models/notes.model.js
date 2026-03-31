@@ -3,6 +3,7 @@ import { Model, DataTypes } from "sequelize";
 export class Notes extends Model {
   static associate(models) {
     Notes.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    Notes.belongsTo(models.Task, { foreignKey: "task_id", as: "task" });
   }
 }
 
@@ -40,6 +41,14 @@ export default (sequelize) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         field: "create_follow_up_task",
+      },
+      task_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: "task",
+          key: "task_id",
+        },
       },
       attach_file: {
         type: DataTypes.STRING(500),

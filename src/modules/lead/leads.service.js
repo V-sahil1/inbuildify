@@ -1,7 +1,7 @@
 import leadsRepository from "./leads.repository.js";
 import quotationService from "../quotation/quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
-import { generateDynamicReferenceNumber } from "../../utils/common.js";
+import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common.js";
 import getPool from "../../config/database.js";
 
 class LeadsService {
@@ -212,6 +212,17 @@ class LeadsService {
           success: false,
           message: "Lead not found",
         };
+      }
+
+      // Check if lead has any opportunity with outcome = 'lost'
+      const pool = getPool();
+      const lostOppResult = await pool.query(
+        "SELECT 1 FROM opportunity WHERE leads_id = $1 AND outcome = 'lost' LIMIT 1",
+        [leadId],
+      );
+
+      if (lostOppResult.rowCount > 0) {
+        throw new Error("This lead cannot be updated because an associated opportunity has been marked as lost.");
       }
 
       if (leadData.email && leadData.email !== existingLead.email) {
@@ -806,6 +817,85 @@ class LeadsService {
       await client.query("ROLLBACK");
       console.error("Error syncing property_detail from HLP lot:", error);
       throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async getAllLeadActions(leadId, builderId, companyId) {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      // 1. Verify lead existence and ownership
+      const leadCheck = await client.query(
+        "SELECT leads_id FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR company_id = $3)",
+        [leadId, builderId, companyId],
+      );
+
+      if (leadCheck.rowCount === 0) {
+        return { success: false, message: "Lead not found or access denied" };
+      }
+
+      // 2. Fetch Notes
+      const notesQuery = `
+        SELECT n.* FROM notes n 
+        WHERE n.leads_id = $1 
+        ORDER BY n.created_at DESC
+      `;
+      const notesResult = await client.query(notesQuery, [leadId]);
+
+      // 3. Fetch Tasks
+      const tasksQuery = `
+        SELECT t.*, u.name as assignee_name 
+        FROM task t 
+        LEFT JOIN users u ON t.assignee_id = u.users_id 
+        WHERE t.lead_id = $1 
+        ORDER BY t.created_at DESC
+      `;
+      const tasksResult = await client.query(tasksQuery, [leadId]);
+
+      // 4. Fetch Appointments
+      const appointmentsQuery = `
+        SELECT 
+          a.*, 
+          (
+            SELECT json_build_object('id', l.location_id, 'name', l.name)
+            FROM location l 
+            WHERE l.location_id = a.location_id
+          ) as location,
+          (
+            SELECT json_agg(json_build_object('id', u.users_id, 'name', u.name))
+            FROM users u
+            WHERE u.users_id = ANY(a.select_users)
+          ) as select_users_data
+        FROM appointment a 
+        WHERE a.lead_id = $1 AND a.is_deleted = false 
+        ORDER BY a.date DESC, a.start_time DESC
+      `;
+      const appointmentsResult = await client.query(appointmentsQuery, [leadId]);
+
+      // 5. Fetch SMS
+      const smsQuery = `
+        SELECT s.*, u.name as recipient_name 
+        FROM sms s 
+        LEFT JOIN users u ON s.recipient_id = u.users_id 
+        WHERE s.leads_id = $1 
+        ORDER BY s.created_at DESC
+      `;
+      const smsResult = await client.query(smsQuery, [leadId]);
+
+      return {
+        success: true,
+        data: {
+          notes: keysToCamelCase(notesResult.rows),
+          tasks: keysToCamelCase(tasksResult.rows),
+          appointments: keysToCamelCase(appointmentsResult.rows),
+          sms: keysToCamelCase(smsResult.rows),
+        },
+        message: "Lead actions fetched successfully",
+      };
+    } catch (error) {
+      console.error("Error in getAllLeadActions:", error);
+      return { success: false, message: error.message };
     } finally {
       client.release();
     }

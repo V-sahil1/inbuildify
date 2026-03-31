@@ -7,23 +7,28 @@ export async function createSms(req, res) {
   const client = await pool.connect();
 
   try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
     await client.query("BEGIN");
 
     const { leads_id, recipient_id, message } = req.body;
 
     const leadCheck = await client.query(
-      "SELECT leads_id FROM leads WHERE leads_id = $1",
-      [leads_id],
+      `SELECT leads_id FROM leads 
+       WHERE leads_id = $1 AND (builder_id = $2 OR company_id = $3)`,
+      [leads_id, builderId, companyId],
     );
 
     if (leadCheck.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Invalid leads_id. Lead not found.");
+      return errorResponse(res, 403, "Invalid leads_id or access denied.");
     }
 
     if (recipient_id) {
       const recipientCheck = await client.query(
-        "SELECT users_id FROM users WHERE users_id = $1 AND is_deleted = false",
+        `SELECT users_id FROM users 
+         WHERE users_id = $1 AND is_deleted = false AND is_active = true`,
         [recipient_id],
       );
 
@@ -31,8 +36,8 @@ export async function createSms(req, res) {
         await client.query("ROLLBACK");
         return errorResponse(
           res,
-          400,
-          "Invalid recipient_id. User not found or deleted.",
+          403,
+          "Invalid recipient_id or access denied.",
         );
       }
     }
@@ -71,23 +76,25 @@ export async function getAllSms(req, res) {
 
   try {
     const { leads_id, recipient_id, page = 1, limit = 25 } = req.query;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
     const pageValue = parseInt(page, 10);
     const limitValue = parseInt(limit, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    const filters = [];
-    const values = [];
-    let index = 1;
+    const filters = [`(l.builder_id = $1 OR l.company_id = $2)`];
+    const values = [builderId, companyId];
+    let index = 3;
 
     if (leads_id) {
-      filters.push(`leads_id = $${index}`);
+      filters.push(`s.leads_id = $${index}`);
       values.push(leads_id);
       index++;
     }
 
     if (recipient_id) {
-      filters.push(`recipient_id = $${index}`);
+      filters.push(`s.recipient_id = $${index}`);
       values.push(recipient_id);
       index++;
     }
@@ -95,14 +102,18 @@ export async function getAllSms(req, res) {
     const whereClause =
       filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
 
-    const countQuery = `SELECT COUNT(*) FROM sms ${whereClause}`;
+    const countQuery = `
+      SELECT COUNT(*) FROM sms s
+      JOIN leads l ON s.leads_id = l.leads_id
+      ${whereClause}
+    `;
     const countResult = await client.query(countQuery, values);
     const totalRecords = parseInt(countResult.rows[0].count, 10);
 
     const selectQuery = `
       SELECT s.*, l.name as lead_name, u.name as recipient_name
       FROM sms s
-      LEFT JOIN leads l ON s.leads_id = l.leads_id
+      JOIN leads l ON s.leads_id = l.leads_id
       LEFT JOIN users u ON s.recipient_id = u.users_id
       ${whereClause}
       ORDER BY s.created_at DESC
@@ -142,16 +153,18 @@ export async function getSmsById(req, res) {
 
   try {
     const { sms_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
     const query = `
       SELECT s.*, l.name as lead_name, u.name as recipient_name
       FROM sms s
-      LEFT JOIN leads l ON s.leads_id = l.leads_id
+      JOIN leads l ON s.leads_id = l.leads_id
       LEFT JOIN users u ON s.recipient_id = u.users_id
-      WHERE s.sms_id = $1
+      WHERE s.sms_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)
     `;
 
-    const result = await client.query(query, [sms_id]);
+    const result = await client.query(query, [sms_id, builderId, companyId]);
 
     if (result.rowCount === 0) {
       return errorResponse(res, 404, "SMS not found.");
@@ -179,15 +192,19 @@ export async function updateSms(req, res) {
 
     const { sms_id } = req.params;
     const { recipient_id, message } = req.body;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
     const checkSms = await client.query(
-      "SELECT sms_id FROM sms WHERE sms_id = $1",
-      [sms_id],
+      `SELECT s.sms_id FROM sms s
+       JOIN leads l ON s.leads_id = l.leads_id
+       WHERE s.sms_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
+      [sms_id, builderId, companyId],
     );
 
     if (checkSms.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "SMS not found.");
+      return errorResponse(res, 404, "SMS not found or access denied.");
     }
 
     const fields = [];
@@ -246,15 +263,22 @@ export async function deleteSms(req, res) {
     await client.query("BEGIN");
 
     const { sms_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
     const result = await client.query(
-      "DELETE FROM sms WHERE sms_id = $1 RETURNING sms_id",
-      [sms_id],
+      `DELETE FROM sms s
+       USING leads l
+       WHERE s.leads_id = l.leads_id
+         AND s.sms_id = $1
+         AND (l.builder_id = $2 OR l.company_id = $3)
+       RETURNING s.sms_id`,
+      [sms_id, builderId, companyId],
     );
 
     if (result.rowCount === 0) {
       await client.query("ROLLBACK");
-      return errorResponse(res, 404, "SMS not found.");
+      return errorResponse(res, 404, "SMS not found or access denied.");
     }
 
     await client.query("COMMIT");

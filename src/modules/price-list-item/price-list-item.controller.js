@@ -685,6 +685,7 @@ export async function updatePriceListItem(req, res) {
       show_only_in_package,
       range_id,
       dwelling_type_id,
+      conditions,
     } = req.body;
 
     if (range_id) {
@@ -801,53 +802,53 @@ export async function updatePriceListItem(req, res) {
       .filter((field) => field !== "sort_order")
       .some((field) => req.body[field] !== undefined);
 
-    if (currentStatus === "active" && statusInBody) {
-      if (requestedStatusInactive) {
-        if (updatingFieldsExceptSortOrder) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To deactivate an active price list item, only 'status' and 'sort_order' are allowed in the request.",
-          );
-        }
-      }
-    }
+    // if (currentStatus === "active" && statusInBody) {
+    //   if (requestedStatusInactive) {
+    //     if (updatingFieldsExceptSortOrder) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To deactivate an active price list item, only 'status' and 'sort_order' are allowed in the request.",
+    //       );
+    //     }
+    //   }
+    // }
 
-    if (currentStatus === "inactive") {
-      if (requestedStatusActive) {
-        if (updatingFieldsExceptSortOrder) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "To activate an inactive price list item, only 'status' and 'sort_order' can be updated.",
-          );
-        }
-      }
+    // if (currentStatus === "inactive") {
+    //   if (requestedStatusActive) {
+    //     if (updatingFieldsExceptSortOrder) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "To activate an inactive price list item, only 'status' and 'sort_order' can be updated.",
+    //       );
+    //     }
+    //   }
 
-      if (updatingFieldsExceptSortOrder) {
-        if (!requestedStatusActive) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Cannot update non-'sort_order' and non-'status' fields when the price list item is currently Inactive.",
-          );
-        }
-      }
+    //   if (updatingFieldsExceptSortOrder) {
+    //     if (!requestedStatusActive) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "Cannot update non-'sort_order' and non-'status' fields when the price list item is currently Inactive.",
+    //       );
+    //     }
+    //   }
 
-      if (statusInBody && requestedStatusInactive) {
-        if (updatingFieldsExceptSortOrder) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            403,
-            "Price list item is already Inactive. Only 'sort_order' or 'status' (to 'Active') can be updated.",
-          );
-        }
-      }
-    }
+    //   if (statusInBody && requestedStatusInactive) {
+    //     if (updatingFieldsExceptSortOrder) {
+    //       await client.query("ROLLBACK");
+    //       return errorResponse(
+    //         res,
+    //         403,
+    //         "Price list item is already Inactive. Only 'sort_order' or 'status' (to 'Active') can be updated.",
+    //       );
+    //     }
+    //   }
+    // }
 
     if (req.body.price_list_id) {
       await client.query("ROLLBACK");
@@ -1035,6 +1036,40 @@ export async function updatePriceListItem(req, res) {
 
     const updated = await client.query(updateQuery, values);
 
+    // Update conditions
+    if (conditions !== undefined) {
+      await client.query(
+        "DELETE FROM price_list_item_condition WHERE price_list_item_id = $1",
+        [price_list_item_id],
+      );
+
+      if (Array.isArray(conditions) && conditions.length > 0) {
+        const conditionValues = [];
+        const placeholders = [];
+
+        conditions.forEach((c, index) => {
+          const baseIndex = index * 5;
+          placeholders.push(
+            `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`,
+          );
+          conditionValues.push(
+            price_list_item_id,
+            c.condition_name,
+            c.condition_name === "corner_block" ? c.status : null,
+            c.condition_name === "corner_block" ? null : c.range_start,
+            c.condition_name === "corner_block" ? null : c.range_end,
+          );
+        });
+
+        await client.query(
+          `INSERT INTO price_list_item_condition
+           (price_list_item_id, condition_name, status, range_start, range_end)
+           VALUES ${placeholders.join(",")}`,
+          conditionValues,
+        );
+      }
+    }
+
     await client.query("COMMIT");
 
     const getUpdatedItemQuery = `
@@ -1060,7 +1095,20 @@ export async function updatePriceListItem(req, res) {
           )
           FROM dwelling_type dt
           WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'priceListItemConditionId', plic.price_list_item_condition_id,
+              'conditionName', plic.condition_name,
+              'status', plic.status,
+              'rangeStart', plic.range_start,
+              'rangeEnd', plic.range_end
+            ) ORDER BY plic.price_list_item_condition_id
+          )
+          FROM price_list_item_condition plic
+          WHERE plic.price_list_item_id = pli.price_list_item_id
+        ) as conditions_data
       FROM price_list_item pli
       LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
       WHERE pli.price_list_item_id = $1
@@ -1097,6 +1145,7 @@ export async function updatePriceListItem(req, res) {
       showOnlyInPackage: updatedItem.showOnlyInPackage,
       range: updatedItem.rangeData || [],
       dwellingType: updatedItem.dwellingTypeData || [],
+      conditions: updatedItem.conditionsData || [],
       createdBy: updatedItem.createdBy,
       updatedBy: updatedItem.updatedBy,
       createdAt: updatedItem.createdAt,

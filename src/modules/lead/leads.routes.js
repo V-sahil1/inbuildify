@@ -13,7 +13,8 @@ import {
   assignLead,
   forceCreateLead,
   convertLeadToOpportunity,
-  removeHLPackage
+  removeHLPackage,
+  getAllLeadActions
 } from "./leads.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
@@ -109,5 +110,13 @@ router.delete(
   validateRequest(removeHLPackageSchema, REQUEST_SOURCE.BODY),
   removeHLPackage,
 );
+
+// Get all lead actions (notes, tasks, appointments, sms)
+router.get(
+  "/:leads_id/actions",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  getAllLeadActions,
+);
+
 
 export default router;
