@@ -3449,6 +3449,8 @@ CREATE TABLE notes(
   create_follow_up_task BOOLEAN DEFAULT FALSE,
   task_id UUID REFERENCES task(task_id) ON DELETE SET NULL,
   attach_file VARCHAR(500),
+  note_type VARCHAR(255),            -- valid send, reply
+  parent_note_id UUID REFERENCES notes(notes_id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -3460,4 +3462,23 @@ CREATE TABLE sms(
   message VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE lead_activity_log(
+  lead_activity_log_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  leads_id UUID REFERENCES leads(leads_id) ON SET NULL,
+  user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  module VARCHAR(255), -- lead, contact, task, email, etc.
+  module_id UUID,     -- specific record (lead_id, contact_id)
+
+  action VARCHAR(255), -- CREATE, UPDATE, DELETE, EMAIL_SENT, etc.
+
+  field_name VARCHAR(255), 
+  old_value TEXT,          -- before change
+  new_value TEXT,          -- after change
+
+  description TEXT, -- human-readable message
+
+  metadata JSONB, -- extra info (attachments, email data, etc.)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

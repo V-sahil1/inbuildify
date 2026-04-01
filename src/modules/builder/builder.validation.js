@@ -59,10 +59,17 @@ const insurerSchema = Joi.object({
       "string.pattern.base": "Insured name must contain at least one letter",
       "string.max": "Insured name must not exceed 150 characters",
     }),
-  phone_number: Joi.number().min(10).max(14).optional().messages({
-    "number.min": "Phone number must be at least 10 digits long",
-    "number.max": "Phone number must not exceed 14 digits long",
-  }),
+  phone_number: Joi.string()
+    .pattern(/^[0-9]+$/)
+    .min(10)
+    .max(14)
+    .optional()
+    .allow(null, "")
+    .messages({
+      "string.pattern.base": "Phone number must contain only digits",
+      "string.min": "Phone number must be at least 10 digits long",
+      "string.max": "Phone number must not exceed 14 digits long",
+    }),
   address_line1: Joi.string()
     .min(2)
     .max(255)
@@ -105,20 +112,27 @@ export const upsertBuilderSchema = Joi.object({
       "string.max": "Name must not exceed 150 characters",
     }),
   email: Joi.string().email().optional(),
-  phone_number: Joi.number().min(10).max(14).optional().messages({
-    "number.min": "Phone number must be at least 10 digits long",
-    "number.max": "Phone number must not exceed 14 digits long",
-  }),
-  abn_number: Joi.string().min(11).max(11).optional().messages({
+  phone_number: Joi.string()
+    .pattern(/^[0-9]+$/)
+    .min(10)
+    .max(14)
+    .optional()
+    .allow(null, "")
+    .messages({
+      "string.pattern.base": "Phone number must contain only digits",
+      "string.min": "Phone number must be at least 10 digits long",
+      "string.max": "Phone number must not exceed 14 digits long",
+    }),
+  abn_number: Joi.string().min(11).max(11).optional().allow(null, "").messages({
     "string.min": "ABN number must be at least 11 characters long",
     "string.max": "ABN number must not exceed 11 characters",
   }),
-  acn_number: Joi.string().min(9).max(9).optional().messages({
+  acn_number: Joi.string().min(9).max(9).optional().allow(null, "").messages({
     "string.min": "ACN number must be at least 9 characters long",
     "string.max": "ACN number must not exceed 9 characters",
   }),
   hia_membership_no: Joi.string().min(2).max(100).allow(null, ""),
-  registration_number: Joi.string().min(10).max(100).optional().messages({
+  registration_number: Joi.string().min(10).max(100).optional().allow(null, "").messages({
     "string.min": "Registration number must be at least 10 characters long",
     "string.max": "Registration number must not exceed 100 characters",
   }),

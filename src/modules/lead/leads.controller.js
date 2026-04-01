@@ -373,3 +373,33 @@ export async function getAllLeadActions(req, res) {
   }
 }
 
+export async function getLeadActivityLog(req, res) {
+  try {
+    const { leads_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+    }
+
+    const filters = {
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 25,
+      module: req.query.module,
+      action: req.query.action,
+    };
+
+    const result = await leadsService.getLeadActivityLog(leads_id, builderId, companyId, filters);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 404, result.message);
+
+  } catch (error) {
+    console.error("Get lead activity log error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+

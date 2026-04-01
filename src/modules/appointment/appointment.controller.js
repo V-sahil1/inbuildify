@@ -211,6 +211,11 @@ export async function createAppointment(req, res) {
 
     const appointmentData = keysToCamelCase(result.rows[0]);
 
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [result.rows[0].created_by]
+    );
+
     const response = {
       appointmentId: appointmentData.appointmentId,
       companyId: appointmentData.companyId,
@@ -227,6 +232,7 @@ export async function createAppointment(req, res) {
       sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
       isDeleted: appointmentData.isDeleted,
       createdBy: appointmentData.createdBy,
+      createdbyname: creatorResult.rows[0]?.name || null,
       updatedBy: appointmentData.updatedBy,
       createdAt: appointmentData.createdAt,
       updatedAt: appointmentData.updatedAt,
@@ -345,6 +351,7 @@ export async function getAllAppointments(req, res) {
         a.send_appointment_customer,
         a.is_deleted,
         a.created_by,
+        (SELECT name FROM users WHERE users_id = a.created_by) AS createdbyname,
         a.updated_by,
         a.created_at,
         a.updated_at
@@ -739,6 +746,11 @@ export async function updateAppointment(req, res) {
 
     const appointmentData = keysToCamelCase(updatedAppointment);
 
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [updatedAppointment.created_by]
+    );
+
     // Construct response with proper order and location object
     const response = {
       appointmentId: appointmentData.appointmentId,
@@ -755,6 +767,7 @@ export async function updateAppointment(req, res) {
       sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
       isDeleted: appointmentData.isDeleted,
       createdBy: appointmentData.createdBy,
+      createdbyname: creatorResult.rows[0]?.name || null,
       updatedBy: appointmentData.updatedBy,
       createdAt: appointmentData.createdAt,
       updatedAt: appointmentData.updatedAt,

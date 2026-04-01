@@ -837,7 +837,17 @@ class LeadsService {
 
       // 2. Fetch Notes
       const notesQuery = `
-        SELECT n.* FROM notes n 
+        SELECT 
+          n.notes_id, n.leads_id, n.description, n.send_to_customer, 
+          n.create_follow_up_task, n.task_id, n.attach_file, n.note_type, n.parent_note_id, n.created_at, n.updated_at,
+          (
+            SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
+            FROM notes_tag nt 
+            WHERE nt.notes_tag_id = ANY(n.note_tag_id)
+          ) AS notetag,
+          (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
+        FROM notes n 
+        JOIN leads l ON n.leads_id = l.leads_id
         WHERE n.leads_id = $1 
         ORDER BY n.created_at DESC
       `;
@@ -845,7 +855,8 @@ class LeadsService {
 
       // 3. Fetch Tasks
       const tasksQuery = `
-        SELECT t.*, u.name as assignee_name 
+        SELECT t.*, u.name as assignee_name,
+        (SELECT name FROM users WHERE users_id = t.created_by) AS createdbyname
         FROM task t 
         LEFT JOIN users u ON t.assignee_id = u.users_id 
         WHERE t.lead_id = $1 
@@ -856,7 +867,10 @@ class LeadsService {
       // 4. Fetch Appointments
       const appointmentsQuery = `
         SELECT 
-          a.*, 
+          a.appointment_id, a.company_id, a.builder_id, a.title, a.date, 
+          a.start_time, a.end_time, a.location_id, a.link_to, a.lead_id, 
+          a.notes, a.send_appointment_customer, a.is_deleted, 
+          a.created_by, a.updated_by, a.created_at, a.updated_at,
           (
             SELECT json_build_object('id', l.location_id, 'name', l.name)
             FROM location l 
@@ -866,7 +880,8 @@ class LeadsService {
             SELECT json_agg(json_build_object('id', u.users_id, 'name', u.name))
             FROM users u
             WHERE u.users_id = ANY(a.select_users)
-          ) as select_users_data
+          ) as select_users,
+          (SELECT name FROM users WHERE users_id = a.created_by) AS createdbyname
         FROM appointment a 
         WHERE a.lead_id = $1 AND a.is_deleted = false 
         ORDER BY a.date DESC, a.start_time DESC
@@ -875,8 +890,10 @@ class LeadsService {
 
       // 5. Fetch SMS
       const smsQuery = `
-        SELECT s.*, u.name as recipient_name 
+        SELECT s.*, u.name as recipient_name,
+        (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
         FROM sms s 
+        JOIN leads l ON s.leads_id = l.leads_id
         LEFT JOIN users u ON s.recipient_id = u.users_id 
         WHERE s.leads_id = $1 
         ORDER BY s.created_at DESC
@@ -895,6 +912,96 @@ class LeadsService {
       };
     } catch (error) {
       console.error("Error in getAllLeadActions:", error);
+      return { success: false, message: error.message };
+    } finally {
+      client.release();
+    }
+  }
+
+  async getLeadActivityLog(leadId, builderId, companyId, filters = {}) {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      // 1. Verify lead existence and ownership
+      const leadCheck = await client.query(
+        "SELECT leads_id FROM leads WHERE leads_id = $1 AND (builder_id = $2 OR company_id = $3)",
+        [leadId, builderId, companyId],
+      );
+
+      if (leadCheck.rowCount === 0) {
+        return { success: false, message: "Lead not found or access denied" };
+      }
+
+      const { page = 1, limit = 25, module, action } = filters;
+      const offset = (page - 1) * limit;
+
+      const whereConditions = ["al.leads_id = $1"];
+      const queryParams = [leadId];
+      let paramIndex = 2;
+
+      if (module) {
+        whereConditions.push(`al.module = $${paramIndex++}`);
+        queryParams.push(module);
+      }
+
+      if (action) {
+        whereConditions.push(`al.action = $${paramIndex++}`);
+        queryParams.push(action);
+      }
+
+      const whereClause = whereConditions.join(" AND ");
+
+      const dataQuery = `
+        SELECT 
+          al.lead_activity_log_id,
+          al.leads_id,
+          al.user_id,
+          al.module,
+          al.module_id,
+          al.action,
+          al.field_name,
+          al.old_value,
+          al.new_value,
+          al.description,
+          al.metadata,
+          al.created_at,
+          u.name AS performed_by_name
+        FROM lead_activity_log al
+        LEFT JOIN users u ON al.user_id = u.users_id
+        WHERE ${whereClause}
+        ORDER BY al.created_at DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+      queryParams.push(limit, offset);
+
+      const countQuery = `
+        SELECT COUNT(*) AS total
+        FROM lead_activity_log al
+        WHERE ${whereClause}
+      `;
+
+      const [dataResult, countResult] = await Promise.all([
+        client.query(dataQuery, queryParams),
+        client.query(countQuery, queryParams.slice(0, -2)),
+      ]);
+
+      const total = parseInt(countResult.rows[0].total);
+
+      return {
+        success: true,
+        data: {
+          activityLogs: keysToCamelCase(dataResult.rows),
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
+        message: "Lead activity log fetched successfully",
+      };
+    } catch (error) {
+      console.error("Error in getLeadActivityLog:", error);
       return { success: false, message: error.message };
     } finally {
       client.release();

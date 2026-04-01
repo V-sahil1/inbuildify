@@ -4,6 +4,7 @@ export class Notes extends Model {
   static associate(models) {
     Notes.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
     Notes.belongsTo(models.Task, { foreignKey: "task_id", as: "task" });
+    Notes.belongsTo(models.Notes, { foreignKey: "parent_note_id", as: "parentNote" });
   }
 }
 
@@ -54,6 +55,20 @@ export default (sequelize) => {
         type: DataTypes.STRING(500),
         allowNull: true,
         field: "attach_file",
+      },
+      note_type: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        field: "note_type",
+      },
+      parent_note_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: "notes",
+          key: "notes_id",
+        },
+        field: "parent_note_id",
       },
       createdAt: {
         type: DataTypes.DATE,

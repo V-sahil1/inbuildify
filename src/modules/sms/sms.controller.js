@@ -54,11 +54,22 @@ export async function createSms(req, res) {
       message,
     ]);
 
+    const enrichedQuery = `
+      SELECT s.*, l.name as lead_name, u.name as recipient_name,
+      (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
+      FROM sms s
+      JOIN leads l ON s.leads_id = l.leads_id
+      LEFT JOIN users u ON s.recipient_id = u.users_id
+      WHERE s.sms_id = $1
+    `;
+
+    const enrichedResult = await client.query(enrichedQuery, [result.rows[0].sms_id]);
+
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(enrichedResult.rows[0]),
       "SMS created successfully.",
     );
   } catch (err) {
@@ -111,7 +122,8 @@ export async function getAllSms(req, res) {
     const totalRecords = parseInt(countResult.rows[0].count, 10);
 
     const selectQuery = `
-      SELECT s.*, l.name as lead_name, u.name as recipient_name
+      SELECT s.*, l.name as lead_name, u.name as recipient_name,
+      (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM sms s
       JOIN leads l ON s.leads_id = l.leads_id
       LEFT JOIN users u ON s.recipient_id = u.users_id
@@ -157,7 +169,8 @@ export async function getSmsById(req, res) {
     const companyId = req.user?.company_id;
 
     const query = `
-      SELECT s.*, l.name as lead_name, u.name as recipient_name
+      SELECT s.*, l.name as lead_name, u.name as recipient_name,
+      (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM sms s
       JOIN leads l ON s.leads_id = l.leads_id
       LEFT JOIN users u ON s.recipient_id = u.users_id
@@ -237,13 +250,22 @@ export async function updateSms(req, res) {
       RETURNING *
     `;
 
-    const result = await client.query(updateQuery, [...values, sms_id]);
+    const enrichedQuery = `
+      SELECT s.*, l.name as lead_name, u.name as recipient_name,
+      (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
+      FROM sms s
+      JOIN leads l ON s.leads_id = l.leads_id
+      LEFT JOIN users u ON s.recipient_id = u.users_id
+      WHERE s.sms_id = $1
+    `;
+
+    const enrichedResult = await client.query(enrichedQuery, [sms_id]);
 
     await client.query("COMMIT");
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows[0]),
+      keysToCamelCase(enrichedResult.rows[0]),
       "SMS updated successfully.",
     );
   } catch (err) {

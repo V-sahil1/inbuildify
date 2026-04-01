@@ -138,9 +138,15 @@ export async function createTask(req, res) {
       }
     }
 
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [result.rows[0].created_by],
+    );
+
     const transformed = keysToCamelCase(result.rows[0]);
 
     transformed.assigneeName = assigneeName;
+    transformed.createdbyname = creatorResult.rows[0]?.name || null;
     transformed.linkTo = link_to;
     transformed.linkType = link_type;
 
@@ -162,6 +168,7 @@ export async function createTask(req, res) {
       "status",
       "attachFiles",
       "createdBy",
+      "createdbyname",
       "updatedBy",
       "createdAt",
       "updatedAt",
@@ -331,7 +338,8 @@ export async function getAllTasks(req, res) {
     const dataQuery = `
 
         SELECT t.*,
-              u.name as assignee_name
+              u.name as assignee_name,
+              (SELECT name FROM users WHERE users_id = t.created_by) AS createdbyname
         FROM task t
         LEFT JOIN users u ON t.assignee_id = u.users_id
         ${whereClause}
@@ -369,6 +377,7 @@ export async function getAllTasks(req, res) {
         "status",
         "attachFiles",
         "createdBy",
+        "createdbyname",
         "updatedBy",
         "createdAt",
         "updatedAt",
@@ -660,9 +669,15 @@ export async function updateTask(req, res) {
       }
     }
 
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [updatedTask.created_by],
+    );
+
     const transformed = keysToCamelCase(updateResult.rows[0]);
 
     transformed.assigneeName = assigneeName;
+    transformed.createdbyname = creatorResult.rows[0]?.name || null;
     transformed.linkTo = transformed.linkTo || link_to;
     transformed.linkType = transformed.linkType || link_type;
 
@@ -684,6 +699,7 @@ export async function updateTask(req, res) {
       "status",
       "attachFiles",
       "createdBy",
+      "createdbyname",
       "updatedBy",
       "createdAt",
       "updatedAt",

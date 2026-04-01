@@ -15,7 +15,9 @@ export async function createNote(req, res) {
       send_to_customer, 
       create_follow_up_task,
       task_name,
-      due_date
+      due_date,
+      note_type,
+      parent_note_id
     } = req.body;
 
     const attach_file = req.file?.location || null;
@@ -23,13 +25,43 @@ export async function createNote(req, res) {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
+    let effectiveLeadsId = leads_id;
     await client.query("BEGIN");
+
+    if (note_type === "reply") {
+      const parentCheck = await client.query(
+        `SELECT n.leads_id 
+         FROM notes n
+         JOIN leads l ON n.leads_id = l.leads_id
+         WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
+        [parent_note_id, builderId, companyId]
+      );
+
+      if (parentCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        if (attach_file) await deleteFromS3(attach_file);
+        return errorResponse(res, 404, "Parent note not found or access denied.");
+      }
+
+      effectiveLeadsId = parentCheck.rows[0].leads_id;
+
+      const existingReply = await client.query(
+        `SELECT notes_id FROM notes WHERE parent_note_id = $1`,
+        [parent_note_id]
+      );
+
+      if (existingReply.rowCount > 0) {
+        await client.query("ROLLBACK");
+        if (attach_file) await deleteFromS3(attach_file);
+        return errorResponse(res, 400, "A reply already exists for this note.");
+      }
+    }
 
     // Check leads_id existence and ownership
     const leadCheck = await client.query(
       `SELECT leads_id FROM leads 
        WHERE leads_id = $1 AND (builder_id = $2 OR company_id = $3)`,
-      [leads_id, builderId, companyId]
+      [effectiveLeadsId, builderId, companyId]
     );
 
     if (leadCheck.rowCount === 0) {
@@ -68,7 +100,7 @@ export async function createNote(req, res) {
         builderId,
         task_name,
         due_date,
-        leads_id,
+        effectiveLeadsId,
         req.user.users_id,
         req.user.users_id,
         req.user.users_id,
@@ -86,29 +118,35 @@ export async function createNote(req, res) {
         create_follow_up_task, 
         task_id,
         attach_file,
+        note_type,
+        parent_note_id,
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
       RETURNING *
     `;
 
     const result = await client.query(insertQuery, [
-      leads_id,
+      effectiveLeadsId,
       description || null,
       note_tag_id || "{}",
       send_to_customer || false,
       create_follow_up_task || false,
       createdTaskId,
       attach_file,
+      note_type,
+      parent_note_id || null
     ]);
 
     const enrichedNoteQuery = `
       SELECT n.*,
         (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
          FROM notes_tag nt 
-         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
+      JOIN leads l ON n.leads_id = l.leads_id
       WHERE n.notes_id = $1
     `;
     const enrichedNoteResult = await client.query(enrichedNoteQuery, [result.rows[0].notes_id]);
@@ -168,7 +206,8 @@ export async function getAllNotes(req, res) {
       SELECT n.*,
         (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
          FROM notes_tag nt 
-         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
       ${whereClause} 
@@ -212,7 +251,8 @@ export async function getNoteById(req, res) {
       SELECT n.*,
         (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
          FROM notes_tag nt 
-         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
       WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)
@@ -249,7 +289,7 @@ export async function updateNote(req, res) {
     const companyId = req.user?.company_id;
 
     const checkNote = await client.query(
-      `SELECT n.attach_file FROM notes n
+      `SELECT n.attach_file, n.note_type FROM notes n
        JOIN leads l ON n.leads_id = l.leads_id
        WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
       [notes_id, builderId, companyId]
@@ -279,31 +319,45 @@ export async function updateNote(req, res) {
     }
 
     const oldFile = checkNote.rows[0].attach_file;
+    const noteType = checkNote.rows[0].note_type;
     const newFile = req.file?.location || null;
 
     const fields = [];
     const values = [];
     let index = 1;
 
+    // Only allow tagging, customer sending, and follow-up task updates if NOT a reply
+    if (noteType === "reply") {
+      if (note_tag_id !== undefined || create_follow_up_task !== undefined) {
+        await client.query("ROLLBACK");
+        if (req.file?.location) await deleteFromS3(req.file.location);
+        return errorResponse(res, 400, "note_tag_id and create_follow_up_task are not allowed for reply type");
+      }
+    }
+
     if (description !== undefined) {
       fields.push(`description = $${index}`);
       values.push(description);
       index++;
     }
-    if (note_tag_id !== undefined) {
-      fields.push(`note_tag_id = $${index}`);
-      values.push(parsedNoteTagId || "{}");
-      index++;
-    }
+
     if (send_to_customer !== undefined) {
       fields.push(`send_to_customer = $${index}`);
       values.push(send_to_customer === 'true' || send_to_customer === true);
       index++;
     }
-    if (create_follow_up_task !== undefined) {
-      fields.push(`create_follow_up_task = $${index}`);
-      values.push(create_follow_up_task === 'true' || create_follow_up_task === true);
-      index++;
+
+    if (noteType !== "reply") {
+      if (note_tag_id !== undefined) {
+        fields.push(`note_tag_id = $${index}`);
+        values.push(parsedNoteTagId || "{}");
+        index++;
+      }
+      if (create_follow_up_task !== undefined) {
+        fields.push(`create_follow_up_task = $${index}`);
+        values.push(create_follow_up_task === 'true' || create_follow_up_task === true);
+        index++;
+      }
     }
     if (newFile) {
       fields.push(`attach_file = $${index}`);
@@ -335,8 +389,10 @@ export async function updateNote(req, res) {
       SELECT n.*,
         (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
          FROM notes_tag nt 
-         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags
+         WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
+      JOIN leads l ON n.leads_id = l.leads_id
       WHERE n.notes_id = $1
     `;
     const enrichedNoteResult = await client.query(enrichedNoteQuery, [notes_id]);

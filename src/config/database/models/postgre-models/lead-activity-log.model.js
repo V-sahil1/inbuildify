@@ -1,0 +1,80 @@
+import { Model, DataTypes } from "sequelize";
+
+export class LeadActivityLog extends Model {
+  static associate(models) {
+    LeadActivityLog.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    LeadActivityLog.belongsTo(models.Users, { foreignKey: "user_id", as: "user" });
+  }
+}
+
+export default (sequelize) => {
+  LeadActivityLog.init(
+    {
+      lead_activity_log_id: {
+        type: DataTypes.UUID,
+        defaultValue: sequelize.literal("gen_random_uuid()"),
+        primaryKey: true,
+      },
+      leads_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: "leads",
+          key: "leads_id",
+        },
+      },
+      user_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: "users",
+          key: "users_id",
+        },
+      },
+      module: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      module_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      action: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      field_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      old_value: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      new_value: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      metadata: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: "created_at",
+      },
+    },
+    {
+      sequelize,
+      tableName: "lead_activity_log",
+      modelName: "LeadActivityLog",
+      underscored: true,
+      updatedAt: false, // SQL schema only has created_at
+    }
+  );
+  return LeadActivityLog;
+};

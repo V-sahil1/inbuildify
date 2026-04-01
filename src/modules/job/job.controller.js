@@ -98,7 +98,7 @@ export async function convertOpportunityToJob(req, res) {
 
       // Update opportunity attributes
       await client.query(
-        "UPDATE opportunity SET status = 'closed', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2",
+        "UPDATE opportunity SET status = 'Close', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2",
         ["won", opportunity_id],
       );
 
@@ -109,8 +109,10 @@ export async function convertOpportunityToJob(req, res) {
           opportunity_id, 
           quotation_version_id, 
           job_note, 
-          send_email
-        ) VALUES ($1, $2, $3, $4, $5)
+          send_email,
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, now(), now())
         RETURNING *
       `;
 

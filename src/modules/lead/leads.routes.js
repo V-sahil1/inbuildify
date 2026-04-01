@@ -14,7 +14,8 @@ import {
   forceCreateLead,
   convertLeadToOpportunity,
   removeHLPackage,
-  getAllLeadActions
+  getAllLeadActions,
+  getLeadActivityLog
 } from "./leads.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
@@ -28,7 +29,8 @@ import {
   assignLeadSchema,
   getAllLeadsQuerySchema,
   convertLeadToOpportunitySchema,
-  removeHLPackageSchema
+  removeHLPackageSchema,
+  getLeadActivityLogQuerySchema
 } from "./leads.validation.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
 
@@ -58,6 +60,14 @@ router.get(
 
 // Get lead statistics
 router.get("/stats", getLeadStats);
+
+// Get lead activity log
+router.get(
+  "/:leads_id/activity-log",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(getLeadActivityLogQuerySchema, REQUEST_SOURCE.QUERY),
+  getLeadActivityLog,
+);
 
 // Get lead by ID
 router.get(
