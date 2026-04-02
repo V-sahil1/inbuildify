@@ -17,28 +17,67 @@ import {
   updatePropertyParamSchema,
   getAllPropertiesSchema,
   deletePropertySchema,
-  createPropertyParamSchema
+  createPropertyParamSchema,
 } from "./property.validation.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
+import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
+
+const parsePropertyContent = (req, res, next) => {
+  const contentKey = "compaction_report_content";
+  const camelKey = "compactionReportContent";
+  let key = req.body[contentKey] ? contentKey : (req.body[camelKey] ? camelKey : null);
+
+  if (key && typeof req.body[key] === "string") {
+    try {
+      // Clean common smart quotes/curly quotes
+      let cleanValue = req.body[key]
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, "\"")
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+
+      // 🚨 Fix: Always store in camelKey. 
+      // This allows camelToSnakeMiddleware (running next) to fix internal keys.
+      req.body[camelKey] = JSON.parse(cleanValue);
+
+      // If the source was already "compaction_report_content", remove it so
+      // camelToSnakeMiddleware doesn't reject it as a snake_case key.
+      if (key === contentKey) {
+        delete req.body[contentKey];
+      }
+    } catch (err) {
+      console.error(`[ERROR] Parsing ${key}:`, err.message);
+    }
+  }
+  next();
+};
+
+const upload = createPdfUpload("compaction_report");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
-router.use(camelToSnakeMiddleware);
+
 router.post(
   "/:leads_id",
+  upload.single("compactionReportUrl"),
+  handleMulterError,
+  parsePropertyContent,
+  camelToSnakeMiddleware,
   validateRequest(createPropertyParamSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(createPropertySchema),
-  createProperty
+  validateRequest(createPropertySchema, REQUEST_SOURCE.FORM_DATA),
+  createProperty,
 );
 router.get("/", validateRequest(getAllPropertiesSchema, REQUEST_SOURCE.QUERY), getAllProperties);
 router.get("/:leads_id", validateRequest(getPropertyByLeadSchema, REQUEST_SOURCE.PARAMS), getPropertyByLeadId);
 router.put(
   "/:property_detail_id",
+  upload.single("compactionReportUrl"),
+  handleMulterError,
+  parsePropertyContent,
+  camelToSnakeMiddleware,
   validateRequest(updatePropertyParamSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updatePropertySchema),
+  validateRequest(updatePropertySchema, REQUEST_SOURCE.FORM_DATA),
   updateProperty,
 );
 router.delete(

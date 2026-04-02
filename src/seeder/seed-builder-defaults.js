@@ -4,6 +4,7 @@
  */
 
 import { seedGeneralSettings } from "./seed-general-settings.js";
+import { seedPriceList } from "./seed-price-list.js";
 import { seedSalesModuleSettings } from "./seed-sales-module-settings.js";
 import { seedQuotationSettings } from "./seed-quotation-settings.js";
 import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings.js";
@@ -114,6 +115,9 @@ export async function seedBuilderDefaults({ company_id, builder_id, created_by, 
 
   // 21. PDF Templates (existing seeder)
   await seedInitialPdfTemplates({ company_id, builder_id, created_by, transaction });
+
+  // 22. Price List (Base Price) and default Price List Item
+  await seedPriceList(ctx);
 
   console.log("✅ All default settings seeded for builder:", builder_id);
 }

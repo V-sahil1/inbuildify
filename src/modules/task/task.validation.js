@@ -10,12 +10,19 @@ export const createTaskSchema = Joi.object({
   description: Joi.string().allow(null, "").optional(),
 
   due_date: Joi.date()
-    .greater("now")
-    .messages({
-      "date.greater": "Due date must be a future date",
-      "date.base": "Due date must be a valid date",
+    .allow(null)
+    .custom((value, helpers) => {
+      if (!value) return value;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      if (value < today) {
+        return helpers.message("Due date must be today or a future date");
+      }
+      return value;
     })
-    .allow(null),
+    .messages({
+      "date.base": "Due date must be a valid date",
+    }),
 
   due_time: Joi.string()
     .pattern(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/) // HH:mm or HH:mm:ss
@@ -56,9 +63,16 @@ export const getAllTaskSchema = Joi.object({
 
   due_date: Joi.date()
     .allow(null)
-    .greater("now")
+    .custom((value, helpers) => {
+      if (!value) return value;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      if (value < today) {
+        return helpers.message("Due date must be today or a future date");
+      }
+      return value;
+    })
     .messages({
-      "date.greater": "Due date must be a future date",
       "date.base": "Due date must be a valid date",
     })
     .optional(),
@@ -120,13 +134,20 @@ export const updateTaskSchema = Joi.object({
   description: Joi.string().allow(null, "").optional(),
 
   due_date: Joi.date()
-    .greater("now")
+    .allow(null)
+    .custom((value, helpers) => {
+      if (!value) return value;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      if (value < today) {
+        return helpers.message("Due date must be today or a future date");
+      }
+      return value;
+    })
     .messages({
-      "date.greater": "Due date must be a future date",
       "date.base": "Due date must be a valid date",
     })
-    .optional()
-    .allow(null),
+    .optional(),
 
   due_time: Joi.string()
     .pattern(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/) // HH:mm or HH:mm:ss

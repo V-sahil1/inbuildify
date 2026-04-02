@@ -32,7 +32,7 @@ export const updateJobSettingSchema = Joi.object({
   report_custom_days: Joi.number().integer().min(0).allow(null).optional(),
   report_status_filter: Joi.string()
     .max(100)
-    .valid("all", "active", "completed", "archived")
+    .valid("all", "active", "completed", "archived", "incompleted")
     .default("all")
     .optional(),
   report_include_date: Joi.boolean().optional(),

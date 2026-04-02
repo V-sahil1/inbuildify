@@ -7,6 +7,21 @@ export const createPropertyParamSchema = Joi.object({
   }),
 });
 
+const compactionReportContentSchema = Joi.object({
+  land_type: Joi.string().valid("Rocky", "Sloping", "Plain", "Uneven", "Filled Land").optional(),
+  ground_level: Joi.string().valid("Above Road Level", "At Road Level", "Below Road Level").optional(),
+  slope_condition: Joi.string().valid("Flat", "Gentle Slope", "Steep Slope").optional(),
+  soil_type: Joi.string().valid("Clay", "Sand", "Silt", "Gravel", "Mixed").optional(),
+  soil_class: Joi.string().valid("A", "S", "M", "H1", "H2", "E", "P").optional(),
+  moisture_content: Joi.number().optional(),
+  dry_density: Joi.number().optional(),
+  max_dry_density: Joi.number().optional(),
+  compaction: Joi.number().optional(),
+  result: Joi.string().valid("pass", "fail").optional(),
+  engineer_name: Joi.string().allow("", null).optional(),
+  remarks: Joi.string().allow("", null).optional(),
+});
+
 export const createPropertySchema = Joi.object({
   lot_number: Joi.string().allow("", null).max(255).optional(),
   street: Joi.string().allow("", null).max(255).optional(),
@@ -37,13 +52,23 @@ export const createPropertySchema = Joi.object({
     "reserved",
     "pending",
     "under_contract",
-    "off_market",).allow("", null).optional(),
+    "off_market").allow("", null).optional(),
   title_date: Joi.date().allow(null).optional(),
   compaction_report: Joi.string()
     .valid("available",
-      "not_available",).allow("", null)
+      "not_available").allow("", null)
     .optional(),
-  land_type: Joi.string().valid("regular", "irregular").default("regular"),
+  compaction_report_url: Joi.string().allow("", null).max(500).when("compaction_report", {
+    is: "available",
+    then: Joi.optional(),
+    otherwise: Joi.forbidden(),
+  }),
+  compaction_report_content: compactionReportContentSchema.allow(null).when("compaction_report", {
+    is: "available",
+    then: Joi.optional(),
+    otherwise: Joi.forbidden(),
+  }),
+  land_type: Joi.string().valid("regular", "irregular").default("regular"), 
   width_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   depth_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   total_size_m2: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
@@ -51,6 +76,7 @@ export const createPropertySchema = Joi.object({
   land_fill_mm: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   bush_fire: Joi.boolean().default(false),
   corner_block: Joi.boolean().default(false),
+  clearing_date: Joi.date().allow(null).optional(),
 });
 
 export const updatePropertySchema = Joi.object({
@@ -78,12 +104,14 @@ export const updatePropertySchema = Joi.object({
     "reserved",
     "pending",
     "under_contract",
-    "off_market",).allow("", null).optional(),
+    "off_market").allow("", null).optional(),
   title_date: Joi.date().allow(null).optional(),
   compaction_report: Joi.string()
     .valid("available",
-      "not_available",).allow("", null)
+      "not_available").allow("", null)
     .optional(),
+  compaction_report_url: Joi.string().allow("", null).max(500).optional(),
+  compaction_report_content: compactionReportContentSchema.allow(null).optional(),
   land_type: Joi.string().valid("regular", "irregular").optional(),
   width_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   depth_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
@@ -93,6 +121,7 @@ export const updatePropertySchema = Joi.object({
   bush_fire: Joi.boolean().optional(),
   corner_block: Joi.boolean().optional(),
   price: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
+  clearing_date: Joi.date().allow(null).optional(),
 });
 
 export const getPropertyByLeadSchema = Joi.object({
@@ -114,9 +143,9 @@ export const getAllPropertiesSchema = Joi.object({
 });
 
 export const deletePropertySchema = Joi.object({
-  property_id: Joi.string().uuid().required().messages({
-    "string.guid": "Property ID must be a valid UUID",
-    "any.required": "Property ID is required",
+  property_detail_id: Joi.string().uuid().required().messages({
+    "string.guid": "Property Detail ID must be a valid UUID",
+    "any.required": "Property Detail ID is required",
   }),
 });
 

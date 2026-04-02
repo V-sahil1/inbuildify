@@ -2,6 +2,7 @@ import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import addressRepo from "../../repositories/address.repository.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 
 export async function createProperty(req, res) {
   const pool = getPool();
@@ -25,7 +26,7 @@ export async function createProperty(req, res) {
         (company_id = $2 AND $2 IS NOT NULL)
         OR (builder_id = $3 AND $3 IS NOT NULL)
       )`,
-      [leads_id, companyId, builderId]
+      [leads_id, companyId, builderId],
     );
 
     if (leadCheck.rowCount === 0) {
@@ -59,18 +60,24 @@ export async function createProperty(req, res) {
       land_fill_mm,
       bush_fire,
       corner_block,
+      compaction_report_url,
+      compaction_report_content,
+      clearing_date,
     } = req.body;
+
+    const compactionReportUrl = req.file ? req.file.location : (compaction_report_url || null);
 
     const result = await client.query(
       `INSERT INTO property_detail (
         lot_number, street, address_line1, address_line2, city,
         state_id, country_id, zip_code, estate_name, title_status,
-        title_date, compaction_report, land_type, width_m, depth_m,
+        title_date, compaction_report, compaction_report_url, compaction_report_content, land_type, width_m, depth_m,
         total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
+        clearing_date,
         is_hl_package_lot,
         created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
         false,
         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
@@ -88,6 +95,8 @@ export async function createProperty(req, res) {
         title_status || null,
         title_date || null,
         compaction_report || null,
+        compactionReportUrl,
+        compaction_report_content || null,
         land_type || "REGULAR",
         width_m ?? null,
         depth_m ?? null,
@@ -96,20 +105,21 @@ export async function createProperty(req, res) {
         land_fill_mm ?? null,
         bush_fire ?? false,
         corner_block ?? false,
-      ]
+        clearing_date || null,
+      ],
     );
 
     const propertyDetailId = result.rows[0].property_detail_id;
 
     // Link property_detail to the lead
     await client.query(
-      `UPDATE leads SET property_detail_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2`,
-      [propertyDetailId, leads_id]
+      "UPDATE leads SET property_detail_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2",
+      [propertyDetailId, leads_id],
     );
 
     await client.query(
-      `UPDATE leads SET status = 'Working', updated_at = CURRENT_TIMESTAMP WHERE leads_id = $1 AND status = 'New'`,
-      [leads_id]
+      "UPDATE leads SET status = 'Working', updated_at = CURRENT_TIMESTAMP WHERE leads_id = $1 AND status = 'New'",
+      [leads_id],
     );
     await client.query("COMMIT");
 
@@ -122,7 +132,7 @@ export async function createProperty(req, res) {
        LEFT JOIN country c ON c.country_id = pd.country_id
        LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
        WHERE pd.property_detail_id = $1`,
-      [propertyDetailId]
+      [propertyDetailId],
     );
 
     const formatted = keysToCamelCase(enriched.rows[0]);
@@ -202,27 +212,62 @@ export async function updateProperty(req, res) {
     }
 
     const { property_detail_id } = req.params;
+    const { compaction_report, compaction_report_content, compaction_report_url } = req.body;
 
     const existing = await client.query(
-      `SELECT pd.property_detail_id
+      `SELECT pd.property_detail_id, pd.compaction_report, pd.compaction_report_url
        FROM property_detail pd
        JOIN leads l ON l.property_detail_id = pd.property_detail_id
        WHERE pd.property_detail_id = $1 AND (
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
        )`,
-      [property_detail_id, companyId, builderId]
+      [property_detail_id, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
       return errorResponse(res, 404, "Property not found or does not belong to your organization.");
     }
 
+    // Business Logic: If status is not_available, clear all details
+    if (compaction_report === "not_available") {
+      req.body.compaction_report_url = null;
+      req.body.compaction_report_content = null;
+
+      // Delete existing file from S3 if any
+      const oldUrl = existing.rows[0].compaction_report_url;
+      if (oldUrl) {
+        await deleteFromS3(oldUrl);
+      }
+    }
+
+    // Business Logic: Mandatory content when switching to available
+    const isSwitchingToAvailable = compaction_report === "available" &&
+                                   existing.rows[0].compaction_report === "not_available";
+
+    const hasNewContent = compaction_report_content !== undefined ||
+                          compaction_report_url !== undefined ||
+                          req.file !== undefined;
+
+    if (isSwitchingToAvailable && !hasNewContent) {
+      return errorResponse(res, 400, "Compaction report content or file is required when switching status to available.");
+    }
+
+    // Business Logic: Check if report details are allowed
+    const currentStatus = compaction_report || existing.rows[0].compaction_report;
+    const isUpdatingReport = compaction_report_content !== undefined ||
+                             compaction_report_url !== undefined ||
+                             req.file !== undefined;
+
+    if (isUpdatingReport && currentStatus !== "available") {
+      return errorResponse(res, 400, "Compaction report details can only be provided when the report is available.");
+    }
+
     const estateId = req.body.estate_id;
     if (estateId) {
       const estateCheck = await client.query(
-        `SELECT estate_id FROM estate WHERE estate_id = $1 AND (builder_id = $2 OR company_id = $3) AND status = true`,
-        [estateId, builderId, companyId]
+        "SELECT estate_id FROM estate WHERE estate_id = $1 AND (builder_id = $2 OR company_id = $3) AND status = true",
+        [estateId, builderId, companyId],
       );
       if (estateCheck.rowCount === 0) {
         return errorResponse(res, 400, "Invalid estate id.");
@@ -233,8 +278,8 @@ export async function updateProperty(req, res) {
     if (estateStageId) {
       const resolvedEstateId = estateId || (
         await client.query(
-          `SELECT estate_id FROM property_detail WHERE property_detail_id = $1`,
-          [property_detail_id]
+          "SELECT estate_id FROM property_detail WHERE property_detail_id = $1",
+          [property_detail_id],
         )
       ).rows[0]?.estate_id;
 
@@ -243,8 +288,8 @@ export async function updateProperty(req, res) {
       }
 
       const stageCheck = await client.query(
-        `SELECT estate_stage_id FROM estate_stages WHERE estate_stage_id = $1 AND estate_id = $2`,
-        [estateStageId, resolvedEstateId]
+        "SELECT estate_stage_id FROM estate_stages WHERE estate_stage_id = $1 AND estate_id = $2",
+        [estateStageId, resolvedEstateId],
       );
       if (stageCheck.rowCount === 0) {
         return errorResponse(res, 400, "Invalid estate stage id or it does not belong to the selected estate.");
@@ -270,6 +315,8 @@ export async function updateProperty(req, res) {
       "title_status",
       "title_date",
       "compaction_report",
+      "compaction_report_url",
+      "compaction_report_content",
       "land_type",
       "width_m",
       "depth_m",
@@ -279,6 +326,7 @@ export async function updateProperty(req, res) {
       "bush_fire",
       "corner_block",
       "price",
+      "clearing_date",
     ];
 
     // Map body keys to DB column names where they differ
@@ -289,17 +337,32 @@ export async function updateProperty(req, res) {
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
+        // Skip adding compaction_report_url from the body if a file is already being uploaded
+        if (field === "compaction_report_url" && req.file) {
+          continue;
+        }
+
         const dbColumn = fieldMap[field] || field;
         updateFields.push(`${dbColumn} = $${paramIndex++}`);
         updateValues.push(req.body[field] === null ? null : req.body[field]);
-      }
+      } 
     }
 
-    if (updateFields.length === 0) {
+    if (updateFields.length === 0 && !req.file) {
       return errorResponse(res, 400, "No valid fields to update");
     }
 
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    if (req.file) {
+      const oldUrl = existing.rows[0].compaction_report_url;
+      if (oldUrl) {
+        await deleteFromS3(oldUrl);
+      }
+      const dbColumn = "compaction_report_url";
+      updateFields.push(`${dbColumn} = $${paramIndex++}`);
+      updateValues.push(req.file.location);
+    }
+
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateValues.push(property_detail_id);
 
     const updateSql = `
@@ -320,7 +383,7 @@ export async function updateProperty(req, res) {
        LEFT JOIN country c ON c.country_id = pd.country_id
        LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
        WHERE pd.property_detail_id = $1`,
-      [property_detail_id]
+      [property_detail_id],
     );
 
     const formatted = keysToCamelCase(enriched.rows[0]);
@@ -429,7 +492,7 @@ export async function deleteProperty(req, res) {
         (l.company_id = $2 AND $2 IS NOT NULL)
         OR (l.builder_id = $3 AND $3 IS NOT NULL)
        )`,
-      [property_detail_id, companyId, builderId]
+      [property_detail_id, companyId, builderId],
     );
 
     if (existing.rowCount === 0) {
@@ -439,11 +502,11 @@ export async function deleteProperty(req, res) {
 
     // Unlink from leads first
     await client.query(
-      `UPDATE leads SET property_detail_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_detail_id = $1`,
-      [property_detail_id]
+      "UPDATE leads SET property_detail_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_detail_id = $1",
+      [property_detail_id],
     );
 
-    await client.query(`DELETE FROM property_detail WHERE property_detail_id = $1`, [property_detail_id]);
+    await client.query("DELETE FROM property_detail WHERE property_detail_id = $1", [property_detail_id]);
 
     await client.query("COMMIT");
 

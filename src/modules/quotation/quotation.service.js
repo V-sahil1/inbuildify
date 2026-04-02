@@ -46,6 +46,15 @@ class QuotationService {
         const latestVersionResult = await client.query(latestVersionQuery, [leadsId]);
         const latestVersion = latestVersionResult.rowCount > 0 ? latestVersionResult.rows[0] : null;
 
+        // Check compaction report status
+        const propertyQuery = `
+          SELECT compaction_report 
+          FROM property_detail 
+          WHERE property_detail_id = $1
+        `;
+        const propertyResult = await client.query(propertyQuery, [existingLead.propertyDetailId]);
+        const compactionReport = propertyResult.rowCount > 0 ? propertyResult.rows[0].compaction_report : null;
+
         // Insert new Quotation
         const insertQuotationQuery = `
           INSERT INTO quotation (leads_id, reference_number, created_by)
@@ -99,6 +108,39 @@ class QuotationService {
             FROM quotation_version_custom_section
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
+        } else if (compactionReport === "not_available") {
+          // If first quotation and compaction report is not available, map "Compaction Report Charge"
+          const priceListItemQuery = `
+            SELECT price_list_item_id, cost 
+            FROM price_list_item 
+            WHERE item_description = $1 
+            AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL))
+            AND status = 'active'
+            ORDER BY created_at ASC
+            LIMIT 1
+          `;
+          const priceListItemResult = await client.query(priceListItemQuery, [
+            "Compaction Report Charge",
+            builderId,
+            companyId,
+          ]);
+
+          if (priceListItemResult.rowCount > 0) {
+            const pli = priceListItemResult.rows[0];
+            await client.query(
+              `
+              INSERT INTO quotation_version_pricelist_item_map (quotation_version_id, price_list_item_id, quantity, note, total_price)
+              VALUES ($1, $2, $3, $4, $5)
+            `,
+              [
+                quotationVersion.quotation_version_id,
+                pli.price_list_item_id,
+                1,
+                "Auto-added due to unavailable compaction report",
+                pli.cost,
+              ]
+            );
+          }
         }
 
         // Auto-convert lead to opportunity with status depending on whether previous versions exist

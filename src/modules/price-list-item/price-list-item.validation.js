@@ -1,6 +1,22 @@
 import Joi from "joi";
 
 const validConditions = ["site_fall", "land_size", "corner_block", "land_fill"];
+const UOM_VALUES = [
+  "SQ_FT",
+  "SQ_M",
+  "SQ_YD",
+  "ACRE",
+  "HECTARE",
+  "CUBIC_METER",
+  "CUBIC_FEET",
+  "KG",
+  "TON",
+  "METER",
+  "FEET",
+  "NOS",
+  "UNITS",
+  "LITER",
+];
 
 const conditionSchema = Joi.object({
   condition_name: Joi.string()
@@ -96,7 +112,14 @@ export const createPriceListItemSchema = Joi.object({
 
   sort_order: Joi.number().integer().min(0).default(0).optional(),
 
-  uom: Joi.string().allow(null, "").trim().max(50),
+  uom: Joi.string()
+    .valid(...UOM_VALUES)
+    .allow(null, "")
+    .trim()
+    .max(50)
+    .messages({
+      "any.only": `uom must be one of: ${UOM_VALUES.join(", ")}`,
+    }),
 
   status: Joi.string()
     .valid("active", "inactive")
@@ -139,7 +162,15 @@ export const getAllPriceListItemSchema = Joi.object({
     .max(50)
     .optional(),
 
-  uom: Joi.string().allow(null, "").trim().max(50).optional(),
+  uom: Joi.string()
+    .valid(...UOM_VALUES)
+    .allow(null, "")
+    .trim()
+    .max(50)
+    .optional()
+    .messages({
+      "any.only": `uom must be one of: ${UOM_VALUES.join(", ")}`,
+    }),
 
   price_list_id: Joi.string().uuid().optional().messages({
     "string.uuid": "price_list_id must be a valid UUID",
@@ -217,7 +248,15 @@ export const updatePriceListItemSchema = Joi.object({
 
   sort_order: Joi.number().integer().min(0).default(0).optional(),
 
-  uom: Joi.string().allow(null, "").trim().max(50).optional(),
+  uom: Joi.string()
+    .valid(...UOM_VALUES)
+    .allow(null, "")
+    .trim()
+    .max(50)
+    .optional()
+    .messages({
+      "any.only": `uom must be one of: ${UOM_VALUES.join(", ")}`,
+    }),
 
   status: Joi.string()
     .valid("active", "inactive")

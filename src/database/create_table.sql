@@ -3408,6 +3408,9 @@ CREATE TABLE property_detail(
   bush_fire BOOLEAN,
   corner_block BOOLEAN,
   is_hl_package_lot BOOLEAN,
+  compaction_report_url VARCHAR(500),
+  compaction_report_content JSONB,
+  clearing_date DATE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
