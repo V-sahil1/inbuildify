@@ -43,6 +43,7 @@ export default (sequelize) => {
       bush_fire: { type: DataTypes.BOOLEAN, allowNull: true },
       corner_block: { type: DataTypes.BOOLEAN, allowNull: true },
       is_hl_package_lot: { type: DataTypes.BOOLEAN, allowNull: true },
+      compaction_report_provider: { type: DataTypes.STRING(255), allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

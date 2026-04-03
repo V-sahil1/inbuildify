@@ -149,6 +149,7 @@ import quotationVersionPackageMapRoutes from "../modules/quotation-version-packa
 import quotationVersionPricelistItemMapRoutes from "../modules/quotation-version-price-list/quotation-version-pricelist-item-map.routes.js";
 import smsRoutes from "../modules/sms/sms.routes.js";
 import notesRoutes from "../modules/notes/notes.routes.js";
+import structureEngineerRoutes from "../modules/structure-engineer/structure-engineer.routes.js";
 
 export default function (app) {
   app.use("/country", countryRoutes);
@@ -319,4 +320,5 @@ export default function (app) {
   app.use("/quotation-version-pricelist-item-map", quotationVersionPricelistItemMapRoutes);
   app.use("/sms", smsRoutes);
   app.use("/notes", notesRoutes);
+  app.use("/structure-engineer", structureEngineerRoutes);
 }

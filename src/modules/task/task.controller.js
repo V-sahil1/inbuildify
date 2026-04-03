@@ -2,6 +2,7 @@ import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createTask(req, res) {
   const pool = getPool();
@@ -179,6 +180,18 @@ export async function createTask(req, res) {
         orderedTask[field] = transformed[field];
       }
     });
+
+    if (lead_id) {
+       await logActivity(client, {
+        userId: createdBy,
+        leadsId: lead_id,
+        module: "Task",
+        moduleId: result.rows[0].task_id,
+        recordName: name,
+        action: "CREATE",
+        description: `Task created: ${name}`
+      });
+    }
 
     return successResponse(res, orderedTask, "Task created successfully.");
   } catch (err) {
@@ -425,7 +438,7 @@ export async function deleteTask(req, res) {
     await client.query("BEGIN");
 
     const checkQuery = `
-      SELECT task_id, builder_id
+      SELECT *
       FROM task
       WHERE task_id = $1
     `;
@@ -450,6 +463,20 @@ export async function deleteTask(req, res) {
     }
 
     await client.query("DELETE FROM task WHERE task_id = $1", [task_id]);
+    
+    // Log Activity
+    if (task.lead_id) {
+      await logActivity(client, {
+        userId: req.user?.users_id,
+        leadsId: task.lead_id,
+        module: "Task",
+        moduleId: task_id,
+        recordName: task.name,
+        action: "DELETE",
+        description: `Task deleted: ${task.name}`
+      });
+    }
+
     await client.query("COMMIT");
     return successResponse(res, {}, "Task deleted successfully");
   } catch (error) {
@@ -656,6 +683,19 @@ export async function updateTask(req, res) {
     `;
     const updateResult = await client.query(updateQuery, values);
     await client.query("COMMIT");
+
+    // Log Activity
+    if (findResult.rows[0].lead_id) {
+      await compareAndLogUpdates(client, {
+        userId: userId,
+        leadsId: findResult.rows[0].lead_id,
+        module: "Task",
+        moduleId: task_id,
+        recordName: updateResult.rows[0].name,
+        oldData: keysToCamelCase(findResult.rows[0]),
+        newData: keysToCamelCase(updateResult.rows[0])
+      });
+    }
 
     const updatedTask = updateResult.rows[0];
     let assigneeName = null;

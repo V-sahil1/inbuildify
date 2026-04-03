@@ -63,7 +63,18 @@ export async function createProperty(req, res) {
       compaction_report_url,
       compaction_report_content,
       clearing_date,
+      compaction_report_provider,
     } = req.body;
+
+    if (compaction_report === "available" && compaction_report_provider) {
+      await client.query("ROLLBACK");
+      return errorResponse(res,400,"compactionReportProvider is not allowed when compactionReport is available.");
+    }
+    
+    let finalCompactionReportProvider = compaction_report_provider;
+    if (compaction_report === "available") {
+      finalCompactionReportProvider = null;
+    }
 
     const compactionReportUrl = req.file ? req.file.location : (compaction_report_url || null);
 
@@ -74,10 +85,11 @@ export async function createProperty(req, res) {
         title_date, compaction_report, compaction_report_url, compaction_report_content, land_type, width_m, depth_m,
         total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
         clearing_date,
+        compaction_report_provider,
         is_hl_package_lot,
         created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
         false,
         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
@@ -106,6 +118,7 @@ export async function createProperty(req, res) {
         bush_fire ?? false,
         corner_block ?? false,
         clearing_date || null,
+        finalCompactionReportProvider || null,
       ],
     );
 
@@ -241,6 +254,19 @@ export async function updateProperty(req, res) {
       }
     }
 
+    if (compaction_report === "available" && req.body.compaction_report_provider) {
+       return errorResponse(res, 400, "compactionReportProvider is not allowed when compactionReport is available.");
+    }
+
+    if (compaction_report === "available") {
+      req.body.compaction_report_provider = null;
+    }
+
+    const resovedCompactionReport = compaction_report || existing.rows[0].compaction_report;
+    if (req.body.compaction_report_provider && resovedCompactionReport === "available" && compaction_report !== "available") {
+      return errorResponse(res, 400, "compactionReportProvider is not allowed when compactionReport is available.");
+    }
+
     // Business Logic: Mandatory content when switching to available
     const isSwitchingToAvailable = compaction_report === "available" &&
                                    existing.rows[0].compaction_report === "not_available";
@@ -259,9 +285,9 @@ export async function updateProperty(req, res) {
                              compaction_report_url !== undefined ||
                              req.file !== undefined;
 
-    if (isUpdatingReport && currentStatus !== "available") {
-      return errorResponse(res, 400, "Compaction report details can only be provided when the report is available.");
-    }
+    // if (isUpdatingReport && currentStatus !== "available") {
+    //   return errorResponse(res, 400, "Compaction report details can only be provided when the report is available.");
+    // }
 
     const estateId = req.body.estate_id;
     if (estateId) {
@@ -327,6 +353,7 @@ export async function updateProperty(req, res) {
       "corner_block",
       "price",
       "clearing_date",
+      "compaction_report_provider",
     ];
 
     // Map body keys to DB column names where they differ

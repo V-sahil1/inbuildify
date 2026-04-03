@@ -7,6 +7,7 @@ import {
   getAllPriceListItems,
   deletePriceListItem,
   updatePriceListItem,
+  copyPriceListItem,
 } from "./price-list-item.controller.js";
 import {
   createPriceListItemSchema,
@@ -14,6 +15,8 @@ import {
   deletePriceListItemSchema,
   updatePriceListItemSParamschema,
   updatePriceListItemSchema,
+  copyPriceListItemParamSchema,
+  copyPriceListItemBodySchema,
 } from "./price-list-item.validation.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
@@ -48,6 +51,13 @@ router.put(
   validateRequest(updatePriceListItemSParamschema, REQUEST_SOURCE.PARAMS),
   validateRequest(updatePriceListItemSchema, REQUEST_SOURCE.BODY),
   updatePriceListItem,
+);
+
+router.post(
+  "/copy/:price_list_item_id",
+  validateRequest(copyPriceListItemParamSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(copyPriceListItemBodySchema, REQUEST_SOURCE.BODY),
+  copyPriceListItem,
 );
 
 export default router;

@@ -2,6 +2,7 @@ import quotationRepository from "./quotation.repository.js";
 import leadsRepository from "../lead/leads.repository.js";
 import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common.js";
 import getPool from "../../config/database.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -20,6 +21,27 @@ class QuotationService {
           success: false,
           message: "Cannot create quotation: Lead must have an associated property.",
         };
+      }
+
+      // Check if this is the first quotation for the lead
+      const pool = getPool();
+      const versionCountQuery = `
+        SELECT count(qv.quotation_version_id) as count
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        WHERE q.leads_id = $1
+      `;
+      const versionCountResult = await pool.query(versionCountQuery, [leadsId]);
+      const versionCount = parseInt(versionCountResult.rows[0].count, 10);
+
+      if (versionCount === 0) {
+        // Validation for the first quotation
+        if (!existingLead.structureEngineerId || !existingLead.structureReportFile) {
+          return {
+            success: false,
+            message: "Cannot create the first quotation: Lead must have a structure engineer and a structure report file.",
+          };
+        }
       }
 
       const reference_number = await generateDynamicReferenceNumber({
@@ -149,6 +171,17 @@ class QuotationService {
 
         await client.query("COMMIT");
 
+        // Log Activity
+        await logActivity(client, {
+          userId: userId,
+          leadsId: leadsId,
+          module: "Quotation",
+          moduleId: quotation.quotation_id,
+          recordName: reference_number,
+          action: "CREATE",
+          description: `Quotation created: ${reference_number}`
+        });
+
         // Fetch fully enriched version to include lead and contact details mapping
         const enrichedVersion = await quotationRepository.getQuotationVersionDetailsById(quotationVersion.quotation_version_id);
 
@@ -277,6 +310,17 @@ class QuotationService {
 
       await client.query('COMMIT');
 
+      // Log Activity
+      await logActivity(client, {
+        userId: userId,
+        leadsId: leadsId,
+        module: "Quotation",
+        moduleId: quotation.quotation_id,
+        recordName: reference_number,
+        action: "CREATE",
+        description: `Quotation synced from HLP: ${reference_number}`
+      });
+
       // 6. Fetch fully enriched version (this includes the sum totals requested)
       const result = await quotationRepository.getQuotationVersionDetailsById(versionId);
 
@@ -327,7 +371,7 @@ class QuotationService {
     }
   }
 
-  async updateQuotationVersion(versionId, updateData, builderId, companyId) {
+  async updateQuotationVersion(versionId, updateData, builderId, companyId, userId) {
     try {
       const client = getPool();
 
@@ -502,6 +546,7 @@ class QuotationService {
         }
       }
 
+      const oldVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       if (!updated) {
@@ -509,6 +554,22 @@ class QuotationService {
           success: false,
           message: "No valid fields provided for update",
         };
+      }
+
+      // Log Activity
+      const newVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
+      const quotationDetails = await client.query("SELECT leads_id, reference_number FROM quotation WHERE quotation_id = $1", [newVersion.quotationId]);
+      
+      if (quotationDetails.rowCount > 0) {
+        await compareAndLogUpdates(null, {
+          userId,
+          leadsId: quotationDetails.rows[0].leads_id,
+          module: "Quotation",
+          moduleId: newVersion.quotationId,
+          recordName: quotationDetails.rows[0].reference_number,
+          oldData: oldVersion,
+          newData: newVersion
+        });
       }
 
       return {
@@ -525,7 +586,7 @@ class QuotationService {
     }
   }
 
-  async duplicateQuotationVersion(versionId, builderId, companyId) {
+  async duplicateQuotationVersion(versionId, builderId, companyId, userId) {
     const client = await getPool().connect();
     try {
       // 1. Fetch the source version + verify ownership
@@ -609,6 +670,18 @@ class QuotationService {
 
       await client.query("COMMIT");
 
+      // Log Activity
+      const quotationDetails = await client.query("SELECT reference_number FROM quotation WHERE quotation_id = $1", [quotationId]);
+      await logActivity(client, {
+        userId,
+        leadsId: sourceVersion.leads_id,
+        module: "Quotation",
+        moduleId: quotationId,
+        recordName: quotationDetails.rows[0].reference_number,
+        action: "CREATE",
+        description: `Quotation version duplicated: v${newVersionNo}`
+      });
+
       // Fetch the full newly created version using repository to return all enriched fields
       const enrichedNewVersion = await quotationRepository.getQuotationVersionDetailsById(newVersionId);
 
@@ -629,7 +702,7 @@ class QuotationService {
     }
   }
 
-  async deleteQuotation(quotationId, builderId, companyId) {
+  async deleteQuotation(quotationId, builderId, companyId, userId) {
     try {
       // Verify the quotation exists and belongs to a lead the user can access
       const client = getPool();
@@ -648,6 +721,17 @@ class QuotationService {
       }
 
       const deleted = await quotationRepository.deleteQuotation(quotationId);
+
+      // Log Activity
+      await logActivity(null, {
+        userId,
+        leadsId: checkResult.rows[0].leads_id,
+        module: "Quotation",
+        moduleId: quotationId,
+        recordName: "Quotation",
+        action: "DELETE",
+        description: `Quotation deleted`
+      });
 
       return {
         success: true,
@@ -853,7 +937,7 @@ class QuotationService {
       };
     }
   }
-  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
+  async removePackageFromVersion(versionId, packageId, builderId, companyId, userId) {
     try {
       const client = getPool();
 
@@ -899,6 +983,23 @@ class QuotationService {
       }
 
       const updated = await quotationRepository.removePackageFromVersion(versionId, packageId, builderId, companyId);
+      
+      // Log Activity
+      const quotationDetails = await client.query(
+        "SELECT l.leads_id, q.reference_number FROM quotation q JOIN quotation_version qv ON q.quotation_id = qv.quotation_id JOIN leads l ON q.leads_id = l.leads_id WHERE qv.quotation_version_id = $1", 
+        [versionId]
+      );
+      if (quotationDetails.rowCount > 0) {
+        await logActivity(null, {
+          userId,
+          leadsId: quotationDetails.rows[0].leads_id,
+          module: "Quotation",
+          moduleId: versionId,
+          recordName: quotationDetails.rows[0].reference_number,
+          action: "UPDATE",
+          description: `Package removed from quotation version`
+        });
+      }
 
       return {
         success: true,

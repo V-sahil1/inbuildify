@@ -28,7 +28,7 @@ export const getJobColorColumnSectionsSchema = Joi.object({
     "number.min": "Page must be greater than 0",
   }),
 
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+  limit: Joi.number().integer().min(1).max(100).default(25).messages({
     "number.base": "Limit must be a number",
     "number.integer": "Limit must be an integer",
     "number.min": "Limit must be at least 1",

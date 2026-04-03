@@ -2,6 +2,7 @@ import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createNote(req, res) {
   const pool = getPool();
@@ -153,6 +154,17 @@ export async function createNote(req, res) {
 
     await client.query("COMMIT");
 
+    // Log Activity
+    await logActivity(client, {
+      userId: req.user.users_id,
+      leadsId: effectiveLeadsId,
+      module: "Note",
+      moduleId: result.rows[0].notes_id,
+      recordName: "Note",
+      action: "CREATE",
+      description: `Note created`
+    });
+
     return successResponse(
       res,
       keysToCamelCase(enrichedNoteResult.rows[0]),
@@ -289,7 +301,7 @@ export async function updateNote(req, res) {
     const companyId = req.user?.company_id;
 
     const checkNote = await client.query(
-      `SELECT n.attach_file, n.note_type FROM notes n
+      `SELECT n.* FROM notes n
        JOIN leads l ON n.leads_id = l.leads_id
        WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
       [notes_id, builderId, companyId]
@@ -399,6 +411,17 @@ export async function updateNote(req, res) {
 
     await client.query("COMMIT");
 
+    // Log Activity
+    await compareAndLogUpdates(client, {
+      userId: req.user.users_id,
+      leadsId: checkNote.rows[0].leads_id,
+      module: "Note",
+      moduleId: notes_id,
+      recordName: "Note",
+      oldData: keysToCamelCase(checkNote.rows[0]),
+      newData: keysToCamelCase(enrichedNoteResult.rows[0])
+    });
+
     return successResponse(
       res,
       keysToCamelCase(enrichedNoteResult.rows[0]),
@@ -449,6 +472,17 @@ export async function deleteNote(req, res) {
     }
 
     await client.query("COMMIT");
+
+    // Log Activity
+    await logActivity(client, {
+      userId: req.user.users_id,
+      leadsId: checkNote.rows[0].leads_id,
+      module: "Note",
+      moduleId: notes_id,
+      recordName: "Note",
+      action: "DELETE",
+      description: `Note deleted`
+    });
 
     return successResponse(res, {}, "Note deleted successfully.");
   } catch (err) {

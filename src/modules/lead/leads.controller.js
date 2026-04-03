@@ -1,5 +1,7 @@
 import leadsService from "./leads.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createLead(req, res) {
   try {
@@ -30,6 +32,15 @@ export async function createLead(req, res) {
     );
 
     if (result.success) {
+      await logActivity(null, {
+        userId,
+        leadsId: result.data.leadsId,
+        module: "Lead",
+        moduleId: result.data.leadsId,
+        recordName: result.data.name,
+        action: "CREATE",
+        description: `Lead created: ${result.data.name}`
+      });
       return successResponse(res, result.data, result.message);
     } if (result.emailExists) {
       return errorResponse(res, 409, result.message, {
@@ -73,6 +84,15 @@ export async function forceCreateLead(req, res) {
     );
 
     if (result.success) {
+      await logActivity(null, {
+        userId,
+        leadsId: result.data.leadsId,
+        module: "Lead",
+        moduleId: result.data.leadsId,
+        recordName: result.data.name,
+        action: "CREATE",
+        description: `Lead created: ${result.data.name}`
+      });
       return successResponse(res, result.data, result.message);
     }
     return errorResponse(res, 400, result.message);
@@ -156,6 +176,24 @@ export async function updateLead(req, res) {
       );
     }
 
+    const existingLeadResult = await leadsService.getLeadById(leads_id, builderId, companyId);
+    if (!existingLeadResult.success) {
+      return errorResponse(res, 404, "Lead not found");
+    }
+
+    if (req.file) {
+      const activeEngineerId = req.body.structure_engineer_id || existingLeadResult.data.structureEngineerId;
+      if (!activeEngineerId) {
+        return errorResponse(res, 400, "Structure Engineer is required to upload a structure report.");
+      }
+
+      const oldFileUrl = existingLeadResult.data.structureReportFile;
+      if (oldFileUrl) {
+        await deleteFromS3(oldFileUrl);
+      }
+      req.body.structure_report_file = req.file.location;
+    }
+
     const result = await leadsService.updateLead(
       leads_id,
       req.body,
@@ -165,6 +203,15 @@ export async function updateLead(req, res) {
     );
 
     if (result.success) {
+      await compareAndLogUpdates(null, {
+        userId,
+        leadsId: leads_id,
+        module: "Lead",
+        moduleId: leads_id,
+        recordName: result.data.name,
+        oldData: existingLeadResult.data,
+        newData: result.data
+      });
       return successResponse(res, result.data, result.message);
     }
     return errorResponse(res, 400, result.message);
@@ -185,9 +232,22 @@ export async function deleteLead(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
+    const existingLeadResult = await leadsService.getLeadById(leads_id, builderId, companyId);
+    
     const result = await leadsService.deleteLead(leads_id, builderId, companyId);
 
     if (result.success) {
+      if (existingLeadResult.success) {
+        await logActivity(null, {
+          userId: req.user?.users_id,
+          leadsId: leads_id,
+          module: "Lead",
+          moduleId: leads_id,
+          recordName: existingLeadResult.data.name,
+          action: "DELETE",
+          description: `Lead deleted: ${existingLeadResult.data.name}`
+        });
+      }
       return successResponse(res, null, "Lead deleted successfully");
     }
     return errorResponse(res, 404, result.message);
@@ -376,6 +436,7 @@ export async function getAllLeadActions(req, res) {
 export async function getLeadActivityLog(req, res) {
   try {
     const { leads_id } = req.params;
+    const { module, action, page = 1, limit = 20 } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -383,14 +444,17 @@ export async function getLeadActivityLog(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
-    const filters = {
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 25,
-      module: req.query.module,
-      action: req.query.action,
-    };
+    const pageValue = parseInt(page, 10);
+    const limitValue = parseInt(limit, 10);
+    const offset = (pageValue - 1) * limitValue;
 
-    const result = await leadsService.getLeadActivityLog(leads_id, builderId, companyId, filters);
+    const result = await leadsService.getLeadActivityLog(leads_id, builderId, companyId, {
+      module,
+      action,
+      limit: limitValue,
+      offset,
+      page: pageValue
+    });
 
     if (result.success) {
       return successResponse(res, result.data, result.message);

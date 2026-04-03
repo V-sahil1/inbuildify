@@ -288,10 +288,32 @@ export const updatePriceListItemSchema = Joi.object({
     "object.min": "At least one field is required to update.",
   });
 
+export const copyPriceListItemParamSchema = Joi.object({
+  price_list_item_id: Joi.string().uuid().required().messages({
+    "any.required": "price_list_item_id is required",
+    "string.uuid": "price_list_item_id must be a valid UUID",
+  }),
+});
+
+export const copyPriceListItemBodySchema = Joi.object({
+  price_list_id: Joi.string().uuid().required().messages({
+    "any.required": "price_list_id is required",
+    "string.uuid": "price_list_id must be a valid UUID",
+  }),
+  item_description: Joi.string().required().max(2000).messages({
+    "any.required": "item_description is required",
+  }),
+  sort_order: Joi.number().integer().min(0).required().messages({
+    "any.required": "sort_order is required",
+  }),
+});
+
 export default {
   createPriceListItemSchema,
   getAllPriceListItemSchema,
   deletePriceListItemSchema,
   updatePriceListItemSParamschema,
   updatePriceListItemSchema,
+  copyPriceListItemParamSchema,
+  copyPriceListItemBodySchema,
 };

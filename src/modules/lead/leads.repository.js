@@ -586,6 +586,8 @@ async getLeadById(leadId, builderId, companyId) {
         assignee_note,
         updated_by,
         house_land_package_id,
+        structure_engineer_id,
+        structure_report_file,
       } = leadData;
 
       const updateFields = [];
@@ -700,6 +702,16 @@ async getLeadById(leadId, builderId, companyId) {
       if (house_land_package_id !== undefined) {
         updateFields.push(`house_land_package_id = $${paramIndex++}`);
         values.push(house_land_package_id);
+      }
+
+      if (structure_engineer_id !== undefined) {
+        updateFields.push(`structure_engineer_id = $${paramIndex++}`);
+        values.push(structure_engineer_id);
+      }
+
+      if (structure_report_file !== undefined) {
+        updateFields.push(`structure_report_file = $${paramIndex++}`);
+        values.push(structure_report_file);
       }
 
       if (updateFields.length === 0) {

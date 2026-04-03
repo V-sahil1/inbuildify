@@ -13,6 +13,7 @@ export class Leads extends Model {
     Leads.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Leads.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
     Leads.belongsTo(models.LeadLostReason, { foreignKey: "lead_lost_reason_id", as: "leadLostReason" });
+    Leads.belongsTo(models.StructureEngineer, { foreignKey: "structure_engineer_id", as: "structureEngineer" });
     Leads.hasMany(models.Invoice, { foreignKey: "leads_id", as: "invoices" });
     Leads.hasMany(models.Quotation, { foreignKey: "leads_id", as: "quotations" });
     Leads.hasMany(models.Opportunity, { foreignKey: "leads_id", as: "opportunities" });
@@ -57,6 +58,8 @@ export default (sequelize) => {
       property_detail_id: { type: DataTypes.UUID, allowNull: true },
       lead_lost_reason_id: { type: DataTypes.UUID, allowNull: true },
       lead_lost_comment: { type: DataTypes.STRING(1000), allowNull: true },
+      structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
+      structure_report_file: { type: DataTypes.STRING(500), allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

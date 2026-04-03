@@ -39,6 +39,10 @@ export default (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
+      record_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
       action: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -74,6 +78,23 @@ export default (sequelize) => {
       modelName: "LeadActivityLog",
       underscored: true,
       updatedAt: false, // SQL schema only has created_at
+      indexes: [
+        {
+          name: "idx_activity_log_lead_created",
+          fields: [
+            "leads_id",
+            { name: "created_at", order: "DESC" }
+          ]
+        },
+        {
+          name: "idx_activity_log_module_id",
+          fields: ["module_id"]
+        },
+        {
+          name: "idx_activity_log_module",
+          fields: ["module"]
+        }
+      ]
     }
   );
   return LeadActivityLog;

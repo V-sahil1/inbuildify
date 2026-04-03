@@ -1,6 +1,7 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createAppointment(req, res) {
   const pool = getPool();
@@ -209,6 +210,19 @@ export async function createAppointment(req, res) {
 
     await client.query("COMMIT");
 
+    // Log Activity
+    if (lead_id) {
+      await logActivity(client, {
+        userId: userId,
+        leadsId: lead_id,
+        module: "Appointment",
+        moduleId: result.rows[0].appointment_id,
+        recordName: title,
+        action: "CREATE",
+        description: `Appointment created: ${title}`
+      });
+    }
+
     const appointmentData = keysToCamelCase(result.rows[0]);
 
     const creatorResult = await client.query(
@@ -415,7 +429,7 @@ export async function deleteAppointment(req, res) {
     const { appointment_id } = req.params;
 
     const checkQuery = `
-      SELECT appointment_id, is_deleted
+      SELECT *
       FROM appointment
       WHERE appointment_id = $1
         AND (company_id = $2 OR builder_id = $3);
@@ -451,6 +465,19 @@ export async function deleteAppointment(req, res) {
       companyId,
       builderId,
     ]);
+
+    // Log Activity
+    if (checkResult.rows[0].lead_id) {
+      await logActivity(client, {
+        userId: userId,
+        leadsId: checkResult.rows[0].lead_id,
+        module: "Appointment",
+        moduleId: appointment_id,
+        recordName: checkResult.rows[0].title,
+        action: "DELETE",
+        description: `Appointment deleted: ${checkResult.rows[0].title}`
+      });
+    }
 
     return successResponse(res, {}, "Appointment deleted successfully.");
   } catch (err) {
@@ -743,6 +770,19 @@ export async function updateAppointment(req, res) {
     }
 
     await client.query("COMMIT");
+
+    // Log Activity
+    if (existing.lead_id) {
+      await compareAndLogUpdates(client, {
+        userId: user_id,
+        leadsId: existing.lead_id,
+        module: "Appointment",
+        moduleId: appointment_id,
+        recordName: updatedAppointment.title,
+        oldData: keysToCamelCase(existing),
+        newData: keysToCamelCase(updatedAppointment)
+      });
+    }
 
     const appointmentData = keysToCamelCase(updatedAppointment);
 

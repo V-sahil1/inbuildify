@@ -3152,6 +3152,8 @@ CREATE TABLE leads (
   assignee_note VARCHAR(500),
   lead_lost_reason_id UUID REFERENCES lead_lost_reason(lead_lost_reason_id) ON DELETE SET NULL,
   lead_lost_comment VARCHAR(1000),
+  structure_engineer_id UUID REFERENCES structure_engineer(structure_engineer_id) ON DELETE SET NULL,
+  structure_report_file VARCHAR(500),
   created_by UUID REFERENCES users(users_id),
   updated_by UUID REFERENCES users(users_id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -3411,6 +3413,7 @@ CREATE TABLE property_detail(
   compaction_report_url VARCHAR(500),
   compaction_report_content JSONB,
   clearing_date DATE,
+  compaction_report_provider VARCHAR(255),  -- valid self, builder
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -3469,19 +3472,40 @@ CREATE TABLE sms(
 
 CREATE TABLE lead_activity_log(
   lead_activity_log_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  leads_id UUID REFERENCES leads(leads_id) ON SET NULL,
+  leads_id UUID REFERENCES leads(leads_id) ON DELETE SET NULL,
   user_id UUID REFERENCES users(users_id) ON DELETE SET NULL,
   module VARCHAR(255), -- lead, contact, task, email, etc.
   module_id UUID,     -- specific record (lead_id, contact_id)
-
-  action VARCHAR(255), -- CREATE, UPDATE, DELETE, EMAIL_SENT, etc.
-
+  record_name VARCHAR(255), -- Name of the record (e.g. "SMS Welcome")
+  action VARCHAR(255), -- CREATE, UPDATE, DELETE, etc.
   field_name VARCHAR(255), 
   old_value TEXT,          -- before change
   new_value TEXT,          -- after change
-
   description TEXT, -- human-readable message
-
-  metadata JSONB, -- extra info (attachments, email data, etc.)
+  metadata JSONB, -- extra info
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_lead_created 
+ON lead_activity_log(leads_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_module_id 
+ON lead_activity_log(module_id);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_module 
+ON lead_activity_log(module);
+
+CREATE TABLE structure_engineer(
+  structure_engineer_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  builder_id UUID REFERENCES builder(builder_id) ON DELETE CASCADE,
+  company_id UUID REFERENCES company(company_id) ON DELETE CASCADE,
+  name VARCHAR(255),
+  email VARCHAR(255),
+  phone VARCHAR(255),
+  address VARCHAR(500),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
 );

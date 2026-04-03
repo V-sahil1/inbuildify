@@ -107,6 +107,7 @@ export async function updateQuotationVersion(req, res) {
       req.body,
       builderId,
       companyId,
+      req.user?.users_id
     );
 
     if (result.success) {
@@ -134,6 +135,7 @@ export async function deleteQuotation(req, res) {
       quotation_id,
       builderId,
       companyId,
+      req.user?.users_id
     );
 
     if (result.success) {
@@ -161,6 +163,7 @@ export async function duplicateQuotationVersion(req, res) {
       quotation_version_id,
       builderId,
       companyId,
+      req.user?.users_id
     );
 
     if (result.success) {
@@ -220,7 +223,8 @@ export const removePackageFromVersion = async (req, res) => {
       quotation_version_id,
       package_id,
       builderId,
-      companyId
+      companyId,
+      req.user?.users_id
     );
 
     if (result.success) {

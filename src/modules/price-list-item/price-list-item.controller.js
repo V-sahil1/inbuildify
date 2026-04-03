@@ -1165,3 +1165,114 @@ export async function updatePriceListItem(req, res) {
     client.release();
   }
 }
+
+export async function copyPriceListItem(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { price_list_item_id } = req.params;
+    const { price_list_id, item_description, sort_order } = req.body;
+    const userId = req.user.users_id;
+    const builderId = req.user.builder_id;
+    const companyId = req.user.company_id;
+
+    await client.query("BEGIN");
+
+    // 1. Shift sort order in the target price list
+    await client.query(
+      `UPDATE price_list_item 
+       SET sort_order = sort_order + 1 
+       WHERE price_list_id = $1 AND sort_order >= $2`,
+      [price_list_id, sort_order]
+    );
+
+    // 2. Fetch source item
+    const sourceItemResult = await client.query(
+      "SELECT * FROM price_list_item WHERE price_list_item_id = $1",
+      [price_list_item_id]
+    );
+
+    if (sourceItemResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Source price list item not found.");
+    }
+
+    const s = sourceItemResult.rows[0];
+
+    // 3. Insert new item (duplicate)
+    const insertItemQuery = `
+      INSERT INTO price_list_item (
+        price_list_id, company_id, builder_id, item_description, short_description,
+        cost_type, cost_type_text, cost_option, cost, builder_cost,
+        sort_order, uom, status, include_by_default, allow_remove_from_quotation,
+        show_in_hl_package, show_only_in_package, range_id, dwelling_type_id, additional_item,
+        created_by, updated_by
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+      ) RETURNING *
+    `;
+
+    const newItemResult = await client.query(insertItemQuery, [
+      price_list_id,
+      companyId,
+      builderId,
+      item_description,
+      s.short_description,
+      s.cost_type,
+      s.cost_type_text,
+      s.cost_option,
+      s.cost,
+      s.builder_cost,
+      sort_order,
+      s.uom,
+      s.status,
+      s.include_by_default,
+      s.allow_remove_from_quotation,
+      s.show_in_hl_package,
+      s.show_only_in_package,
+      s.range_id,
+      s.dwelling_type_id,
+      s.additional_item,
+      userId,
+      userId,
+    ]);
+
+    const newItem = newItemResult.rows[0];
+
+    // 4. Copy conditions
+    const conditionsResult = await client.query(
+      "SELECT * FROM price_list_item_condition WHERE price_list_item_id = $1",
+      [price_list_item_id]
+    );
+
+    for (const condition of conditionsResult.rows) {
+      await client.query(
+        `INSERT INTO price_list_item_condition (
+          price_list_item_id, condition_name, status, range_start, range_end
+        ) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          newItem.price_list_item_id,
+          condition.condition_name,
+          condition.status,
+          condition.range_start,
+          condition.range_end,
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return successResponse(
+      res,
+      keysToCamelCase(newItem),
+      "Price list item copied successfully.",
+    );
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error copying price list item:", error);
+    return errorResponse(res, 500, error.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+}

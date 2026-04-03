@@ -20,6 +20,7 @@ import {
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
+import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createLeadSchema,
@@ -37,6 +38,8 @@ import { REQUEST_SOURCE } from "../../config/constants.js";
 router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
+
+const upload = createPdfUpload("leads/structure-reports");
 
 router.post(
   "/",
@@ -79,6 +82,9 @@ router.get(
 // Update lead
 router.put(
   "/:leads_id",
+  upload.single("structureReportFile"),
+  handleMulterError,
+  camelToSnakeMiddleware,
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLeadSchema, REQUEST_SOURCE.BODY),
   updateLead,
@@ -121,12 +127,18 @@ router.delete(
   removeHLPackage,
 );
 
-// Get all lead actions (notes, tasks, appointments, sms)
 router.get(
-  "/:leads_id/actions",
+  "/activity-log/:leads_id",
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
-  getAllLeadActions,
+  validateRequest(getLeadActivityLogQuerySchema, REQUEST_SOURCE.QUERY),
+  getLeadActivityLog,
 );
 
+// Get all lead actions (notes, tasks, appointments, sms)
+// router.get(
+//   "/:leads_id/actions",
+//   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+//   getAllLeadActions,
+// );
 
 export default router;

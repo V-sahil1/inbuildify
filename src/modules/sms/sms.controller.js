@@ -1,6 +1,7 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createSms(req, res) {
   const pool = getPool();
@@ -66,6 +67,17 @@ export async function createSms(req, res) {
     const enrichedResult = await client.query(enrichedQuery, [result.rows[0].sms_id]);
 
     await client.query("COMMIT");
+
+    // Log Activity
+    await logActivity(client, {
+      userId: req.user.users_id,
+      leadsId: leads_id,
+      module: "SMS",
+      moduleId: result.rows[0].sms_id,
+      recordName: "SMS",
+      action: "CREATE",
+      description: `SMS sent to ${enrichedResult.rows[0].recipient_name || 'customer'}`
+    });
 
     return successResponse(
       res,
@@ -209,7 +221,7 @@ export async function updateSms(req, res) {
     const companyId = req.user?.company_id;
 
     const checkSms = await client.query(
-      `SELECT s.sms_id FROM sms s
+      `SELECT s.* FROM sms s
        JOIN leads l ON s.leads_id = l.leads_id
        WHERE s.sms_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
       [sms_id, builderId, companyId],
@@ -250,6 +262,8 @@ export async function updateSms(req, res) {
       RETURNING *
     `;
 
+    await client.query(updateQuery, [...values, sms_id]);
+
     const enrichedQuery = `
       SELECT s.*, l.name as lead_name, u.name as recipient_name,
       (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
@@ -262,6 +276,17 @@ export async function updateSms(req, res) {
     const enrichedResult = await client.query(enrichedQuery, [sms_id]);
 
     await client.query("COMMIT");
+
+    // Log Activity
+    await compareAndLogUpdates(client, {
+      userId: req.user.users_id,
+      leadsId: checkSms.rows[0].leads_id,
+      module: "SMS",
+      moduleId: sms_id,
+      recordName: "SMS",
+      oldData: keysToCamelCase(checkSms.rows[0]),
+      newData: keysToCamelCase(enrichedResult.rows[0])
+    });
 
     return successResponse(
       res,
@@ -288,6 +313,13 @@ export async function deleteSms(req, res) {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
+    const existingSms = await client.query(
+      `SELECT s.* FROM sms s
+       JOIN leads l ON s.leads_id = l.leads_id
+       WHERE s.sms_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
+      [sms_id, builderId, companyId]
+    );
+
     const result = await client.query(
       `DELETE FROM sms s
        USING leads l
@@ -304,6 +336,19 @@ export async function deleteSms(req, res) {
     }
 
     await client.query("COMMIT");
+
+    // Log Activity
+    if (existingSms.rowCount > 0) {
+      await logActivity(client, {
+        userId: req.user.users_id,
+        leadsId: existingSms.rows[0].leads_id,
+        module: "SMS",
+        moduleId: sms_id,
+        recordName: "SMS",
+        action: "DELETE",
+        description: `SMS deleted`
+      });
+    }
 
     return successResponse(res, {}, "SMS deleted successfully.");
   } catch (err) {

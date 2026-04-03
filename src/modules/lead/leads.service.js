@@ -932,7 +932,7 @@ class LeadsService {
         return { success: false, message: "Lead not found or access denied" };
       }
 
-      const { page = 1, limit = 25, module, action } = filters;
+      const { page = 1, limit = 20, module, action } = filters;
       const offset = (page - 1) * limit;
 
       const whereConditions = ["al.leads_id = $1"];
@@ -958,6 +958,7 @@ class LeadsService {
           al.user_id,
           al.module,
           al.module_id,
+          al.record_name,
           al.action,
           al.field_name,
           al.old_value,
@@ -965,7 +966,7 @@ class LeadsService {
           al.description,
           al.metadata,
           al.created_at,
-          u.name AS performed_by_name
+          u.name AS user_name
         FROM lead_activity_log al
         LEFT JOIN users u ON al.user_id = u.users_id
         WHERE ${whereClause}

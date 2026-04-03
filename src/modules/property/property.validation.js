@@ -58,11 +58,12 @@ export const createPropertySchema = Joi.object({
     .valid("available",
       "not_available").allow("", null)
     .optional(),
-  compaction_report_url: Joi.string().allow("", null).max(500).when("compaction_report", {
-    is: "available",
-    then: Joi.optional(),
-    otherwise: Joi.forbidden(),
-  }),
+  // compaction_report_url: Joi.string().allow("", null).max(500).when("compaction_report", {
+  //   is: "available",
+  //   then: Joi.optional(),
+  //   otherwise: Joi.forbidden(),
+  // }),
+  compaction_report_url: Joi.string().allow("", null).max(500).optional(),
   compaction_report_content: compactionReportContentSchema.allow(null).when("compaction_report", {
     is: "available",
     then: Joi.optional(),
@@ -77,6 +78,11 @@ export const createPropertySchema = Joi.object({
   bush_fire: Joi.boolean().default(false),
   corner_block: Joi.boolean().default(false),
   clearing_date: Joi.date().allow(null).optional(),
+  compaction_report_provider: Joi.string().valid("self", "builder").when("compaction_report", {
+    is: "not_available",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(null, ""),
+  }),
 });
 
 export const updatePropertySchema = Joi.object({
@@ -122,6 +128,11 @@ export const updatePropertySchema = Joi.object({
   corner_block: Joi.boolean().optional(),
   price: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   clearing_date: Joi.date().allow(null).optional(),
+  compaction_report_provider: Joi.string().valid("self", "builder").when("compaction_report", {
+    is: "not_available",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(null, ""),
+  }),
 });
 
 export const getPropertyByLeadSchema = Joi.object({
