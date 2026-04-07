@@ -1,6 +1,9 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import {
+  deletePriceListService,
+} from "./price-list.service.js";
 
 export async function createPriceList(req, res) {
   const pool = getPool();
@@ -141,7 +144,7 @@ export async function getAllPriceList(req, res) {
     const companyId = req.user.company_id;
     const userId = req.user?.users_id;
 
-    let { page = 1, limit = 25, is_active, is_suggested, search,location_id } = req.query;
+    let { page = 1, limit = 25, is_active, is_suggested, search, location_id } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
@@ -236,12 +239,12 @@ export async function getAllPriceList(req, res) {
           updated_by
         ) VALUES
         ${defaultPriceLists
-    .map(
-      (_, i) =>
-        `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4},
+          .map(
+            (_, i) =>
+              `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4},
                 $${i * 9 + 5}, $${i * 9 + 6}, $${i * 9 + 7}, $${i * 9 + 8}, $${i * 9 + 9})`,
-    )
-    .join(", ")}
+          )
+          .join(", ")}
         RETURNING *;
       `;
 
@@ -354,9 +357,6 @@ export async function getAllPriceList(req, res) {
 }
 
 export async function deletePriceList(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
@@ -366,74 +366,97 @@ export async function deletePriceList(req, res) {
       return errorResponse(res, 400, "priceListId is required.");
     }
 
-    await client.query("BEGIN");
-
-    const existing = await client.query(
-      `
-      SELECT price_list_id 
-      FROM price_list 
-      WHERE price_list_id = $1 
-        AND company_id = $2 
-        AND builder_id = $3
-      `,
-      [priceListId, companyId, builderId],
-    );
-
-    if (existing.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        404,
-        "Record not found or you do not have permission to delete this.",
-      );
-    }
-
-    const sortOrderQuery = await client.query(
-      `SELECT sort_order 
-       FROM price_list 
-       WHERE price_list_id = $1 
-         AND company_id = $2 
-         AND builder_id = $3`,
-      [priceListId, companyId, builderId],
-    );
-
-    if (sortOrderQuery.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        404,
-        "Record not found or you do not have permission to delete this.",
-      );
-    }
-
-    const deletedSortOrder = sortOrderQuery.rows[0].sort_order;
-
-    const shiftQuery = `
-      UPDATE price_list
-      SET sort_order = sort_order - 1
-      WHERE sort_order > $1
-        AND company_id = $2
-        AND builder_id = $3
-    `;
-
-    await client.query(shiftQuery, [deletedSortOrder, companyId, builderId]);
-
-    await client.query(
-      "DELETE FROM price_list WHERE price_list_id = $1 AND builder_id = $2",
-      [priceListId, builderId],
-    );
-
-    await client.query("COMMIT");
+    await deletePriceListService(priceListId, companyId, builderId);
 
     return successResponse(res, null, "Price list deleted successfully.");
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error deleting price list:", error);
-    return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, error.status || 500, error.message || "Internal Server Error");
   }
 }
+
+// export async function deletePriceList(req, res) {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     const builderId = req.user.builder_id;
+//     const companyId = req.user.company_id;
+//     const { priceListId } = req.params;
+
+//     if (!priceListId) {
+//       return errorResponse(res, 400, "priceListId is required.");
+//     }
+
+//     await client.query("BEGIN");
+
+//     const existing = await client.query(
+//       `
+//       SELECT price_list_id 
+//       FROM price_list 
+//       WHERE price_list_id = $1 
+//         AND company_id = $2 
+//         AND builder_id = $3
+//         AND is_system_data = false
+//       `,
+//       [priceListId, companyId, builderId],
+//     );
+
+//     if (existing.rowCount === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(
+//         res,
+//         404,
+//         "Record not found or you do not have permission to delete this.",
+//       );
+//     }
+
+//     const sortOrderQuery = await client.query(
+//       `SELECT sort_order 
+//        FROM price_list 
+//        WHERE price_list_id = $1 
+//          AND company_id = $2 
+//          AND builder_id = $3`,
+//       [priceListId, companyId, builderId],
+//     );
+
+//     if (sortOrderQuery.rowCount === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(
+//         res,
+//         404,
+//         "Record not found or you do not have permission to delete this.",
+//       );
+//     }
+
+//     const deletedSortOrder = sortOrderQuery.rows[0].sort_order;
+
+//     const shiftQuery = `
+//       UPDATE price_list
+//       SET sort_order = sort_order - 1
+//       WHERE sort_order > $1
+//         AND company_id = $2
+//         AND builder_id = $3
+//     `;
+
+//     await client.query(shiftQuery, [deletedSortOrder, companyId, builderId]);
+
+//     await client.query(
+//       "DELETE FROM price_list WHERE price_list_id = $1 AND builder_id = $2",
+//       [priceListId, builderId],
+//     );
+
+//     await client.query("COMMIT");
+
+//     return successResponse(res, null, "Price list deleted successfully.");
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     console.error("Error deleting price list:", error);
+//     return errorResponse(res, 500, error?.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// }
 
 export async function updatePriceList(req, res) {
   const pool = getPool();
@@ -520,7 +543,7 @@ export async function updatePriceList(req, res) {
     //       403,
     //       "Cannot update non-'is_active' fields when price list is currently inactive. Only 'is_active' can be changed (to true).",
     //     );
-      // }
+    // }
 
     //   if (performingActivation && updatingOtherFields) {
     //   }

@@ -24,6 +24,7 @@ export async function seedPriceList({
       sort_order: 1,
       is_active: true,
       created_by,
+      is_system_data: true,
     },
     transaction,
   });

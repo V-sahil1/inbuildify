@@ -3,152 +3,24 @@ import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import addressRepo from "../../repositories/address.repository.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
+import {
+  createPropertyService,
+} from "./property.service.js"
 
 export async function createProperty(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    await client.query("BEGIN");
-
-    const builderId = req.user?.builder_id;
-    const companyId = req.user?.company_id;
-
-    if (!builderId && !companyId) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
-    }
-
     const { leads_id } = req.params;
+    console.log(req.body);
+    const propertyData = { ...req.body };
 
-    const leadCheck = await client.query(
-      `SELECT leads_id, property_detail_id FROM leads WHERE leads_id = $1 AND (
-        (company_id = $2 AND $2 IS NOT NULL)
-        OR (builder_id = $3 AND $3 IS NOT NULL)
-      )`,
-      [leads_id, companyId, builderId],
-    );
-
-    if (leadCheck.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Invalid lead id.");
+    // Handle file upload
+    if (req.file) {
+      propertyData.compaction_report_url = req.file.location;
     }
 
-    if (leadCheck.rows[0].property_detail_id) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 400, "Property already exists for this lead. Only one property is allowed per lead.");
-    }
+    const newProperty = await createPropertyService(leads_id, propertyData, req.user);
 
-    const {
-      lot_number,
-      street,
-      address_line1,
-      address_line2,
-      city,
-      state_id,
-      country_id,
-      zip_code,
-      estate_name,
-      title_status,
-      title_date,
-      compaction_report,
-      land_type,
-      width_m,
-      depth_m,
-      total_size_m2,
-      site_fall_mm,
-      land_fill_mm,
-      bush_fire,
-      corner_block,
-      compaction_report_url,
-      compaction_report_content,
-      clearing_date,
-      compaction_report_provider,
-    } = req.body;
-
-    if (compaction_report === "available" && compaction_report_provider) {
-      await client.query("ROLLBACK");
-      return errorResponse(res,400,"compactionReportProvider is not allowed when compactionReport is available.");
-    }
-    
-    let finalCompactionReportProvider = compaction_report_provider;
-    if (compaction_report === "available") {
-      finalCompactionReportProvider = null;
-    }
-
-    const compactionReportUrl = req.file ? req.file.location : (compaction_report_url || null);
-
-    const result = await client.query(
-      `INSERT INTO property_detail (
-        lot_number, street, address_line1, address_line2, city,
-        state_id, country_id, zip_code, estate_name, title_status,
-        title_date, compaction_report, compaction_report_url, compaction_report_content, land_type, width_m, depth_m,
-        total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
-        clearing_date,
-        compaction_report_provider,
-        is_hl_package_lot,
-        created_at, updated_at
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        false,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      )
-      RETURNING *`,
-      [
-        lot_number || null,
-        street || null,
-        address_line1 || null,
-        address_line2 || null,
-        city || null,
-        state_id || null,
-        country_id || null,
-        zip_code || null,
-        estate_name || null,
-        title_status || null,
-        title_date || null,
-        compaction_report || null,
-        compactionReportUrl,
-        compaction_report_content || null,
-        land_type || "REGULAR",
-        width_m ?? null,
-        depth_m ?? null,
-        total_size_m2 ?? null,
-        site_fall_mm ?? null,
-        land_fill_mm ?? null,
-        bush_fire ?? false,
-        corner_block ?? false,
-        clearing_date || null,
-        finalCompactionReportProvider || null,
-      ],
-    );
-
-    const propertyDetailId = result.rows[0].property_detail_id;
-
-    // Link property_detail to the lead
-    await client.query(
-      "UPDATE leads SET property_detail_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2",
-      [propertyDetailId, leads_id],
-    );
-
-    await client.query(
-      "UPDATE leads SET status = 'Working', updated_at = CURRENT_TIMESTAMP WHERE leads_id = $1 AND status = 'New'",
-      [leads_id],
-    );
-    await client.query("COMMIT");
-
-    // Re-fetch with state/country/estate names
-    const enriched = await client.query(
-      `SELECT pd.*, s.name AS state_name, c.name AS country_name,
-              es.name AS estate_stage_name
-       FROM property_detail pd
-       LEFT JOIN state s ON s.state_id = pd.state_id
-       LEFT JOIN country c ON c.country_id = pd.country_id
-       LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
-       WHERE pd.property_detail_id = $1`,
-      [propertyDetailId],
-    );
-
-    const formatted = keysToCamelCase(enriched.rows[0]);
+    const formatted = keysToCamelCase(newProperty);
 
     return successResponse(
       res,
@@ -156,13 +28,144 @@ export async function createProperty(req, res) {
       "Property created successfully",
     );
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error creating property:", error);
-    return errorResponse(res, error?.status || 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, error.status || 500, error.message || "Internal Server Error");
   }
 }
+
+// exports.createProperty = async (req, res) => {
+//   const pool = getPool();
+//   const client = await pool.connect();
+
+//   try {
+//     await client.query("BEGIN");
+
+//     const builderId = req.user?.builder_id;
+//     const companyId = req.user?.company_id;
+
+//     if (!builderId && !companyId) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 401, "Unauthorized: User must belong to either a builder or company");
+//     }
+
+//     const { leads_id } = req.params;
+
+//     const leadCheck = await client.query(
+//       `SELECT leads_id, property_detail_id FROM leads WHERE leads_id = $1 AND (
+//         (company_id = $2 AND $2 IS NOT NULL)
+//         OR (builder_id = $3 AND $3 IS NOT NULL)
+//       )`,
+//       [leads_id, companyId, builderId]
+//     );
+
+//     if (leadCheck.rowCount === 0) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 400, "Invalid lead id.");
+//     }
+
+//     if (leadCheck.rows[0].property_detail_id) {
+//       await client.query("ROLLBACK");
+//       return errorResponse(res, 400, "Property already exists for this lead. Only one property is allowed per lead.");
+//     }
+
+//     const {
+//       lot_number,
+//       street,
+//       address_line1,
+//       address_line2,
+//       city,
+//       state_id,
+//       country_id,
+//       zip_code,
+//       estate_name,
+//       title_status,
+//       title_date,
+//       compaction_report,
+//       land_type,
+//       width_m,
+//       depth_m,
+//       total_size_m2,
+//       site_fall_mm,
+//       land_fill_mm,
+//       bush_fire,
+//       corner_block,
+//     } = req.body;
+
+//     const result = await client.query(
+//       `INSERT INTO property_detail (
+//         lot_number, street, address_line1, address_line2, city,
+//         state_id, country_id, zip_code, estate_name, title_status,
+//         title_date, compaction_report, land_type, width_m, depth_m,
+//         total_size_m2, site_fall_mm, land_fill_mm, bush_fire, corner_block,
+//         is_hl_package_lot,
+//         created_at, updated_at
+//       ) VALUES (
+//         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+//         false,
+//         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+//       )
+//       RETURNING *`,
+//       [
+//         lot_number || null,
+//         street || null,
+//         address_line1 || null,
+//         address_line2 || null,
+//         city || null,
+//         state_id || null,
+//         country_id || null,
+//         zip_code || null,
+//         estate_name || null,
+//         title_status || null,
+//         title_date || null,
+//         compaction_report || null,
+//         land_type || "REGULAR",
+//         width_m ?? null,
+//         depth_m ?? null,
+//         total_size_m2 ?? null,
+//         site_fall_mm ?? null,
+//         land_fill_mm ?? null,
+//         bush_fire ?? false,
+//         corner_block ?? false,
+//       ]
+//     );
+
+//     const propertyDetailId = result.rows[0].property_detail_id;
+
+//     // Link property_detail to the lead
+//     await client.query(
+//       `UPDATE leads SET property_detail_id = $1, updated_at = CURRENT_TIMESTAMP WHERE leads_id = $2`,
+//       [propertyDetailId, leads_id]
+//     );
+
+//     await client.query("COMMIT");
+
+//     // Re-fetch with state/country/estate names
+//     const enriched = await client.query(
+//       `SELECT pd.*, s.name AS state_name, c.name AS country_name,
+//               es.name AS estate_stage_name
+//        FROM property_detail pd
+//        LEFT JOIN state s ON s.state_id = pd.state_id
+//        LEFT JOIN country c ON c.country_id = pd.country_id
+//        LEFT JOIN estate_stages es ON es.estate_stage_id = pd.estate_stage_id
+//        WHERE pd.property_detail_id = $1`,
+//       [propertyDetailId]
+//     );
+
+//     const formatted = keysToCamelCase(enriched.rows[0]);
+
+//     return successResponse(
+//       res,
+//       formatted,
+//       "Property created successfully"
+//     );
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     console.error("Error creating property:", error);
+//     return errorResponse(res, error?.status || 500, error?.message || "Internal Server Error");
+//   } finally {
+//     client.release();
+//   }
+// };
 
 export async function getPropertyByLeadId(req, res) {
   const pool = getPool();
@@ -255,7 +258,7 @@ export async function updateProperty(req, res) {
     }
 
     if (compaction_report === "available" && req.body.compaction_report_provider) {
-       return errorResponse(res, 400, "compactionReportProvider is not allowed when compactionReport is available.");
+      return errorResponse(res, 400, "compactionReportProvider is not allowed when compactionReport is available.");
     }
 
     if (compaction_report === "available") {
@@ -269,11 +272,11 @@ export async function updateProperty(req, res) {
 
     // Business Logic: Mandatory content when switching to available
     const isSwitchingToAvailable = compaction_report === "available" &&
-                                   existing.rows[0].compaction_report === "not_available";
+      existing.rows[0].compaction_report === "not_available";
 
     const hasNewContent = compaction_report_content !== undefined ||
-                          compaction_report_url !== undefined ||
-                          req.file !== undefined;
+      compaction_report_url !== undefined ||
+      req.file !== undefined;
 
     if (isSwitchingToAvailable && !hasNewContent) {
       return errorResponse(res, 400, "Compaction report content or file is required when switching status to available.");
@@ -282,8 +285,8 @@ export async function updateProperty(req, res) {
     // Business Logic: Check if report details are allowed
     const currentStatus = compaction_report || existing.rows[0].compaction_report;
     const isUpdatingReport = compaction_report_content !== undefined ||
-                             compaction_report_url !== undefined ||
-                             req.file !== undefined;
+      compaction_report_url !== undefined ||
+      req.file !== undefined;
 
     // if (isUpdatingReport && currentStatus !== "available") {
     //   return errorResponse(res, 400, "Compaction report details can only be provided when the report is available.");
@@ -372,7 +375,7 @@ export async function updateProperty(req, res) {
         const dbColumn = fieldMap[field] || field;
         updateFields.push(`${dbColumn} = $${paramIndex++}`);
         updateValues.push(req.body[field] === null ? null : req.body[field]);
-      } 
+      }
     }
 
     if (updateFields.length === 0 && !req.file) {
