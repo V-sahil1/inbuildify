@@ -22,10 +22,6 @@ export default (sequelize) => {
       is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
       location: { type: DataTypes.UUID, allowNull: true },
       is_suggested: { type: DataTypes.BOOLEAN, defaultValue: false },
-      is_system_data: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
-      },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },

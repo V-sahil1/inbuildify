@@ -184,6 +184,10 @@ export const getAllPriceListItemSchema = Joi.object({
     "string.uuid": "dwelling_type_id must be a valid UUID",
   }),
 
+  is_system_data: Joi.boolean().optional().messages({
+    "boolean.base": "is_system_data must be a boolean",
+  }),
+
   location_id: Joi.string().uuid().optional().messages({
     "string.uuid": "location_id must be a valid UUID",
   }),

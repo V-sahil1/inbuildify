@@ -26,6 +26,10 @@ export default (sequelize) => {
       cost: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
       builder_cost: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
       sort_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+      is_system_data: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
       uom: { type: DataTypes.STRING(50), allowNull: true },
       status: { type: DataTypes.STRING(20), defaultValue: "active" },
       include_by_default: { type: DataTypes.BOOLEAN, defaultValue: false },

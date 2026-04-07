@@ -30,6 +30,7 @@ export async function createPriceListItem(req, res) {
       range_id,
       dwelling_type_id,
       additional_item,
+      is_system_data,
     } = req.body;
 
     if (range_id) {
@@ -207,12 +208,13 @@ export async function createPriceListItem(req, res) {
         range_id,
         dwelling_type_id,
         additional_item,
+        is_system_data,
         created_by,
         updated_by
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22, $23
       )
       RETURNING *;
     `;
@@ -238,6 +240,7 @@ export async function createPriceListItem(req, res) {
       range_id || null,
       dwelling_type_id || null,
       additional_item || false,
+      is_system_data || false,
       userId || null,
       userId || null,
     ];
@@ -405,6 +408,7 @@ export async function getAllPriceListItems(req, res) {
       item_description,
       price_list_id,
       dwelling_type_id,
+      is_system_data,
       range_id,
       location_id,
       sort_order,
@@ -478,7 +482,10 @@ export async function getAllPriceListItems(req, res) {
       conditions.push(`$${index++} = ANY(pli.dwelling_type_id)`);
       values.push(dwelling_type_id);
     }
-
+    if (is_system_data) {
+      conditions.push(`pli.is_system_data = $${index++}`);
+      values.push(is_system_data);
+    }
     if (range_id) {
       conditions.push(`$${index++} = ANY(pli.range_id)`);
       values.push(range_id);
@@ -685,6 +692,7 @@ export async function updatePriceListItem(req, res) {
       show_only_in_package,
       range_id,
       dwelling_type_id,
+      is_system_data,
       conditions,
     } = req.body;
 
@@ -1012,6 +1020,9 @@ export async function updatePriceListItem(req, res) {
     }
     if (dwelling_type_id !== undefined) {
       push("dwelling_type_id", dwelling_type_id);
+    }
+    if (is_system_data !== undefined) {
+      push("is_system_data", is_system_data);
     }
 
     push("updated_by", userId);

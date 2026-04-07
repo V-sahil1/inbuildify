@@ -78,7 +78,6 @@ export const createPropertyService = async (leadsId, propertyData, user) => {
           sort_order: 1,
           is_active: true,
           created_by: userId || null,
-          is_system_data: true,
         },
         transaction,
       });
@@ -99,6 +98,7 @@ export const createPropertyService = async (leadsId, propertyData, user) => {
           builder_cost: 100.00,
           status: "active",
           created_by: userId || null,
+          is_system_data: true,
         },
         transaction,
       });
