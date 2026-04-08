@@ -3,6 +3,8 @@ import leadsRepository from "../lead/leads.repository.js";
 import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common.js";
 import getPool from "../../config/database.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { Op } from "sequelize";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -98,8 +100,10 @@ class QuotationService {
             facade_id,
             is_approve,
             sketch_number,
-            package_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8)
+            package_id,
+            structure_engineer_id,
+            structure_engineer_price
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10)
           RETURNING *
         `;
         const versionResult = await client.query(insertVersionQuery, [
@@ -111,6 +115,8 @@ class QuotationService {
           latestVersion ? latestVersion.floor_plan_id : null,
           latestVersion ? latestVersion.facade_id : null,
           latestVersion ? latestVersion.package_id : null,
+          latestVersion ? latestVersion.structure_engineer_id : existingLead.structureEngineerId,
+          latestVersion ? latestVersion.structure_engineer_price : existingLead.structureEngineerPrice,
         ]);
         const quotationVersion = versionResult.rows[0];
 
@@ -122,7 +128,7 @@ class QuotationService {
             FROM quotation_version_pricelist_item_map
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
-          
+
           // Note: we can copy custom sections similarly if they apply to the new quotation's version
           await client.query(`
             INSERT INTO quotation_version_custom_section (quotation_version_id, file_url, sort_order)
@@ -485,6 +491,49 @@ class QuotationService {
           }
         }
       }
+      console.log("test1@mailinat")
+
+      // Handle structure_engineer_id: validate and auto-populate price from StructureEngineer
+      if (updateData.structure_engineer_id !== undefined) {
+        if (updateData.structure_engineer_id === null) {
+          // If clearing the engineer, also clear the price
+          updateData.structure_engineer_price = null;
+        } else {
+          // Validate engineer exists, belongs to org, and is active
+          const { StructureEngineer } = db;
+
+          const engineer = await StructureEngineer.findOne({
+            attributes: ["structure_engineer_id", "price", "is_active"],
+            where: {
+              structure_engineer_id: updateData.structure_engineer_id,
+              [Op.or]: [
+                { company_id: companyId || null },
+                { builder_id: builderId || null },
+              ],
+            },
+          });
+
+          if (!engineer) {
+            return {
+              success: false,
+              message: "Structure engineer not found or does not belong to your organization",
+            };
+          }
+
+          if (engineer.is_active === false) {
+            return {
+              success: false,
+              message: "Structure engineer is currently inactive",
+            };
+          }
+
+          // Auto-populate price from structure_engineer table
+          // Only override if not explicitly provided in updateData
+          if (updateData.structure_engineer_price === undefined) {
+            updateData.structure_engineer_price = engineer.price;
+          }
+        }
+      }
 
       // If range_id or dwelling_type_id is changing, clear related selections
       const rangeChanged = updateData.range_id !== undefined
@@ -501,15 +550,17 @@ class QuotationService {
           updateData.floor_plan_id = null;
         }
 
-       // Clear related selections ONLY if they are not being explicitly updated right now
+        // Clear related selections ONLY if they are not being explicitly updated right now
         if (updateData.package_id === undefined) updateData.package_id = null;
+
         // Delete related pricelist item mappings
         await client.query(
           "DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1",
           [versionId],
         );
       }
-// Handle package_id specifically if provided
+
+      // Handle package_id specifically if provided
       if (updateData.package_id) {
         if (!effectiveRangeId || !effectiveDwellingTypeId) {
           return {
@@ -517,7 +568,7 @@ class QuotationService {
             message: "Range and Dwelling type must be selected before adding a package",
           };
         }
-        
+
         // Validate that the package provided exists, is active, and matches range/dwelling type
         const packageCheckQuery = `
           SELECT package_id FROM package 
@@ -547,6 +598,7 @@ class QuotationService {
       }
 
       const oldVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
+      updateData.updated_by = userId;
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       if (!updated) {
@@ -558,8 +610,11 @@ class QuotationService {
 
       // Log Activity
       const newVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
-      const quotationDetails = await client.query("SELECT leads_id, reference_number FROM quotation WHERE quotation_id = $1", [newVersion.quotationId]);
-      
+      const quotationDetails = await client.query(
+        "SELECT leads_id, reference_number FROM quotation WHERE quotation_id = $1",
+        [newVersion.quotationId]
+      );
+
       if (quotationDetails.rowCount > 0) {
         await compareAndLogUpdates(null, {
           userId,
@@ -568,7 +623,7 @@ class QuotationService {
           moduleId: newVersion.quotationId,
           recordName: quotationDetails.rows[0].reference_number,
           oldData: oldVersion,
-          newData: newVersion
+          newData: newVersion,
         });
       }
 
@@ -627,8 +682,10 @@ class QuotationService {
           facade_id,
           is_approve,
           sketch_number,
-          package_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8)
+          package_id,
+          structure_engineer_id,
+          structure_engineer_price
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10)
         RETURNING quotation_version_id
       `;
       const insertVersionValues = [
@@ -639,9 +696,11 @@ class QuotationService {
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
         sourceVersion.facade_id,
-        sourceVersion.package_id || null
+        sourceVersion.package_id || null,
+        sourceVersion.structure_engineer_id,
+        sourceVersion.structure_engineer_price
       ];
-      
+
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
       const newVersionId = newVersionResult.rows[0].quotation_version_id;
 
@@ -983,10 +1042,10 @@ class QuotationService {
       }
 
       const updated = await quotationRepository.removePackageFromVersion(versionId, packageId, builderId, companyId);
-      
+
       // Log Activity
       const quotationDetails = await client.query(
-        "SELECT l.leads_id, q.reference_number FROM quotation q JOIN quotation_version qv ON q.quotation_id = qv.quotation_id JOIN leads l ON q.leads_id = l.leads_id WHERE qv.quotation_version_id = $1", 
+        "SELECT l.leads_id, q.reference_number FROM quotation q JOIN quotation_version qv ON q.quotation_id = qv.quotation_id JOIN leads l ON q.leads_id = l.leads_id WHERE qv.quotation_version_id = $1",
         [versionId]
       );
       if (quotationDetails.rowCount > 0) {

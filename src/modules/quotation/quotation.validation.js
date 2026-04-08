@@ -44,6 +44,9 @@ export const updateQuotationVersionBodySchema = Joi.object({
   facade_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Facade ID must be a valid UUID",
   }),
+  structure_engineer_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Structure Engineer ID must be a valid UUID",
+  }),
   is_approve: Joi.boolean().optional().messages({
     "boolean.base": "is_approve must be a boolean",
   }),

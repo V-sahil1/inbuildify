@@ -9,6 +9,7 @@ export class QuotationVersion extends Model {
     QuotationVersion.hasMany(models.QuotationVersionPricelistItemMap, { foreignKey: "quotation_version_id", as: "pricelistItemMaps" });
     QuotationVersion.hasMany(models.QuotationVersionCustomSection, { foreignKey: "quotation_version_id", as: "customSections" });
     QuotationVersion.hasMany(models.QuotationVersionPackageMap, { foreignKey: "quotation_version_id", as: "packageMaps" });
+    QuotationVersion.belongsTo(models.StructureEngineer, { foreignKey: "structure_engineer_id", as: "structureEngineer" });
   }
 }
 
@@ -26,6 +27,8 @@ export default (sequelize) => {
       is_approve: { type: DataTypes.BOOLEAN, defaultValue: false },
       sketch_number: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
       package_id: { type: DataTypes.UUID, allowNull: true },
+      structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
+      structure_engineer_price: { type: DataTypes.INTEGER, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

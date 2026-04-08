@@ -33,7 +33,7 @@ export async function registerRoot({ name, email, password, role_id }) {
   }
 
   // Check if role exists
-  const roleExists = await db.Role.findByPk(role_id);
+  const roleExists = await Role.findByPk(role_id);
   if (!roleExists) {
     throw { statusCode: 400, message: "Invalid role." };
   }

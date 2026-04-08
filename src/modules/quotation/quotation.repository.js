@@ -277,6 +277,13 @@ class QuotationRepository {
           qv.location_id, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
+          CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
+            json_build_object(
+              'id', qv.structure_engineer_id,
+              'name', se.name,
+              'price', qv.structure_engineer_price
+            )
+          ELSE NULL END as structural_engineer,
           (
             SELECT json_build_object(
               'name', fp.name,
@@ -372,6 +379,7 @@ class QuotationRepository {
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
         LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -392,7 +400,7 @@ class QuotationRepository {
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
-        "package_id",
+        "package_id", "structure_engineer_id", "structure_engineer_price",
       ];
 
       const updateFields = [];
@@ -432,6 +440,13 @@ class QuotationRepository {
           qv.location_id, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
+          CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
+            json_build_object(
+              'id', qv.structure_engineer_id,
+              'name', se.name,
+              'price', qv.structure_engineer_price
+            )
+          ELSE NULL END as structural_engineer,
           (
             SELECT json_build_object(
               'name', fp.name,
@@ -508,6 +523,7 @@ class QuotationRepository {
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
         LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE qv.quotation_version_id = $1
@@ -526,6 +542,13 @@ class QuotationRepository {
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
           qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
           qv.sketch_number, qv.created_at, qv.updated_at,
+          CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
+            json_build_object(
+              'id', qv.structure_engineer_id,
+              'name', se.name,
+              'price', qv.structure_engineer_price
+            )
+          ELSE NULL END as structural_engineer,
           l.name as location_name,
           r.name as range_name,
           dt.name as dwelling_type_name,
@@ -626,6 +649,7 @@ class QuotationRepository {
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
         LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE qv.quotation_version_id = $1

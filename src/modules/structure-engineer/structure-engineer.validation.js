@@ -9,6 +9,7 @@ export const createStructureEngineerSchema = Joi.object({
     "string.email": "Email must be a valid email address",
   }),
   phone: Joi.string().allow(null, "").min(10).max(15).optional(),
+  price: Joi.number().integer().allow(null).optional(),
   address: Joi.string().allow(null, "").max(500).optional(),
   is_active: Joi.boolean().default(true).optional(),
 });
@@ -19,6 +20,7 @@ export const updateStructureEngineerSchema = Joi.object({
     "string.email": "Email must be a valid email address",
   }),
   phone: Joi.string().allow(null, "").min(10).max(15).optional(),
+  price: Joi.number().integer().allow(null).required(),
   address: Joi.string().allow(null, "").max(500).optional(),
   is_active: Joi.boolean().optional(),
 });

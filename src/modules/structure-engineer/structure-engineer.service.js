@@ -61,7 +61,7 @@ export const getStructureEngineerByIdService = async (id, builderId, companyId) 
 
 export const createStructureEngineerService = async (payload, user) => {
   const { StructureEngineer, sequelize } = db;
-  const { name, email, phone, address, is_active } = payload;
+  const { name, email, phone, price, address, is_active } = payload;
 
   if (email) {
     const duplicate = await StructureEngineer.findOne({
@@ -90,6 +90,7 @@ export const createStructureEngineerService = async (payload, user) => {
     name,
     email: email || null,
     phone: phone || null,
+    price: price || null,
     address: address || null,
     is_active: is_active !== undefined ? is_active : true,
     created_by: user.users_id,
@@ -102,7 +103,7 @@ export const createStructureEngineerService = async (payload, user) => {
 // UPDATE
 export const updateStructureEngineerService = async (id, payload, user) => {
   const { StructureEngineer, sequelize } = db;
-  const { name, email, phone, address, is_active } = payload;
+  const { name, email, phone, price, address, is_active } = payload;
 
   const existing = await StructureEngineer.findOne({
     where: {
@@ -147,6 +148,7 @@ export const updateStructureEngineerService = async (id, payload, user) => {
     ...(email !== undefined && { email }),
     ...(phone !== undefined && { phone }),
     ...(address !== undefined && { address }),
+    ...(price !== undefined && { price }),
     ...(is_active !== undefined && { is_active }),
     updated_by: user.users_id,
   });
