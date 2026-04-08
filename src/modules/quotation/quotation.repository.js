@@ -32,6 +32,8 @@ class QuotationRepository {
                 'quotation_version_no', qv.quotation_version_no,
                 'is_approve', qv.is_approve,
                 'sketch_number', qv.sketch_number,
+                'created_at', qv.created_at,
+                'updated_at', qv.updated_at,
                 'location_id', qv.location_id,
                 'location_name', l.name,
                 'range_id', qv.range_id,
@@ -56,24 +58,82 @@ class QuotationRepository {
                    FROM package p
                    WHERE p.package_id = qv.package_id), 0
                 ),
+                'updated_at', qv.updated_at,
+                'structural_engineer', CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
+                  json_build_object(
+                    'id', qv.structure_engineer_id,
+                    'name', se.name,
+                    'price', qv.structure_engineer_price,
+                    'is_engineer_price_mismatch', CASE 
+                      WHEN qv.structure_engineer_id IS NOT NULL AND se.price IS NOT NULL 
+                           AND qv.structure_engineer_price::numeric != se.price::numeric THEN true 
+                      ELSE false 
+                    END
+                  )
+                ELSE NULL END,
+                'quotation_version_items', (
+                  SELECT COALESCE(json_agg(json_build_object(
+                    'quotation_version_item_id', qvi.quotation_version_item_id,
+                    'price_list_item_id', qvi.price_list_item_id,
+                    'price_list_item_description', qvi.price_list_item_description,
+                    'price_list_item_cost', qvi.price_list_item_cost,
+                    'quantity', qvi.quantity,
+                    'total_price', qvi.total_price,
+                    'package_id', qvi.package_id,
+                    'is_price_list_item_cost_mismatch', CASE 
+                      WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
+                           AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
+                      ELSE false 
+                    END,
+                    'is_package_cost_mismatch', CASE 
+                      WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
+                           AND qvi.package_cost::numeric != p.cost::numeric THEN true 
+                      ELSE false 
+                    END
+                  )), '[]'::json)
+                  FROM quotation_version_items qvi
+                  LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
+                  LEFT JOIN package p ON qvi.package_id = p.package_id
+                  WHERE qvi.quotation_version_id = qv.quotation_version_id
+                ),
+                'package', (
+                  SELECT json_build_object(
+                    'package_id', qvi.package_id,
+                    'name', qvi.package_name,
+                    'cost', qvi.package_cost
+                  )
+                  FROM quotation_version_items qvi
+                  WHERE qvi.quotation_version_id = qv.quotation_version_id 
+                  AND qvi.package_id IS NOT NULL 
+                  LIMIT 1
+                ),
+                'total_package_cost', COALESCE(
+                  (SELECT DISTINCT package_cost 
+                   FROM quotation_version_items 
+                   WHERE quotation_version_id = qv.quotation_version_id 
+                   AND package_id IS NOT NULL 
+                   LIMIT 1), 0
+                ),
                 'total_pricelist_cost', COALESCE(
                   (SELECT SUM(total_price)
-                   FROM quotation_version_pricelist_item_map qvpim
-                   WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                   FROM quotation_version_items
+                   WHERE quotation_version_id = qv.quotation_version_id
+                   AND package_id IS NULL), 0
                 ),
                 'grand_total_cost', (
                   COALESCE(
-                    (SELECT p.cost
-                     FROM package p
-                     WHERE p.package_id = qv.package_id), 0
+                    (SELECT DISTINCT package_cost 
+                     FROM quotation_version_items 
+                     WHERE quotation_version_id = qv.quotation_version_id 
+                     AND package_id IS NOT NULL 
+                     LIMIT 1), 0
                   ) + COALESCE(
                     (SELECT SUM(total_price)
-                     FROM quotation_version_pricelist_item_map qvpim
-                     WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-                  )
-                ),
-                'created_at', qv.created_at,
-                'updated_at', qv.updated_at
+                     FROM quotation_version_items
+                     WHERE quotation_version_id = qv.quotation_version_id
+                     AND package_id IS NULL), 0
+                  ) + COALESCE(qv.structure_engineer_price, 0)
+                )
               ) ORDER BY qv.quotation_version_no DESC
             ) FILTER (WHERE qv.quotation_version_id IS NOT NULL),
             '[]'
@@ -83,6 +143,7 @@ class QuotationRepository {
         LEFT JOIN location l ON qv.location_id = l.location_id
         LEFT JOIN range r ON qv.range_id = r.range_id
         LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
+        LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         WHERE q.leads_id = $1
@@ -206,8 +267,11 @@ class QuotationRepository {
               floor_plan_id,
               facade_id,
               is_approve,
-              package_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8)
+              package_id,
+              structure_engineer_id,
+              structure_engineer_price,
+              sketch_number
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11)
           RETURNING *
       `;
 
@@ -220,6 +284,9 @@ class QuotationRepository {
         sourceVersion.floor_plan_id,
         sourceVersion.facade_id,
         sourceVersion.package_id,
+        sourceVersion.structure_engineer_id || null,
+        sourceVersion.structure_engineer_price || 0,
+        sourceVersion.sketch_number || null,
       ];
 
       const newVersionResult = await client.query(
@@ -242,18 +309,22 @@ class QuotationRepository {
         sourceVersionId,
       ]);
 
-      // 4. (Removed Package Map - now handled in the array copying)
-
-      // 5. Copy Pricelist Item Map (removed custom fields as discussed)
-      const copyPricelistItemMapQuery = `
-          INSERT INTO quotation_version_pricelist_item_map (
-              quotation_version_id, price_list_item_id, quantity, note, total_price
+      // 4. Copy Snapshot Items
+      const copyItemsQuery = `
+          INSERT INTO quotation_version_items (
+              quotation_version_id, price_list_item_id, price_list_item_description,
+              price_list_item_cost, quantity, total_price,
+              package_id, package_name, package_cost, package_builder_cost,
+              created_at, updated_at
           )
-          SELECT $1, price_list_item_id, quantity, note, total_price
-          FROM quotation_version_pricelist_item_map
+          SELECT $1, price_list_item_id, price_list_item_description,
+                 price_list_item_cost, quantity, total_price,
+                 package_id, package_name, package_cost, package_builder_cost,
+                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          FROM quotation_version_items
           WHERE quotation_version_id = $2
       `;
-      await client.query(copyPricelistItemMapQuery, [
+      await client.query(copyItemsQuery, [
         newVersion.quotation_version_id,
         sourceVersionId,
       ]);
@@ -273,7 +344,7 @@ class QuotationRepository {
     try {
       const query = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
-          qv.is_approve, qv.sketch_number,
+          qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
           qv.location_id, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
@@ -281,7 +352,12 @@ class QuotationRepository {
             json_build_object(
               'id', qv.structure_engineer_id,
               'name', se.name,
-              'price', qv.structure_engineer_price
+              'price', qv.structure_engineer_price,
+              'is_engineer_price_mismatch', CASE 
+                WHEN qv.structure_engineer_id IS NOT NULL AND se.price IS NOT NULL 
+                     AND qv.structure_engineer_price::numeric != se.price::numeric THEN true 
+                ELSE false 
+              END
             )
           ELSE NULL END as structural_engineer,
           (
@@ -324,34 +400,67 @@ class QuotationRepository {
           ) as facade,
           (
             SELECT json_build_object(
-              'package_id', p.package_id,
-              'name', p.name,
-              'cost', p.cost
+              'package_id', qvi.package_id,
+              'name', qvi.package_name,
+              'cost', qvi.package_cost
             )
-            FROM package p
-            WHERE p.package_id = qv.package_id LIMIT 1
+            FROM quotation_version_items qvi
+            WHERE qvi.quotation_version_id = qv.quotation_version_id 
+            AND qvi.package_id IS NOT NULL 
+            LIMIT 1
           ) as package,
           COALESCE(
-            (SELECT p.cost
-             FROM package p
-             WHERE p.package_id = qv.package_id), 0
+            (SELECT DISTINCT package_cost 
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id 
+             AND qvi.package_id IS NOT NULL 
+             LIMIT 1), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
-             FROM quotation_version_pricelist_item_map qvpim
-             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id
+             AND package_id IS NULL), 0
           ) as total_pricelist_cost,
           (
             COALESCE(
-               (SELECT p.cost
-               FROM package p
-                WHERE p.package_id = qv.package_id), 0
+               (SELECT DISTINCT package_cost 
+                FROM quotation_version_items qvi
+                WHERE qvi.quotation_version_id = qv.quotation_version_id 
+                AND qvi.package_id IS NOT NULL 
+                LIMIT 1), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
-               FROM quotation_version_pricelist_item_map qvpim
-               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-            )
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND package_id IS NULL), 0
+            ) + COALESCE(qv.structure_engineer_price, 0)
           ) as grand_total_cost,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'quotation_version_item_id', qvi.quotation_version_item_id,
+              'price_list_item_id', qvi.price_list_item_id,
+              'price_list_item_description', qvi.price_list_item_description,
+              'price_list_item_cost', qvi.price_list_item_cost,
+              'quantity', qvi.quantity,
+              'total_price', qvi.total_price,
+              'package_id', qvi.package_id,
+              'is_price_list_item_cost_mismatch', CASE 
+                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
+                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
+                ELSE false 
+              END,
+              'is_package_cost_mismatch', CASE 
+                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
+                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
+                ELSE false 
+              END
+            )), '[]'::json)
+            FROM quotation_version_items qvi
+            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
+            LEFT JOIN package p ON qvi.package_id = p.package_id
+            WHERE qvi.quotation_version_id = qv.quotation_version_id
+          ) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
           (
@@ -400,7 +509,7 @@ class QuotationRepository {
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
-        "package_id", "structure_engineer_id", "structure_engineer_price",
+        "structure_engineer_id", "structure_engineer_price",
       ];
 
       const updateFields = [];
@@ -436,7 +545,7 @@ class QuotationRepository {
       // Fetch the updated version with lead lot_id and contacts
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
-          qv.is_approve, qv.sketch_number,
+          qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
           qv.location_id, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
@@ -487,13 +596,67 @@ class QuotationRepository {
           ) as facade,
           (
             SELECT json_build_object(
-              'package_id', p.package_id,
-              'name', p.name,
-              'cost', p.cost
+              'package_id', qvi.package_id,
+              'name', qvi.package_name,
+              'cost', qvi.package_cost
             )
-            FROM package p
-            WHERE p.package_id = qv.package_id LIMIT 1
+            FROM quotation_version_items qvi
+            WHERE qvi.quotation_version_id = qv.quotation_version_id 
+            AND qvi.package_id IS NOT NULL 
+            LIMIT 1
           ) as package,
+          COALESCE(
+            (SELECT DISTINCT package_cost 
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id 
+             AND qvi.package_id IS NOT NULL 
+             LIMIT 1), 0
+          ) as total_package_cost,
+          COALESCE(
+            (SELECT SUM(total_price)
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id
+             AND package_id IS NULL), 0
+          ) as total_pricelist_cost,
+          (
+            COALESCE(
+              (SELECT DISTINCT package_cost 
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id 
+               AND qvi.package_id IS NOT NULL 
+               LIMIT 1), 0
+            ) + COALESCE(
+              (SELECT SUM(total_price)
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND package_id IS NULL), 0
+            ) + COALESCE(qv.structure_engineer_price, 0)
+          ) as grand_total_cost,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'quotation_version_item_id', qvi.quotation_version_item_id,
+              'price_list_item_id', qvi.price_list_item_id,
+              'price_list_item_description', qvi.price_list_item_description,
+              'price_list_item_cost', qvi.price_list_item_cost,
+              'quantity', qvi.quantity,
+              'total_price', qvi.total_price,
+              'package_id', qvi.package_id,
+              'is_price_list_item_cost_mismatch', CASE 
+                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
+                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
+                ELSE false 
+              END,
+              'is_package_cost_mismatch', CASE 
+                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
+                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
+                ELSE false 
+              END
+            )), '[]'::json)
+            FROM quotation_version_items qvi
+            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
+            LEFT JOIN package p ON qvi.package_id = p.package_id
+            WHERE qvi.quotation_version_id = qv.quotation_version_id
+          ) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
           (
@@ -592,34 +755,67 @@ class QuotationRepository {
           ) as facade,
           (
             SELECT json_build_object(
-              'package_id', p.package_id,
-              'name', p.name,
-              'cost', p.cost
+              'package_id', qvi.package_id,
+              'name', qvi.package_name,
+              'cost', qvi.package_cost
             )
-            FROM package p
-            WHERE p.package_id = qv.package_id LIMIT 1
+            FROM quotation_version_items qvi
+            WHERE qvi.quotation_version_id = qv.quotation_version_id 
+            AND qvi.package_id IS NOT NULL 
+            LIMIT 1
           ) as package,
           COALESCE(
-            (SELECT p.cost
-             FROM package p
-             WHERE p.package_id = qv.package_id), 0
+            (SELECT DISTINCT package_cost 
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id 
+             AND qvi.package_id IS NOT NULL 
+             LIMIT 1), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
-             FROM quotation_version_pricelist_item_map qvpim
-             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id
+             AND package_id IS NULL), 0
           ) as total_pricelist_cost,
           (
             COALESCE(
-              (SELECT p.cost
-               FROM package p
-               WHERE p.package_id = qv.package_id), 0
+              (SELECT DISTINCT package_cost 
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id 
+               AND qvi.package_id IS NOT NULL 
+               LIMIT 1), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
-               FROM quotation_version_pricelist_item_map qvpim
-               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-            )
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND package_id IS NULL), 0
+            ) + COALESCE(qv.structure_engineer_price, 0)
           ) as grand_total_cost,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'quotation_version_item_id', qvi.quotation_version_item_id,
+              'price_list_item_id', qvi.price_list_item_id,
+              'price_list_item_description', qvi.price_list_item_description,
+              'price_list_item_cost', qvi.price_list_item_cost,
+              'quantity', qvi.quantity,
+              'total_price', qvi.total_price,
+              'package_id', qvi.package_id,
+              'is_price_list_item_cost_mismatch', CASE 
+                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
+                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
+                ELSE false 
+              END,
+              'is_package_cost_mismatch', CASE 
+                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
+                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
+                ELSE false 
+              END
+            )), '[]'::json)
+            FROM quotation_version_items qvi
+            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
+            LEFT JOIN package p ON qvi.package_id = p.package_id
+            WHERE qvi.quotation_version_id = qv.quotation_version_id
+          ) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
           (
@@ -669,25 +865,31 @@ class QuotationRepository {
         SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id, qv.floor_plan_id,
           f.name as facade_name, fp.name as floor_plan_name,
           COALESCE(
-            (SELECT p.cost
-             FROM package p
-             WHERE p.package_id = qv.package_id), 0
+            (SELECT DISTINCT package_cost 
+             FROM quotation_version_items qvi 
+             WHERE qvi.quotation_version_id = qv.quotation_version_id 
+             AND qvi.package_id IS NOT NULL 
+             LIMIT 1), 0
           ) as total_package_cost,
           COALESCE(
             (SELECT SUM(total_price)
-             FROM quotation_version_pricelist_item_map qvpim
-             WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+             FROM quotation_version_items qvi
+             WHERE qvi.quotation_version_id = qv.quotation_version_id
+             AND package_id IS NULL), 0
           ) as total_pricelist_cost,
           (
             COALESCE(
-              (SELECT p.cost
-               FROM package p
-               WHERE p.package_id = qv.package_id), 0
+              (SELECT DISTINCT package_cost 
+               FROM quotation_version_items qvi 
+               WHERE qvi.quotation_version_id = qv.quotation_version_id 
+               AND qvi.package_id IS NOT NULL 
+               LIMIT 1), 0
             ) + COALESCE(
               (SELECT SUM(total_price)
-               FROM quotation_version_pricelist_item_map qvpim
-               WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-            )
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND package_id IS NULL), 0
+            ) + COALESCE(qv.structure_engineer_price, 0)
           ) as grand_total_cost
         FROM quotation_version qv
         LEFT JOIN facade f ON qv.facade_id = f.facade_id

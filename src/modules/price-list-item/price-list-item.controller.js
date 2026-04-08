@@ -413,25 +413,28 @@ export async function getAllPriceListItems(req, res) {
       location_id,
       sort_order,
       search,
+      package_id,
     } = req.query;
 
     page = parseInt(page, 10);
     limit = parseInt(limit, 10);
     const offset = (page - 1) * limit;
 
-    const conditions = [];
+    const mandatoryConditions = [];
+    const narrowingConditions = [];
     const values = [];
     let index = 1;
 
-    conditions.push(`pli.builder_id = $${index++}`);
+    // Mandatory Ownership Checks
+    mandatoryConditions.push(`pli.builder_id = $${index++}`);
     values.push(builderId);
 
-    conditions.push(`pli.company_id = $${index++}`);
+    mandatoryConditions.push(`pli.company_id = $${index++}`);
     values.push(companyId);
 
     if (search) {
       const searchVal = `%${search}%`;
-      conditions.push(`(
+      narrowingConditions.push(`(
         pli.item_description ILIKE $${index} OR 
         pli.short_description ILIKE $${index} OR 
         pli.cost_type ILIKE $${index} OR 
@@ -444,55 +447,52 @@ export async function getAllPriceListItems(req, res) {
     }
 
     if (status) {
-      conditions.push(`pli.status = $${index++}`);
+      mandatoryConditions.push(`pli.status = $${index++}`);
       values.push(status);
     }
 
     if (cost_option) {
-      conditions.push(`pli.cost_option = $${index++}`);
+      narrowingConditions.push(`pli.cost_option = $${index++}`);
       values.push(cost_option);
     }
 
     if (cost_type) {
-      conditions.push(`pli.cost_type = $${index++}`);
+      narrowingConditions.push(`pli.cost_type = $${index++}`);
       values.push(cost_type);
     }
 
     if (uom) {
-      conditions.push(`pli.uom = $${index++}`);
+      narrowingConditions.push(`pli.uom = $${index++}`);
       values.push(uom);
     }
 
     if (price) {
-      conditions.push(`pli.cost = $${index++}`);
+      narrowingConditions.push(`pli.cost = $${index++}`);
       values.push(price);
     }
 
     if (item_description) {
-      conditions.push(`pli.item_description ILIKE $${index++}`);
+      narrowingConditions.push(`pli.item_description ILIKE $${index++}`);
       values.push(`%${item_description}%`);
     }
 
     if (price_list_id) {
-      conditions.push(`pli.price_list_id = $${index++}`);
+      mandatoryConditions.push(`pli.price_list_id = $${index++}`);
       values.push(price_list_id);
     }
 
     if (dwelling_type_id) {
-      conditions.push(`$${index++} = ANY(pli.dwelling_type_id)`);
+      narrowingConditions.push(`$${index++} = ANY(pli.dwelling_type_id)`);
       values.push(dwelling_type_id);
     }
-    if (is_system_data) {
-      conditions.push(`pli.is_system_data = $${index++}`);
-      values.push(is_system_data);
-    }
+
     if (range_id) {
-      conditions.push(`$${index++} = ANY(pli.range_id)`);
+      narrowingConditions.push(`$${index++} = ANY(pli.range_id)`);
       values.push(range_id);
     }
 
     if (location_id) {
-      conditions.push(`pl.location = $${index++}`);
+      narrowingConditions.push(`pl.location = $${index++}`);
       values.push(location_id);
     }
 
@@ -501,13 +501,45 @@ export async function getAllPriceListItems(req, res) {
       if (isNaN(sortValue)) {
         return errorResponse(res, 400, "sort_order must be a valid number");
       }
-      conditions.push(`pli.sort_order = $${index++}`);
+      narrowingConditions.push(`pli.sort_order = $${index++}`);
       values.push(sortValue);
     }
 
-    const whereClause = conditions.length
-      ? `WHERE ${conditions.join(" AND ")}`
-      : "";
+    if (package_id) {
+      narrowingConditions.push(`NOT EXISTS (
+        SELECT 1 FROM package_pricelist_item_map ppim 
+        WHERE ppim.price_list_item_id = pli.price_list_item_id 
+        AND ppim.package_id = $${index++}
+      )`);
+      values.push(package_id);
+    }
+
+    // Build the final WHERE clause with special OR logic for system data
+    let whereClause = "";
+    const mandatoryJoined = mandatoryConditions.join(" AND ");
+    
+    // Narrowing part: if is_system_data=true is passed, it acts as an OR filter
+    const isSystemDataActive = String(is_system_data).toLowerCase() === "true";
+
+    if (isSystemDataActive) {
+      if (narrowingConditions.length > 0) {
+        whereClause = `WHERE ${mandatoryJoined} AND (pli.is_system_data = true OR (${narrowingConditions.join(" AND ")}))`;
+      } else {
+        whereClause = `WHERE ${mandatoryJoined} AND pli.is_system_data = true`;
+      }
+    } else {
+      // Standard strict filtering
+      let allConditions = [...mandatoryConditions];
+      if (narrowingConditions.length > 0) {
+        allConditions = [...allConditions, ...narrowingConditions];
+      }
+      // If user specifically passed is_system_data=false, add that too
+      if (is_system_data !== undefined && is_system_data !== null && is_system_data !== "") {
+          allConditions.push(`pli.is_system_data = $${index++}`);
+          values.push(false);
+      }
+      whereClause = `WHERE ${allConditions.join(" AND ")}`;
+    }
 
     const countQuery = `
       SELECT COUNT(*) AS total
@@ -909,9 +941,9 @@ export async function updatePriceListItem(req, res) {
 
         finalCostTypeText = null;
 
-        finalCostOption = cost_option ?? old.cost_option;
-        finalCost = cost ?? old.cost;
-        finalBuilderCost = builder_cost ?? old.builder_cost;
+        finalCostOption = cost_option !== undefined ? cost_option : old.cost_option;
+        finalCost = cost !== undefined ? cost : old.cost;
+        finalBuilderCost = builder_cost !== undefined ? builder_cost : old.builder_cost;
 
         if (
           finalCostOption === null ||
@@ -928,9 +960,16 @@ export async function updatePriceListItem(req, res) {
       }
     } else {
       finalCostTypeText = old.cost_type_text;
-      finalCostOption = old.cost_option;
-      finalCost = old.cost;
-      finalBuilderCost = old.builder_cost;
+      
+      if (old.cost_type === "Included") {
+        finalCostOption = null;
+        finalCost = null;
+        finalBuilderCost = null;
+      } else {
+        finalCostOption = cost_option !== undefined ? cost_option : old.cost_option;
+        finalCost = cost !== undefined ? cost : old.cost;
+        finalBuilderCost = builder_cost !== undefined ? builder_cost : old.builder_cost;
+      }
     }
 
     const finalSortOrder = sort_order ?? old.sort_order;

@@ -192,6 +192,10 @@ export const getAllPriceListItemSchema = Joi.object({
     "string.uuid": "location_id must be a valid UUID",
   }),
 
+  package_id: Joi.string().uuid().optional().messages({
+    "string.uuid": "package_id must be a valid UUID",
+  }),
+
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",
     "number.integer": "Page must be an integer",

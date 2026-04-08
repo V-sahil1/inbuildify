@@ -3509,3 +3509,38 @@ CREATE TABLE structure_engineer(
   created_by UUID REFERENCES users(users_id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(users_id) ON DELETE SET NULL
 );
+
+CREATE TABLE quotation_version_items (
+  quotation_version_item_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  quotation_version_id UUID REFERENCES quotation_version(quotation_version_id) ON DELETE CASCADE NOT NULL,
+  price_list_id UUID NOT NULL,
+  price_list_name VARCHAR(100) NOT NULL,
+  price_list_item_id UUID DEFAULT NULL,
+  price_list_item_description TEXT DEFAULT NULL,
+  price_list_item_short_description VARCHAR(255) DEFAULT NULL,
+  price_list_item_cost_type cost_type VARCHAR(50) DEFAULT NULL,
+  price_list_item_cost_type_text VARCHAR(255) DEFAULT NULL,
+  price_list_item_cost_option cost_option VARCHAR(50) DEFAULT NULL,
+  price_list_item_cost NUMERIC(12, 2) DEFAULT NULL,
+  price_list_item_builder_cost NUMERIC(12, 2) DEFAULT NULL,
+  price_list_item_sort_order INT DEFAULT NULL,
+  price_list_item_uom VARCHAR(50) DEFAULT NULL,
+  price_list_item_status VARCHAR(20) DEFAULT NULL,
+  price_list_item_include_by_default BOOLEAN DEFAULT NULL,
+  price_list_item_allow_remove_from_quotation BOOLEAN DEFAULT NULL,
+  price_list_item_show_in_hl_package BOOLEAN DEFAULT NULL,
+  price_list_item_package_only BOOLEAN DEFAULT NULL,
+  price_list_item_range_id UUID[] DEFAULT '{}',
+  price_list_item_dwelling_type_id UUID[] DEFAULT '{}',
+  price_list_item_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  price_list_item_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  package_id UUID DEFAULT NULL,
+  package_name VARCHAR(200) DEFAULT NULL,
+  package_cost NUMERIC(12,2) DEFAULT NULL,
+  package_builder_cost NUMERIC(12,2) DEFAULT NULL,
+  quantity NUMERIC(12,2) DEFAULT NULL,
+  note VARCHAR(500) DEFAULT NULL,
+  total_price NUMERIC(12,2) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

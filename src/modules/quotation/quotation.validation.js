@@ -53,9 +53,6 @@ export const updateQuotationVersionBodySchema = Joi.object({
   sketch_number: Joi.number().precision(2).optional().allow(null).messages({
     "number.base": "Sketch number must be a number",
   }),
-  package_id: Joi.string().uuid().optional().allow(null).messages({
-    "string.guid": "Package ID must be a valid UUID",
-  }),
 });
 
 export const removePackageFromVersionSchema = Joi.object({

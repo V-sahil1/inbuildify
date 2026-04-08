@@ -36,16 +36,6 @@ class QuotationService {
       const versionCountResult = await pool.query(versionCountQuery, [leadsId]);
       const versionCount = parseInt(versionCountResult.rows[0].count, 10);
 
-      if (versionCount === 0) {
-        // Validation for the first quotation
-        if (!existingLead.structureEngineerId || !existingLead.structureReportFile) {
-          return {
-            success: false,
-            message: "Cannot create the first quotation: Lead must have a structure engineer and a structure report file.",
-          };
-        }
-      }
-
       const reference_number = await generateDynamicReferenceNumber({
         prefix: "QT",
         tableName: "quotation",
@@ -81,8 +71,8 @@ class QuotationService {
 
         // Insert new Quotation
         const insertQuotationQuery = `
-          INSERT INTO quotation (leads_id, reference_number, created_by)
-          VALUES ($1, $2, $3)
+          INSERT INTO quotation (leads_id, reference_number, created_by, created_at, updated_at)
+          VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           RETURNING *
         `;
         const quotationResult = await client.query(insertQuotationQuery, [leadsId, reference_number, userId]);
@@ -101,9 +91,9 @@ class QuotationService {
             is_approve,
             sketch_number,
             package_id,
-            structure_engineer_id,
-            structure_engineer_price
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10)
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           RETURNING *
         `;
         const versionResult = await client.query(insertVersionQuery, [
@@ -115,8 +105,6 @@ class QuotationService {
           latestVersion ? latestVersion.floor_plan_id : null,
           latestVersion ? latestVersion.facade_id : null,
           latestVersion ? latestVersion.package_id : null,
-          latestVersion ? latestVersion.structure_engineer_id : existingLead.structureEngineerId,
-          latestVersion ? latestVersion.structure_engineer_price : existingLead.structureEngineerPrice,
         ]);
         const quotationVersion = versionResult.rows[0];
 
@@ -280,8 +268,8 @@ class QuotationService {
 
       // 3. Create Quotation
       const insertQuotationQuery = `
-        INSERT INTO quotation (leads_id, reference_number, created_by, is_hl_package_quotation)
-        VALUES ($1, $2, $3, TRUE)
+        INSERT INTO quotation (leads_id, reference_number, created_by, is_hl_package_quotation, created_at, updated_at)
+        VALUES ($1, $2, $3, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING quotation_id
       `;
       const quotationResult = await client.query(insertQuotationQuery, [leadsId, reference_number, userId]);
@@ -291,8 +279,9 @@ class QuotationService {
       const insertVersionQuery = `
         INSERT INTO quotation_version (
           quotation_id, quotation_version_no, location_id, range_id,
-          dwelling_type_id, floor_plan_id, facade_id, is_approve, package_id
-        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, NULL)
+          dwelling_type_id, floor_plan_id, facade_id, is_approve, package_id,
+          created_at, updated_at
+        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING quotation_version_id
       `;
       const versionResult = await client.query(insertVersionQuery, [
@@ -401,13 +390,13 @@ class QuotationService {
       const existingVersion = checkResult.rows[0];
 
       // Block updates to older versions (only the latest version can be updated)
-      const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
-      if (existingVersion.quotation_version_no !== currentMaxVersion) {
-        return {
-          success: false,
-          message: "Only the latest quotation version can be updated",
-        };
-      }
+      // const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
+      // if (existingVersion.quotation_version_no !== currentMaxVersion) {
+      //   return {
+      //     success: false,
+      //     message: "Only the latest quotation version can be updated",
+      //   };
+      // }
 
       // If already approved, block all updates
       if (existingVersion.is_approve === true) {
@@ -681,11 +670,13 @@ class QuotationService {
           floor_plan_id,
           facade_id,
           is_approve,
+          structure_engineer_id,
+          structure_engineer_price,
           sketch_number,
           package_id,
-          structure_engineer_id,
-          structure_engineer_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10)
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING quotation_version_id
       `;
       const insertVersionValues = [
@@ -696,21 +687,28 @@ class QuotationService {
         sourceVersion.dwelling_type_id,
         sourceVersion.floor_plan_id,
         sourceVersion.facade_id,
+        sourceVersion.structure_engineer_id || null,
+        sourceVersion.structure_engineer_price || 0,
+        sourceVersion.sketch_number || null,
         sourceVersion.package_id || null,
-        sourceVersion.structure_engineer_id,
-        sourceVersion.structure_engineer_price
       ];
 
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);
       const newVersionId = newVersionResult.rows[0].quotation_version_id;
 
-      // 5. Copy pricelist item maps
+      // 5. Copy quotation version items (Snapshots)
       await client.query(`
-        INSERT INTO quotation_version_pricelist_item_map (
-          quotation_version_id, price_list_item_id, quantity, note, total_price
+        INSERT INTO quotation_version_items (
+          quotation_version_id, price_list_item_id, price_list_item_description,
+          price_list_item_cost, quantity, total_price,
+          package_id, package_name, package_cost, package_builder_cost,
+          created_at, updated_at
         )
-        SELECT $1, price_list_item_id, quantity, note, total_price
-        FROM quotation_version_pricelist_item_map
+        SELECT $1, price_list_item_id, price_list_item_description,
+               price_list_item_cost, quantity, total_price,
+               package_id, package_name, package_cost, package_builder_cost,
+               CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        FROM quotation_version_items
         WHERE quotation_version_id = $2
       `, [newVersionId, versionId]);
 

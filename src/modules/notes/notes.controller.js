@@ -194,7 +194,7 @@ export async function getAllNotes(req, res) {
     const limitValue = parseInt(limit, 10);
     const offset = (pageValue - 1) * limitValue;
 
-    const filters = [`l.builder_id = $1 OR l.company_id = $2`];
+    const filters = [`(l.builder_id = $1 OR l.company_id = $2)`];
     const values = [builderId, companyId];
     let index = 3;
 

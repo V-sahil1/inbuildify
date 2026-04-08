@@ -6,6 +6,7 @@ import { seedScreensAndFunctionalities } from "./seed-screens-functionalities.js
 import { seedCustomFieldModules } from "./seed-custom-field-module.js";
 import { seedComplianceTypes } from "./seed-compliance-type.js";
 import { seedRoleTypes } from "./seed-role-type.js";
+import { seedJobProcessStageFunctionalities } from "./seed-job-process-stage-functionality.js";
 
 
 /**
@@ -36,6 +37,9 @@ export const runDeveloperEssentialSeeds = async () => {
 
   // 6. Seed Compliance Types
   await seedComplianceTypes();
+
+  // 7. Seed Job Process Stage Functionalities
+  await seedJobProcessStageFunctionalities();
 
   console.log("🏁 All developer essentials seeded successfully.");
 };

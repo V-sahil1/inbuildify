@@ -24,6 +24,7 @@ export default (sequelize) => {
     updated_at: { type: DataTypes.DATE },
     created_by: { type: DataTypes.UUID, allowNull: true },
     updated_by: { type: DataTypes.UUID, allowNull: true },
+    
   }, {
     sequelize,
     tableName: "structure_engineer",

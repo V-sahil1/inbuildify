@@ -6,6 +6,7 @@ import { deleteFromS3 } from "../../utils/s3Upload.js";
 import {
   createPropertyService,
 } from "./property.service.js"
+import db from "../../config/database/models/postgre-models/index.js";
 
 export async function createProperty(req, res) {
   try {
@@ -403,6 +404,50 @@ export async function updateProperty(req, res) {
     `;
 
     const result = await client.query(updateSql, updateValues);
+    const updatedProperty = result.rows[0];
+
+    // Business Logic: Create Base Price and Compaction Report Charge if compaction_report_provider is 'builder'
+    const currentProvider = req.body.compaction_report_provider || updatedProperty.compaction_report_provider;
+    if (currentProvider === "builder") {
+      const { PriceList, PriceListItem } = db;
+      const userId = req.user?.user_id;
+
+      // Create or find "Base Price" PriceList
+      const [priceList] = await PriceList.findOrCreate({
+        where: {
+          builder_id: builderId,
+          name: "Base Price",
+        },
+        defaults: {
+          company_id: companyId || null,
+          builder_id: builderId,
+          name: "Base Price",
+          sort_order: 1,
+          is_active: true,
+          created_by: userId || null,
+        },
+      });
+
+      // Create or find default PriceListItem for this PriceList
+      await PriceListItem.findOrCreate({
+        where: {
+          price_list_id: priceList.price_list_id,
+          item_description: "Compaction Report Charge",
+        },
+        defaults: {
+          price_list_id: priceList.price_list_id,
+          company_id: companyId || null,
+          builder_id: builderId,
+          item_description: "Compaction Report Charge",
+          cost_type: "Fixed",
+          cost: 250.00,
+          builder_cost: 100.00,
+          status: "active",
+          created_by: userId || null,
+          is_system_data: true,
+        },
+      });
+    }
 
     // Re-fetch with state/country/estate names
     const enriched = await client.query(
