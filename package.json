@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "seed:all": "node src/seeder/seedAll.js",
-    "seeder": "node src/seeder/seedDeveloperEssentials.js"
+    "seeder": "node src/seeder/seedDeveloperEssentials.js",
+    "migrate": "npx sequelize-cli db:migrate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.873.0",
