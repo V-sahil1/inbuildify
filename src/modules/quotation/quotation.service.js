@@ -5,6 +5,10 @@ import getPool from "../../config/database.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 import db from "../../config/database/models/postgre-models/index.js";
 import { Op } from "sequelize";
+import { generatePDF } from "./pdf.service.js";
+import sendEmail from "../../service/sendMail.service.js";
+import { generateQuotationHTML } from "../../utils/template.js";
+import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -62,12 +66,13 @@ class QuotationService {
 
         // Check compaction report status
         const propertyQuery = `
-          SELECT compaction_report 
+          SELECT compaction_report, compaction_report_provider 
           FROM property_detail 
           WHERE property_detail_id = $1
         `;
         const propertyResult = await client.query(propertyQuery, [existingLead.propertyDetailId]);
         const compactionReport = propertyResult.rowCount > 0 ? propertyResult.rows[0].compaction_report : null;
+        const compactionReportProvider = propertyResult.rowCount > 0 ? propertyResult.rows[0].compaction_report_provider : null;
 
         // Insert new Quotation
         const insertQuotationQuery = `
@@ -111,9 +116,15 @@ class QuotationService {
         if (latestVersion) {
           // Copy Pricelist Item Maps
           await client.query(`
-            INSERT INTO quotation_version_pricelist_item_map (quotation_version_id, price_list_item_id, quantity, note, total_price)
-            SELECT $1, price_list_item_id, quantity, note, total_price
-            FROM quotation_version_pricelist_item_map
+            INSERT INTO quotation_version_items (
+              quotation_version_id, price_list_item_id, price_list_item_description,
+              price_list_item_cost, quantity, total_price,
+              created_at, updated_at
+            )
+            SELECT $1, price_list_item_id, price_list_item_description,
+                   price_list_item_cost, quantity, total_price,
+                   CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM quotation_version_items
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
 
@@ -124,8 +135,8 @@ class QuotationService {
             FROM quotation_version_custom_section
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
-        } else if (compactionReport === "not_available") {
-          // If first quotation and compaction report is not available, map "Compaction Report Charge"
+        } else if (compactionReport === "not_available" && compactionReportProvider === "builder") {
+          // If first quotation and compaction report is not available and provided by builder, map "Compaction Report Charge"
           const priceListItemQuery = `
             SELECT price_list_item_id, cost 
             FROM price_list_item 
@@ -145,14 +156,18 @@ class QuotationService {
             const pli = priceListItemResult.rows[0];
             await client.query(
               `
-              INSERT INTO quotation_version_pricelist_item_map (quotation_version_id, price_list_item_id, quantity, note, total_price)
-              VALUES ($1, $2, $3, $4, $5)
+              INSERT INTO quotation_version_items (
+                quotation_version_id, price_list_item_id, price_list_item_description,
+                price_list_item_cost, quantity, total_price,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             `,
               [
                 quotationVersion.quotation_version_id,
                 pli.price_list_item_id,
+                "Compaction Report Charge",
+                pli.cost,
                 1,
-                "Auto-added due to unavailable compaction report",
                 pli.cost,
               ]
             );
@@ -333,7 +348,7 @@ class QuotationService {
     }
   }
 
-  async getQuotationVersions(quotationId, builderId, companyId) {
+  async getQuotationVersions(quotationId, builderId, companyId, versionId = null) {
     try {
       const client = getPool();
       const checkQuery = `
@@ -350,7 +365,7 @@ class QuotationService {
         };
       }
 
-      const versions = await quotationRepository.getVersionsByQuotationId(quotationId);
+      const versions = await quotationRepository.getVersionsByQuotationId(quotationId, versionId);
 
       return {
         success: true,
@@ -590,6 +605,9 @@ class QuotationService {
       updateData.updated_by = userId;
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
+      // Invalidate cached PDF since version data changed
+      await quotationRepository.clearPdfUrl(versionId);
+
       if (!updated) {
         return {
           success: false,
@@ -722,6 +740,57 @@ class QuotationService {
         WHERE quotation_version_id = $2
       `, [newVersionId, versionId]);
 
+      // 7. Check for automatic Compaction Report Charge
+      const propertyQuery = `
+        SELECT pd.compaction_report, pd.compaction_report_provider 
+        FROM leads l
+        JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
+        WHERE l.leads_id = $1
+      `;
+      const propertyResult = await client.query(propertyQuery, [sourceVersion.leads_id]);
+      
+      if (propertyResult.rowCount > 0) {
+        const { compaction_report, compaction_report_provider } = propertyResult.rows[0];
+        
+        if (compaction_report === "not_available" && compaction_report_provider === "builder") {
+          // Check if it already exists in the new version (copied from source)
+          const checkItemQuery = `
+            SELECT 1 FROM quotation_version_items 
+            WHERE quotation_version_id = $1 AND price_list_item_description = $2
+          `;
+          const checkItemResult = await client.query(checkItemQuery, [newVersionId, "Compaction Report Charge"]);
+
+          if (checkItemResult.rowCount === 0) {
+            // Add the charge
+            const priceListItemQuery = `
+              SELECT price_list_item_id, cost 
+              FROM price_list_item 
+              WHERE item_description = $1 
+              AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL))
+              AND status = 'active'
+              ORDER BY created_at ASC
+              LIMIT 1
+            `;
+            const priceListItemResult = await client.query(priceListItemQuery, [
+              "Compaction Report Charge",
+              builderId,
+              companyId,
+            ]);
+
+            if (priceListItemResult.rowCount > 0) {
+              const pli = priceListItemResult.rows[0];
+              await client.query(`
+                INSERT INTO quotation_version_items (
+                  quotation_version_id, price_list_item_id, price_list_item_description,
+                  price_list_item_cost, quantity, total_price,
+                  created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              `, [newVersionId, pli.price_list_item_id, "Compaction Report Charge", pli.cost, 1, pli.cost]);
+            }
+          }
+        }
+      }
+
       // After duplicating a version, ensure the opportunity status is 'Negotiation'
       await leadsRepository.convertLeadToOpportunity(sourceVersion.leads_id, null, builderId, companyId, 'Negotiation', client);
 
@@ -740,7 +809,8 @@ class QuotationService {
       });
 
       // Fetch the full newly created version using repository to return all enriched fields
-      const enrichedNewVersion = await quotationRepository.getQuotationVersionDetailsById(newVersionId);
+      const enrichedNewVersions = await quotationRepository.getVersionsByQuotationId(quotationId, newVersionId);
+      const enrichedNewVersion = enrichedNewVersions.length > 0 ? enrichedNewVersions[0] : null;
 
       return {
         success: true,
@@ -803,6 +873,189 @@ class QuotationService {
       };
     }
   }
+
+  async getQuotationPDF(versionId, builderId, companyId) {
+    try {
+      const client = getPool();
+      // Verify ownership
+      const checkQuery = `
+        SELECT qv.quotation_version_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const versionDetails = await quotationRepository.getQuotationVersionDetailsById(versionId);
+      if (!versionDetails) {
+        return {
+          success: false,
+          message: "Quotation version details not found",
+        };
+      }
+
+      const fileName = `Quotation_v${versionDetails.quotationVersionNo}_${versionDetails.quotationId}.pdf`;
+
+      // Check if PDF already exists in S3
+      const existingPdfUrl = await quotationRepository.getPdfUrl(versionId);
+      if (existingPdfUrl) {
+        try {
+          const url = new URL(existingPdfUrl);
+          const s3Key = decodeURIComponent(url.pathname.substring(1));
+          const s3Result = await getObject(s3Key);
+          if (s3Result.success) {
+            return {
+              success: true,
+              data: {
+                pdfBuffer: s3Result.data,
+                fileName,
+                pdfUrl: existingPdfUrl,
+              },
+            };
+          }
+        } catch (s3Err) {
+          console.log("S3 fetch failed, regenerating PDF:", s3Err.message);
+        }
+      }
+
+      // Generate fresh PDF, upload to S3, save URL
+      const htmlContent = generateQuotationHTML(versionDetails);
+      const pdfBuffer = await generatePDF(htmlContent);
+
+      const s3Key = `quotations/${versionId}/${fileName}`;
+      const uploadResult = await uploadFile(s3Key, pdfBuffer, "application/pdf");
+
+      if (uploadResult.success) {
+        await quotationRepository.updatePdfUrl(versionId, uploadResult.location);
+      }
+
+      return {
+        success: true,
+        data: {
+          pdfBuffer,
+          fileName,
+          pdfUrl: uploadResult.success ? uploadResult.location : null,
+        },
+      };
+    } catch (error) {
+      console.error("DEBUG: Error in getQuotationPDF service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async sendQuotationEmail(versionId, builderId, companyId) {
+    try {
+      const client = getPool();
+      // Verify ownership
+      const checkQuery = `
+        SELECT qv.quotation_version_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const versionDetails = await quotationRepository.getQuotationVersionDetailsById(versionId);
+      if (!versionDetails) {
+        return {
+          success: false,
+          message: "Quotation version details not found",
+        };
+      }
+
+      const leadContact = versionDetails.leadContacts && versionDetails.leadContacts[0];
+      if (!leadContact || !leadContact.email) {
+        return {
+          success: false,
+          message: "Customer email not available for this quotation",
+        };
+      }
+
+      // 1. Generate PDF
+      const htmlContent = generateQuotationHTML(versionDetails);
+      const pdfBuffer = await generatePDF(htmlContent);
+      console.log("PDF buffer generated, size:", pdfBuffer.length, "bytes");
+
+      // 2. Upload to S3
+      const fileName = `Quotation_v${versionDetails.quotationVersionNo}.pdf`;
+      const s3Key = `quotations/${versionId}/${fileName}`;
+      const uploadResult = await uploadFile(s3Key, pdfBuffer, "application/pdf");
+
+      if (!uploadResult.success) {
+        return {
+          success: false,
+          message: "Failed to upload PDF to storage",
+        };
+      }
+
+      // 3. Save S3 URL to DB
+      await quotationRepository.updatePdfUrl(versionId, uploadResult.location);
+
+      // 4. Generate presigned download URL (7 days expiry)
+      const presignedResult = await generatePresignedDownloadUrl(s3Key, 604800);
+      const downloadUrl = presignedResult.success ? presignedResult.url : uploadResult.location;
+
+      // 5. Send email with download link
+      const emailSubject = "Your Quotation";
+      const customerName = leadContact.name || "Customer";
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #0056b3; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Your Quotation is Ready</h1>
+          </div>
+          <div style="padding: 30px; line-height: 1.6; color: #333;">
+            <p>Dear ${customerName},</p>
+            <p>Thank you for your interest. Your quotation <strong>(Version ${versionDetails.quotationVersionNo})</strong> has been prepared and is ready for your review.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${downloadUrl}" style="display: inline-block; background-color: #0056b3; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold;">📄 Download Quotation PDF</a>
+            </div>
+            <p style="font-size: 13px; color: #888; text-align: center;">This download link is valid for 7 days.</p>
+            <p>If you have any questions or need further clarification, please don't hesitate to reach out to us.</p>
+            <p style="margin-top: 25px;">Best regards,<br><strong>CRMSimplify Team</strong></p>
+          </div>
+          <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+            This is an automated message. Please do not reply directly to this email.
+          </div>
+        </div>
+      `;
+
+      const emailResult = await sendEmail(
+        leadContact.email,
+        emailSubject,
+        `Dear ${customerName}, Your quotation (Version ${versionDetails.quotationVersionNo}) is ready. Download it here: ${downloadUrl}`,
+        emailHtml
+      );
+
+      return emailResult;
+    } catch (error) {
+      console.error("DEBUG: Error in sendQuotationEmail service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async compareQuotationVersions(leadsId, versions, showAll, builderId, companyId) {
     try {
       const client = getPool();

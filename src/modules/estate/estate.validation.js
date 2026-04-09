@@ -52,6 +52,10 @@ export const getAllEstateSchema = Joi.object({
     "string.base": "Location must be a string",
     "string.max": "Location must not exceed 150 characters",
   }),
+  zip_code: Joi.string().trim().max(4).optional().messages({
+    "string.base": "Zip code must be a string",
+    "string.length": "Zip code must not exceed 4 characters",
+  }),
 
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",

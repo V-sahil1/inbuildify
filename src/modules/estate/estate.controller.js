@@ -123,7 +123,7 @@ export async function getAllEstate(req, res) {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
-    const { page = 1, limit = 25, name, status, location } = req.query;
+    const { page = 1, limit = 25, name, status, location, zip_code} = req.query;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -148,9 +148,17 @@ export async function getAllEstate(req, res) {
     if (location) {
       whereClause += ` AND (
         LOWER(s.name) LIKE LOWER($${paramIndex}) OR 
-        LOWER(c.name) LIKE LOWER($${paramIndex})
+        LOWER(c.name) LIKE LOWER($${paramIndex}) OR
+        LOWER(e.city) LIKE LOWER($${paramIndex}) OR
+        LOWER(e.street_name) LIKE LOWER($${paramIndex})
       )`;
       values.push(`%${location}%`);
+      paramIndex++;
+    }
+
+    if (zip_code) {
+      whereClause += ` AND e.zip LIKE $${paramIndex}`;
+      values.push(`%${zip_code}%`);
       paramIndex++;
     }
 
@@ -159,6 +167,7 @@ export async function getAllEstate(req, res) {
       FROM estate e
       LEFT JOIN state s ON e.state_id = s.state_id
       LEFT JOIN country c ON e.country_id = c.country_id
+
       ${whereClause};
     `;
     const countResult = await client.query(countQuery, values);

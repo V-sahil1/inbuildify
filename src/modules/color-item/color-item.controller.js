@@ -1,6 +1,6 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
-import { keysToCamelCase } from "../../utils/common.js";
+import { keysToCamelCase, keysToSnakeCase } from "../../utils/common.js";
 
 export async function getColorItemsWithoutCategory(req, res) {
   const pool = getPool();
@@ -118,7 +118,37 @@ export async function createColorItem(req, res) {
       range_id,
       status = true,
       default_image_index,
+      custom_fields,
     } = req.body;
+
+    let parsedCustomFields = [];
+    if (typeof custom_fields === "string") {
+      try {
+        const parsed = JSON.parse(custom_fields);
+        parsedCustomFields = Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid custom fields format. Please ensure you are using valid JSON with double quotes for keys.",
+        );
+      }
+    } else if (Array.isArray(custom_fields)) {
+      parsedCustomFields = custom_fields;
+    } else if (typeof custom_fields === "object" && custom_fields !== null) {
+      parsedCustomFields = [custom_fields];
+    }
+
+    // Normalize keys to snake_case (e.g., fieldName -> field_name)
+    parsedCustomFields = keysToSnakeCase(parsedCustomFields);
+
+    if (!color_category_id && parsedCustomFields.length > 0) {
+      return errorResponse(
+        res,
+        400,
+        "Color category ID is required when providing custom fields.",
+      );
+    }
 
     let finalColorTypeIds = null;
     let finalRangeIds = null;
@@ -467,6 +497,29 @@ export async function createColorItem(req, res) {
     ];
 
     const result = await client.query(insertQuery, values);
+    const colorItemId = result.rows[0].color_item_id;
+
+    if (
+      parsedCustomFields &&
+      Array.isArray(parsedCustomFields) &&
+      parsedCustomFields.length > 0
+    ) {
+      for (const field of parsedCustomFields) {
+        const {
+          field_type,
+          field_name,
+          required_field = false,
+          sort_order = 1,
+        } = field;
+        await client.query(
+          `INSERT INTO color_item_custom_field (
+            color_item, field_type, field_name, required_field, sort_order, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+          [colorItemId, field_type, field_name, required_field, sort_order],
+        );
+      }
+    }
+
     await client.query("COMMIT");
 
     return successResponse(
@@ -1295,10 +1348,10 @@ export async function updateColorItem(req, res) {
     }
 
     if (status !== undefined) {
-      if (typeof status !== "boolean") {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Status must be a boolean value.");
-      }
+      // if (typeof status !== "boolean") {
+      //   await client.query("ROLLBACK");
+      //   return errorResponse(res, 400, "Status must be a boolean value.");
+      // }
 
       updateFields.push(`status = $${paramIndex++}`);
       updateValues.push(status);

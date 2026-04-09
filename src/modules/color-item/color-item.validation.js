@@ -186,6 +186,35 @@ export const createColorItemSchema = Joi.object({
     "number.base": "Sort order must be a number",
     "number.integer": "Sort order must be an integer",
   }),
+
+  custom_fields: Joi.alternatives()
+    .try(
+      Joi.array().items(
+        Joi.object({
+          field_name: Joi.string().trim().required().messages({
+            "any.required": "Field name is required",
+            "string.empty": "Field name cannot be empty",
+          }),
+          field_type: Joi.string().trim() .valid("text", "checkbox", "dropdown_list", "radio_button").required().messages({
+            "any.required": "Field type is required",
+            "string.empty": "Field type cannot be empty",
+          }),
+          required_field: Joi.boolean().default(false),
+          sort_order: Joi.number().integer().min(1).optional().messages({
+            "number.base": "Sort order must be a number",
+            "number.integer": "Sort order must be an integer",
+            "number.min": "Sort order must be at least 1",
+          }),
+        }),
+      ),
+      Joi.object().unknown(true),
+      Joi.string(),
+    )
+    .optional()
+    .allow(null)
+    .messages({
+      "alternatives.types": "Custom fields must be an array, object, or JSON string",
+    }),
 });
 
 export const updateColorItemSchema = Joi.object({

@@ -339,11 +339,12 @@ class QuotationRepository {
     }
   }
 
-  async getVersionsByQuotationId(quotationId) {
+  async getVersionsByQuotationId(quotationId, versionId = null) {
     const client = await this.pool.connect();
     try {
-      const query = `
-        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
+      const values = [quotationId];
+      let query = `
+        SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
           qv.location_id, l.name as location_name,
           qv.range_id, r.name as range_name,
@@ -464,9 +465,48 @@ class QuotationRepository {
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
           (
+            SELECT json_build_object(
+              'property_detail_id', pd.property_detail_id,
+              'lot_id', pd.lot_id,
+              'lot_number', pd.lot_number,
+              'street', pd.street,
+              'address_line1', pd.address_line1,
+              'address_line2', pd.address_line2,
+              'city', pd.city,
+              'state_id', pd.state_id,
+              'state_name', s.name,
+              'country_id', pd.country_id,
+              'zip_code', pd.zip_code,
+              'estate_id', pd.estate_id,
+              'estate_stage_id', pd.estate_stage_id,
+              'estate_name', pd.estate_name,
+              'title_status', pd.title_status,
+              'title_date', pd.title_date,
+              'clearing_date', pd.clearing_date,
+              'compaction_report', pd.compaction_report,
+              'compaction_report_url', pd.compaction_report_url,
+              'compaction_report_content', pd.compaction_report_content,
+              'land_type', pd.land_type,
+              'width_m', pd.width_m,
+              'depth_m', pd.depth_m,
+              'total_size_m2', pd.total_size_m2,
+              'site_fall_mm', pd.site_fall_mm,
+              'land_fill_mm', pd.land_fill_mm,
+              'price', pd.price,
+              'bush_fire', pd.bush_fire,
+              'corner_block', pd.corner_block,
+              'is_hl_package_lot', pd.is_hl_package_lot,
+              'compaction_report_provider', pd.compaction_report_provider
+            )
+            FROM property_detail pd 
+            LEFT JOIN state s ON pd.state_id = s.state_id
+            WHERE pd.property_detail_id = leads.property_detail_id
+          ) as property,
+          (
         SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
               'users_id', u.users_id,
+              'name', u.name,
               'address', jsonb_build_object(
                 'address_line1', a.address_line1,
                 'address_line2', a.address_line2,
@@ -494,9 +534,16 @@ class QuotationRepository {
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
         WHERE qv.quotation_id = $1
-        ORDER BY qv.quotation_version_no DESC
       `;
-      const result = await client.query(query, [quotationId]);
+
+      if (versionId) {
+        query += ` AND qv.quotation_version_id = $2`;
+        values.push(versionId);
+      }
+
+      query += ` ORDER BY qv.quotation_version_no DESC`;
+
+      const result = await client.query(query, values);
       return result.rows.map(row => keysToCamelCase(row));
     } finally {
       client.release();
@@ -702,7 +749,7 @@ class QuotationRepository {
     const client = await this.pool.connect();
     try {
       const enrichQuery = `
-        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
+        SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
           qv.sketch_number, qv.created_at, qv.updated_at,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
@@ -818,6 +865,41 @@ class QuotationRepository {
           ) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
+          (
+            SELECT json_build_object(
+              'property_detail_id', pd.property_detail_id,
+              'lot_id', pd.lot_id,
+              'lot_number', pd.lot_number,
+              'street', pd.street,
+              'address_line1', pd.address_line1,
+              'address_line2', pd.address_line2,
+              'city', pd.city,
+              'state_id', pd.state_id,
+              'country_id', pd.country_id,
+              'zip_code', pd.zip_code,
+              'estate_id', pd.estate_id,
+              'estate_stage_id', pd.estate_stage_id,
+              'estate_name', pd.estate_name,
+              'title_status', pd.title_status,
+              'title_date', pd.title_date,
+              'clearing_date', pd.clearing_date,
+              'compaction_report', pd.compaction_report,
+              'compaction_report_url', pd.compaction_report_url,
+              'compaction_report_content', pd.compaction_report_content,
+              'land_type', pd.land_type,
+              'width_m', pd.width_m,
+              'depth_m', pd.depth_m,
+              'total_size_m2', pd.total_size_m2,
+              'site_fall_mm', pd.site_fall_mm,
+              'land_fill_mm', pd.land_fill_mm,
+              'price', pd.price,
+              'bush_fire', pd.bush_fire,
+              'corner_block', pd.corner_block,
+              'is_hl_package_lot', pd.is_hl_package_lot,
+              'compaction_report_provider', pd.compaction_report_provider
+            )
+            FROM property_detail pd WHERE pd.property_detail_id = leads.property_detail_id
+          ) as property_detail,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
@@ -961,6 +1043,47 @@ class QuotationRepository {
       `;
       const result = await client.query(query, [versionId, packageId]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updatePdfUrl(versionId, pdfUrl) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        UPDATE quotation_version
+        SET pdf_url = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE quotation_version_id = $2
+        RETURNING quotation_version_id, pdf_url
+      `;
+      const result = await client.query(query, [pdfUrl, versionId]);
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async clearPdfUrl(versionId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        UPDATE quotation_version
+        SET pdf_url = NULL
+        WHERE quotation_version_id = $1
+      `;
+      await client.query(query, [versionId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getPdfUrl(versionId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `SELECT pdf_url FROM quotation_version WHERE quotation_version_id = $1`;
+      const result = await client.query(query, [versionId]);
+      return result.rows.length > 0 ? result.rows[0].pdf_url : null;
     } finally {
       client.release();
     }

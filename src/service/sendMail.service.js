@@ -9,21 +9,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, html = null, attachments = []) => {
   try {
     // Check if text contains a link and convert it to HTML anchor
     const linkRegex = /(https?:\/\/[^\s]+)/g;
-    const htmlContent = text.replace(
+    const htmlContent = text ? text.replace(
       linkRegex,
       "<a href=\"$1\" style=\"color: #007bff; text-decoration: none;\">$1</a>",
-    );
+    ) : "";
 
     const mailOptions = {
       from: env.EMAIL.GMAIL,
       to,
       subject,
       text,
-      html: `
+      html: html || `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">${subject}</h2>
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px;">
@@ -34,6 +34,7 @@ const sendEmail = async (to, subject, text) => {
           </p>
         </div>
       `,
+      attachments,
     };
 
     const info = await transporter.sendMail(mailOptions);

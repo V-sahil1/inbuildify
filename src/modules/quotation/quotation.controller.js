@@ -68,6 +68,7 @@ export async function getQuotationsByLeadId(req, res) {
 export async function getQuotationVersions(req, res) {
   try {
     const { quotation_id } = req.params;
+    const { version_id } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -79,6 +80,7 @@ export async function getQuotationVersions(req, res) {
       quotation_id,
       builderId,
       companyId,
+      version_id
     );
 
     if (result.success) {
@@ -237,6 +239,61 @@ export const removePackageFromVersion = async (req, res) => {
     return errorResponse(res, 500, "Internal server error");
   }
 };
+
+export async function previewPDF(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const { download } = req.query;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getQuotationPDF(
+      quotation_version_id,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      const { pdfUrl } = result.data;
+      return successResponse(res, { pdfUrl }, "PDF URL fetched successfully");
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("Preview PDF error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function sendQuotationEmail(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.sendQuotationEmail(
+      quotation_version_id,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("Send quotation email error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
 export default {
   createQuotation,
   getQuotationsByLeadId,
@@ -245,5 +302,7 @@ export default {
   deleteQuotation,
   duplicateQuotationVersion,
   compareQuotationVersions,
-  removePackageFromVersion
+  removePackageFromVersion,
+  previewPDF,
+  sendQuotationEmail
 };

@@ -14,6 +14,12 @@ export const deleteQuotationSchema = Joi.object({
   }),
 });
 
+export const getQuotationVersionsQuerySchema = Joi.object({
+  version_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Version ID must be a valid UUID",
+  }),
+});
+
 export const updateQuotationVersionParamsSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
@@ -107,5 +113,6 @@ export default {
   duplicateQuotationVersionSchema,
   compareQuotationVersionsParamsSchema,
   compareQuotationVersionsBodySchema,
-  removePackageFromVersionSchema
+  removePackageFromVersionSchema,
+  getQuotationVersionsQuerySchema
 };

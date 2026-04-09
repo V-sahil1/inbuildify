@@ -16,6 +16,7 @@ import {
   compareQuotationVersionsParamsSchema,
   compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema,
+  getQuotationVersionsQuerySchema,
 } from "./quotation.validation.js";
 import quotationController from "./quotation.controller.js";
 
@@ -46,6 +47,7 @@ router.get(
 router.get(
   "/version/:quotation_id",
   validateRequest(deleteQuotationSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(getQuotationVersionsQuerySchema, REQUEST_SOURCE.QUERY),
   quotationController.getQuotationVersions,
 );
 
@@ -75,6 +77,18 @@ router.delete(
   validateRequest(removePackageFromVersionSchema, REQUEST_SOURCE.PARAMS),
   camelToSnakeMiddleware,
   quotationController.removePackageFromVersion
+);
+
+router.get(
+  "/version/:quotation_version_id/pdf",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.previewPDF
+);
+
+router.post(
+  "/version/:quotation_version_id/send",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.sendQuotationEmail
 );
 
 export default router;
