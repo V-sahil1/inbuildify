@@ -3,7 +3,7 @@
 export default {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn("structure_engineer", "price", {
-      type: Sequelize.STRING,
+      type: Sequelize.FLOAT,
       allowNull: false,
       defaultValue: 0, // required for existing rows
     });

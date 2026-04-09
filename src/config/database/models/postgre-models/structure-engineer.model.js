@@ -17,7 +17,7 @@ export default (sequelize) => {
     name: { type: DataTypes.STRING(255), allowNull: true },
     email: { type: DataTypes.STRING(255), allowNull: true },
     phone: { type: DataTypes.STRING(255), allowNull: true },
-    price: { type: DataTypes.INTEGER, allowNull: false },
+    price: { type: DataTypes.FLOAT, allowNull: false },
     address: { type: DataTypes.STRING(500), allowNull: true },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
     created_at: { type: DataTypes.DATE },

@@ -8,7 +8,7 @@ export default {
     });
 
     await queryInterface.addColumn("quotation_version", "structure_engineer_price", {
-      type: Sequelize.INTEGER,
+      type: Sequelize.FLOAT,
       allowNull: false,
       defaultValue: 0,
 

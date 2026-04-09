@@ -28,7 +28,7 @@ export default (sequelize) => {
       sketch_number: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
       package_id: { type: DataTypes.UUID, allowNull: true },
       structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
-      structure_engineer_price: { type: DataTypes.INTEGER, allowNull: true },
+      structure_engineer_price: { type: DataTypes.FLOAT, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
