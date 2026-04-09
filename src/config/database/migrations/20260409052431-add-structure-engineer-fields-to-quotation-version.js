@@ -17,6 +17,6 @@ export default {
 
   async down(queryInterface, Sequelize) {
     await queryInterface.removeColumn("quotation_version", "structure_engineer_id");
-    await queryInterface.removeColumn("quotation_version", "structure_engineer_id");
+    await queryInterface.removeColumn("quotation_version", "structure_engineer_price");
   },
 };
