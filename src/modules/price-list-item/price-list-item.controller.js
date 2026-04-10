@@ -1313,9 +1313,90 @@ export async function copyPriceListItem(req, res) {
 
     await client.query("COMMIT");
 
+    // Fetch the enriched item data for the response
+    const getUpdatedItemQuery = `
+      SELECT 
+        pli.*,
+        pl.name as price_list_name,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', r.range_id,
+              'name', r.name
+            )
+          )
+          FROM range r
+          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
+        ) as range_data,
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', dt.dwelling_type_id,
+              'name', dt.name
+            )
+          )
+          FROM dwelling_type dt
+          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
+        ) as dwelling_type_data,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'priceListItemConditionId', plic.price_list_item_condition_id,
+              'conditionName', plic.condition_name,
+              'status', plic.status,
+              'rangeStart', plic.range_start,
+              'rangeEnd', plic.range_end
+            ) ORDER BY plic.price_list_item_condition_id
+          )
+          FROM price_list_item_condition plic
+          WHERE plic.price_list_item_id = pli.price_list_item_id
+        ) as conditions_data
+      FROM price_list_item pli
+      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+      WHERE pli.price_list_item_id = $1
+    `;
+
+    const updatedItemResult = await client.query(getUpdatedItemQuery, [
+      newItem.price_list_item_id,
+    ]);
+    const updatedItem = keysToCamelCase(updatedItemResult.rows[0]);
+
+    const formattedItem = {
+      priceListItemId: updatedItem.priceListItemId,
+      priceList: {
+        id: updatedItem.priceListId,
+        name: updatedItem.priceListName,
+      },
+      companyId: updatedItem.companyId,
+      builderId: updatedItem.builderId,
+      itemDescription: updatedItem.itemDescription,
+      shortDescription: updatedItem.shortDescription,
+      costType: updatedItem.costType,
+      costTypeText: updatedItem.costTypeText,
+      costOption: updatedItem.costOption,
+      cost: updatedItem.cost ? updatedItem.cost.toString() : null,
+      builderCost: updatedItem.builderCost
+        ? updatedItem.builderCost.toString()
+        : null,
+      sortOrder: updatedItem.sortOrder,
+      uom: updatedItem.uom,
+      status: updatedItem.status,
+      includeByDefault: updatedItem.includeByDefault,
+      allowRemoveFromQuotation: updatedItem.allowRemoveFromQuotation,
+      showInHlPackage: updatedItem.showInHlPackage,
+      showOnlyInPackage: updatedItem.showOnlyInPackage,
+      range: updatedItem.rangeData || [],
+      dwellingType: updatedItem.dwellingTypeData || [],
+      conditions: updatedItem.conditionsData || [],
+      createdBy: updatedItem.createdBy,
+      updatedBy: updatedItem.updatedBy,
+      createdAt: updatedItem.createdAt,
+      updatedAt: updatedItem.updatedAt,
+    };
+
     return successResponse(
       res,
-      keysToCamelCase(newItem),
+      formattedItem,
       "Price list item copied successfully.",
     );
   } catch (error) {

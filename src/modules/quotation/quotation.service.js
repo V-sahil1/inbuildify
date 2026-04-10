@@ -615,16 +615,42 @@ class QuotationService {
 
         // Clear related selections ONLY if they are not being explicitly updated right now
         if (updateData.package_id === undefined) updateData.package_id = null;
+        if (updateData.structure_engineer_id === undefined) {
+          updateData.structure_engineer_id = null;
+          updateData.structure_engineer_price = null;
+        }
 
-        // Delete related pricelist item mappings and version items (snapshots)
-        await client.query(
-          "DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1",
-          [versionId],
-        );
-        await client.query(
-          "DELETE FROM quotation_version_items WHERE quotation_version_id = $1",
-          [versionId],
-        );
+        // Fetch property details to check compaction report status
+        const propertyQuery = `
+          SELECT pd.compaction_report, pd.compaction_report_provider 
+          FROM leads l
+          JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
+          WHERE l.leads_id = $1
+        `;
+        const propertyResult = await client.query(propertyQuery, [existingVersion.leads_id]);
+        const isCompactionMandatory = propertyResult.rowCount > 0 && 
+          propertyResult.rows[0].compaction_report === "not_available" && 
+          propertyResult.rows[0].compaction_report_provider === "builder";
+
+        // Delete related pricelist item mappings
+        // We use a subquery to avoid deleting the 'Compaction Report Charge' if mandatory
+        const deleteMapQuery = isCompactionMandatory
+          ? `DELETE FROM quotation_version_pricelist_item_map 
+             WHERE quotation_version_id = $1 
+             AND price_list_item_id NOT IN (
+               SELECT price_list_item_id FROM price_list_item WHERE item_description = 'Compaction Report Charge'
+             )`
+          : `DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1`;
+        
+        await client.query(deleteMapQuery, [versionId]);
+
+        // Delete version items (snapshots)
+        const deleteItemsQuery = isCompactionMandatory
+          ? `DELETE FROM quotation_version_items 
+             WHERE quotation_version_id = $1 AND price_list_item_description != 'Compaction Report Charge'`
+          : `DELETE FROM quotation_version_items WHERE quotation_version_id = $1`;
+
+        await client.query(deleteItemsQuery, [versionId]);
       }
 
       // Handle package_id specifically if provided
@@ -699,7 +725,7 @@ class QuotationService {
 
       return {
         success: true,
-        data: updated,
+        data: newVersion,
         message: "Quotation version updated successfully",
       };
     } catch (error) {
