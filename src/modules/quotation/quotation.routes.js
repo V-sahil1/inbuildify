@@ -23,6 +23,24 @@ import quotationController from "./quotation.controller.js";
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
+// List all quotations (no lead filter) — must be before /:leads_id
+router.get(
+  "/",
+  quotationController.getAllQuotations,
+);
+
+// Get quotation status counts
+router.get(
+  "/status-counts",
+  quotationController.getQuotationStatusCounts,
+);
+
+// Quotation filter options
+router.get(
+  "/filter-options",
+  quotationController.getQuotationFilterOptions,
+);
+
 router.post(
   "/compare/:leads_id",
   validateRequest(compareQuotationVersionsParamsSchema, REQUEST_SOURCE.PARAMS),

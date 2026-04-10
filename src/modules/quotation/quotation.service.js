@@ -269,6 +269,45 @@ class QuotationService {
     }
   }
 
+  async getAllQuotations(builderId, companyId, options = {}) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const result = await quotationRepository.getAllQuotations(builderId, companyId, options);
+      return { success: true, data: result, message: "Quotations fetched successfully" };
+    } catch (error) {
+      console.error("Error in getAllQuotations service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getQuotationCountsByStatus(builderId, companyId) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const counts = await quotationRepository.getQuotationCountsByStatus(builderId, companyId);
+      return { success: true, data: counts, message: "Quotation counts fetched successfully" };
+    } catch (error) {
+      console.error("Error in getQuotationCountsByStatus service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getQuotationFilterOptions(builderId, companyId) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const options = await quotationRepository.getQuotationFilterOptions(builderId, companyId);
+      return { success: true, data: options, message: "Quotation filter options fetched successfully" };
+    } catch (error) {
+      console.error("Error in getQuotationFilterOptions service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
   async syncQuotationFromHLP(leadsId, houseLandPackageId, userId, builderId, companyId) {
     const client = await getPool().connect();
     try {

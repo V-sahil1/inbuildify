@@ -40,17 +40,15 @@ export async function getDashboardData(req, res) {
         (SELECT json_agg(l) 
         FROM (
             SELECT 
-            ld.lead_id,
-            lc.name,
-            lc.email,
+            ld.leads_id,
+            ld.name,
+            ld.email,
             ld.created_at
             FROM leads ld
-              LEFT JOIN leads_contact lc 
-                  ON ld.lead_contact_id = lc.leads_contact_id
-              WHERE ld.builder_id = $1 
-                AND ld.is_deleted = false
-              ORDER BY ld.created_at DESC
-              LIMIT 3
+            WHERE ld.builder_id = $1 
+              AND ld.is_deleted = false
+            ORDER BY ld.created_at DESC
+            LIMIT 3
         ) l
         ), '[]'
         ) AS lead_data;

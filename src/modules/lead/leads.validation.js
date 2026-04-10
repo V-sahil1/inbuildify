@@ -174,11 +174,20 @@ export const getAllLeadsQuerySchema = Joi.object({
     .valid("New", "Working", "Convert", "Proposal", "Negotiation", "Closed")
     .optional(),
 
-  rating: Joi.string().valid("Hot", "Warm", "Cold", "None").optional(),
-  lead_source_id: Joi.string().uuid().optional(),
+  rating: Joi.alternatives()
+    .try(
+      Joi.string().valid("Hot", "Warm", "Cold", "None"),
+      Joi.string().pattern(/^(Hot|Warm|Cold|None)(,(Hot|Warm|Cold|None))*$/)
+    )
+    .optional(),
+  lead_source_id: Joi.alternatives()
+    .try(Joi.string().uuid(), Joi.string().pattern(/^[0-9a-fA-F-]+(,[0-9a-fA-F-]+)*$/))
+    .optional(),
   client_type_id: Joi.string().uuid().optional(),
   region_id: Joi.string().uuid().optional(),
-  assignee_id: Joi.string().uuid().optional(),
+  assignee_id: Joi.alternatives()
+    .try(Joi.string().uuid(), Joi.string().pattern(/^[0-9a-fA-F-]+(,[0-9a-fA-F-]+)*$/))
+    .optional(),
   search: Joi.string().max(100).optional().messages({
     "string.max": "Search term must not exceed 100 characters",
   }),
@@ -195,6 +204,8 @@ export const getAllLeadsQuerySchema = Joi.object({
       "last_30_days"
     )
     .optional(),
+  sort_by: Joi.string().valid("created_at").optional(),
+  sort_order: Joi.string().valid("asc", "desc").optional(),
 });
 
 export const convertLeadToOpportunitySchema = Joi.object({

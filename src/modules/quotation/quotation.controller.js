@@ -1,6 +1,112 @@
 import quotationService from "./quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 
+export async function getAllQuotations(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      status = '',
+      statuses = '',
+      leadIds = '',
+      contactIds = '',
+      startDate = '',
+      endDate = '',
+      sortBy = '',
+      sortOrder = '',
+    } = req.query;
+    const statusList = Array.isArray(statuses)
+      ? statuses
+      : String(statuses || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+    const leadIdList = Array.isArray(leadIds)
+      ? leadIds
+      : String(leadIds || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+    const contactIdList = Array.isArray(contactIds)
+      ? contactIds
+      : String(contactIds || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+    const result = await quotationService.getAllQuotations(builderId, companyId, {
+      page,
+      limit,
+      search,
+      status,
+      statuses: statusList,
+      leadIds: leadIdList,
+      contactIds: contactIdList,
+      startDate,
+      endDate,
+      sortBy: String(sortBy || ''),
+      sortOrder: String(sortOrder || ''),
+    });
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("Get all quotations error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function getQuotationFilterOptions(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getQuotationFilterOptions(builderId, companyId);
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("Get quotation filter options error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function getQuotationStatusCounts(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getQuotationCountsByStatus(builderId, companyId);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("Get quotation status counts error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
 export async function createQuotation(req, res) {
   try {
     const { leads_id } = req.params;
@@ -322,6 +428,9 @@ export async function sendQuotationEmail(req, res) {
 }
 
 export default {
+  getAllQuotations,
+  getQuotationFilterOptions,
+  getQuotationStatusCounts,
   createQuotation,
   getQuotationsByLeadId,
   getQuotationVersions,

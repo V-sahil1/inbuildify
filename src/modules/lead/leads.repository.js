@@ -39,9 +39,9 @@ class LeadsRepository {
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
           face_to_face, purpose, assignee_id, created_by, updated_by, reference_number,
-          house_land_package_id, property_detail_id
+          house_land_package_id, property_detail_id, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW()
         ) RETURNING *
       `;
 
@@ -204,6 +204,8 @@ class LeadsRepository {
         search,
         email, 
         created_at, 
+        sort_by = "created_at",
+        sort_order = "desc",
       } = filters;
 
       const offset = (page - 1) * limit;
@@ -264,13 +266,13 @@ class LeadsRepository {
         paramIndex++;
       }
 
-      if (rating) {
-        whereConditions.push(`l.rating = $${paramIndex++}`);
+      if (rating?.length) {
+        whereConditions.push(`l.rating = ANY($${paramIndex++})`);
         queryParams.push(rating);
       }
 
-      if (lead_source_id) {
-        whereConditions.push(`l.lead_source_id = $${paramIndex++}`);
+      if (lead_source_id?.length) {
+        whereConditions.push(`l.lead_source_id = ANY($${paramIndex++}::uuid[])`);
         queryParams.push(lead_source_id);
       }
 
@@ -284,8 +286,8 @@ class LeadsRepository {
         queryParams.push(region_id);
       }
 
-      if (assignee_id) {
-        whereConditions.push(`l.assignee_id = $${paramIndex++}`);
+      if (assignee_id?.length) {
+        whereConditions.push(`l.assignee_id = ANY($${paramIndex++}::uuid[])`);
         queryParams.push(assignee_id);
       }
 
@@ -308,11 +310,35 @@ class LeadsRepository {
       }
 
       const whereClause = whereConditions.join(" AND ");
+      const allowedSortColumns = {
+        created_at: "l.created_at",
+      };
+      const normalizedSortOrder =
+        String(sort_order || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
+      const orderByColumn = allowedSortColumns[sort_by] || "l.created_at";
 
       const dataQuery = `
         SELECT 
           l.*,
           ls.name as lead_source_name,
+          COALESCE(
+            NULLIF(
+              TRIM(
+                CONCAT_WS(
+                  ', ',
+                  NULLIF(TRIM(COALESCE(pd.lot_number, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.street, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line1, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line2, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.city, '')), ''),
+                  NULLIF(TRIM(COALESCE(st.name, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.zip_code, '')), '')
+                )
+              ),
+              ''
+            ),
+            'N/A'
+          ) as property_details,
           ct.client_type as client_type_name,
           s.name as state_name,
           assignee.name as assignee_name,
@@ -333,13 +359,15 @@ class LeadsRepository {
           (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
+        LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id
+        LEFT JOIN state st ON pd.state_id = st.state_id
         LEFT JOIN state s ON l.region_id = s.state_id
         LEFT JOIN users assignee ON l.assignee_id = assignee.users_id
         LEFT JOIN users created_by_user ON l.created_by = created_by_user.users_id
         LEFT JOIN users updated_by_user ON l.updated_by = updated_by_user.users_id
         WHERE ${whereClause}
-        ORDER BY l.created_at DESC
+        ORDER BY ${orderByColumn} ${normalizedSortOrder} NULLS LAST, l.updated_at DESC NULLS LAST, l.reference_number DESC
         LIMIT $${paramIndex++} OFFSET $${paramIndex++}
       `;
 

@@ -1097,6 +1097,409 @@ class QuotationRepository {
       client.release();
     }
   }
+
+  async getAllQuotations(builderId, companyId, options = {}) {
+    const client = await this.pool.connect();
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        search = '',
+        status = '',
+        statuses = [],
+        leadIds = [],
+        contactIds = [],
+        startDate = '',
+        endDate = '',
+        sortBy = '',
+        sortOrder = '',
+      } = options;
+
+      const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+      const params = [builderId];
+      let paramIndex = 2;
+
+      let searchCondition = '';
+      if (search && search.trim()) {
+        searchCondition = `AND (
+          q.reference_number ILIKE $${paramIndex}
+          OR l.name ILIKE $${paramIndex}
+          OR EXISTS (
+            SELECT 1
+            FROM leads_contact_map lcm_s
+            JOIN users u_s ON lcm_s.contact_id = u_s.users_id
+            WHERE lcm_s.leads_id = l.leads_id
+            AND (
+              u_s.name ILIKE $${paramIndex}
+              OR u_s.phone ILIKE $${paramIndex}
+              OR u_s.email ILIKE $${paramIndex}
+            )
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM property_detail pd_s
+            LEFT JOIN lot lot_s ON pd_s.lot_id = lot_s.lot_id
+            WHERE pd_s.property_detail_id = l.property_detail_id
+            AND (
+              COALESCE(lot_s.street, '') ILIKE $${paramIndex}
+              OR COALESCE(lot_s.city, '') ILIKE $${paramIndex}
+              OR COALESCE(pd_s.address_line1, '') ILIKE $${paramIndex}
+              OR COALESCE(pd_s.address_line2, '') ILIKE $${paramIndex}
+            )
+          )
+          OR COALESCE(assignee_user.name, '') ILIKE $${paramIndex}
+          OR COALESCE(created_by_user.name, '') ILIKE $${paramIndex}
+        )`;
+        params.push(`%${search.trim()}%`);
+        paramIndex++;
+      }
+
+      const expiredCondition = `(
+        qv.quotation_version_id IS NOT NULL
+        AND qv.is_approve = FALSE
+        AND NOW() > (
+          (CASE
+            WHEN COALESCE(qs.extend_validity_from_updated_date, 0) = 1
+              THEN COALESCE(qv.updated_at, qv.created_at, q.updated_at, q.created_at)
+            ELSE COALESCE(qv.created_at, q.created_at)
+          END)
+          + (COALESCE(qs.quotation_validity_days, 30) || ' days')::interval
+        )
+      )`;
+      const approvedCondition = `(
+        qv.quotation_version_id IS NOT NULL
+        AND qv.is_approve = TRUE
+      )`;
+      const cancelledCondition = `(COALESCE(LOWER(l.status), '') = 'cancelled')`;
+      const activeDraftCondition = `(
+        qv.quotation_version_id IS NOT NULL
+        AND qv.is_approve = FALSE
+        AND NOT ${expiredCondition}
+        AND NOT ${cancelledCondition}
+      )`;
+
+      let statusCondition = '';
+      const normalizedStatuses = (Array.isArray(statuses) && statuses.length > 0
+        ? statuses
+        : status
+          ? [status]
+          : []
+      ).map(s => String(s).trim()).filter(Boolean);
+      if (normalizedStatuses.length > 0) {
+        const wantsApproved = normalizedStatuses.includes('approved');
+        const wantsExpired = normalizedStatuses.includes('expired');
+        const wantsCancelled = normalizedStatuses.includes('cancelled');
+        const wantsDraftLike = normalizedStatuses.some(s => ['draft', 'pendingApproval', 'modified'].includes(s));
+        const statusOrConditions = [];
+        if (wantsApproved) statusOrConditions.push(approvedCondition);
+        if (wantsExpired) statusOrConditions.push(expiredCondition);
+        if (wantsCancelled) statusOrConditions.push(cancelledCondition);
+        if (wantsDraftLike) statusOrConditions.push(activeDraftCondition);
+        if (statusOrConditions.length > 0) {
+          statusCondition = `AND (${statusOrConditions.join(' OR ')})`;
+        }
+      }
+
+      let leadCondition = '';
+      if (Array.isArray(leadIds) && leadIds.length > 0) {
+        const cleanLeadIds = leadIds.map(id => String(id).trim()).filter(Boolean);
+        if (cleanLeadIds.length > 0) {
+          leadCondition = ` AND l.leads_id = ANY($${paramIndex}::uuid[])`;
+          params.push(cleanLeadIds);
+          paramIndex++;
+        }
+      }
+
+      let contactCondition = '';
+      if (Array.isArray(contactIds) && contactIds.length > 0) {
+        const cleanContactIds = contactIds.map(id => String(id).trim()).filter(Boolean);
+        if (cleanContactIds.length > 0) {
+          contactCondition = ` AND EXISTS (
+            SELECT 1
+            FROM leads_contact_map lcm_filter
+            WHERE lcm_filter.leads_id = l.leads_id
+            AND lcm_filter.contact_id = ANY($${paramIndex}::uuid[])
+          )`;
+          params.push(cleanContactIds);
+          paramIndex++;
+        }
+      }
+
+      let dateCondition = '';
+      if (startDate) {
+        dateCondition += ` AND q.created_at >= $${paramIndex}`;
+        params.push(startDate);
+        paramIndex++;
+      }
+      if (endDate) {
+        dateCondition += ` AND q.created_at <= $${paramIndex}`;
+        params.push(endDate);
+        paramIndex++;
+      }
+
+      const normalizedSortOrder = String(sortOrder || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+      const sortByKey = String(sortBy || '');
+      const sortFieldMap = {
+        createdAt: 'created_at',
+        quotationTotal: 'quotation_total',
+        referenceNumber: 'q.reference_number',
+        customerName: 'customer_name',
+        status: 'status',
+      };
+      const primarySortField = sortFieldMap[sortByKey] || null;
+      const orderByClause = primarySortField
+        ? `${primarySortField} ${normalizedSortOrder}, q.created_at DESC, qv.quotation_version_no DESC`
+        : `q.created_at DESC, qv.quotation_version_no DESC`;
+
+      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+
+      const countQuery = `
+        SELECT COUNT(DISTINCT qv.quotation_version_id) as total
+        FROM quotation q
+        LEFT JOIN quotation_version qv ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        LEFT JOIN quotation_settings qs ON qs.builder_id = l.builder_id AND qs.company_id = l.company_id
+        LEFT JOIN users assignee_user ON l.assignee_id = assignee_user.users_id
+        LEFT JOIN users created_by_user ON q.created_by = created_by_user.users_id
+        WHERE (l.builder_id = $1${companyCondition})
+        ${searchCondition}
+        ${statusCondition}
+        ${leadCondition}
+        ${contactCondition}
+        ${dateCondition}
+      `;
+
+      const countResult = await client.query(countQuery, params);
+      const total = parseInt(countResult.rows[0].total, 10);
+
+      // Add pagination params
+      params.push(parseInt(limit, 10), offset);
+
+      const dataQuery = `
+        SELECT
+          q.quotation_id,
+          q.reference_number,
+          q.leads_id,
+          COALESCE(qv.created_at, q.created_at) AS created_at,
+          q.updated_at,
+          l.name AS customer_name,
+          COALESCE(
+            NULLIF(TRIM(COALESCE(lot.street, '') || CASE WHEN lot.street IS NOT NULL AND lot.city IS NOT NULL THEN ', ' ELSE '' END || COALESCE(lot.city, '')), ''),
+            'N/A'
+          ) AS property_address,
+          COALESCE(
+            NULLIF(
+              TRIM(
+                CONCAT_WS(
+                  ', ',
+                  NULLIF(TRIM(COALESCE(pd.lot_number, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.street, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line1, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line2, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.city, '')), ''),
+                  NULLIF(TRIM(COALESCE(st.name, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.zip_code, '')), '')
+                )
+              ),
+              ''
+            ),
+            'N/A'
+          ) AS property_details,
+          COALESCE(
+            (
+              SELECT u.name
+              FROM leads_contact_map lcm
+              JOIN users u ON lcm.contact_id = u.users_id
+              WHERE lcm.leads_id = l.leads_id
+              ORDER BY lcm.created_at ASC
+              LIMIT 1
+            ),
+            l.name,
+            'N/A'
+          ) AS contact_name,
+          COALESCE(assignee_user.name, '') AS assignee_name,
+          COALESCE(assignee_user.initials, '') AS assignee_initials,
+          COALESCE(created_by_user.name, '') AS approver_name,
+          COALESCE(created_by_user.initials, '') AS approver_initials,
+          CASE
+            WHEN ${cancelledCondition} THEN 'cancelled'
+            WHEN ${approvedCondition} THEN 'approved'
+            WHEN ${expiredCondition} THEN 'expired'
+            ELSE 'draft'
+          END AS status,
+          qv.quotation_version_id AS latest_version_id,
+          qv.quotation_version_no AS latest_version_no,
+          (
+            COALESCE(
+              (SELECT DISTINCT qvi.package_cost
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND qvi.package_id IS NOT NULL
+               LIMIT 1),
+              0
+            ) +
+            COALESCE(
+              (SELECT SUM(qvi.total_price)
+               FROM quotation_version_items qvi
+               WHERE qvi.quotation_version_id = qv.quotation_version_id
+               AND qvi.package_id IS NULL),
+              0
+            ) +
+            COALESCE(
+              (SELECT qv_total.structure_engineer_price
+               FROM quotation_version qv_total
+               WHERE qv_total.quotation_version_id = qv.quotation_version_id
+               LIMIT 1),
+              0
+            )
+          ) AS quotation_total,
+          (
+            SELECT COUNT(*) FROM quotation_version qv_cnt
+            WHERE qv_cnt.quotation_id = q.quotation_id
+          ) AS version_count
+        FROM quotation q
+        LEFT JOIN quotation_version qv ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        LEFT JOIN quotation_settings qs ON qs.builder_id = l.builder_id AND qs.company_id = l.company_id
+        LEFT JOIN users assignee_user ON l.assignee_id = assignee_user.users_id
+        LEFT JOIN users created_by_user ON q.created_by = created_by_user.users_id
+        LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
+        LEFT JOIN lot ON pd.lot_id = lot.lot_id
+        LEFT JOIN state st ON pd.state_id = st.state_id
+        WHERE (l.builder_id = $1${companyCondition})
+        ${searchCondition}
+        ${statusCondition}
+        ${leadCondition}
+        ${contactCondition}
+        ${dateCondition}
+        ORDER BY ${orderByClause}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+
+      const result = await client.query(dataQuery, params);
+
+      return {
+        data: result.rows.map(row => keysToCamelCase(row)),
+        pagination: {
+          total,
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          totalPages: Math.ceil(total / parseInt(limit, 10)),
+        },
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  async getQuotationFilterOptions(builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+      const query = `
+        SELECT DISTINCT
+          option_type,
+          option_id,
+          option_label,
+          leads_id,
+          customer_name,
+          contact_name
+        FROM quotation q
+        JOIN leads l ON q.leads_id = l.leads_id
+        LEFT JOIN leads_contact_map lcm ON l.leads_id = lcm.leads_id
+        LEFT JOIN users u ON lcm.contact_id = u.users_id
+        CROSS JOIN LATERAL (
+          VALUES
+            (
+              'lead',
+              l.leads_id::text,
+              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
+              l.leads_id,
+              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
+              NULL::text
+            ),
+            (
+              'contact',
+              COALESCE(u.users_id::text, ''),
+              CASE
+                WHEN u.users_id IS NULL THEN NULL
+                ELSE CONCAT(
+                  COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact'),
+                  ' (',
+                  COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
+                  ')'
+                )
+              END,
+              l.leads_id,
+              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
+              COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact')
+            )
+        ) AS opts(option_type, option_id, option_label, leads_id, customer_name, contact_name)
+        WHERE (l.builder_id = $1${companyCondition})
+          AND opts.option_label IS NOT NULL
+          AND opts.option_id <> ''
+        ORDER BY option_label ASC
+      `;
+      const result = await client.query(query, [builderId]);
+      return result.rows.map(row => keysToCamelCase(row));
+    } finally {
+      client.release();
+    }
+  }
+
+  async getQuotationCountsByStatus(builderId, companyId) {
+    const client = await this.pool.connect();
+    try {
+      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+      const query = `
+        WITH quotation_versions AS (
+          SELECT
+            qv.quotation_version_id,
+            l.builder_id,
+            l.company_id,
+            LOWER(COALESCE(l.status, '')) AS lead_status,
+            qv.is_approve,
+            qv.created_at AS version_created_at,
+            qv.updated_at AS version_updated_at,
+            q.created_at AS quotation_created_at,
+            COALESCE(qs.quotation_validity_days, 30) AS quotation_validity_days,
+            COALESCE(qs.extend_validity_from_updated_date, 0) AS extend_validity_from_updated_date
+          FROM quotation q
+          LEFT JOIN quotation_version qv ON qv.quotation_id = q.quotation_id
+          JOIN leads l ON q.leads_id = l.leads_id
+          LEFT JOIN quotation_settings qs ON qs.builder_id = l.builder_id AND qs.company_id = l.company_id
+          WHERE (l.builder_id = $1${companyCondition})
+        )
+        SELECT
+          COUNT(DISTINCT quotation_version_id) AS total,
+          COUNT(DISTINCT CASE WHEN is_approve = TRUE THEN quotation_version_id END) AS approved,
+          COUNT(DISTINCT CASE WHEN lead_status = 'cancelled' THEN quotation_version_id END) AS cancelled,
+          COUNT(DISTINCT CASE WHEN is_approve = FALSE AND NOW() > (
+            (CASE
+              WHEN extend_validity_from_updated_date = 1
+                THEN COALESCE(version_updated_at, version_created_at, quotation_created_at)
+              ELSE COALESCE(version_created_at, quotation_created_at)
+            END)
+            + (quotation_validity_days || ' days')::interval
+          ) THEN quotation_version_id END) AS expired,
+          COUNT(DISTINCT CASE WHEN is_approve = FALSE
+            AND lead_status <> 'cancelled'
+            AND NOW() <= (
+            (CASE
+              WHEN extend_validity_from_updated_date = 1
+                THEN COALESCE(version_updated_at, version_created_at, quotation_created_at)
+              ELSE COALESCE(version_created_at, quotation_created_at)
+            END)
+            + (quotation_validity_days || ' days')::interval
+          ) THEN quotation_version_id END) AS draft
+        FROM quotation_versions
+      `;
+      const result = await client.query(query, [builderId]);
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : { total: 0, approved: 0, draft: 0, expired: 0 };
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export default new QuotationRepository();

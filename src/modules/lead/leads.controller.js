@@ -112,17 +112,28 @@ export async function getAllLeads(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
+    const toArray = (value) => {
+      if (!value) return undefined;
+      if (Array.isArray(value)) return value;
+      return String(value)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
     const filters = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 25,
       status: req.query.status,
-      rating: req.query.rating,
-      lead_source_id: req.query.lead_source_id,
+      rating: toArray(req.query.rating),
+      lead_source_id: toArray(req.query.lead_source_id),
       client_type_id: req.query.client_type_id,
       region_id: req.query.region_id,
-      assignee_id: req.query.assignee_id,
+      assignee_id: toArray(req.query.assignee_id),
       search: req.query.search,
       created_at: req.query.created_at,
+      sort_by: req.query.sort_by,
+      sort_order: req.query.sort_order,
     };
 
     const result = await leadsService.getAllLeads(builderId, companyId, filters);

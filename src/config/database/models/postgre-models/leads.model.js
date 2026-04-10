@@ -60,8 +60,8 @@ export default (sequelize) => {
       lead_lost_comment: { type: DataTypes.STRING(1000), allowNull: true },
       structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
       structure_report_file: { type: DataTypes.STRING(500), allowNull: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: sequelize.literal("CURRENT_TIMESTAMP") },
+      updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: sequelize.literal("CURRENT_TIMESTAMP") },
     },
     { sequelize, tableName: "leads", modelName: "Leads", underscored: true }
   );
