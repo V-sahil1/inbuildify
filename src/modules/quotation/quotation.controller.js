@@ -94,6 +94,33 @@ export async function getQuotationVersions(req, res) {
   }
 }
 
+export async function getQuotationVersionById(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getQuotationVersionById(
+      quotation_version_id,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+
+  } catch (error) {
+    console.error("Get quotation version by ID error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
 export async function updateQuotationVersion(req, res) {
   try {
     const { quotation_version_id } = req.params;
@@ -298,6 +325,7 @@ export default {
   createQuotation,
   getQuotationsByLeadId,
   getQuotationVersions,
+  getQuotationVersionById,
   updateQuotationVersion,
   deleteQuotation,
   duplicateQuotationVersion,

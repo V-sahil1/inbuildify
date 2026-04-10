@@ -9,11 +9,11 @@ export async function createNote(req, res) {
   const client = await pool.connect();
 
   try {
-    const { 
-      leads_id, 
-      description, 
-      note_tag_id, 
-      send_to_customer, 
+    const {
+      leads_id,
+      description,
+      note_tag_id,
+      send_to_customer,
       create_follow_up_task,
       task_name,
       due_date,
@@ -31,7 +31,7 @@ export async function createNote(req, res) {
 
     if (note_type === "reply") {
       const parentCheck = await client.query(
-        `SELECT n.leads_id 
+        `SELECT n.leads_id
          FROM notes n
          JOIN leads l ON n.leads_id = l.leads_id
          WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
@@ -60,7 +60,7 @@ export async function createNote(req, res) {
 
     // Check leads_id existence and ownership
     const leadCheck = await client.query(
-      `SELECT leads_id FROM leads 
+      `SELECT leads_id FROM leads
        WHERE leads_id = $1 AND (builder_id = $2 OR company_id = $3)`,
       [effectiveLeadsId, builderId, companyId]
     );
@@ -74,7 +74,7 @@ export async function createNote(req, res) {
     // Check note_tag_id existence and ownership if provided
     if (note_tag_id && Array.isArray(note_tag_id) && note_tag_id.length > 0) {
       const tagCheck = await client.query(
-        `SELECT notes_tag_id FROM notes_tag 
+        `SELECT notes_tag_id FROM notes_tag
          WHERE notes_tag_id = ANY($1) AND (builder_id = $2 OR company_id = $3)`,
         [note_tag_id, builderId, companyId]
       );
@@ -91,7 +91,7 @@ export async function createNote(req, res) {
     if (create_follow_up_task === true || create_follow_up_task === "true") {
       const taskInsertQuery = `
         INSERT INTO task (
-          company_id, builder_id, name, due_date, lead_id, 
+          company_id, builder_id, name, due_date, lead_id,
           assignee_id, created_by, updated_by, status
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING task_id
@@ -112,11 +112,11 @@ export async function createNote(req, res) {
 
     const insertQuery = `
       INSERT INTO notes (
-        leads_id, 
-        description, 
-        note_tag_id, 
-        send_to_customer, 
-        create_follow_up_task, 
+        leads_id,
+        description,
+        note_tag_id,
+        send_to_customer,
+        create_follow_up_task,
         task_id,
         attach_file,
         note_type,
@@ -142,9 +142,12 @@ export async function createNote(req, res) {
 
     const enrichedNoteQuery = `
       SELECT n.*,
-        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
-         FROM notes_tag nt 
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name))
+         FROM notes_tag nt
          WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT json_build_object('id', t.task_id, 'taskname', t.name, 'due_date', t.due_date)
+         FROM task t 
+         WHERE t.task_id = n.task_id) AS task,
         (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
@@ -216,14 +219,17 @@ export async function getAllNotes(req, res) {
 
     const selectQuery = `
       SELECT n.*,
-        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
-         FROM notes_tag nt 
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name))
+         FROM notes_tag nt
          WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT json_build_object('id', t.task_id, 'taskname', t.name, 'due_date', t.due_date)
+         FROM task t
+         WHERE t.task_id = n.task_id) AS task,
         (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
-      ${whereClause} 
-      ORDER BY n.created_at DESC 
+      ${whereClause}
+      ORDER BY n.created_at DESC
       LIMIT $${index} OFFSET $${index + 1}
     `;
 
@@ -261,9 +267,12 @@ export async function getNoteById(req, res) {
 
     const query = `
       SELECT n.*,
-        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
-         FROM notes_tag nt 
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name))
+         FROM notes_tag nt
          WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT json_build_object('id', t.task_id, 'taskname', t.name, 'due_date', t.due_date)
+         FROM task t
+         WHERE t.task_id = n.task_id) AS task,
         (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id
@@ -318,7 +327,7 @@ export async function updateNote(req, res) {
       parsedNoteTagId = typeof note_tag_id === 'string' ? JSON.parse(note_tag_id) : note_tag_id;
       if (Array.isArray(parsedNoteTagId) && parsedNoteTagId.length > 0) {
         const tagCheck = await client.query(
-          `SELECT notes_tag_id FROM notes_tag 
+          `SELECT notes_tag_id FROM notes_tag
            WHERE notes_tag_id = ANY($1) AND (builder_id = $2 OR company_id = $3)`,
           [parsedNoteTagId, builderId, companyId]
         );
@@ -385,9 +394,9 @@ export async function updateNote(req, res) {
     fields.push("updated_at = NOW()");
 
     const updateQuery = `
-      UPDATE notes 
-      SET ${fields.join(", ")} 
-      WHERE notes_id = $${index} 
+      UPDATE notes
+      SET ${fields.join(", ")}
+      WHERE notes_id = $${index}
       RETURNING *
     `;
 
@@ -399,9 +408,12 @@ export async function updateNote(req, res) {
 
     const enrichedNoteQuery = `
       SELECT n.*,
-        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name)) 
-         FROM notes_tag nt 
+        (SELECT json_agg(json_build_object('id', nt.notes_tag_id, 'name', nt.name))
+         FROM notes_tag nt
          WHERE nt.notes_tag_id = ANY(n.note_tag_id)) AS note_tags,
+        (SELECT json_build_object('id', t.task_id, 'taskname', t.name, 'due_date', t.due_date)
+         FROM task t 
+         WHERE t.task_id = n.task_id) AS task,
         (SELECT name FROM users WHERE users_id = l.created_by) AS createdbyname
       FROM notes n
       JOIN leads l ON n.leads_id = l.leads_id

@@ -756,7 +756,12 @@ class QuotationRepository {
             json_build_object(
               'id', qv.structure_engineer_id,
               'name', se.name,
-              'price', qv.structure_engineer_price
+              'price', qv.structure_engineer_price,
+              'is_engineer_price_mismatch', CASE 
+                WHEN qv.structure_engineer_id IS NOT NULL AND se.price IS NOT NULL 
+                     AND qv.structure_engineer_price::numeric != se.price::numeric THEN true 
+                ELSE false 
+              END
             )
           ELSE NULL END as structural_engineer,
           l.name as location_name,
@@ -875,6 +880,7 @@ class QuotationRepository {
               'address_line2', pd.address_line2,
               'city', pd.city,
               'state_id', pd.state_id,
+              'state_name', s.name,
               'country_id', pd.country_id,
               'zip_code', pd.zip_code,
               'estate_id', pd.estate_id,
@@ -898,12 +904,15 @@ class QuotationRepository {
               'is_hl_package_lot', pd.is_hl_package_lot,
               'compaction_report_provider', pd.compaction_report_provider
             )
-            FROM property_detail pd WHERE pd.property_detail_id = leads.property_detail_id
-          ) as property_detail,
+            FROM property_detail pd 
+            LEFT JOIN state s ON pd.state_id = s.state_id
+            WHERE pd.property_detail_id = leads.property_detail_id
+          ) as property,
           (
             SELECT COALESCE(json_agg(json_build_object(
               'id', lcm.id,
               'users_id', u.users_id,
+              'name', u.name,
               'address', jsonb_build_object(
                 'address_line1', a.address_line1,
                 'address_line2', a.address_line2,

@@ -51,6 +51,13 @@ router.get(
   quotationController.getQuotationVersions,
 );
 
+router.get(
+  "/version-details/:quotation_version_id",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.getQuotationVersionById,
+);
+
+
 router.delete(
   "/:quotation_id",
   validateRequest(deleteQuotationSchema, REQUEST_SOURCE.PARAMS),

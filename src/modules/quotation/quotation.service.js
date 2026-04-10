@@ -96,9 +96,11 @@ class QuotationService {
             is_approve,
             sketch_number,
             package_id,
+            structure_engineer_id,
+            structure_engineer_price,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           RETURNING *
         `;
         const versionResult = await client.query(insertVersionQuery, [
@@ -110,6 +112,8 @@ class QuotationService {
           latestVersion ? latestVersion.floor_plan_id : null,
           latestVersion ? latestVersion.facade_id : null,
           latestVersion ? latestVersion.package_id : null,
+          latestVersion ? latestVersion.structure_engineer_id : null,
+          latestVersion ? latestVersion.structure_engineer_price : null,
         ]);
         const quotationVersion = versionResult.rows[0];
 
@@ -117,12 +121,32 @@ class QuotationService {
           // Copy Pricelist Item Maps
           await client.query(`
             INSERT INTO quotation_version_items (
-              quotation_version_id, price_list_item_id, price_list_item_description,
-              price_list_item_cost, quantity, total_price,
+              quotation_version_id, price_list_id, price_list_name, price_list_item_id, 
+              price_list_item_description, price_list_item_short_description, 
+              price_list_item_cost_type, price_list_item_cost_type_text, 
+              price_list_item_cost_option, price_list_item_cost, 
+              price_list_item_builder_cost, price_list_item_sort_order, 
+              price_list_item_uom, price_list_item_status, 
+              price_list_item_include_by_default, price_list_item_allow_remove_from_quotation, 
+              price_list_item_show_in_hl_package, price_list_item_package_only, 
+              price_list_item_range_id, price_list_item_dwelling_type_id, 
+              price_list_item_created_at, price_list_item_updated_at, 
+              package_id, package_name, package_cost, package_builder_cost, 
+              quantity, note, total_price, 
               created_at, updated_at
             )
-            SELECT $1, price_list_item_id, price_list_item_description,
-                   price_list_item_cost, quantity, total_price,
+            SELECT $1, price_list_id, price_list_name, price_list_item_id, 
+                   price_list_item_description, price_list_item_short_description, 
+                   price_list_item_cost_type, price_list_item_cost_type_text, 
+                   price_list_item_cost_option, price_list_item_cost, 
+                   price_list_item_builder_cost, price_list_item_sort_order, 
+                   price_list_item_uom, price_list_item_status, 
+                   price_list_item_include_by_default, price_list_item_allow_remove_from_quotation, 
+                   price_list_item_show_in_hl_package, price_list_item_package_only, 
+                   price_list_item_range_id, price_list_item_dwelling_type_id, 
+                   price_list_item_created_at, price_list_item_updated_at, 
+                   package_id, package_name, package_cost, package_builder_cost, 
+                   quantity, note, total_price, 
                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             FROM quotation_version_items
             WHERE quotation_version_id = $2
@@ -381,6 +405,41 @@ class QuotationService {
     }
   }
 
+  async getQuotationVersionById(versionId, builderId, companyId) {
+    try {
+      const client = getPool();
+      const checkQuery = `
+        SELECT qv.quotation_version_id
+        FROM quotation_version qv
+        JOIN quotation q ON qv.quotation_id = q.quotation_id
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
+      `;
+      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
+
+      if (checkResult.rowCount === 0) {
+        return {
+          success: false,
+          message: "Quotation version not found or unauthorized",
+        };
+      }
+
+      const version = await quotationRepository.getQuotationVersionDetailsById(versionId);
+
+      return {
+        success: true,
+        data: version ? [version] : [],
+        message: "Quotation version fetched successfully",
+      };
+    } catch (error) {
+      console.error("DEBUG: Error in getQuotationVersionById service:", error);
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async updateQuotationVersion(versionId, updateData, builderId, companyId, userId) {
     try {
       const client = getPool();
@@ -557,9 +616,13 @@ class QuotationService {
         // Clear related selections ONLY if they are not being explicitly updated right now
         if (updateData.package_id === undefined) updateData.package_id = null;
 
-        // Delete related pricelist item mappings
+        // Delete related pricelist item mappings and version items (snapshots)
         await client.query(
           "DELETE FROM quotation_version_pricelist_item_map WHERE quotation_version_id = $1",
+          [versionId],
+        );
+        await client.query(
+          "DELETE FROM quotation_version_items WHERE quotation_version_id = $1",
           [versionId],
         );
       }
@@ -717,14 +780,32 @@ class QuotationService {
       // 5. Copy quotation version items (Snapshots)
       await client.query(`
         INSERT INTO quotation_version_items (
-          quotation_version_id, price_list_item_id, price_list_item_description,
-          price_list_item_cost, quantity, total_price,
-          package_id, package_name, package_cost, package_builder_cost,
+          quotation_version_id, price_list_id, price_list_name, price_list_item_id, 
+          price_list_item_description, price_list_item_short_description, 
+          price_list_item_cost_type, price_list_item_cost_type_text, 
+          price_list_item_cost_option, price_list_item_cost, 
+          price_list_item_builder_cost, price_list_item_sort_order, 
+          price_list_item_uom, price_list_item_status, 
+          price_list_item_include_by_default, price_list_item_allow_remove_from_quotation, 
+          price_list_item_show_in_hl_package, price_list_item_package_only, 
+          price_list_item_range_id, price_list_item_dwelling_type_id, 
+          price_list_item_created_at, price_list_item_updated_at, 
+          package_id, package_name, package_cost, package_builder_cost, 
+          quantity, note, total_price, 
           created_at, updated_at
         )
-        SELECT $1, price_list_item_id, price_list_item_description,
-               price_list_item_cost, quantity, total_price,
-               package_id, package_name, package_cost, package_builder_cost,
+        SELECT $1, price_list_id, price_list_name, price_list_item_id, 
+               price_list_item_description, price_list_item_short_description, 
+               price_list_item_cost_type, price_list_item_cost_type_text, 
+               price_list_item_cost_option, price_list_item_cost, 
+               price_list_item_builder_cost, price_list_item_sort_order, 
+               price_list_item_uom, price_list_item_status, 
+               price_list_item_include_by_default, price_list_item_allow_remove_from_quotation, 
+               price_list_item_show_in_hl_package, price_list_item_package_only, 
+               price_list_item_range_id, price_list_item_dwelling_type_id, 
+               price_list_item_created_at, price_list_item_updated_at, 
+               package_id, package_name, package_cost, package_builder_cost, 
+               quantity, note, total_price, 
                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         FROM quotation_version_items
         WHERE quotation_version_id = $2
