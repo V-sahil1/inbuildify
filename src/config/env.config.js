@@ -45,4 +45,9 @@ export const env = {
     FILE_TYPES: getEnvValue("FILE_TYPES"),
     FILE_SIZE: getEnvValue("FILE_SIZE"),
   },
+  REDIS: {
+    REDIS_HOST: getEnvValue("REDIS_HOST"),
+    REDIS_PORT: getEnvValue("REDIS_PORT"),
+    REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
+  },
 };
