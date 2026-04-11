@@ -107,14 +107,35 @@ export const createUpload = (folderName = "uploads") =>
   }));
 
 export const deleteFromS3 = async (fileUrl) => {
-  if (!fileUrl) {
+  if (!fileUrl || typeof fileUrl !== "string") {
     return;
   }
 
   try {
     const bucketName = env.AWS.S3_BUCKET_NAME;
-    const url = new URL(fileUrl);
-    const key = decodeURIComponent(url.pathname.substring(1));
+    let key;
+
+    // If it's a full URL, extract the key
+    if (fileUrl.startsWith("http")) {
+      try {
+        const url = new URL(fileUrl);
+        key = decodeURIComponent(url.pathname.substring(1));
+
+        // If the bucket name is part of the path (e.g. s3.amazonaws.com/bucket/key)
+        if (key.startsWith(`${bucketName}/`)) {
+          key = key.substring(bucketName.length + 1);
+        }
+      } catch (e) {
+        key = fileUrl;
+      }
+    } else {
+      // Assume it's already a key
+      key = fileUrl;
+    }
+
+    if (!key) {
+      return;
+    }
 
     await s3Client.send(
       new DeleteObjectCommand({
@@ -122,9 +143,9 @@ export const deleteFromS3 = async (fileUrl) => {
         Key: key,
       }),
     );
-    console.log(`Deleted old file from S3: ${key}`);
+    console.log(`Successfully deleted from S3: ${key}`);
   } catch (err) {
-    console.error("Error deleting old file from S3:", err.message);
+    console.error("Error deleting from S3:", fileUrl, "-", err.message);
   }
 };
 

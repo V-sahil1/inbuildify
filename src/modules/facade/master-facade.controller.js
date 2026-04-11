@@ -514,47 +514,47 @@ export async function updateMasterFacade(req, res) {
       }
     }
 
-    if (currentStatus === false) {
-      const performingActivation = statusInBody && requestedStatus === true;
+    // if (currentStatus === false) {
+    //   const performingActivation = statusInBody && requestedStatus === true;
 
-      if (statusInBody && requestedStatus === false) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Facade is already Inactive. 'status' can only be updated to true (Active) from this state.",
-        );
-      }
+    //   if (statusInBody && requestedStatus === false) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Facade is already Inactive. 'status' can only be updated to true (Active) from this state.",
+    //     );
+    //   }
 
-      if (updatingOtherFields && !performingActivation) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "Cannot update non-'status' fields when the facade is currently Inactive. Only 'status' can be changed (to true/Active).",
-        );
-      }
+    //   if (updatingOtherFields && !performingActivation) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "Cannot update non-'status' fields when the facade is currently Inactive. Only 'status' can be changed (to true/Active).",
+    //     );
+    //   }
 
-      if (performingActivation && updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To activate an inactive facade, 'status' must be the only field provided in the request.",
-        );
-      }
-    }
+    //   if (performingActivation && updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To activate an inactive facade, 'status' must be the only field provided in the request.",
+    //     );
+    //   }
+    // }
 
-    if (currentStatus === true && statusInBody && requestedStatus === false) {
-      if (updatingOtherFields) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          403,
-          "To deactivate an active facade, 'status' must be the only field provided in the request.",
-        );
-      }
-    }
+    // if (currentStatus === true && statusInBody && requestedStatus === false) {
+    //   if (updatingOtherFields) {
+    //     await client.query("ROLLBACK");
+    //     return errorResponse(
+    //       res,
+    //       403,
+    //       "To deactivate an active facade, 'status' must be the only field provided in the request.",
+    //     );
+    //   }
+    // }
 
     if (statusInBody) {
       updates.status = requestedStatus;
@@ -676,12 +676,21 @@ export async function updateMasterFacade(req, res) {
       }
     }
 
+    // Handle image update/removal
     if (imageUrl) {
+      // New file uploaded
       if (existingFacade.image) {
         await deleteFromS3(existingFacade.image);
       }
       setClauses.push(`image = $${values.length + 1}`);
       values.push(imageUrl);
+    } else if (updates.image === null || updates.image === "") {
+      // Explicitly requested removal of existing image
+      if (existingFacade.image) {
+        await deleteFromS3(existingFacade.image);
+      }
+      setClauses.push(`image = $${values.length + 1}`);
+      values.push(null);
     }
 
     if (setClauses.length === 0) {
