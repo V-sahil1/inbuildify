@@ -1395,7 +1395,12 @@ class QuotationRepository {
   async getQuotationFilterOptions(builderId, companyId) {
     const client = await this.pool.connect();
     try {
-      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+      // Base options on leads (and their contacts), not only leads that already have
+      // quotation rows — otherwise the dropdown stays empty until every lead has a quote.
+      const whereClause = companyId
+        ? "(l.builder_id = $1 OR l.company_id = $2)"
+        : "l.builder_id = $1";
+      const params = companyId ? [builderId, companyId] : [builderId];
       const query = `
         SELECT DISTINCT
           option_type,
@@ -1404,8 +1409,7 @@ class QuotationRepository {
           leads_id,
           customer_name,
           contact_name
-        FROM quotation q
-        JOIN leads l ON q.leads_id = l.leads_id
+        FROM leads l
         LEFT JOIN leads_contact_map lcm ON l.leads_id = lcm.leads_id
         LEFT JOIN users u ON lcm.contact_id = u.users_id
         CROSS JOIN LATERAL (
@@ -1435,12 +1439,12 @@ class QuotationRepository {
               COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact')
             )
         ) AS opts(option_type, option_id, option_label, leads_id, customer_name, contact_name)
-        WHERE (l.builder_id = $1${companyCondition})
+        WHERE ${whereClause}
           AND opts.option_label IS NOT NULL
           AND opts.option_id <> ''
         ORDER BY option_label ASC
       `;
-      const result = await client.query(query, [builderId]);
+      const result = await client.query(query, params);
       return result.rows.map(row => keysToCamelCase(row));
     } finally {
       client.release();
