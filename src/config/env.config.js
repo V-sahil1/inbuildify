@@ -50,4 +50,17 @@ export const env = {
     REDIS_PORT: getEnvValue("REDIS_PORT"),
     REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
   },
+  DOCUSIGN: {
+    BASE_URL: getEnvValue("DOCUSIGN_BASE_URL") || "https://demo.docusign.net/restapi",
+    OAUTH_BASE_PATH: getEnvValue("DOCUSIGN_OAUTH_BASE_PATH") || "account-d.docusign.com",
+    CLIENT_ID: getEnvValue("DOCUSIGN_CLIENT_ID"),
+    USER_ID: getEnvValue("DOCUSIGN_USER_ID"),
+    RSA_KEY: getEnvValue("DOCUSIGN_RSA_KEY"),
+    WEBHOOK_URL: getEnvValue("DOCUSIGN_WEBHOOK_URL"),
+    WEBHOOK_SECRET: getEnvValue("DOCUSIGN_WEBHOOK_SECRET"),
+    QUOTATION_TEMPLATE_ID: getEnvValue("DOCUSIGN_QUOTATION_TEMPLATE_ID"),
+    AGREEMENT_TEMPLATE_ID: getEnvValue("DOCUSIGN_AGREEMENT_TEMPLATE_ID"),
+    SIGNING_REDIRECT_URL: getEnvValue("DOCUSIGN_SIGNING_REDIRECT_URL"),
+    EXPIRATION_DAYS: getEnvValue("DOCUSIGN_EXPIRATION_DAYS") || 30,
+  },
 };

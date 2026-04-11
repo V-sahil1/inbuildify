@@ -151,6 +151,7 @@ import smsRoutes from "../modules/sms/sms.routes.js";
 import notesRoutes from "../modules/notes/notes.routes.js";
 import structureEngineerRoutes from "../modules/structure-engineer/structure-engineer.routes.js";
 import quotationVersionItemRoutes from "../modules/quotation-version-item/quotation-version-item.routes.js";
+import docusignRoutes from "../modules/docusign/docusign.routes.js";
 
 export default function (app) {
   app.use("/country", countryRoutes);
@@ -323,4 +324,5 @@ export default function (app) {
   app.use("/notes", notesRoutes);
   app.use("/structure-engineer", structureEngineerRoutes);
   app.use("/quotation-version-items", quotationVersionItemRoutes);
+  app.use("/docusign", docusignRoutes);
 }
