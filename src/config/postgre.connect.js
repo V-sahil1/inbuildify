@@ -1,4 +1,5 @@
 import db, { initModels } from "../config/database/models/postgre-models/index.js";
+import { runPendingMigrations } from "../config/database/migrationRunner.js";
 import { ensureDatabase } from "./db-bootstrap.js";
 import { runDeveloperEssentialSeeds } from "../seeder/seedDeveloperEssentials.js";
 
@@ -10,9 +11,10 @@ export const connectPostgre = async () => {
     // Step 2: Initialize Sequelize models
     await initModels();
 
-    // Step 3: Authenticate and sync schema
+    // Step 3: Authenticate, apply SQL migrations, then sync models to the DB
     await db.sequelize.authenticate();
-    await db.sequelize.sync({ alter : true });
+    await runPendingMigrations(db.sequelize);
+    await db.sequelize.sync({ alter: true });
     console.log("Database connected successfully");
 
     // Step 4: Auto-seed essentials if database was just created
