@@ -266,6 +266,128 @@ export async function getAllJobs(req, res) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+//  GET /job/:job_id  — full detail of a single job
+// ──────────────────────────────────────────────────────────────────────────────
+export async function getJobById(req, res) {
+  const { job_id } = req.params;
+  const builderId = req.user?.builder_id;
+  const companyId = req.user?.company_id;
+
+  if (!builderId && !companyId) {
+    return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+  }
+
+  const pool = getPool();
+
+  try {
+    const jobSQL = `
+      SELECT
+        j.job_id,
+        j.reference_number,
+        j.status,
+        j.job_note,
+        j.builder_id,
+        j.company_id,
+        j.quotation_version_id,
+        j.created_at,
+        j.updated_at,
+
+        -- Customer
+        l.leads_id,
+        l.name                               AS customer_name,
+        l.email                              AS customer_email,
+        l.phone                              AS customer_phone,
+
+        -- Property / address
+        pd.estate_name,
+        pd.title_date,
+        pd.title_status,
+        COALESCE(
+          NULLIF(TRIM(
+            CONCAT_WS(', ',
+              NULLIF(TRIM(COALESCE(pd.lot_number,    '')), ''),
+              NULLIF(TRIM(COALESCE(pd.street,        '')), ''),
+              NULLIF(TRIM(COALESCE(pd.address_line1, '')), ''),
+              NULLIF(TRIM(COALESCE(pd.address_line2, '')), ''),
+              NULLIF(TRIM(COALESCE(pd.city,          '')), ''),
+              NULLIF(TRIM(COALESCE(st.name,          '')), ''),
+              NULLIF(TRIM(COALESCE(pd.zip_code,      '')), '')
+            )
+          ), ''),
+          'N/A'
+        )                                    AS job_address,
+
+        -- Builder
+        b.name                               AS builder_name,
+
+        -- Lead source
+        ls.name                              AS lead_source_name,
+
+        -- Consultant (lead assignee)
+        u.users_id                           AS consultant_id,
+        u.name                               AS consultant_name,
+        u.initials                           AS consultant_initials,
+        u.email                              AS consultant_email,
+
+        -- Quotation total (sum of all items on the linked version)
+        COALESCE((
+          SELECT SUM(qvi.total_price)
+          FROM quotation_version_items qvi
+          WHERE qvi.quotation_version_id = j.quotation_version_id
+        ), 0)                                AS quotation_total,
+
+        -- Total paid (sum of deposited amounts from invoices)
+        COALESCE((
+          SELECT SUM(i.deposite_amount)
+          FROM invoice i
+          WHERE i.leads_id = l.leads_id
+        ), 0)                                AS total_paid,
+
+        -- Invoice list as JSON array
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'invoiceId',        i.invoice_id,
+            'referenceNumber',  i.reference_number,
+            'invoiceAmount',    i.invoice_amount,
+            'depositAmount',    i.deposite_amount,
+            'status',           i.status
+          ) ORDER BY i.created_at)
+          FROM invoice i
+          WHERE i.leads_id = l.leads_id
+        ), '[]')                             AS invoices
+
+      FROM job j
+      JOIN opportunity          o  ON j.opportunity_id     = o.opportunity_id
+      JOIN leads                l  ON o.leads_id            = l.leads_id
+      LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
+      LEFT JOIN state           st ON pd.state_id           = st.state_id
+      LEFT JOIN users           u  ON l.assignee_id         = u.users_id
+      LEFT JOIN builder         b  ON j.builder_id          = b.builder_id
+      LEFT JOIN lead_source     ls ON l.lead_source_id      = ls.lead_source_id
+      WHERE j.job_id = $1
+        AND (j.builder_id = $2 OR (j.company_id = $3 AND $3 IS NOT NULL))
+    `;
+
+    const result = await pool.query(jobSQL, [job_id, builderId, companyId]);
+
+    if (result.rowCount === 0) {
+      return errorResponse(res, 404, "Job not found or unauthorized");
+    }
+
+    const row = result.rows[0];
+    const camelRow = keysToCamelCase(row);
+
+    // invoices is already a JSON array from PostgreSQL — keep it as-is (keys are already camelCase)
+    camelRow.invoices = row.invoices ?? [];
+
+    return successResponse(res, camelRow, "Job detail fetched successfully");
+  } catch (error) {
+    console.error("getJobById error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 //  POST /job/opportunity/:opportunity_id/convert
 // ──────────────────────────────────────────────────────────────────────────────
 export async function convertOpportunityToJob(req, res) {

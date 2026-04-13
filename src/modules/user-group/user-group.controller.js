@@ -1,6 +1,8 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { QueryTypes } from "sequelize";
 
 export async function createUserGroup(req, res) {
   const pool = getPool();
@@ -155,7 +157,7 @@ export async function getAllUserGroups(req, res) {
 
   try {
     const builderId = req.user?.builder_id;
-    const { is_active, page = 1, limit = 25 } = req.query;
+    const { is_active, search = "", page = 1, limit = 25 } = req.query;
 
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
@@ -180,9 +182,22 @@ export async function getAllUserGroups(req, res) {
     const params = [builderId];
     let paramIndex = 2;
 
-    if (is_active !== undefined && is_active !== "") {
+    const parsedIsActive =
+      is_active === undefined || is_active === ""
+        ? undefined
+        : typeof is_active === "boolean"
+          ? is_active
+          : is_active === "true";
+
+    if (parsedIsActive !== undefined) {
       baseQuery += ` AND is_active = $${paramIndex}`;
-      params.push(is_active === "true");
+      params.push(parsedIsActive);
+      paramIndex++;
+    }
+
+    if (search) {
+      baseQuery += ` AND name ILIKE $${paramIndex}`;
+      params.push(`%${search}%`);
       paramIndex++;
     }
 
@@ -194,9 +209,15 @@ export async function getAllUserGroups(req, res) {
     const countParams = [builderId];
     let countIndex = 2;
 
-    if (is_active !== undefined && is_active !== "") {
+    if (parsedIsActive !== undefined) {
       countQuery += ` AND is_active = $${countIndex}`;
-      countParams.push(is_active === "true");
+      countParams.push(parsedIsActive);
+      countIndex++;
+    }
+
+    if (search) {
+      countQuery += ` AND name ILIKE $${countIndex}`;
+      countParams.push(`%${search}%`);
       countIndex++;
     }
 

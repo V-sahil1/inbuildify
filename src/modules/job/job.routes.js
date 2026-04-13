@@ -1,5 +1,5 @@
 import express from "express";
-import { convertOpportunityToJob, getAllJobs, updateJobStatus } from "./job.controller.js";
+import { convertOpportunityToJob, getAllJobs, getJobById, updateJobStatus } from "./job.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
@@ -14,6 +14,9 @@ router.use(roleMiddleware);
 
 // GET /job — list all jobs with pagination, filtering, sorting
 router.get("/", getAllJobs);
+
+// GET /job/:job_id — fetch full detail of a single job
+router.get("/:job_id", getJobById);
 
 // POST /job/opportunity/:opportunity_id/convert — convert opportunity to job
 router.post(

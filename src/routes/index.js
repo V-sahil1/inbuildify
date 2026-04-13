@@ -104,6 +104,7 @@ import surveyTemplateQuestionRoutes from "../modules/survey-template-question/su
 import packageGroupRoutes from "../modules/package-group/package-group.routes.js";
 import packagePriceListItemMapRoutes from "../modules/package-pricelist-item-map/package-pricelist-item-map.routes.js";
 import taskRoutes from "../modules/task/task.routes.js";
+import todoRoutes from "../modules/todo/todo.routes.js";
 import locationRoutes from "../modules/location/location.routes.js";
 import estateRoutes from "../modules/estate/estate.routes.js";
 import estateFeatureRoutes from "../modules/estate-feature/estate-feature.routes.js";
@@ -269,6 +270,7 @@ export default function (app) {
   app.use("/package-group", packageGroupRoutes);
   app.use("/package-price-list-item-map", packagePriceListItemMapRoutes);
   app.use("/task", taskRoutes);
+  app.use("/todo", todoRoutes);
   app.use("/location", locationRoutes);
   app.use("/estate", estateRoutes);
   app.use("/estate-feature", estateFeatureRoutes);
