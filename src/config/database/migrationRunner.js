@@ -14,11 +14,13 @@ export function createMigrationUmzug(sequelize) {
       resolve: ({ name, path: migrationPath, context }) => ({
         name,
         up: async () => {
-          const { default: migration } = await import(pathToFileURL(migrationPath).href);
+          const mod = await import(pathToFileURL(migrationPath).href);
+          const migration = mod.default ?? { up: mod.up, down: mod.down };
           await migration.up(context, Sequelize);
         },
         down: async () => {
-          const { default: migration } = await import(pathToFileURL(migrationPath).href);
+          const mod = await import(pathToFileURL(migrationPath).href);
+          const migration = mod.default ?? { up: mod.up, down: mod.down };
           await migration.down(context, Sequelize);
         },
       }),
