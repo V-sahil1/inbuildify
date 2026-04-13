@@ -120,6 +120,7 @@ export async function seedBuilderDefaults({ company_id, builder_id, created_by, 
   await seedPriceList(ctx);
 
   console.log("✅ All default settings seeded for builder:", builder_id);
+  
 }
 
 export default { seedBuilderDefaults };

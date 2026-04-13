@@ -2,6 +2,9 @@
 
 export default {
   async up(queryInterface, Sequelize) {
+    const tableExists = await queryInterface.tableExists("structure_engineer");
+    if (!tableExists) return;
+
     const table = await queryInterface.describeTable("structure_engineer");
     if (table.price) {
       return;
@@ -14,6 +17,9 @@ export default {
   },
 
   async down(queryInterface) {
+    const tableExists = await queryInterface.tableExists("structure_engineer");
+    if (!tableExists) return;
+
     const table = await queryInterface.describeTable("structure_engineer");
     if (!table.price) {
       return;

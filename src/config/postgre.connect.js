@@ -11,10 +11,13 @@ export const connectPostgre = async () => {
     // Step 2: Initialize Sequelize models
     await initModels();
 
-    // Step 3: Authenticate, apply SQL migrations, then sync models to the DB
+    // Step 3: Authenticate, then sync models to the DB first.
+    // This ensures tables exist before migrations run, as migrations often
+    // use queryInterface.describeTable() which fails if the table is missing.
     await db.sequelize.authenticate();
-    await runPendingMigrations(db.sequelize);
     await db.sequelize.sync({ alter: true });
+    await runPendingMigrations(db.sequelize);
+
     console.log("Database connected successfully");
 
     // Step 4: Auto-seed essentials if database was just created

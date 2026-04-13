@@ -2,6 +2,9 @@
 
 export default {
   async up(queryInterface, Sequelize) {
+    const tableExists = await queryInterface.tableExists("quotation_version");
+    if (!tableExists) return;
+
     const table = await queryInterface.describeTable("quotation_version");
 
     if (!table.structure_engineer_id) {

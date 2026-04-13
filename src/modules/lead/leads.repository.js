@@ -487,25 +487,31 @@ async getLeadById(leadId, builderId, companyId) {
                   'is_approve', qv.is_approve,
                   'sketch_number', qv.sketch_number,
                   'total_package_cost', COALESCE(
-                    (SELECT p.cost
-                     FROM package p
-                     WHERE p.package_id = qv.package_id), 0
+                    (SELECT package_cost 
+                     FROM quotation_version_items 
+                     WHERE quotation_version_id = qv.quotation_version_id 
+                     AND package_id IS NOT NULL 
+                     LIMIT 1), 0
                   ),
                   'total_pricelist_cost', COALESCE(
                     (SELECT SUM(total_price)
-                     FROM quotation_version_pricelist_item_map qvpim
-                     WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                     FROM quotation_version_items
+                     WHERE quotation_version_id = qv.quotation_version_id
+                     AND package_id IS NULL), 0
                   ),
                   'grand_total_cost', (
                     COALESCE(
-                      (SELECT p.cost
-                       FROM package p
-                       WHERE p.package_id = qv.package_id), 0
+                      (SELECT package_cost 
+                       FROM quotation_version_items 
+                       WHERE quotation_version_id = qv.quotation_version_id 
+                       AND package_id IS NOT NULL 
+                       LIMIT 1), 0
                     ) + COALESCE(
                       (SELECT SUM(total_price)
-                       FROM quotation_version_pricelist_item_map qvpim
-                       WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-                    )
+                       FROM quotation_version_items
+                       WHERE quotation_version_id = qv.quotation_version_id
+                       AND package_id IS NULL), 0
+                    ) + COALESCE(qv.structure_engineer_price, 0)
                   ),
                   'package', (
                     SELECT json_build_object(

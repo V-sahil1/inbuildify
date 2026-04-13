@@ -91,7 +91,7 @@ export const createFloorPlanSchema = Joi.object({
   detailed_image: imageRule.optional(),
   simple_image: imageRule.optional(),
 
-  description: Joi.string().allow(null, ""),
+  description: Joi.string().allow(null, "").max(500),
   status: Joi.boolean().default(true),
 });
 
@@ -182,8 +182,9 @@ export const updateFloorPlanSchema = Joi.object({
   detailed_image: imageRule.optional(),
   simple_image: imageRule.optional(),
 
-  description: Joi.string().allow(null, "").optional(),
+  description: Joi.string().allow(null, "").max(500).optional(),
   status: Joi.boolean(),
+  
 });
 
 export const updateFloorPlanParamsSchema = Joi.object({

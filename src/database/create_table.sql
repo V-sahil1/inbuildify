@@ -3534,6 +3534,8 @@ CREATE TABLE quotation_version_items (
   price_list_item_dwelling_type_id UUID[] DEFAULT '{}',
   price_list_item_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   price_list_item_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  extra_type VARCHAR(50) DEFAULT NULL,
+  extra_item BOOLEAN DEFAULT FALSE,
   package_id UUID DEFAULT NULL,
   package_name VARCHAR(200) DEFAULT NULL,
   package_cost NUMERIC(12,2) DEFAULT NULL,

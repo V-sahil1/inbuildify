@@ -130,6 +130,14 @@ export default (sequelize) => {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: true,
       },
+      extra_type: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      extra_item: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
       createdAt: {
         type: DataTypes.DATE,
         field: "created_at",

@@ -1329,6 +1329,7 @@ export default {
   updateTask,
   deleteTask,
   getTasks,
+  createSubTask,
   updateSubTask,
   deleteSubTask,
   getSubTasks,
