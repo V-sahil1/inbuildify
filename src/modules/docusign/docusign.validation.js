@@ -43,13 +43,18 @@ export const sendQuotationEsignBodySchema = Joi.object({
   useEmbeddedSigning: Joi.boolean().default(false),
 });
 
-// Get signing URL - query
+// Get signing URL - query (UPDATED FOR DYNAMIC SIGNERS)
 export const getSigningUrlSchema = Joi.object({
   returnUrl: Joi.string().uri().optional().messages({
     "string.uri": "Return URL must be a valid URI",
   }),
+  signerEmail: Joi.string().email().required().messages({
+    "any.required": "Signer email is required to generate their unique link"
+  }),
+  signerName: Joi.string().required().messages({
+    "any.required": "Signer name is required"
+  })
 });
-
 
 export const cancelEsignSchema = Joi.object({
   voidReason: Joi.string().max(255).required()

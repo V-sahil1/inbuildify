@@ -94,12 +94,12 @@ class DocuSignController {
   }
 
   /**
-   * Get signing URL for embedded signing
+   * Get signing URL for embedded signing (UPDATED)
    */
   async getSigningUrl(req, res) {
     try {
       const { envelope_id } = req.params;
-      const { return_url } = req.query;
+      const { return_url, signer_email, signer_name } = req.query;
       const { builder_id, company_id } = req.user;
 
       const client = getPool();
@@ -114,14 +114,13 @@ class DocuSignController {
 
       if (checkResult.rowCount === 0) return errorResponse(res, 404, "Envelope not found or unauthorized");
 
-      const envelope = checkResult.rows[0];
-      const finalReturnUrl = return_url || docusignConfig.frontendUrl;
+      const finalReturnUrl = return_url || docusignConfig.signingRedirectUrl || "https://localhost:3000";
 
       const result = await docusignService.getRecipientViewUrl(
         envelope_id,
         finalReturnUrl,
-        envelope.signer_email,
-        envelope.signer_name
+        signer_email,
+        signer_name
       );
 
       return successResponse(res, 200, { signingUrl: result.url });
