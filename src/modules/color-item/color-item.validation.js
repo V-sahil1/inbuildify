@@ -303,13 +303,31 @@ export const updateColorItemSchema = Joi.object({
         "Units must be one of: mandatory, non_mandatory, not_required",
     }),
 
-  color_image: Joi.string().trim().max(500).allow("").optional().messages({
+  color_image: Joi.string().trim().max(500).allow("", null).optional().messages({
     "string.max": "Color image must not exceed 500 characters",
   }),
 
-  specification: Joi.string().trim().max(500).allow("").optional().messages({
+  specification: Joi.string().trim().max(500).allow("", null).optional().messages({
     "string.max": "Specification must not exceed 500 characters",
   }),
+
+  // color_image: Joi.array()
+  //   .items(Joi.string().uri())
+  //   .optional()
+  //   .allow(null)
+  //   .messages({
+  //     "array.base": "Color image must be an array",
+  //     "array.includes": "Color image must be a valid URL",
+  //   }),
+
+  // specification: Joi.array()
+  //   .items(Joi.string().uri())
+  //   .optional()
+  //   .allow(null)
+  //   .messages({
+  //     "array.base": "Specification must be an array",
+  //     "array.includes": "Specification must be a valid URL",
+  //   }),
 
   range_id: Joi.array().optional().allow(null).messages({
     "array.base": "Range ID must be an array",

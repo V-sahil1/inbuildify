@@ -686,7 +686,7 @@ class QuotationService {
         // Delete version items (snapshots)
         const deleteItemsQuery = isCompactionMandatory
           ? `DELETE FROM quotation_version_items 
-             WHERE quotation_version_id = $1 AND price_list_item_description != 'Compaction Report Charge'`
+             WHERE quotation_version_id = $1 AND (price_list_item_description != 'Compaction Report Charge' OR package_id IS NOT NULL)`
           : `DELETE FROM quotation_version_items WHERE quotation_version_id = $1`;
 
         await client.query(deleteItemsQuery, [versionId]);

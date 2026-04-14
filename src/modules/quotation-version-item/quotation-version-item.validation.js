@@ -50,6 +50,9 @@ export const getItemsByVersionParamsSchema = Joi.object({
 });
 
 export const getItemsByVersionQuerySchema = Joi.object({
+  package_id: Joi.string().uuid().optional().messages({
+    "string.guid": "Package ID must be a valid UUID",
+  }),
   range_id: Joi.string().uuid().optional().messages({
     "string.guid": "Range ID must be a valid UUID",
   }),

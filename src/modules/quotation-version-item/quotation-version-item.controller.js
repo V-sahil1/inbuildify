@@ -289,7 +289,7 @@ export async function getQuotationVersionItems(req, res) {
 
   try {
     const { quotation_version_id } = req.params;
-    const { range_id, dwelling_type_id } = req.query;
+    const { range_id, dwelling_type_id, package_id } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -309,6 +309,11 @@ export async function getQuotationVersionItems(req, res) {
     if (dwelling_type_id) {
       values.push(dwelling_type_id);
       queryFilters += ` AND ($${values.length} = ANY(qvi.price_list_item_dwelling_type_id) OR qvi.price_list_item_dwelling_type_id = '{}'::uuid[])`;
+    }
+
+    if (package_id) {
+      values.push(package_id);
+      queryFilters += ` AND (qvi.package_id IS NULL OR qvi.package_id != $${values.length})`;
     }
 
     const query = `

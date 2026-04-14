@@ -797,7 +797,7 @@ export async function updateColorItem(req, res) {
 
     const existingCheck = await client.query(
       `
-      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost, sort_order, color_category_id
+      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost, sort_order, color_category_id, specification
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
@@ -1293,13 +1293,35 @@ export async function updateColorItem(req, res) {
         return errorResponse(res, 400, "Invalid default image index.");
       }
 
-      const colorImageJson = colorImages.map((file, index) => ({
+      let existingColorImages = [];
+      if (existing.color_image) {
+        try {
+          existingColorImages =
+            typeof existing.color_image === "string"
+              ? JSON.parse(existing.color_image)
+              : existing.color_image;
+        } catch (error) {
+          console.error("Error parsing existing color images:", error);
+        }
+      }
+
+      // If a new default is set, remove default from all existing images
+      if (hasDefaultIndex) {
+        existingColorImages = existingColorImages.map((img) => ({
+          ...img,
+          is_default: false,
+        }));
+      }
+
+      const newColorImages = colorImages.map((file, index) => ({
         url: file.location,
         is_default: hasDefaultIndex && index === defaultIndex,
       }));
 
+      const combinedColorImages = [...existingColorImages, ...newColorImages];
+
       updateFields.push(`color_image = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(colorImageJson));
+      updateValues.push(JSON.stringify(combinedColorImages));
     } else if (
       default_image_index !== undefined &&
       default_image_index !== ""
@@ -1339,12 +1361,28 @@ export async function updateColorItem(req, res) {
     }
 
     if (specificationImages.length > 0) {
-      const specificationJson = specificationImages.map((file) => ({
+      let existingSpecs = [];
+      if (existing.specification) {
+        try {
+          existingSpecs =
+            typeof existing.specification === "string"
+              ? JSON.parse(existing.specification)
+              : existing.specification;
+        } catch (error) {
+          console.error("Error parsing existing specifications:", error);
+        }
+      }
+
+      const newSpecs = specificationImages.map((file) => ({
         url: file.location,
+        type: file.mimetype.startsWith("image/") ? "image" : "pdf",
+        originalName: file.originalname,
       }));
 
+      const combinedSpecs = [...existingSpecs, ...newSpecs];
+
       updateFields.push(`specification = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(specificationJson));
+      updateValues.push(JSON.stringify(combinedSpecs));
     }
 
     if (status !== undefined) {
