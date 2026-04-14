@@ -868,14 +868,9 @@ class LeadsService {
       const appointmentsQuery = `
         SELECT 
           a.appointment_id, a.company_id, a.builder_id, a.title, a.date, 
-          a.start_time, a.end_time, a.location_id, a.link_to, a.lead_id, 
+          a.start_time, a.end_time, a.location_text, a.link_to, a.lead_id, 
           a.notes, a.send_appointment_customer, a.is_deleted, 
           a.created_by, a.updated_by, a.created_at, a.updated_at,
-          (
-            SELECT json_build_object('id', l.location_id, 'name', l.name)
-            FROM location l 
-            WHERE l.location_id = a.location_id
-          ) as location,
           (
             SELECT json_agg(json_build_object('id', u.users_id, 'name', u.name))
             FROM users u

@@ -43,8 +43,8 @@ export default (sequelize) => {
         type: DataTypes.TIME,
         allowNull: false,
       },
-      location_id: {
-        type: DataTypes.UUID,
+      location_text: {
+        type: DataTypes.STRING(500),
         allowNull: true,
       },
       link_to: {
