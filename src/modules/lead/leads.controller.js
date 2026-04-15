@@ -320,6 +320,40 @@ export async function getLeadStats(req, res) {
   }
 }
 
+export async function getSalesDashboard(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const {
+      user_id,
+      created_at,
+      created_at_from,
+      created_at_to,
+    } = req.query;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const filters = {
+      userId: user_id && user_id !== "all" ? user_id : null,
+      createdAt: created_at || null,
+      createdAtFrom: created_at_from || null,
+      createdAtTo: created_at_to || null,
+    };
+
+    const result = await leadsService.getSalesDashboard(builderId, filters);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+
+  } catch (error) {
+    console.error("Get sales dashboard error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
 export async function updateLeadStatus(req, res) {
   try {
     const { leads_id } = req.params;

@@ -382,6 +382,22 @@ class LeadsService {
     }
   }
 
+  async getSalesDashboard(builderId, filters = {}) {
+    try {
+      const data = await leadsRepository.getSalesDashboard(builderId, filters);
+      return {
+        success: true,
+        data,
+        message: "Sales dashboard data fetched successfully",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async updateLeadStatus(leadId, status, userId, builderId, companyId) {
     try {
       const existingLead = await leadsRepository.getLeadById(leadId, builderId, companyId);

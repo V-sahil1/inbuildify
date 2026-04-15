@@ -1,6 +1,21 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { deleteCacheByPrefix, getCache, setCache } from "../../service/redisCache.service.js";
+
+const WIDGET_CACHE_TTL_SECONDS = 3600;
+
+function getJobsCachePrefix(builderId, companyId) {
+  return `job:list:builder:${builderId || "na"}:company:${companyId || "na"}:`;
+}
+
+function getJobsCacheKey(req, builderId, companyId) {
+  const queryEntries = Object.entries(req.query || {}).sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
+  const queryPart = queryEntries
+    .map(([key, value]) => `${key}=${Array.isArray(value) ? value.join(",") : value}`)
+    .join("&");
+  return `${getJobsCachePrefix(builderId, companyId)}${queryPart || "default"}`;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 //  GET /job  — paginated, filtered, sorted job list
@@ -16,6 +31,12 @@ export async function getAllJobs(req, res) {
   const pool = getPool();
 
   try {
+    const cacheKey = getJobsCacheKey(req, builderId, companyId);
+    const cachedPayload = await getCache(cacheKey);
+    if (cachedPayload) {
+      return successResponse(res, cachedPayload, "Jobs fetched successfully");
+    }
+
     const toArray = (value) => {
       if (!value) return undefined;
       if (Array.isArray(value)) return value;
@@ -252,12 +273,16 @@ export async function getAllJobs(req, res) {
       }
     }
 
-    return successResponse(res, {
+    const payload = {
       jobs: keysToCamelCase(dataResult.rows),
       pagination: { page, limit, total, totalPages },
       statusSummary,
       totalJobs,
-    }, "Jobs fetched successfully");
+    };
+
+    await setCache(cacheKey, payload, WIDGET_CACHE_TTL_SECONDS);
+
+    return successResponse(res, payload, "Jobs fetched successfully");
 
   } catch (error) {
     console.error("getAllJobs error:", error);
@@ -440,6 +465,7 @@ export async function convertOpportunityToJob(req, res) {
         [lead_lost_reason_id, lead_lost_comment || null, opportunity.leads_id],
       );
       await client.query("COMMIT");
+      await deleteCacheByPrefix(getJobsCachePrefix(opportunity.builder_id, opportunity.company_id));
       return successResponse(res, {}, "Opportunity marked as lost and closed.");
     }
 
@@ -491,6 +517,7 @@ export async function convertOpportunityToJob(req, res) {
       );
 
       await client.query("COMMIT");
+      await deleteCacheByPrefix(getJobsCachePrefix(opportunity.builder_id, opportunity.company_id));
       return successResponse(
         res,
         keysToCamelCase(jobResult.rows[0]),
@@ -538,6 +565,7 @@ export async function updateJobStatus(req, res) {
     if (result.rowCount === 0) {
       return errorResponse(res, 404, "Job not found or unauthorised");
     }
+    await deleteCacheByPrefix(getJobsCachePrefix(builderId, companyId));
     return successResponse(res, keysToCamelCase(result.rows[0]), "Job status updated");
   } catch (error) {
     console.error("updateJobStatus error:", error);

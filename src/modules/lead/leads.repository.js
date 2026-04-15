@@ -1,5 +1,7 @@
 import getPool from "../../config/database.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { QueryTypes } from "sequelize";
 
 class LeadsRepository {
   constructor() {
@@ -931,7 +933,225 @@ async getLeadById(leadId, builderId, companyId) {
       client.release();
     }
   }
+
+  async getSalesDashboard(builderId, filters = {}) {
+    const {
+      userId = null,
+      createdAt = null,
+      createdAtFrom = null,
+      createdAtTo = null,
+    } = filters;
+
+    const whereConditions = ["l.builder_id = :builderId"];
+    const replacements = { builderId };
+
+    if (userId) {
+      whereConditions.push("l.assignee_id = :userId");
+      replacements.userId = userId;
+    }
+
+    if (createdAtFrom) {
+      whereConditions.push("l.created_at >= :createdAtFrom");
+      replacements.createdAtFrom = createdAtFrom;
+    }
+
+    if (createdAtTo) {
+      whereConditions.push("l.created_at <= :createdAtTo");
+      replacements.createdAtTo = createdAtTo;
+    }
+
+    if (createdAt && !createdAtFrom && !createdAtTo) {
+      const now = new Date();
+      let dateFilter = null;
+      let dateFilterEnd = null;
+
+      switch (String(createdAt).toLowerCase()) {
+        case "last_7_days":
+          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_15_days":
+          dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_30_days":
+          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          break;
+      }
+
+      if (dateFilter) {
+        whereConditions.push("l.created_at >= :createdAtStart");
+        replacements.createdAtStart = dateFilter.toISOString();
+      }
+
+      if (dateFilterEnd) {
+        whereConditions.push("l.created_at <= :createdAtEnd");
+        replacements.createdAtEnd = dateFilterEnd.toISOString();
+      }
+    }
+
+    const whereClause = whereConditions.join(" AND ");
+
+    // 1. Monthly leads for the last 6 months
+    const monthlyLeads = await db.sequelize.query(
+      `
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', l.created_at), 'Mon') AS month,
+          COUNT(*)::int AS total,
+          COUNT(CASE WHEN l.status = 'New' THEN 1 END)::int AS new_count,
+          COUNT(CASE WHEN l.status = 'Working' THEN 1 END)::int AS working_count,
+          COUNT(CASE WHEN l.status IN ('Convert', 'Qualified') THEN 1 END)::int AS converted_count
+        FROM leads l
+        WHERE ${whereClause}
+          AND l.created_at >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+        GROUP BY DATE_TRUNC('month', l.created_at)
+        ORDER BY DATE_TRUNC('month', l.created_at) ASC
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 2. Lead sources distribution — GROUP BY the coalesced value to avoid mismatch
+    const leadSources = await db.sequelize.query(
+      `
+        SELECT
+          COALESCE(ls.name, 'Unknown') AS source,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
+        WHERE ${whereClause}
+        GROUP BY COALESCE(ls.name, 'Unknown')
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 3. Top 5 performers by assigned leads
+    const topPerformers = await db.sequelize.query(
+      `
+        SELECT
+          u.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN users u ON l.assignee_id = u.users_id
+        WHERE ${whereClause} AND l.assignee_id IS NOT NULL
+        GROUP BY u.users_id, u.name
+        ORDER BY lead_count DESC
+        LIMIT 5
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 4. Overall summary by status
+    const overallSummary = await db.sequelize.query(
+      `
+        SELECT
+          COUNT(*)::int AS total_leads,
+          COUNT(CASE WHEN status = 'New' THEN 1 END)::int AS new_leads,
+          COUNT(CASE WHEN status = 'Working' THEN 1 END)::int AS working_leads,
+          COUNT(CASE WHEN status IN ('Convert', 'Qualified') THEN 1 END)::int AS converted_leads
+        FROM leads l
+        WHERE ${whereClause}
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 5. Top 10 floor plans via house_land_package
+    const topFloorplans = await db.sequelize.query(
+      `
+        SELECT
+          fp.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN house_land_package hlp ON l.house_land_package_id = hlp.house_land_package_id
+        JOIN floor_plan fp ON hlp.floor_plan_id = fp.floor_plan_id
+        WHERE ${whereClause}
+        GROUP BY fp.floor_plan_id, fp.name
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 6. Top 10 facades via house_land_package
+    const topFacades = await db.sequelize.query(
+      `
+        SELECT
+          f.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN house_land_package hlp ON l.house_land_package_id = hlp.house_land_package_id
+        JOIN facade f ON hlp.facade_id = f.facade_id
+        WHERE ${whereClause}
+        GROUP BY f.facade_id, f.name
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 7. Lead lost reasons — count each reason entry (no FK from leads to lost reason)
+    const lostReasons = await db.sequelize.query(
+      `
+        SELECT
+          llr.lost_reason AS name,
+          0::int AS lead_count
+        FROM lead_lost_reason llr
+        WHERE llr.builder_id = :builderId AND llr.is_active = true
+        ORDER BY llr.sort_order ASC
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return {
+      monthlyLeads: monthlyLeads.map(r => keysToCamelCase(r)),
+      leadSources: leadSources.map(r => ({
+        source: r.source,
+        count: r.lead_count,
+      })),
+      topPerformers: topPerformers.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      overallSummary: overallSummary.length > 0
+        ? keysToCamelCase(overallSummary[0])
+        : { totalLeads: 0, newLeads: 0, workingLeads: 0, convertedLeads: 0 },
+      topFloorplans: topFloorplans.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      topFacades: topFacades.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      leadLostReasons: lostReasons.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+    };
+  }
 }
 
 
-export default new LeadsRepository(); 
+export default new LeadsRepository();

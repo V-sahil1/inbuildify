@@ -1,12 +1,22 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { deleteCacheByPrefix, getCache, setCache } from "../../service/redisCache.service.js";
+
+const WIDGET_CACHE_TTL_SECONDS = 3600;
 
 export async function getDashboardData(req, res) {
   const pool = getPool();
   const client = await pool.connect();
   try {
     const builderId = req.user.builder_id;
+    const cacheKey = `dashboard:data:builder:${builderId}`;
+    const cachedPayload = await getCache(cacheKey);
+
+    if (cachedPayload) {
+      return successResponse(res, cachedPayload, "Dashboard data fetched successfully.");
+    }
+
     const query = `
     SELECT 
         (SELECT COUNT(*) FROM contractor WHERE builder_id = $1 AND is_deleted = false) AS contractor_count,
@@ -62,18 +72,18 @@ export async function getDashboardData(req, res) {
       lead_count,
       lead_data,
     } = result.rows[0];
-    return successResponse(
-      res,
-      keysToCamelCase({
-        contractor_count,
-        contractor_data,
-        users_count,
-        users_data,
-        lead_count,
-        lead_data,
-      }),
-      "Dashboard data fetched successfully.",
-    );
+    const payload = keysToCamelCase({
+      contractor_count,
+      contractor_data,
+      users_count,
+      users_data,
+      lead_count,
+      lead_data,
+    });
+
+    await setCache(cacheKey, payload, WIDGET_CACHE_TTL_SECONDS);
+
+    return successResponse(res, payload, "Dashboard data fetched successfully.");
   } catch (error) {
     console.error("Error in getDashboardData:", error);
     return errorResponse(
@@ -83,5 +93,30 @@ export async function getDashboardData(req, res) {
     );
   } finally {
     client.release();
+  }
+}
+
+export async function refreshWidgetsCache(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+    }
+
+    await Promise.all([
+      deleteCacheByPrefix(`dashboard:data:builder:${builderId || "na"}`),
+      deleteCacheByPrefix(`job:list:builder:${builderId || "na"}:company:${companyId || "na"}:`),
+    ]);
+
+    return successResponse(res, {}, "Widget cache refreshed successfully.");
+  } catch (error) {
+    console.error("Error in refreshWidgetsCache:", error);
+    return errorResponse(
+      res,
+      error?.statusCode || 400,
+      error?.message || "Internal Server Error",
+    );
   }
 }

@@ -9,6 +9,7 @@ import {
   updateLead,
   deleteLead,
   getLeadStats,
+  getSalesDashboard,
   updateLeadStatus,
   assignLead,
   forceCreateLead,
@@ -63,6 +64,9 @@ router.get(
 
 // Get lead statistics
 router.get("/stats", getLeadStats);
+
+// Get sales dashboard aggregated data
+router.get("/sales-dashboard", getSalesDashboard);
 
 // Get lead activity log
 router.get(
