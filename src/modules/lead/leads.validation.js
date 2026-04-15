@@ -238,6 +238,9 @@ export const getLeadActivityLogQuerySchema = Joi.object({
   action: Joi.string().max(255).optional().messages({
     "string.max": "Action must not exceed 255 characters",
   }),
+  search: Joi.string().max(255).optional().messages({
+    "string.max": "Search must not exceed 255 characters",
+  }),
 });
 
 export default  {

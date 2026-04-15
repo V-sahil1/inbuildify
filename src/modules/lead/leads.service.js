@@ -1,7 +1,7 @@
 import leadsRepository from "./leads.repository.js";
 import quotationService from "../quotation/quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
-import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/common.js";
+import { generateDynamicReferenceNumber, keysToCamelCase, formatCamelCaseToReadable } from "../../utils/common.js";
 import getPool from "../../config/database.js";
 
 class LeadsService {
@@ -927,7 +927,7 @@ class LeadsService {
         return { success: false, message: "Lead not found or access denied" };
       }
 
-      const { page = 1, limit = 20, module, action } = filters;
+      const { page = 1, limit = 20, module, action, search } = filters;
       const offset = (page - 1) * limit;
 
       const whereConditions = ["al.leads_id = $1"];
@@ -942,6 +942,15 @@ class LeadsService {
       if (action) {
         whereConditions.push(`al.action = $${paramIndex++}`);
         queryParams.push(action);
+      }
+
+      if (search) {
+        whereConditions.push(`(
+          u.name ILIKE $${paramIndex} OR 
+          al.description ILIKE $${paramIndex + 1}
+        )`);
+        queryParams.push(`%${search}%`, `%${search}%`);
+        paramIndex += 2;
       }
 
       const whereClause = whereConditions.join(" AND ");
@@ -966,13 +975,15 @@ class LeadsService {
         LEFT JOIN users u ON al.user_id = u.users_id
         WHERE ${whereClause}
         ORDER BY al.created_at DESC
-        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `;
       queryParams.push(limit, offset);
+      paramIndex += 2;
 
       const countQuery = `
         SELECT COUNT(*) AS total
         FROM lead_activity_log al
+        LEFT JOIN users u ON al.user_id = u.users_id
         WHERE ${whereClause}
       `;
 
@@ -983,10 +994,44 @@ class LeadsService {
 
       const total = parseInt(countResult.rows[0].total);
 
+      const activityLogs = keysToCamelCase(dataResult.rows);
+      
+      // Format activity log entries for professional presentation
+      activityLogs.forEach(log => {
+        // Capitalize names and modules
+        if (log.userName) log.userName = formatCamelCaseToReadable(log.userName);
+        if (log.recordName) log.recordName = formatCamelCaseToReadable(log.recordName);
+        if (log.module) log.module = formatCamelCaseToReadable(log.module);
+
+        if (log.action === 'UPDATE' && log.fieldName) {
+          const readableField = formatCamelCaseToReadable(log.fieldName);
+          const oldValue = log.oldValue || 'None';
+          const newValue = log.newValue || 'None';
+          
+          let context = "";
+          if (log.module === "Quotation" && log.metadata?.quotationVersionNo) {
+            context = ` in Quotation Version V${log.metadata.quotationVersionNo}`;
+          }
+
+          log.description = `Updated ${readableField}${context} ${oldValue} → ${newValue}`;
+        } else if (log.action === 'CREATE') {
+          log.description = `Created ${log.module} ${log.recordName || ""}`.trim();
+        } else if (log.action === 'DELETE') {
+          log.description = `Deleted ${log.module} ${log.recordName || ""}`.trim();
+        } else if (log.description) {
+          log.description = formatCamelCaseToReadable(log.description);
+        }
+
+        // Professional touch: Ensure "v2" becomes "V2" in any version strings
+        if (log.description) {
+          log.description = log.description.replace(/\bv(\d+)\b/g, 'V$1');
+        }
+      });
+
       return {
         success: true,
         data: {
-          activityLogs: keysToCamelCase(dataResult.rows),
+          activityLogs,
           pagination: {
             page,
             limit,

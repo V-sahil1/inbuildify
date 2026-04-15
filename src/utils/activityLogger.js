@@ -27,6 +27,14 @@ export const logActivity = async (client, {
         field_name, old_value, new_value, description, metadata, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
     `;
+    const toString = (val) => {
+      if (val === null || val === undefined) return null;
+      if (typeof val === 'object') {
+        return val.name || val.label || val.title || JSON.stringify(val);
+      }
+      return String(val);
+    };
+
     const values = [
       leadsId,
       userId,
@@ -35,8 +43,8 @@ export const logActivity = async (client, {
       recordName,
       action,
       fieldName,
-      oldValue !== null ? String(oldValue) : null,
-      newValue !== null ? String(newValue) : null,
+      toString(oldValue),
+      toString(newValue),
       description,
       metadata ? JSON.stringify(metadata) : null,
     ];
@@ -72,6 +80,9 @@ export const compareAndLogUpdates = async (client, {
 
   for (const field in newData) {
     if (allIgnore.includes(field)) continue;
+    
+    // User Perspective: Avoid showing internal IDs
+    if (field.toLowerCase().endsWith('id') || field.toLowerCase().endsWith('_id')) continue;
 
     const oldValue = oldData[field];
     const newValue = newData[field];

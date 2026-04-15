@@ -15,11 +15,12 @@ export async function getColorItemsWithoutCategory(req, res) {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
-        AND ci.color_category_id IS NULL`;
+    // let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
+    //     AND ci.color_category_id IS NULL`;
     const queryParams = [companyId, builderId];
     let paramIndex = 3;
-
+    let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)`;
+    
     // Add color_group_id filter if provided
     if (color_group_id) {
       whereClause += ` AND EXISTS (

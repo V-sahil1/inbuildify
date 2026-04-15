@@ -447,7 +447,7 @@ export async function getAllLeadActions(req, res) {
 export async function getLeadActivityLog(req, res) {
   try {
     const { leads_id } = req.params;
-    const { module, action, page = 1, limit = 20 } = req.query;
+    const { module, action, search, page = 1, limit = 20 } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -462,6 +462,7 @@ export async function getLeadActivityLog(req, res) {
     const result = await leadsService.getLeadActivityLog(leads_id, builderId, companyId, {
       module,
       action,
+      search,
       limit: limitValue,
       offset,
       page: pageValue

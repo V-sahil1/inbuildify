@@ -759,6 +759,7 @@ class QuotationService {
           recordName: quotationDetails.rows[0].reference_number,
           oldData: oldVersion,
           newData: newVersion,
+          metadata: { quotationVersionNo: newVersion.quotationVersionNo }
         });
       }
 
@@ -951,7 +952,7 @@ class QuotationService {
         moduleId: quotationId,
         recordName: quotationDetails.rows[0].reference_number,
         action: "CREATE",
-        description: `Quotation version duplicated: v${newVersionNo}`
+        description: `Duplicated Quotation Version V${newVersionNo}`
       });
 
       // Fetch the full newly created version using repository to return all enriched fields
@@ -1280,25 +1281,10 @@ class QuotationService {
       const v1No = data1.version.quotationVersionNo;
       const v2No = data2.version.quotationVersionNo;
 
-      // 4. Build items array
+      // 4. Build items array using unified items structure
       const items = [];
 
-      // 4a. Package
-      if (data1.package || data2.package) {
-        const row = {
-          type: "package",
-          name: (data1.package || data2.package).packageName,
-          packageId: (data1.package || data2.package).packageId,
-          version1Value: data1.package ? data1.package.packageCost : null,
-          version2Value: data2.package ? data2.package.packageCost : null,
-        };
-
-        if (showAll || row.version1Value !== row.version2Value) {
-          items.push(row);
-        }
-      }
-
-      // 4b. Floor Plan
+      // 4a. Floor Plan
       if (data1.version.floorPlanName || data2.version.floorPlanName) {
         const floorPlanRow = {
           type: "floor_plan",
@@ -1311,7 +1297,7 @@ class QuotationService {
         }
       }
 
-      // 4c. Facade
+      // 4b. Facade
       if (data1.version.facadeName || data2.version.facadeName) {
         const facadeRow = {
           type: "facade",
@@ -1324,39 +1310,94 @@ class QuotationService {
         }
       }
 
-      // 4c. Pricelist items — union by price_list_item_id
-      const allPricelistItemIds = new Set([
-        ...data1.pricelistItems.map(p => p.priceListItemId),
-        ...data2.pricelistItems.map(p => p.priceListItemId),
-      ]);
+      // 4c. Unified items comparison using quotation_version_items
+      const allItemKeys = new Set();
 
-      for (const pliId of allPricelistItemIds) {
-        const v1Item = data1.pricelistItems.find(p => p.priceListItemId === pliId);
-        const v2Item = data2.pricelistItems.find(p => p.priceListItemId === pliId);
+      // Collect all unique item identifiers from both versions
+      data1.items.forEach(item => {
+        if (item.itemType === 'package' && item.packageId) {
+          allItemKeys.add(`package_${item.packageId}`);
+        } else if (item.itemType === 'item' && item.priceListItemId) {
+          allItemKeys.add(`item_${item.priceListItemId}`);
+        }
+      });
+
+      data2.items.forEach(item => {
+        if (item.itemType === 'package' && item.packageId) {
+          allItemKeys.add(`package_${item.packageId}`);
+        } else if (item.itemType === 'item' && item.priceListItemId) {
+          allItemKeys.add(`item_${item.priceListItemId}`);
+        }
+      });
+
+      for (const itemKey of allItemKeys) {
+        const [type, id] = itemKey.split('_');
+        
+        // Skip if key is malformed
+        if (!type || !id || (type !== 'package' && type !== 'item')) {
+          continue;
+        }
+        
+        const v1Item = data1.items.find(item => {
+          if (type === 'package') {
+            return item.itemType === 'package' && item.packageId === id;
+          } else {
+            return item.itemType === 'item' && item.priceListItemId === id;
+          }
+        });
+        const v2Item = data2.items.find(item => {
+          if (type === 'package') {
+            return item.itemType === 'package' && item.packageId === id;
+          } else {
+            return item.itemType === 'item' && item.priceListItemId === id;
+          }
+        });
+        
         const refItem = v1Item || v2Item;
 
-        const row = {
-          type: "pricelist_item",
-          name: refItem.itemDescription,
-          priceListItemId: pliId,
-          priceListId: refItem.priceListId,
-          priceListName: refItem.priceListName,
-          itemCost: refItem.itemCost,
-          version1Quantity: v1Item ? v1Item.quantity : null,
-          version1TotalPrice: v1Item ? v1Item.totalPrice : null,
-          version1Note: v1Item ? v1Item.note : null,
-          version2Quantity: v2Item ? v2Item.quantity : null,
-          version2TotalPrice: v2Item ? v2Item.totalPrice : null,
-          version2Note: v2Item ? v2Item.note : null,
-        };
+        // Skip if no reference item found
+        if (!refItem) {
+          continue;
+        }
 
-        const isDifferent =
-          row.version1Quantity !== row.version2Quantity ||
-          row.version1TotalPrice !== row.version2TotalPrice ||
-          row.version1Note !== row.version2Note;
+        if (type === 'package') {
+          // Package comparison
+          const row = {
+            type: "package",
+            name: refItem.packageName || "-",
+            packageId: refItem.packageId,
+            version1Value: v1Item ? v1Item.packageCost : null,
+            version2Value: v2Item ? v2Item.packageCost : null,
+          };
 
-        if (showAll || isDifferent) {
-          items.push(row);
+          if (showAll || row.version1Value !== row.version2Value) {
+            items.push(row);
+          }
+        } else {
+          // Individual item comparison
+          const row = {
+            type: "pricelist_item",
+            name: refItem.priceListItemDescription || refItem.packageName || "-",
+            priceListItemId: refItem.priceListItemId,
+            priceListId: refItem.priceListId,
+            priceListName: refItem.priceListName,
+            itemCost: refItem.priceListItemCost,
+            version1Quantity: v1Item ? v1Item.quantity : null,
+            version1TotalPrice: v1Item ? v1Item.totalPrice : null,
+            version1Note: v1Item ? v1Item.note : null,
+            version2Quantity: v2Item ? v2Item.quantity : null,
+            version2TotalPrice: v2Item ? v2Item.totalPrice : null,
+            version2Note: v2Item ? v2Item.note : null,
+          };
+
+          const isDifferent =
+            row.version1Quantity !== row.version2Quantity ||
+            row.version1TotalPrice !== row.version2TotalPrice ||
+            row.version1Note !== row.version2Note;
+
+          if (showAll || isDifferent) {
+            items.push(row);
+          }
         }
       }
 

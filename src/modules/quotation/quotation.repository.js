@@ -994,35 +994,71 @@ class QuotationRepository {
 
       const version = keysToCamelCase(versionResult.rows[0]);
 
-      // 2. Package
-      const packageQuery = `
-        SELECT p.package_id, p.name as package_name, p.cost as package_cost
-        FROM quotation_version qv
-        JOIN package p ON p.package_id = qv.package_id
-        WHERE qv.quotation_version_id = $1
+      // 2. Unified items from quotation_version_items table
+      const itemsQuery = `
+        SELECT 
+          qvi.quotation_version_item_id,
+          qvi.package_id,
+          qvi.package_name,
+          qvi.package_cost,
+          qvi.price_list_item_id,
+          qvi.price_list_item_description,
+          qvi.price_list_item_short_description,
+          qvi.price_list_item_cost,
+          qvi.price_list_item_builder_cost,
+          qvi.price_list_item_sort_order,
+          qvi.price_list_item_uom,
+          qvi.quantity,
+          qvi.note,
+          qvi.total_price,
+          CASE 
+            WHEN qvi.package_id IS NOT NULL THEN 'package'
+            ELSE 'item'
+          END as item_type,
+          qvi.price_list_id,
+          qvi.price_list_name
+        FROM quotation_version_items qvi
+        WHERE qvi.quotation_version_id = $1
+        ORDER BY 
+          CASE 
+            WHEN qvi.package_id IS NOT NULL THEN 0 
+            ELSE 1 
+          END,
+          qvi.price_list_item_sort_order ASC,
+          qvi.package_name ASC,
+          qvi.price_list_item_description ASC
       `;
-      const packageResult = await client.query(packageQuery, [versionId]);
-      const packageData = packageResult.rows.length > 0 ? keysToCamelCase(packageResult.rows[0]) : null;
+      const itemsResult = await client.query(itemsQuery, [versionId]);
+      const items = itemsResult.rows.map(r => keysToCamelCase(r));
 
-      // 3. Pricelist items with price_list name
-      const pricelistItemsQuery = `
-        SELECT qvpim.id, qvpim.price_list_item_id, 
-          pli.item_description, pli.price_list_id,
-          pl.name as price_list_name, pli.cost as item_cost,                
-          qvpim.quantity, qvpim.total_price, qvpim.note
-        FROM quotation_version_pricelist_item_map qvpim
-        JOIN price_list_item pli ON qvpim.price_list_item_id = pli.price_list_item_id
-        JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-        WHERE qvpim.quotation_version_id = $1
-        ORDER BY pl.sort_order ASC, pli.sort_order ASC
-      `;
-      const pricelistItemsResult = await client.query(pricelistItemsQuery, [versionId]);
-      const pricelistItems = pricelistItemsResult.rows.map(r => keysToCamelCase(r));
+      // 3. Extract package data for backward compatibility
+      const packageItem = items.find(item => item.itemType === 'package');
+      const packageData = packageItem ? {
+        packageId: packageItem.packageId,
+        packageName: packageItem.packageName,
+        packageCost: packageItem.packageCost
+      } : null;
+
+      // 4. Extract pricelist items for backward compatibility
+      const pricelistItems = items
+        .filter(item => item.itemType === 'item')
+        .map(item => ({
+          id: item.quotationVersionItemId,
+          priceListItemId: item.priceListItemId,
+          itemDescription: item.priceListItemDescription,
+          priceListId: item.priceListId,
+          priceListName: item.priceListName,
+          itemCost: item.priceListItemCost,
+          quantity: item.quantity,
+          totalPrice: item.totalPrice,
+          note: item.note
+        }));
 
       return {
         version,
         package: packageData,
         pricelistItems,
+        items, // New unified items array
       };
     } finally {
       client.release();
