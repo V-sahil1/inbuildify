@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Role extends Model {
   static associate(models) {
-    Role.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Role.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Role.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Role.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Role.hasMany(models.RolePermission, { foreignKey: "role_id", as: "permissions" });
     Role.hasMany(models.RoleType, { foreignKey: "role_id", as: "roleTypes" });
     Role.hasMany(models.Users, { foreignKey: "role_id", as: "users" });

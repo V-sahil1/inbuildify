@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class PasswordPolicy extends Model {
   static associate(models) {
-    PasswordPolicy.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    PasswordPolicy.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    PasswordPolicy.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    PasswordPolicy.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    PasswordPolicy.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    PasswordPolicy.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    PasswordPolicy.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    PasswordPolicy.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

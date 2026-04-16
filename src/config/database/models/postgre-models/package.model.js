@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class Package extends Model {
   static associate(models) {
-    Package.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Package.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Package.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Package.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Package.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Package.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Package.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Package.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Package.hasMany(models.PackagePricelistItemMap, { foreignKey: "package_id", as: "pricelistItemMaps" });
   }
 }

@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class LotPackage extends Model {
   static associate(models) {
-    LotPackage.belongsTo(models.Lot, { foreignKey: "lot_id", as: "lot" });
-    LotPackage.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType" });
-    LotPackage.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
-    LotPackage.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade" });
-    LotPackage.belongsTo(models.LotPackageGroup, { foreignKey: "lot_package_group_id", as: "lotPackageGroup" });
-    LotPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    LotPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    LotPackage.belongsTo(models.Lot, { foreignKey: "lot_id", as: "lot", onDelete: "CASCADE" });
+    LotPackage.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType", onDelete: "SET NULL" });
+    LotPackage.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "SET NULL" });
+    LotPackage.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade", onDelete: "SET NULL" });
+    LotPackage.belongsTo(models.LotPackageGroup, { foreignKey: "lot_package_group_id", as: "lotPackageGroup", onDelete: "SET NULL" });
+    LotPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    LotPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

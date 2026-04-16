@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class IntegrationCustomFieldHeader extends Model {
   static associate(models) {
-    IntegrationCustomFieldHeader.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    IntegrationCustomFieldHeader.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    IntegrationCustomFieldHeader.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    IntegrationCustomFieldHeader.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    IntegrationCustomFieldHeader.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    IntegrationCustomFieldHeader.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    IntegrationCustomFieldHeader.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    IntegrationCustomFieldHeader.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     IntegrationCustomFieldHeader.hasMany(models.IntegrationCustomFieldItem, { foreignKey: "header1_id", as: "header1Items" });
     IntegrationCustomFieldHeader.hasMany(models.IntegrationCustomFieldItem, { foreignKey: "header2_id", as: "header2Items" });
   }

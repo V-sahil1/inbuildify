@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class Surveyor extends Model {
   static associate(models) {
-    Surveyor.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Surveyor.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Surveyor.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    Surveyor.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Surveyor.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Surveyor.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

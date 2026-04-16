@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ColorType extends Model {
   static associate(models) {
-    ColorType.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ColorType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ColorType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ColorType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ColorType.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ColorType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ColorType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ColorType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

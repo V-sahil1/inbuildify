@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class PackageGroup extends Model {
   static associate(models) {
-    PackageGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    PackageGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    PackageGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    PackageGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
   }
 }
 

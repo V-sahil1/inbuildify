@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class Notes extends Model {
   static associate(models) {
-    Notes.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    Notes.belongsTo(models.Task, { foreignKey: "task_id", as: "task" });
-    Notes.belongsTo(models.Notes, { foreignKey: "parent_note_id", as: "parentNote" });
+    Notes.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
+    Notes.belongsTo(models.Task, { foreignKey: "task_id", as: "task", onDelete: "SET NULL" });
+    Notes.belongsTo(models.Notes, { foreignKey: "parent_note_id", as: "parentNote", onDelete: "SET NULL" });
   }
 }
 

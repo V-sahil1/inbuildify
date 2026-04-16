@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class TemplateNote extends Model {
   static associate(models) {
-    TemplateNote.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    TemplateNote.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    TemplateNote.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    TemplateNote.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    TemplateNote.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    TemplateNote.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    TemplateNote.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    TemplateNote.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

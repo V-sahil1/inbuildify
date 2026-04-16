@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class PriceList extends Model {
   static associate(models) {
-    PriceList.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    PriceList.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    PriceList.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    PriceList.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    PriceList.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    PriceList.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    PriceList.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    PriceList.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     PriceList.hasMany(models.PriceListItem, { foreignKey: "price_list_id", as: "items" });
   }
 }

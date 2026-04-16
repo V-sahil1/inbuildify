@@ -2,18 +2,18 @@ import { Model, DataTypes } from "sequelize";
 
 export class Leads extends Model {
   static associate(models) {
-    Leads.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Leads.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Leads.belongsTo(models.LeadSource, { foreignKey: "lead_source_id", as: "leadSource" });
-    Leads.belongsTo(models.ClientType, { foreignKey: "client_type_id", as: "clientType" });
+    Leads.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Leads.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Leads.belongsTo(models.LeadSource, { foreignKey: "lead_source_id", as: "leadSource", onDelete: "SET NULL" });
+    Leads.belongsTo(models.ClientType, { foreignKey: "client_type_id", as: "clientType", onDelete: "SET NULL" });
     Leads.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    Leads.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage" });
-    Leads.belongsTo(models.PropertyDetail, { foreignKey: "property_detail_id", as: "propertyDetail" });
+    Leads.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage", onDelete: "SET NULL" });
+    Leads.belongsTo(models.PropertyDetail, { foreignKey: "property_detail_id", as: "propertyDetail", onDelete: "SET NULL" });
     Leads.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
     Leads.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
     Leads.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
-    Leads.belongsTo(models.LeadLostReason, { foreignKey: "lead_lost_reason_id", as: "leadLostReason" });
-    Leads.belongsTo(models.StructureEngineer, { foreignKey: "structure_engineer_id", as: "structureEngineer" });
+    Leads.belongsTo(models.LeadLostReason, { foreignKey: "lead_lost_reason_id", as: "leadLostReason", onDelete: "SET NULL" });
+    Leads.belongsTo(models.StructureEngineer, { foreignKey: "structure_engineer_id", as: "structureEngineer", onDelete: "SET NULL" });
     Leads.hasMany(models.Invoice, { foreignKey: "leads_id", as: "invoices" });
     Leads.hasMany(models.Quotation, { foreignKey: "leads_id", as: "quotations" });
     Leads.hasMany(models.Opportunity, { foreignKey: "leads_id", as: "opportunities" });

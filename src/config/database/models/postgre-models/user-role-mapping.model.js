@@ -3,10 +3,10 @@ import { Model, DataTypes } from "sequelize";
 export class UserRoleMapping extends Model {
   static associate(models) {
     UserRoleMapping.belongsTo(models.Users, { foreignKey: "users_id", as: "user" });
-    UserRoleMapping.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
-    UserRoleMapping.belongsTo(models.RoleType, { foreignKey: "role_type_id", as: "roleType" });
-    UserRoleMapping.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    UserRoleMapping.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
+    UserRoleMapping.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "CASCADE" });
+    UserRoleMapping.belongsTo(models.RoleType, { foreignKey: "role_type_id", as: "roleType", onDelete: "CASCADE" });
+    UserRoleMapping.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    UserRoleMapping.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

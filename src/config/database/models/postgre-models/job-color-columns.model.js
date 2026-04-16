@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobColorColumns extends Model {
   static associate(models) {
-    JobColorColumns.belongsTo(models.JobColorSettings, { foreignKey: "job_color_settings_id", as: "jobColorSettings" });
+    JobColorColumns.belongsTo(models.JobColorSettings, { foreignKey: "job_color_settings_id", as: "jobColorSettings", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

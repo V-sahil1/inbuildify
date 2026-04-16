@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationVersionPackageMap extends Model {
   static associate(models) {
-    QuotationVersionPackageMap.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion" });
-    QuotationVersionPackageMap.belongsTo(models.Package, { foreignKey: "package_id", as: "package" });
+    QuotationVersionPackageMap.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion", onDelete: "CASCADE" });
+    QuotationVersionPackageMap.belongsTo(models.Package, { foreignKey: "package_id", as: "package", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

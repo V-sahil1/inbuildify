@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class SupplierSupplierTypeMap extends Model {
   static associate(models) {
-    SupplierSupplierTypeMap.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier" });
-    SupplierSupplierTypeMap.belongsTo(models.SupplierType, { foreignKey: "supplier_type_id", as: "supplierType" });
+    SupplierSupplierTypeMap.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier", onDelete: "CASCADE" });
+    SupplierSupplierTypeMap.belongsTo(models.SupplierType, { foreignKey: "supplier_type_id", as: "supplierType", onDelete: "CASCADE" });
   }
 }
 

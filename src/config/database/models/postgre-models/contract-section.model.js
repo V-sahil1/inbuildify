@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class ContractSection extends Model {
   static associate(models) {
-    ContractSection.belongsTo(models.ContractFormat, { foreignKey: "contract_format_id", as: "contractFormat" });
+    ContractSection.belongsTo(models.ContractFormat, { foreignKey: "contract_format_id", as: "contractFormat", onDelete: "CASCADE" });
   }
 }
 

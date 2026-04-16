@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobProcessTaskDependency extends Model {
   static associate(models) {
-    JobProcessTaskDependency.belongsTo(models.JobProcessTask, { foreignKey: "task_id", as: "task" });
-    JobProcessTaskDependency.belongsTo(models.JobProcessTask, { foreignKey: "predecessor_task_id", as: "predecessorTask" });
+    JobProcessTaskDependency.belongsTo(models.JobProcessTask, { foreignKey: "task_id", as: "task", onDelete: "CASCADE" });
+    JobProcessTaskDependency.belongsTo(models.JobProcessTask, { foreignKey: "predecessor_task_id", as: "predecessorTask", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionSubChecklist extends Model {
   static associate(models) {
-    ConstructionSubChecklist.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist" });
+    ConstructionSubChecklist.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist", onDelete: "CASCADE" });
   }
 }
 

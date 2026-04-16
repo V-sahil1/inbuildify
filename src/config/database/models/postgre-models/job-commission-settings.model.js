@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobCommissionSettings extends Model {
   static associate(models) {
-    JobCommissionSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobCommissionSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobCommissionSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobCommissionSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobCommissionSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobCommissionSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobCommissionSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobCommissionSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     JobCommissionSettings.hasMany(models.JobCommission, { foreignKey: "job_commission_settings_id", as: "commissions" });
   }
 }

@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class Opportunity extends Model {
   static associate(models) {
-    Opportunity.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    Opportunity.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
     Opportunity.hasMany(models.Job, { foreignKey: "opportunity_id", as: "jobs" });
   }
 }

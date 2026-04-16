@@ -2,12 +2,12 @@ import { Model, DataTypes } from "sequelize";
 
 export class IntegrationSettings extends Model {
   static associate(models) {
-    IntegrationSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    IntegrationSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    IntegrationSettings.belongsTo(models.Users, { foreignKey: "assign_leads_if_assignee_not_found", as: "fallbackAssignee" });
-    IntegrationSettings.belongsTo(models.Users, { foreignKey: "always_assign_leads_to", as: "alwaysAssignTo" });
-    IntegrationSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    IntegrationSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    IntegrationSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    IntegrationSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    IntegrationSettings.belongsTo(models.Users, { foreignKey: "assign_leads_if_assignee_not_found", as: "fallbackAssignee", onDelete: "SET NULL" });
+    IntegrationSettings.belongsTo(models.Users, { foreignKey: "always_assign_leads_to", as: "alwaysAssignTo", onDelete: "SET NULL" });
+    IntegrationSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    IntegrationSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

@@ -2,9 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ColorItem extends Model {
   static associate(models) {
-    ColorItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ColorItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ColorItem.belongsTo(models.ColorCategory, { foreignKey: "color_category_id", as: "colorCategory" });
+    ColorItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ColorItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ColorItem.belongsTo(models.ColorCategory, { foreignKey: "color_category_id", as: "colorCategory", onDelete: "CASCADE" });
+    ColorItem.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier", onDelete: "SET NULL" });
     ColorItem.hasMany(models.ColorGroupItemMap, { foreignKey: "color_item_id", as: "colorGroupItemMaps" });
     ColorItem.hasMany(models.ColorItemCustomField, { foreignKey: "color_item", as: "customFields" });
   }

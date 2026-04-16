@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class MasterSectionItem extends Model {
   static associate(models) {
-    MasterSectionItem.belongsTo(models.MasterSectionHeader, { foreignKey: "master_section_header_id", as: "masterSectionHeader" });
+    MasterSectionItem.belongsTo(models.MasterSectionHeader, { foreignKey: "master_section_header_id", as: "masterSectionHeader", onDelete: "CASCADE" });
   }
 }
 

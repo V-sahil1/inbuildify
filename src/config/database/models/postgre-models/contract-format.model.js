@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ContractFormat extends Model {
   static associate(models) {
-    ContractFormat.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ContractFormat.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef" }); // ← changed
-    ContractFormat.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ContractFormat.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ContractFormat.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ContractFormat.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef", onDelete: "CASCADE" }); // ← changed
+    ContractFormat.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ContractFormat.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     ContractFormat.hasMany(models.ContractSection, { foreignKey: "contract_format_id", as: "contractSections" });
   }
 }

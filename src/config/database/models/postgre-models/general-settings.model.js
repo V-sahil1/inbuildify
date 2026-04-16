@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class GeneralSettings extends Model {
   static associate(models) {
-    GeneralSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    GeneralSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    GeneralSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    GeneralSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

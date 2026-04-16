@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Builder extends Model {
   static associate(models) {
-    Builder.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Builder.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
+    Builder.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Builder.belongsTo(models.Address, { foreignKey: "address_id", as: "address", onDelete: "SET NULL" });
     Builder.hasMany(models.Users, { foreignKey: "builder_id", as: "users" });
     Builder.hasMany(models.BuilderInsurer, { foreignKey: "builder_id", as: "insurers" });
     Builder.hasMany(models.Categories, { foreignKey: "builder_id", as: "categories" });

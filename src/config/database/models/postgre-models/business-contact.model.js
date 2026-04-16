@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class BusinessContact extends Model {
   static associate(models) {
-    BusinessContact.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    BusinessContact.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
-    BusinessContact.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    BusinessContact.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
+    BusinessContact.belongsTo(models.Country, { foreignKey: "country_id", as: "country", onDelete: "SET NULL" });
+    BusinessContact.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

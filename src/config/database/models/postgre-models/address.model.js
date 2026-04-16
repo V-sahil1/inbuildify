@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Address extends Model {
   static associate(models) {
-    Address.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
-    Address.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    Address.belongsTo(models.Country, { foreignKey: "country_id", as: "country", onDelete: "SET NULL" });
+    Address.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
     Address.hasMany(models.Users, { foreignKey: "address_id", as: "users" });
     Address.hasOne(models.Builder, { foreignKey: "address_id", as: "builder" });
     Address.hasOne(models.Company, { foreignKey: "address_id", as: "company" });

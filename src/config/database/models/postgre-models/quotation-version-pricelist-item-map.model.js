@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationVersionPricelistItemMap extends Model {
   static associate(models) {
-    QuotationVersionPricelistItemMap.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion" });
-    QuotationVersionPricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem" });
+    QuotationVersionPricelistItemMap.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion", onDelete: "CASCADE" });
+    QuotationVersionPricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem", onDelete: "CASCADE" });
   }
 }
 

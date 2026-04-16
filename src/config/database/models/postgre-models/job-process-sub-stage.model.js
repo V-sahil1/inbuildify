@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobProcessSubStage extends Model {
   static associate(models) {
-    JobProcessSubStage.belongsTo(models.JobProcessStage, { foreignKey: "stage_id", as: "stage" });
+    JobProcessSubStage.belongsTo(models.JobProcessStage, { foreignKey: "stage_id", as: "stage", onDelete: "CASCADE" });
     JobProcessSubStage.hasMany(models.JobProcessTask, { foreignKey: "sub_stage_id", as: "tasks" });
   }
 }

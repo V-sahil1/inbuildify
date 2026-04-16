@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class CustomField extends Model {
   static associate(models) {
-    CustomField.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    CustomField.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    CustomField.belongsTo(models.CustomFieldModule, { foreignKey: "module_id", as: "module" });
-    CustomField.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    CustomField.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    CustomField.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    CustomField.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    CustomField.belongsTo(models.CustomFieldModule, { foreignKey: "module_id", as: "module", onDelete: "CASCADE" });
+    CustomField.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    CustomField.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

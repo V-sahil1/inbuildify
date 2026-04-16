@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobInvoiceStagePayments extends Model {
   static associate(models) {
-    JobInvoiceStagePayments.belongsTo(models.JobInvoiceSettings, { foreignKey: "job_invoice_settings_id", as: "jobInvoiceSettings" });
+    JobInvoiceStagePayments.belongsTo(models.JobInvoiceSettings, { foreignKey: "job_invoice_settings_id", as: "jobInvoiceSettings", onDelete: "CASCADE" });
   }
 }
 

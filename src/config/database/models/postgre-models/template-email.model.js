@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class TemplateEmail extends Model {
   static associate(models) {
-    TemplateEmail.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    TemplateEmail.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    TemplateEmail.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    TemplateEmail.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    TemplateEmail.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    TemplateEmail.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    TemplateEmail.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    TemplateEmail.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

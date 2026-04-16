@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class SchedulerEmail extends Model {
   static associate(models) {
-    SchedulerEmail.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    SchedulerEmail.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    SchedulerEmail.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    SchedulerEmail.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    SchedulerEmail.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    SchedulerEmail.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    SchedulerEmail.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    SchedulerEmail.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

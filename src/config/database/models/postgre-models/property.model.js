@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Property extends Model {
   static associate(models) {
-    Property.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    Property.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
+    Property.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
+    Property.belongsTo(models.Address, { foreignKey: "address_id", as: "address", onDelete: "SET NULL" });
   }
 }
 

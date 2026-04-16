@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class Task extends Model {
   static associate(models) {
-    Task.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Task.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Task.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
-    Task.belongsTo(models.Users, { foreignKey: "link_to", as: "linkedUser" });
-    Task.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Task.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
-    Task.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead" });
+    Task.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Task.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Task.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee", onDelete: "SET NULL" });
+    Task.belongsTo(models.Users, { foreignKey: "link_to", as: "linkedUser", onDelete: "SET NULL" });
+    Task.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Task.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
+    Task.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class Color extends Model {
   static associate(models) {
-    Color.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Color.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Color.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Color.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Color.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Color.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Color.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Color.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Color.hasMany(models.ColorCategory, { foreignKey: "color_id", as: "colorCategories" });
   }
 }

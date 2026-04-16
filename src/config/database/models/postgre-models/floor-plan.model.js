@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class FloorPlan extends Model {
   static associate(models) {
-    FloorPlan.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    FloorPlan.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    FloorPlan.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType" });
-    FloorPlan.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    FloorPlan.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    FloorPlan.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    FloorPlan.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    FloorPlan.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType", onDelete: "SET NULL" });
+    FloorPlan.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    FloorPlan.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     FloorPlan.hasMany(models.FloorPlanFacadeMap, { foreignKey: "floor_plan_id", as: "facadeMaps" });
     FloorPlan.hasMany(models.FloorPlanPricelistItemMap, { foreignKey: "floor_plan_id", as: "pricelistItemMaps" });
   }

@@ -2,12 +2,12 @@ import { Model, DataTypes } from "sequelize";
 
 export class Appointment extends Model {
   static associate(models) {
-    Appointment.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Appointment.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    Appointment.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Appointment.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
     Appointment.belongsTo(models.Users, { foreignKey: "link_to", as: "linkedUser" });
-    Appointment.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Appointment.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
-    Appointment.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead" });
+    Appointment.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Appointment.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
+    Appointment.belongsTo(models.Leads, { foreignKey: "lead_id", as: "lead", onDelete: "SET NULL" });
   }
 }
 

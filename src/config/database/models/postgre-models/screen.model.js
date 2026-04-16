@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Screen extends Model {
   static associate(models) {
-    Screen.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Screen.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Screen.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Screen.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Screen.hasMany(models.Functionality, { foreignKey: "screen_id", as: "functionalities" });
   }
 }

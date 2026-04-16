@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class Invoice extends Model {
   static associate(models) {
-    Invoice.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    Invoice.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
   }
 }
 

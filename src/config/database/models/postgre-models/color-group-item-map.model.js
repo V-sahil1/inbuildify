@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class ColorGroupItemMap extends Model {
   static associate(models) {
-    ColorGroupItemMap.belongsTo(models.ColorGroup, { foreignKey: "color_group_id", as: "colorGroup" });
-    ColorGroupItemMap.belongsTo(models.ColorItem, { foreignKey: "color_item_id", as: "colorItem" });
+    ColorGroupItemMap.belongsTo(models.ColorGroup, { foreignKey: "color_group_id", as: "colorGroup", onDelete: "CASCADE" });
+    ColorGroupItemMap.belongsTo(models.ColorItem, { foreignKey: "color_item_id", as: "colorItem", onDelete: "CASCADE" });
   }
 }
 

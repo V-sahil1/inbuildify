@@ -3,6 +3,7 @@ import { Model, DataTypes } from "sequelize";
 export class Functionality extends Model {
   static associate(models) {
     Functionality.hasMany(models.Checklist, { foreignKey: "functionality_id", as: "checklists" });
+    Functionality.belongsTo(models.Screen, { foreignKey: "screen_id", as: "screen", onDelete: "CASCADE" });
   }
 }
 

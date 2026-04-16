@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationVersionCustomSection extends Model {
   static associate(models) {
-    QuotationVersionCustomSection.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion" });
+    QuotationVersionCustomSection.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion", onDelete: "CASCADE" });
   }
 }
 

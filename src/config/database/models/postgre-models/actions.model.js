@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class Actions extends Model {
   static associate(models) {
-    // Actions.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    Actions.belongsTo(models.Location, { foreignKey: "location_id", as: "location" });
-    Actions.belongsTo(models.Users, { foreignKey: "link_to_user", as: "linkToUser" });
+    // Actions.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
+    Actions.belongsTo(models.Location, { foreignKey: "location_id", as: "location", onDelete: "SET NULL" });
+    Actions.belongsTo(models.Users, { foreignKey: "link_to_user", as: "linkToUser", onDelete: "SET NULL" });
     // Actions.hasMany(models.Sms, { foreignKey: "action_id", as: "sms" });
     // Actions.hasMany(models.Notes, { foreignKey: "action_id", as: "notes" });
   }

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class Range extends Model {
   static associate(models) {
-    Range.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Range.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Range.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Range.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Range.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Range.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Range.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Range.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Job extends Model {
   static associate(models) {
-    Job.belongsTo(models.Opportunity, { foreignKey: "opportunity_id", as: "opportunity" });
-    Job.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion" });
+    Job.belongsTo(models.Opportunity, { foreignKey: "opportunity_id", as: "opportunity", onDelete: "CASCADE" });
+    Job.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion", onDelete: "SET NULL" });
   }
 }
 

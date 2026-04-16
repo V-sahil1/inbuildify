@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ClientType extends Model {
   static associate(models) {
-    ClientType.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ClientType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ClientType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ClientType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ClientType.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ClientType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ClientType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ClientType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

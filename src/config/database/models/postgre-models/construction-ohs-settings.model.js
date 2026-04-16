@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionOhsSettings extends Model {
   static associate(models) {
-    ConstructionOhsSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionOhsSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ConstructionOhsSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionOhsSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionOhsSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionOhsSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ConstructionOhsSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionOhsSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     ConstructionOhsSettings.hasMany(models.ConstructionOhsList, { foreignKey: "construction_ohs_settings_id", as: "ohsLists" });
   }
 }

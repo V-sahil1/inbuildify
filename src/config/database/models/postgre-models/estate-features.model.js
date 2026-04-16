@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class EstateFeatures extends Model {
   static associate(models) {
-    EstateFeatures.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate" });
+    EstateFeatures.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate", onDelete: "CASCADE" });
   }
 }
 

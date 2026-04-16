@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class SalesModuleSettings extends Model {
   static associate(models) {
-    SalesModuleSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    SalesModuleSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    SalesModuleSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    SalesModuleSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    SalesModuleSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    SalesModuleSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    SalesModuleSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    SalesModuleSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

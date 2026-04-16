@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class FloorPlanPricelistItemMap extends Model {
   static associate(models) {
-    FloorPlanPricelistItemMap.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
+    FloorPlanPricelistItemMap.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "CASCADE" });
   }
 }
 

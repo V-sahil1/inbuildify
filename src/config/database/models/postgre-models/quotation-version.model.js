@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationVersion extends Model {
   static associate(models) {
-    QuotationVersion.belongsTo(models.Quotation, { foreignKey: "quotation_id", as: "quotation" });
-    QuotationVersion.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
-    QuotationVersion.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade" });
+    QuotationVersion.belongsTo(models.Quotation, { foreignKey: "quotation_id", as: "quotation", onDelete: "CASCADE" });
+    QuotationVersion.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "SET NULL" });
+    QuotationVersion.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade", onDelete: "SET NULL" });
     QuotationVersion.hasMany(models.Job, { foreignKey: "quotation_version_id", as: "jobs" });
     QuotationVersion.hasMany(models.QuotationVersionPricelistItemMap, { foreignKey: "quotation_version_id", as: "pricelistItemMaps" });
     QuotationVersion.hasMany(models.QuotationVersionCustomSection, { foreignKey: "quotation_version_id", as: "customSections" });

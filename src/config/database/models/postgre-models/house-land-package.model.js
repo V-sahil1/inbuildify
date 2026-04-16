@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class HouseLandPackage extends Model {
   static associate(models) {
-    HouseLandPackage.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    HouseLandPackage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    HouseLandPackage.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
-    HouseLandPackage.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade" });
-    HouseLandPackage.belongsTo(models.HouseFeature, { foreignKey: "house_feature_id", as: "houseFeature" });
-    HouseLandPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    HouseLandPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    HouseLandPackage.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    HouseLandPackage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    HouseLandPackage.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.HouseFeature, { foreignKey: "house_feature_id", as: "houseFeature", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

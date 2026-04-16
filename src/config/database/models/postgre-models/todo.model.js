@@ -1,7 +1,12 @@
 import { Model, DataTypes } from "sequelize";
 
 export class Todo extends Model {
-  static associate(models) {}
+  static associate(models) {
+    Todo.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Todo.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Todo.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Todo.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
+  }
 }
 
 export default (sequelize) => {

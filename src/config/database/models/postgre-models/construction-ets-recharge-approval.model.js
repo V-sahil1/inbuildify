@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionEtsRechargeApproval extends Model {
   static associate(models) {
-    ConstructionEtsRechargeApproval.belongsTo(models.ConstructionEtsRecharge, { foreignKey: "construction_ets_recharge_id", as: "constructionEtsRecharge" });
-    ConstructionEtsRechargeApproval.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
-    ConstructionEtsRechargeApproval.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionEtsRechargeApproval.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionEtsRechargeApproval.belongsTo(models.ConstructionEtsRecharge, { foreignKey: "construction_ets_recharge_id", as: "constructionEtsRecharge", onDelete: "CASCADE" });
+    ConstructionEtsRechargeApproval.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "SET NULL" });
+    ConstructionEtsRechargeApproval.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionEtsRechargeApproval.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

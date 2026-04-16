@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class RolePermission extends Model {
   static associate(models) {
-    RolePermission.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
-    RolePermission.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    RolePermission.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    RolePermission.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    RolePermission.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    RolePermission.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "CASCADE" });
+    RolePermission.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    RolePermission.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    RolePermission.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    RolePermission.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

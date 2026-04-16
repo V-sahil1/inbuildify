@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class Location extends Model {
   static associate(models) {
-    Location.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Location.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Location.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Location.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Location.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Location.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Location.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Location.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

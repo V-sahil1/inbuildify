@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class SurveyTemplate extends Model {
   static associate(models) {
-    SurveyTemplate.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    SurveyTemplate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    SurveyTemplate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    SurveyTemplate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    SurveyTemplate.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    SurveyTemplate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    SurveyTemplate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    SurveyTemplate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     SurveyTemplate.hasMany(models.SurveyTemplateQuestions, { foreignKey: "survey_template_id", as: "questions" });
   }
 }

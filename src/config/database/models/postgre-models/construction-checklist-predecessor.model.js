@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionChecklistPredecessor extends Model {
   static associate(models) {
-    ConstructionChecklistPredecessor.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist" });
-    ConstructionChecklistPredecessor.belongsTo(models.ConstructionChecklist, { foreignKey: "predecessor_checklist_id", as: "predecessorChecklist" });
+    ConstructionChecklistPredecessor.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist", onDelete: "CASCADE" });
+    ConstructionChecklistPredecessor.belongsTo(models.ConstructionChecklist, { foreignKey: "predecessor_checklist_id", as: "predecessorChecklist", onDelete: "SET NULL" });
   }
 }
 

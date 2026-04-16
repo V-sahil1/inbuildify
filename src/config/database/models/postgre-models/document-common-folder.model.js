@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class DocumentCommonFolder extends Model {
   static associate(models) {
-    DocumentCommonFolder.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    DocumentCommonFolder.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    DocumentCommonFolder.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    DocumentCommonFolder.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    DocumentCommonFolder.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    DocumentCommonFolder.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    DocumentCommonFolder.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    DocumentCommonFolder.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     DocumentCommonFolder.hasMany(models.DocumentCommonSubfolder, { foreignKey: "document_common_folder_id", as: "subfolders" });
   }
 }

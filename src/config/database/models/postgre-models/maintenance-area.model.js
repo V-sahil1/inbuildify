@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class MaintenanceArea extends Model {
   static associate(models) {
-    MaintenanceArea.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    MaintenanceArea.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    MaintenanceArea.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    MaintenanceArea.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    MaintenanceArea.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    MaintenanceArea.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    MaintenanceArea.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    MaintenanceArea.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

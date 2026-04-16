@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionStage extends Model {
   static associate(models) {
-    ConstructionStage.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef" });
-    ConstructionStage.belongsTo(models.ConstructionType, { foreignKey: "construction_type_id", as: "constructionType" });
-    ConstructionStage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionStage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionStage.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef", onDelete: "CASCADE" });
+    ConstructionStage.belongsTo(models.ConstructionType, { foreignKey: "construction_type_id", as: "constructionType", onDelete: "CASCADE" });
+    ConstructionStage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionStage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {
