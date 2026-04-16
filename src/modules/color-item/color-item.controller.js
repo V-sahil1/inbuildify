@@ -69,7 +69,23 @@ export async function getColorItemsWithoutCategory(req, res) {
             WHERE cgim_sub.color_item_id = ci.color_item_id
           ),
           '[]'::json
-        ) AS color_groups
+        ) AS color_groups,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = ci.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item ci
       ${whereClause}
       ORDER BY ci.created_at DESC
@@ -639,7 +655,23 @@ export async function getAllColorItems(req, res) {
     `;
 
     const listQuery = `
-      SELECT ci.*
+      SELECT ci.*,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = ci.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item ci
       ${color_group_id ? "LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id" : ""}
       ${whereClause}
@@ -1630,7 +1662,23 @@ export async function getColorItemById(req, res) {
     const { color_item_id } = req.params;
 
     const query = `
-      SELECT *
+      SELECT *,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = color_item.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)

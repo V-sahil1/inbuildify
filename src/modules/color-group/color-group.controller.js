@@ -117,7 +117,12 @@ export async function getAllColorGroups(req, res) {
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const query = `
-      SELECT *
+      SELECT *,
+             EXISTS (
+               SELECT 1 
+               FROM color_category cc 
+               WHERE color_group.color_group_id = ANY(cc.color_group)
+             ) AS is_mapped
       FROM color_group
       ${whereClause}
       ORDER BY created_at DESC;
@@ -150,7 +155,12 @@ export async function getColorGroupById(req, res) {
     }
 
     const query = `
-      SELECT *
+      SELECT *,
+             EXISTS (
+               SELECT 1 
+               FROM color_category cc 
+               WHERE color_group.color_group_id = ANY(cc.color_group)
+             ) AS is_mapped
       FROM color_group
       WHERE color_group_id = $1
         AND company_id = $2

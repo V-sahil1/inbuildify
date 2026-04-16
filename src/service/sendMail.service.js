@@ -2,7 +2,11 @@ import Bull from "bull";
 import { env } from "../config/env.config.js";
 
 const notificationQueue = new Bull("notificationQueue", {
-  redis: { host: env.REDIS.REDIS_HOST, port: env.REDIS.REDIS_PORT, password: env.REDIS.REDIS_PASSWORD },
+  redis: {
+    host: env.REDIS.REDIS_HOST,
+    port: env.REDIS.REDIS_PORT,
+    password: env.REDIS.REDIS_PASSWORD
+  },
 });
 
 const sendEmail = async (to, subject, text, html = null, attachments = []) => {

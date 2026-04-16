@@ -245,20 +245,24 @@ export async function deleteLead(req, res) {
 
     const existingLeadResult = await leadsService.getLeadById(leads_id, builderId, companyId);
     
+    if (!existingLeadResult.success) {
+      return errorResponse(res, 404, "Lead not found");
+    }
+
+    // Log activity BEFORE deletion to avoid foreign key vibration on ACTIVITY LOG Table
+    await logActivity(null, {
+      userId: req.user?.users_id,
+      leadsId: leads_id,
+      module: "Lead",
+      moduleId: leads_id,
+      recordName: existingLeadResult.data.name,
+      action: "DELETE",
+      description: `Lead deleted: ${existingLeadResult.data.name}`
+    });
+
     const result = await leadsService.deleteLead(leads_id, builderId, companyId);
 
     if (result.success) {
-      if (existingLeadResult.success) {
-        await logActivity(null, {
-          userId: req.user?.users_id,
-          leadsId: leads_id,
-          module: "Lead",
-          moduleId: leads_id,
-          recordName: existingLeadResult.data.name,
-          action: "DELETE",
-          description: `Lead deleted: ${existingLeadResult.data.name}`
-        });
-      }
       return successResponse(res, null, "Lead deleted successfully");
     }
     return errorResponse(res, 404, result.message);

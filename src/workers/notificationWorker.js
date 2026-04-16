@@ -11,7 +11,11 @@ const transporter = nodemailer.createTransport({
 });
 
 const notificationQueue = new Bull("notificationQueue", {
-  redis: { host: env.REDIS.REDIS_HOST, port: env.REDIS.REDIS_PORT, password: env.REDIS.REDIS_PASSWORD },
+  redis: {
+    host: env.REDIS.REDIS_HOST,
+    port: env.REDIS.REDIS_PORT,
+    password: env.REDIS.REDIS_PASSWORD
+  },
 });
 
 notificationQueue.process(async (job) => {

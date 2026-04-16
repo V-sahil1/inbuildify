@@ -1437,14 +1437,14 @@ class QuotationRepository {
         ? "(l.builder_id = $1 OR l.company_id = $2)"
         : "l.builder_id = $1";
       const params = companyId ? [builderId, companyId] : [builderId];
-      const query = `
+        const query = `
         SELECT DISTINCT
-          option_type,
-          option_id,
-          option_label,
-          leads_id,
-          customer_name,
-          contact_name
+          opts.option_type,
+          opts.option_id,
+          opts.option_label,
+          opts.opt_leads_id as leads_id,
+          opts.customer_name,
+          opts.contact_name
         FROM leads l
         LEFT JOIN leads_contact_map lcm ON l.leads_id = lcm.leads_id
         LEFT JOIN users u ON lcm.contact_id = u.users_id

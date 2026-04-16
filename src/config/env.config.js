@@ -48,6 +48,9 @@ export const env = {
   REDIS: {
     REDIS_HOST: getEnvValue("REDIS_HOST"),
     REDIS_PORT: getEnvValue("REDIS_PORT"),
-    REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
+    // REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
+    ...(process.env.REDIS_PASSWORD
+      ? { password: process.env.REDIS_PASSWORD }
+      : {}),
   },
 };
