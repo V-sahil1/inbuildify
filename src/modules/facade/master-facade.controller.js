@@ -212,6 +212,7 @@ export async function getMasterFacades(req, res) {
     search,
     page = 1,
     limit = 25,
+    floor_plan_id,
   } = req.query;
 
   const pool = getPool();
@@ -221,6 +222,16 @@ export async function getMasterFacades(req, res) {
     const limitValue = parseInt(limit, 10);
     const pageValue = parseInt(page, 10);
     const offset = (pageValue - 1) * limitValue;
+
+    // Check if the floor plan has any specific facade mappings
+    let hasFloorPlanMappings = false;
+    if (floor_plan_id) {
+      const mappingCheck = await client.query(
+        `SELECT 1 FROM floor_plan_facade_map WHERE floor_plan_id = $1 LIMIT 1`,
+        [floor_plan_id],
+      );
+      hasFloorPlanMappings = mappingCheck.rowCount > 0;
+    }
 
     let baseQuery = `
       SELECT
@@ -274,16 +285,26 @@ export async function getMasterFacades(req, res) {
       paramIndex++;
     }
 
-    if (dwelling_type_id) {
-      baseQuery += ` AND f.dwelling_type_id = $${paramIndex}`;
-      queryParams.push(dwelling_type_id);
-      paramIndex++;
-    }
+    // Logic: If floor_plan_id has mappings, prioritize the mapping filter and skip dwelling_type/range filters.
+    // If no mappings exist for the floor_plan_id (fallback) or no floor_plan_id is provided, use dwelling_type/range filters.
+    const useFloorPlanMapping = floor_plan_id && hasFloorPlanMappings;
 
-    if (range_id) {
-      baseQuery += ` AND f.range_id = $${paramIndex}`;
-      queryParams.push(range_id);
+    if (useFloorPlanMapping) {
+      baseQuery += ` AND f.facade_id IN (SELECT facade_id FROM floor_plan_facade_map WHERE floor_plan_id = $${paramIndex})`;
+      queryParams.push(floor_plan_id);
       paramIndex++;
+    } else {
+      if (dwelling_type_id) {
+        baseQuery += ` AND f.dwelling_type_id = $${paramIndex}`;
+        queryParams.push(dwelling_type_id);
+        paramIndex++;
+      }
+
+      if (range_id) {
+        baseQuery += ` AND f.range_id = $${paramIndex}`;
+        queryParams.push(range_id);
+        paramIndex++;
+      }
     }
 
     if (cost_type) {
@@ -339,16 +360,22 @@ export async function getMasterFacades(req, res) {
       countIndex++;
     }
 
-    if (dwelling_type_id) {
-      countQuery += ` AND f.dwelling_type_id = $${countIndex}`;
-      countParams.push(dwelling_type_id);
+    if (useFloorPlanMapping) {
+      countQuery += ` AND f.facade_id IN (SELECT facade_id FROM floor_plan_facade_map WHERE floor_plan_id = $${countIndex})`;
+      countParams.push(floor_plan_id);
       countIndex++;
-    }
+    } else {
+      if (dwelling_type_id) {
+        countQuery += ` AND f.dwelling_type_id = $${countIndex}`;
+        countParams.push(dwelling_type_id);
+        countIndex++;
+      }
 
-    if (range_id) {
-      countQuery += ` AND f.range_id = $${countIndex}`;
-      countParams.push(range_id);
-      countIndex++;
+      if (range_id) {
+        countQuery += ` AND f.range_id = $${countIndex}`;
+        countParams.push(range_id);
+        countIndex++;
+      }
     }
 
     if (cost_type) {

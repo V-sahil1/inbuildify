@@ -3331,6 +3331,7 @@ CREATE TABLE quotation_version(
   floor_plan_id UUID REFERENCES floor_plan(floor_plan_id) ON DELETE SET NULL,
   facade_id UUID REFERENCES facade(facade_id) ON DELETE SET NULL,
   package_id UUID REFERENCES package(package_id) ON DELETE SET NULL,
+  facade_price NUMERIC(12, 2) DEFAULT 0,
   is_approve BOOLEAN DEFAULT FALSE,
   sketch_number NUMERIC(10,2),               -- if the is approve true then user can input sketch number
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

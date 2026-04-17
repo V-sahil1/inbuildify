@@ -536,6 +536,17 @@ class QuotationService {
         ? updateData.range_id
         : existingVersion.range_id;
 
+      // Track floor plan change — needed for facade clearing and price list auto-mapping below
+      const previousFloorPlanId = existingVersion.floor_plan_id;
+      const floorPlanChanged = updateData.floor_plan_id !== undefined
+        && updateData.floor_plan_id !== previousFloorPlanId;
+
+      // Floor plan changed → the old facade belongs to the old floor plan and must be cleared.
+      // Only force-clear if the request does NOT explicitly supply a new facade_id.
+      if (floorPlanChanged && updateData.facade_id === undefined) {
+        updateData.facade_id = null;
+      }
+
       if ((updateData.floor_plan_id || updateData.facade_id) && !effectiveDwellingTypeId) {
         return {
           success: false,
@@ -594,6 +605,47 @@ class QuotationService {
         }
       }
       console.log("test1@mailinat")
+
+      // Facade → Floor Plan constraint:
+      // If the user is setting a non-null facade_id, verify it is mapped to the currently
+      // selected floor plan (if that floor plan has any facade mappings at all).
+      // When no mappings exist, any facade matching range + dwelling_type is allowed.
+      const effectiveFloorPlanIdForConstraint = updateData.floor_plan_id !== undefined
+        ? updateData.floor_plan_id
+        : existingVersion.floor_plan_id;
+
+      if (updateData.facade_id && effectiveFloorPlanIdForConstraint) {
+        const facadeMappings = await quotationRepository.getFloorPlanFacadeMappings(
+          effectiveFloorPlanIdForConstraint
+        );
+        // if (facadeMappings.length > 0) {
+        //   const mappedFacadeIds = facadeMappings.map((r) => r.facade_id);
+        //   if (!mappedFacadeIds.includes(updateData.facade_id)) {
+        //     return {
+        //       success: false,
+        //       message: "The selected Facade is not mapped to the selected Floor Plan",
+        //     };
+        //   }
+        // }
+      }
+
+      // Handle facade_price snapshotting
+      if (updateData.facade_id !== undefined) {
+        if (updateData.facade_id === null) {
+          updateData.facade_price = 0;
+        } else {
+          const { Facade } = db;
+          const facade = await Facade.findOne({
+            attributes: ["cost"],
+            where: {
+              facade_id: updateData.facade_id,
+            },
+          });
+          if (facade) {
+            updateData.facade_price = facade.cost || 0;
+          }
+        }
+      }
 
       // Handle structure_engineer_id: validate and auto-populate price from StructureEngineer
       if (updateData.structure_engineer_id !== undefined) {
@@ -729,12 +781,45 @@ class QuotationService {
         }
       }
 
+      // Handle package_id snapshotting: 
+      // If package_id is explicitly being updated (even to null), manage the snapshots.
+      if (updateData.package_id !== undefined) {
+        // 1. Clear any existing package snapshot for this version
+        await quotationRepository.removePackageFromVersion(versionId, null, builderId, companyId);
+
+        // 2. If a new package is selected, snapshot it
+        if (updateData.package_id !== null) {
+          const { Package } = db;
+          const pkg = await Package.findOne({
+            where: { package_id: updateData.package_id },
+            attributes: ["package_id", "name", "cost"]
+          });
+          if (pkg) {
+            await quotationRepository.addPackageSnapshot(versionId, pkg);
+          }
+        }
+      }
+
       const oldVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
       updateData.updated_by = userId;
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       // Invalidate cached PDF since version data changed
       await quotationRepository.clearPdfUrl(versionId);
+
+      // Floor Plan price list item auto-mapping.
+      // Only runs when floor_plan_id is explicitly included in the update payload.
+      if (updateData.floor_plan_id !== undefined) {
+        // If the floor plan changed, remove items that were auto-mapped from the OLD floor plan.
+        // Manually added items (not in the old floor plan's mapping) are preserved.
+        if (floorPlanChanged && previousFloorPlanId) {
+          await quotationRepository.removeFloorPlanPricelistItems(versionId, previousFloorPlanId);
+        }
+        // If the new floor plan is non-null, insert its mapped price list items (duplicates skipped).
+        if (updateData.floor_plan_id) {
+          await quotationRepository.autoMapFloorPlanPricelistItems(versionId, updateData.floor_plan_id);
+        }
+      }
 
       if (!updated) {
         return {

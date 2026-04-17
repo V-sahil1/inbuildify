@@ -44,21 +44,6 @@ class QuotationRepository {
                 'floor_plan_name', fp.name,
                 'facade_id', qv.facade_id,
                 'facade_name', f.name,
-                'package', (
-                  SELECT json_build_object(
-                    'package_id', p.package_id,
-                    'name', p.name,
-                    'cost', p.cost
-                  )
-                  FROM package p
-                  WHERE p.package_id = qv.package_id LIMIT 1
-                ),
-                'total_package_cost', COALESCE(
-                  (SELECT p.cost
-                   FROM package p
-                   WHERE p.package_id = qv.package_id), 0
-                ),
-                'updated_at', qv.updated_at,
                 'structural_engineer', CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
                   json_build_object(
                     'id', qv.structure_engineer_id,
@@ -132,8 +117,9 @@ class QuotationRepository {
                      FROM quotation_version_items
                      WHERE quotation_version_id = qv.quotation_version_id
                      AND package_id IS NULL), 0
-                  ) + COALESCE(qv.structure_engineer_price, 0)
-                )
+                  ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
+                ),
+                'facade_price', qv.facade_price
               ) ORDER BY qv.quotation_version_no DESC
             ) FILTER (WHERE qv.quotation_version_id IS NOT NULL),
             '[]'
@@ -270,8 +256,9 @@ class QuotationRepository {
               package_id,
               structure_engineer_id,
               structure_engineer_price,
+              facade_price,
               sketch_number
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11, $12)
           RETURNING *
       `;
 
@@ -286,6 +273,7 @@ class QuotationRepository {
         sourceVersion.package_id,
         sourceVersion.structure_engineer_id || null,
         sourceVersion.structure_engineer_price || 0,
+        sourceVersion.facade_price || 0,
         sourceVersion.sketch_number || null,
       ];
 
@@ -346,7 +334,7 @@ class QuotationRepository {
       let query = `
         SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, l.name as location_name,
+          qv.location_id, qv.facade_price, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
@@ -435,7 +423,7 @@ class QuotationRepository {
                FROM quotation_version_items qvi
                WHERE qvi.quotation_version_id = qv.quotation_version_id
                AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0)
+            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
           ) as grand_total_cost,
           (
             SELECT COALESCE(json_agg(json_build_object(
@@ -556,7 +544,7 @@ class QuotationRepository {
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
-        "structure_engineer_id", "structure_engineer_price",
+        "structure_engineer_id", "structure_engineer_price", "facade_price",
       ];
 
       const updateFields = [];
@@ -593,7 +581,7 @@ class QuotationRepository {
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, l.name as location_name,
+          qv.location_id, qv.facade_price, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
@@ -677,7 +665,7 @@ class QuotationRepository {
                FROM quotation_version_items qvi
                WHERE qvi.quotation_version_id = qv.quotation_version_id
                AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0)
+            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
           ) as grand_total_cost,
           (
             SELECT COALESCE(json_agg(json_build_object(
@@ -751,7 +739,7 @@ class QuotationRepository {
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
-          qv.sketch_number, qv.created_at, qv.updated_at,
+          qv.facade_price, qv.sketch_number, qv.created_at, qv.updated_at,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
             json_build_object(
               'id', qv.structure_engineer_id,
@@ -841,7 +829,7 @@ class QuotationRepository {
                FROM quotation_version_items qvi
                WHERE qvi.quotation_version_id = qv.quotation_version_id
                AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0)
+            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
           ) as grand_total_cost,
           (
             SELECT COALESCE(json_agg(json_build_object(
@@ -954,7 +942,7 @@ class QuotationRepository {
       // 1. Version header with grand total
       const versionQuery = `
         SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id, qv.floor_plan_id,
-          f.name as facade_name, fp.name as floor_plan_name,
+          qv.facade_price, f.name as facade_name, fp.name as floor_plan_name,
           COALESCE(
             (SELECT DISTINCT package_cost 
              FROM quotation_version_items qvi 
@@ -980,7 +968,7 @@ class QuotationRepository {
                FROM quotation_version_items qvi
                WHERE qvi.quotation_version_id = qv.quotation_version_id
                AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0)
+            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
           ) as grand_total_cost
         FROM quotation_version qv
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
@@ -1079,14 +1067,49 @@ class QuotationRepository {
   async removePackageFromVersion(versionId, packageId, builderId, companyId) {
     const client = await this.pool.connect();
     try {
-      // Find the version explicitly to ensure ownership and that the version exists
+      await client.query("BEGIN");
       const query = `
         UPDATE quotation_version
         SET package_id = NULL
-        WHERE quotation_version_id = $1 AND package_id = $2
+        WHERE quotation_version_id = $1 ${packageId ? "AND package_id = $2" : ""}
         RETURNING *
       `;
-      const result = await client.query(query, [versionId, packageId]);
+      const values = packageId ? [versionId, packageId] : [versionId];
+      const result = await client.query(query, values);
+
+      // Also remove from snapshots
+      await client.query(`
+        DELETE FROM quotation_version_items 
+        WHERE quotation_version_id = $1 AND package_id IS NOT NULL
+      `, [versionId]);
+
+      await client.query("COMMIT");
+      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addPackageSnapshot(versionId, pkg) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        INSERT INTO quotation_version_items (
+          quotation_version_id, package_id, package_name, package_cost, 
+          total_price, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      const result = await client.query(query, [
+        versionId,
+        pkg.package_id,
+        pkg.name,
+        pkg.cost || 0,
+        pkg.cost || 0
+      ]);
       return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
     } finally {
       client.release();
@@ -1381,13 +1404,8 @@ class QuotationRepository {
                AND qvi.package_id IS NULL),
               0
             ) +
-            COALESCE(
-              (SELECT qv_total.structure_engineer_price
-               FROM quotation_version qv_total
-               WHERE qv_total.quotation_version_id = qv.quotation_version_id
-               LIMIT 1),
-              0
-            )
+            COALESCE(qv.structure_engineer_price, 0) +
+            COALESCE(qv.facade_price, 0)
           ) AS quotation_total,
           (
             SELECT COUNT(*) FROM quotation_version qv_cnt
@@ -1442,7 +1460,7 @@ class QuotationRepository {
           opts.option_type,
           opts.option_id,
           opts.option_label,
-          opts.opt_leads_id as leads_id,
+          opts.leads_id as leads_id,
           opts.customer_name,
           opts.contact_name
         FROM leads l
@@ -1540,6 +1558,117 @@ class QuotationRepository {
       client.release();
     }
   }
+
+  /**
+   * Returns all facade IDs mapped to the given floor plan.
+   * Returns an empty array if the floor plan has no facade mappings.
+   */
+  async getFloorPlanFacadeMappings(floorPlanId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        SELECT facade_id
+        FROM floor_plan_facade_map
+        WHERE floor_plan_id = $1
+      `;
+      const result = await client.query(query, [floorPlanId]);
+      return result.rows; // array of { facade_id }
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Removes quotation_version_items rows that were auto-mapped from a given floor plan's
+   * price list item mapping. Package items and manually-added items are preserved.
+   */
+  async removeFloorPlanPricelistItems(versionId, floorPlanId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        DELETE FROM quotation_version_items
+        WHERE quotation_version_id = $1
+          AND package_id IS NULL
+          AND price_list_item_id IN (
+            SELECT price_list_item_id
+            FROM floor_plan_pricelist_item_map
+            WHERE floor_plan_id = $2
+          )
+      `;
+      await client.query(query, [versionId, floorPlanId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Auto-inserts price list items mapped to the given floor plan into quotation_version_items.
+   * Uses a single INSERT...SELECT at the DB level, skipping items already present (by price_list_item_id).
+   * Quantity comes from floor_plan_pricelist_item_map; total_price = cost * quantity.
+   */
+  async autoMapFloorPlanPricelistItems(versionId, floorPlanId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        INSERT INTO quotation_version_items (
+          quotation_version_id, price_list_id, price_list_name, price_list_item_id,
+          price_list_item_description, price_list_item_short_description,
+          price_list_item_cost_type, price_list_item_cost_type_text,
+          price_list_item_cost_option, price_list_item_cost,
+          price_list_item_builder_cost, price_list_item_sort_order,
+          price_list_item_uom, price_list_item_status,
+          price_list_item_include_by_default, price_list_item_allow_remove_from_quotation,
+          price_list_item_show_in_hl_package, price_list_item_package_only,
+          price_list_item_range_id, price_list_item_dwelling_type_id,
+          price_list_item_created_at, price_list_item_updated_at,
+          quantity, total_price,
+          created_at, updated_at
+        )
+        SELECT
+          $1,
+          pli.price_list_id,
+          pl.name,
+          fpim.price_list_item_id,
+          pli.item_description,
+          pli.short_description,
+          pli.cost_type,
+          pli.cost_type_text,
+          pli.cost_option,
+          pli.cost,
+          pli.builder_cost,
+          pli.sort_order,
+          pli.uom,
+          pli.status,
+          pli.include_by_default,
+          pli.allow_remove_from_quotation,
+          pli.show_in_hl_package,
+          pli.show_only_in_package,
+          pli.range_id,
+          pli.dwelling_type_id,
+          pli.created_at,
+          pli.updated_at,
+          COALESCE(fpim.quantity, 1),
+          COALESCE(pli.cost, 0) * COALESCE(fpim.quantity, 1),
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        FROM floor_plan_pricelist_item_map fpim
+        JOIN price_list_item pli ON fpim.price_list_item_id = pli.price_list_item_id
+        JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+        WHERE fpim.floor_plan_id = $2
+          AND pli.status = 'active'
+          AND fpim.price_list_item_id NOT IN (
+            SELECT price_list_item_id
+            FROM quotation_version_items
+            WHERE quotation_version_id = $1
+              AND price_list_item_id IS NOT NULL
+          )
+      `;
+      await client.query(query, [versionId, floorPlanId]);
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export default new QuotationRepository();
+

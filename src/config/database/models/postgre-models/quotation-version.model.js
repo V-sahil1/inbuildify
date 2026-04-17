@@ -29,6 +29,7 @@ export default (sequelize) => {
       package_id: { type: DataTypes.UUID, allowNull: true },
       structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
       structure_engineer_price: { type: DataTypes.INTEGER, allowNull: true },
+      facade_price: { type: DataTypes.DECIMAL(12, 2), allowNull: true, defaultValue: 0 },
       pdf_url: { type: DataTypes.TEXT, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },

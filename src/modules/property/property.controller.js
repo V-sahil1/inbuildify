@@ -11,7 +11,6 @@ import db from "../../config/database/models/postgre-models/index.js";
 export async function createProperty(req, res) {
   try {
     const { leads_id } = req.params;
-    console.log(req.body);
     const propertyData = { ...req.body };
 
     // Handle file upload
