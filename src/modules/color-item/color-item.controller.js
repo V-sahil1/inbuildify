@@ -37,6 +37,7 @@ export async function getColorItemsWithoutCategory(req, res) {
         ci.color_item_id,
         ci.company_id,
         ci.builder_id,
+        ci.color_id,
         ci.item_name,
         ci.item_code,
         ci.supplier_id,
@@ -56,6 +57,22 @@ export async function getColorItemsWithoutCategory(req, res) {
         ci.specification,
         ci.created_at,
         ci.updated_at,
+        CASE 
+          WHEN ci.color_category_id IS NOT NULL THEN
+            json_build_object(
+              'id', cc.color_category_id,
+              'name', cc.category_name
+            )
+          ELSE NULL 
+        END AS color_category,
+        CASE 
+          WHEN ci.color_id IS NOT NULL THEN
+            json_build_object(
+              'id', c.color_id,
+              'name', c.color_name
+            )
+          ELSE NULL 
+        END AS color,
         COALESCE(
           (
             SELECT json_agg(
@@ -87,6 +104,8 @@ export async function getColorItemsWithoutCategory(req, res) {
           '[]'::json
         ) AS custom_fields
       FROM color_item ci
+      LEFT JOIN color_category cc ON ci.color_category_id = cc.color_category_id
+      LEFT JOIN color c ON ci.color_id = c.color_id
       ${whereClause}
       ORDER BY ci.created_at DESC
     `;
