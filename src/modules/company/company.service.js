@@ -184,9 +184,7 @@ import db from "../../config/database/models/postgre-models/index.js";
 
 export async function getCompanyService({ builderId }) {
 
-  const company = await db.Company.findOne({
-    where: { builder_id: builderId },
-  });
+  const company = await getCompanyWithAddress(builderId);
 
   if (!company) {
     const error = new Error("Company not found");
@@ -194,7 +192,7 @@ export async function getCompanyService({ builderId }) {
     throw error;
   }
 
-  return keysToCamelCase(company?.toJSON() ?? null);
+  return company;
 }
 //without tra
 // // // ─── Helper: attach timezone array to company plain object ───────────────────
@@ -499,7 +497,7 @@ export async function upsertCompanyService(builderId, payload, transaction = nul
         { where: { builder_id: builderId }, transaction: t },
       );
 
-      result = await attachTimezone(newCompany.toJSON(), t);
+      result = await getCompanyWithAddress(builderId, t);
     } else {
       // ── UPDATE ──────────────────────────────────────────────────────────────
       const updatePayload = {};
@@ -521,7 +519,7 @@ export async function upsertCompanyService(builderId, payload, transaction = nul
         transaction: t,
       });
 
-      result = await attachTimezone(updatedCompany.toJSON(), t);
+      result = await getCompanyWithAddress(builderId, t);
     }
 
     if (!isExternalTransaction) await t.commit();

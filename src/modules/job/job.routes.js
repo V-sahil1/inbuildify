@@ -1,7 +1,5 @@
 import express from "express";
-
-const router = express.Router();
-import { convertOpportunityToJob } from "./job.controller.js";
+import { convertOpportunityToJob, getAllJobs, getJobById, updateJobStatus } from "./job.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
@@ -9,17 +7,31 @@ import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import { convertOpportunitySchema } from "./job.validation.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
 
-// Apply basic auth and role middlewares
+const router = express.Router();
+
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-// POST /api/job/opportunity/:opportunity_id/convert
+// GET /job — list all jobs with pagination, filtering, sorting
+router.get("/", getAllJobs);
+
+// GET /job/:job_id — fetch full detail of a single job
+router.get("/:job_id", getJobById);
+
+// POST /job/opportunity/:opportunity_id/convert — convert opportunity to job
 router.post(
   "/opportunity/:opportunity_id/convert",
   camelToSnakeMiddleware,
   validateRequest(convertOpportunitySchema.params, REQUEST_SOURCE.PARAMS),
   validateRequest(convertOpportunitySchema.body, REQUEST_SOURCE.BODY),
   convertOpportunityToJob,
+);
+
+// PATCH /job/:job_id/status — update job status
+router.patch(
+  "/:job_id/status",
+  camelToSnakeMiddleware,
+  updateJobStatus,
 );
 
 export default router;

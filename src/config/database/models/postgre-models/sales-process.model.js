@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class SalesProcess extends Model {
   static associate(models) {
-    SalesProcess.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    SalesProcess.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    SalesProcess.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    SalesProcess.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    SalesProcess.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    SalesProcess.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    SalesProcess.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    SalesProcess.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     SalesProcess.hasMany(models.SalesStage, { foreignKey: "sales_process_id", as: "stages" });
   }
 }

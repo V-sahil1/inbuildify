@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class UserGroup extends Model {
   static associate(models) {
-    UserGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    UserGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    UserGroup.belongsTo(models.Users, { foreignKey: "created_by_id", as: "createdByUser" });
-    UserGroup.belongsTo(models.Users, { foreignKey: "updated_by_id", as: "updatedByUser" });
+    UserGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    UserGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    UserGroup.belongsTo(models.Users, { foreignKey: "created_by_id", as: "createdByUser", onDelete: "CASCADE" });
+    UserGroup.belongsTo(models.Users, { foreignKey: "updated_by_id", as: "updatedByUser", onDelete: "CASCADE" });
   }
 }
 

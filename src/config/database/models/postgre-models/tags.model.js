@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class Tags extends Model {
   static associate(models) {
-    Tags.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    Tags.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
   }
 }
 

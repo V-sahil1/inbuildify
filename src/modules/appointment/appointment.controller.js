@@ -17,7 +17,7 @@ export async function createAppointment(req, res) {
       date,
       start_time,
       end_time,
-      location_id,
+      location_text,
       link_to,
       lead_id,
       select_users,
@@ -31,36 +31,6 @@ export async function createAppointment(req, res) {
         400,
         "start_time must be earlier than end_time.",
       );
-    }
-
-    if (location_id) {
-      const locationCheck = await client.query(
-        `SELECT location_id 
-         FROM location 
-         WHERE location_id = $1 AND (company_id = $2 OR builder_id = $3)`,
-        [location_id, companyId, builderId],
-      );
-
-      if (locationCheck.rowCount === 0) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid location_id. Location not found for this builder/company.",
-        );
-      }
-    }
-
-    if (location_id) {
-      const locationActiveCheck = await client.query(
-        `SELECT location_id 
-         FROM location 
-         WHERE location_id = $1 AND (company_id = $2 OR builder_id = $3) AND status = true`,
-        [location_id, companyId, builderId],
-      );
-
-      if (locationActiveCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Inactive location.");
-      }
     }
 
     if (lead_id) {
@@ -118,7 +88,7 @@ export async function createAppointment(req, res) {
         date,
         start_time,
         end_time,
-        location_id,
+        location_text,
         link_to,
         lead_id,
         select_users,
@@ -147,6 +117,7 @@ export async function createAppointment(req, res) {
         date,
         start_time,
         end_time,
+        location_text,
         link_to,
         lead_id,
         select_users,
@@ -166,7 +137,7 @@ export async function createAppointment(req, res) {
       date,
       start_time,
       end_time,
-      location_id || null,
+      location_text?.trim() || null,
       link_to || null,
       lead_id || null,
       select_users || [],
@@ -177,22 +148,6 @@ export async function createAppointment(req, res) {
     ];
 
     const result = await client.query(insertQuery, values);
-
-    let locationData = [];
-    if (location_id) {
-      const locationQuery = await client.query(
-        "SELECT location_id, name FROM location WHERE location_id = $1",
-        [location_id],
-      );
-      if (locationQuery.rowCount > 0) {
-        locationData = [
-          {
-            id: locationQuery.rows[0].location_id,
-            name: locationQuery.rows[0].name,
-          },
-        ];
-      }
-    }
 
     let selectUsersData = [];
     if (select_users && select_users.length > 0) {
@@ -238,7 +193,7 @@ export async function createAppointment(req, res) {
       date: appointmentData.date,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
-      location: locationData,
+      locationText: appointmentData.locationText ?? null,
       linkTo: appointmentData.linkTo,
       leadId: appointmentData.leadId,
       selectUsers: selectUsersData,
@@ -283,7 +238,18 @@ export async function getAllAppointments(req, res) {
     limit = parseInt(limit);
 
     const offset = (page - 1) * limit;
-    const { title, date, location_id, link_to, lead_id, is_deleted } = req.query;
+    const {
+      title,
+      date,
+      date_from,
+      date_to,
+      location_text,
+      link_to,
+      lead_id,
+      assignee_id,
+      include_cancelled,
+      is_deleted,
+    } = req.query;
 
     const whereClauses = [];
     const values = [];
@@ -305,15 +271,28 @@ export async function getAllAppointments(req, res) {
       idx++;
     }
 
-    if (date) {
+    // Support exact date match OR date range via date_from/date_to
+    if (date_from && date_to) {
+      whereClauses.push(`a.date BETWEEN $${idx} AND $${idx + 1}`);
+      values.push(date_from.slice(0, 10), date_to.slice(0, 10));
+      idx += 2;
+    } else if (date_from) {
+      whereClauses.push(`a.date >= $${idx}`);
+      values.push(date_from.slice(0, 10));
+      idx++;
+    } else if (date_to) {
+      whereClauses.push(`a.date <= $${idx}`);
+      values.push(date_to.slice(0, 10));
+      idx++;
+    } else if (date) {
       whereClauses.push(`a.date = $${idx}`);
       values.push(date);
       idx++;
     }
 
-    if (location_id) {
-      whereClauses.push(`a.location_id = $${idx}`);
-      values.push(location_id);
+    if (location_text) {
+      whereClauses.push(`a.location_text ILIKE $${idx}`);
+      values.push(`%${location_text}%`);
       idx++;
     }
 
@@ -322,19 +301,28 @@ export async function getAllAppointments(req, res) {
       values.push(link_to);
       idx++;
     }
-    
+
     if (lead_id) {
       whereClauses.push(`a.lead_id = $${idx}`);
       values.push(lead_id);
       idx++;
     }
 
-    if (is_deleted === undefined) {
-      whereClauses.push("a.is_deleted = false");
-    } else {
+    if (assignee_id) {
+      whereClauses.push(`$${idx} = ANY(a.select_users)`);
+      values.push(assignee_id);
+      idx++;
+    }
+
+    // include_cancelled=true means include soft-deleted (cancelled) appointments
+    if (include_cancelled === "true" || include_cancelled === true) {
+      // no is_deleted filter — return all
+    } else if (is_deleted !== undefined) {
       whereClauses.push(`a.is_deleted = $${idx}`);
       values.push(is_deleted === "true");
       idx++;
+    } else {
+      whereClauses.push("a.is_deleted = false");
     }
 
     const where =
@@ -353,11 +341,7 @@ export async function getAllAppointments(req, res) {
         a.date,
         a.start_time,
         a.end_time,
-        CASE 
-          WHEN l.location_id IS NOT NULL THEN 
-            json_build_object('id', l.location_id, 'name', l.name)
-          ELSE '[]'::json
-        END AS location,  
+        a.location_text,
         a.link_to,
         a.lead_id,
         a.select_users,
@@ -370,7 +354,6 @@ export async function getAllAppointments(req, res) {
         a.created_at,
         a.updated_at
       FROM appointment a
-      LEFT JOIN location l ON a.location_id = l.location_id
       ${where}
       ORDER BY a.date DESC, a.start_time DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -411,6 +394,147 @@ export async function getAllAppointments(req, res) {
     });
   } catch (err) {
     console.error("Error fetching appointments:", err);
+    return errorResponse(res, 500, err.message || "Internal Server Error");
+  } finally {
+    client.release();
+  }
+}
+
+function formatLocalYmd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysYmd(ymd, days) {
+  const [y, mo, da] = ymd.split("-").map(Number);
+  const d = new Date(y, mo - 1, da);
+  d.setDate(d.getDate() + days);
+  return formatLocalYmd(d);
+}
+
+function startOfWeekSundayYmd(ymd) {
+  const [y, mo, da] = ymd.split("-").map(Number);
+  const d = new Date(y, mo - 1, da);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  return formatLocalYmd(d);
+}
+
+function endOfWeekFromStartSundayYmd(startYmd) {
+  return addDaysYmd(startYmd, 6);
+}
+
+/**
+ * Tab bucket counts aligned with frontend dayjs: week starts Sunday, local calendar dates.
+ */
+export async function getAppointmentTabCounts(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized: Missing builder or company ID.",
+      );
+    }
+
+    const { anchor_date, title, assignee_id, include_cancelled } = req.query;
+
+    const todayYmd =
+      anchor_date && /^\d{4}-\d{2}-\d{2}$/.test(anchor_date)
+        ? anchor_date
+        : formatLocalYmd(new Date());
+
+    const tomorrowYmd = addDaysYmd(todayYmd, 1);
+    const thisWeekStart = startOfWeekSundayYmd(todayYmd);
+    const thisWeekEnd = endOfWeekFromStartSundayYmd(thisWeekStart);
+    const nextWeekStart = addDaysYmd(thisWeekStart, 7);
+    const nextWeekEnd = addDaysYmd(thisWeekEnd, 7);
+
+    const ranges = {
+      today: [todayYmd, todayYmd],
+      tomorrow: [tomorrowYmd, tomorrowYmd],
+      thisWeek: [thisWeekStart, thisWeekEnd],
+      nextWeek: [nextWeekStart, nextWeekEnd],
+      pending: [todayYmd, null],
+    };
+
+    async function countBetween(dateFrom, dateTo) {
+      const whereClauses = [];
+      const vals = [];
+      let idx = 1;
+
+      if (builderId) {
+        whereClauses.push(`a.builder_id = $${idx}`);
+        vals.push(builderId);
+        idx++;
+      } else {
+        whereClauses.push(`a.company_id = $${idx}`);
+        vals.push(companyId);
+        idx++;
+      }
+
+      if (title) {
+        whereClauses.push(`LOWER(a.title) LIKE LOWER($${idx})`);
+        vals.push(`%${title}%`);
+        idx++;
+      }
+
+      if (assignee_id) {
+        whereClauses.push(`$${idx} = ANY(a.select_users)`);
+        vals.push(assignee_id);
+        idx++;
+      }
+
+      if (include_cancelled === "true" || include_cancelled === true) {
+        // include cancelled
+      } else {
+        whereClauses.push("a.is_deleted = false");
+      }
+
+      if (dateFrom && dateTo) {
+        whereClauses.push(`a.date BETWEEN $${idx} AND $${idx + 1}`);
+        vals.push(dateFrom, dateTo);
+        idx += 2;
+      } else if (dateFrom) {
+        whereClauses.push(`a.date >= $${idx}`);
+        vals.push(dateFrom);
+        idx++;
+      }
+
+      const where =
+        whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+      const q = `SELECT COUNT(*)::int AS c FROM appointment a ${where}`;
+      const r = await client.query(q, vals);
+      return r.rows[0].c;
+    }
+
+    const [all, today, tomorrow, thisWeek, nextWeek, pending] = await Promise.all([
+      countBetween(null, null),
+      countBetween(ranges.today[0], ranges.today[1]),
+      countBetween(ranges.tomorrow[0], ranges.tomorrow[1]),
+      countBetween(ranges.thisWeek[0], ranges.thisWeek[1]),
+      countBetween(ranges.nextWeek[0], ranges.nextWeek[1]),
+      countBetween(ranges.pending[0], ranges.pending[1]),
+    ]);
+
+    return successResponse(res, {
+      all,
+      today,
+      tomorrow,
+      thisWeek,
+      nextWeek,
+      pending,
+    });
+  } catch (err) {
+    console.error("Error fetching appointment tab counts:", err);
     return errorResponse(res, 500, err.message || "Internal Server Error");
   } finally {
     client.release();
@@ -507,7 +631,7 @@ export async function updateAppointment(req, res) {
       date,
       start_time,
       end_time,
-      location_id,
+      location_text,
       link_to,
       select_users,
       notes,
@@ -603,28 +727,6 @@ export async function updateAppointment(req, res) {
       }
     }
 
-    if (location_id !== undefined) {
-      const locationCheck = await client.query(
-        "SELECT location_id FROM location WHERE location_id = $1 AND builder_id = $2",
-        [location_id, builderId],
-      );
-      if (locationCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid location_id.");
-      }
-    }
-
-    if (location_id !== undefined) {
-      const locationActiveCheck = await client.query(
-        "SELECT location_id FROM location WHERE location_id = $1 AND status = true AND builder_id = $2",
-        [location_id, builderId],
-      );
-      if (locationActiveCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Inactive location.");
-      }
-    }
-
     function isValidDate(dateString) {
       const date = new Date(dateString);
       return (
@@ -660,9 +762,13 @@ export async function updateAppointment(req, res) {
       values.push(end_time);
       index++;
     }
-    if (location_id !== undefined) {
-      fields.push(`location_id = $${index}`);
-      values.push(location_id);
+    if (location_text !== undefined) {
+      fields.push(`location_text = $${index}`);
+      values.push(
+        location_text === null || location_text === ""
+          ? null
+          : String(location_text).trim(),
+      );
       index++;
     }
     if (link_to !== undefined) {
@@ -709,7 +815,7 @@ export async function updateAppointment(req, res) {
         date,
         start_time,
         end_time,
-        location_id,
+        location_text,
         link_to,
         select_users,
         notes,
@@ -725,30 +831,7 @@ export async function updateAppointment(req, res) {
 
     const updateResult = await client.query(updateQuery, finalValues);
 
-    // Get location details if location_id exists
-    let locationData = [];
     const updatedAppointment = updateResult.rows[0];
-
-    // Check if location_id was updated in this request
-    let locationIdToLookup = updatedAppointment.location_id;
-    if (location_id !== undefined) {
-      locationIdToLookup = location_id;
-    }
-
-    if (locationIdToLookup) {
-      const locationQuery = await client.query(
-        "SELECT location_id, name FROM location WHERE location_id = $1",
-        [locationIdToLookup],
-      );
-      if (locationQuery.rowCount > 0) {
-        locationData = [
-          {
-            id: locationQuery.rows[0].location_id,
-            name: locationQuery.rows[0].name,
-          },
-        ];
-      }
-    }
 
     // Get select_users details if users exist
     let selectUsersData = [];
@@ -791,7 +874,6 @@ export async function updateAppointment(req, res) {
       [updatedAppointment.created_by]
     );
 
-    // Construct response with proper order and location object
     const response = {
       appointmentId: appointmentData.appointmentId,
       companyId: appointmentData.companyId,
@@ -800,7 +882,7 @@ export async function updateAppointment(req, res) {
       date: appointmentData.date,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
-      location: locationData,
+      locationText: appointmentData.locationText ?? null,
       linkTo: appointmentData.linkTo,
       selectUsers: selectUsersData,
       notes: appointmentData.notes,

@@ -17,6 +17,7 @@ const addressSchema = Joi.object({
     .trim()
     .min(2)
     .max(255)
+    .allow(null, "")
     .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
     .optional()
     .messages({

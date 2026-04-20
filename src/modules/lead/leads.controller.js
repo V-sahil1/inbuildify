@@ -112,17 +112,28 @@ export async function getAllLeads(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
     }
 
+    const toArray = (value) => {
+      if (!value) return undefined;
+      if (Array.isArray(value)) return value;
+      return String(value)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
     const filters = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 25,
       status: req.query.status,
-      rating: req.query.rating,
-      lead_source_id: req.query.lead_source_id,
+      rating: toArray(req.query.rating),
+      lead_source_id: toArray(req.query.lead_source_id),
       client_type_id: req.query.client_type_id,
       region_id: req.query.region_id,
-      assignee_id: req.query.assignee_id,
+      assignee_id: toArray(req.query.assignee_id),
       search: req.query.search,
       created_at: req.query.created_at,
+      sort_by: req.query.sort_by,
+      sort_order: req.query.sort_order,
     };
 
     const result = await leadsService.getAllLeads(builderId, companyId, filters);
@@ -234,20 +245,24 @@ export async function deleteLead(req, res) {
 
     const existingLeadResult = await leadsService.getLeadById(leads_id, builderId, companyId);
     
+    if (!existingLeadResult.success) {
+      return errorResponse(res, 404, "Lead not found");
+    }
+
+    // Log activity BEFORE deletion to avoid foreign key vibration on ACTIVITY LOG Table
+    await logActivity(null, {
+      userId: req.user?.users_id,
+      leadsId: leads_id,
+      module: "Lead",
+      moduleId: leads_id,
+      recordName: existingLeadResult.data.name,
+      action: "DELETE",
+      description: `Lead deleted: ${existingLeadResult.data.name}`
+    });
+
     const result = await leadsService.deleteLead(leads_id, builderId, companyId);
 
     if (result.success) {
-      if (existingLeadResult.success) {
-        await logActivity(null, {
-          userId: req.user?.users_id,
-          leadsId: leads_id,
-          module: "Lead",
-          moduleId: leads_id,
-          recordName: existingLeadResult.data.name,
-          action: "DELETE",
-          description: `Lead deleted: ${existingLeadResult.data.name}`
-        });
-      }
       return successResponse(res, null, "Lead deleted successfully");
     }
     return errorResponse(res, 404, result.message);
@@ -305,6 +320,40 @@ export async function getLeadStats(req, res) {
 
   } catch (error) {
     console.error("Get lead stats error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function getSalesDashboard(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const {
+      user_id,
+      created_at,
+      created_at_from,
+      created_at_to,
+    } = req.query;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const filters = {
+      userId: user_id && user_id !== "all" ? user_id : null,
+      createdAt: created_at || null,
+      createdAtFrom: created_at_from || null,
+      createdAtTo: created_at_to || null,
+    };
+
+    const result = await leadsService.getSalesDashboard(builderId, filters);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+
+  } catch (error) {
+    console.error("Get sales dashboard error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
 }
@@ -436,7 +485,7 @@ export async function getAllLeadActions(req, res) {
 export async function getLeadActivityLog(req, res) {
   try {
     const { leads_id } = req.params;
-    const { module, action, page = 1, limit = 20 } = req.query;
+    const { module, action, search, page = 1, limit = 20 } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -451,6 +500,7 @@ export async function getLeadActivityLog(req, res) {
     const result = await leadsService.getLeadActivityLog(leads_id, builderId, companyId, {
       module,
       action,
+      search,
       limit: limitValue,
       offset,
       page: pageValue

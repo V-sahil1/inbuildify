@@ -2,12 +2,12 @@ import { Model, DataTypes } from "sequelize";
 
 export class Estate extends Model {
   static associate(models) {
-    Estate.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Estate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Estate.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    Estate.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
-    Estate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Estate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Estate.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Estate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Estate.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
+    Estate.belongsTo(models.Country, { foreignKey: "country_id", as: "country", onDelete: "SET NULL" });
+    Estate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Estate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Estate.hasMany(models.EstateDocuments, { foreignKey: "estate_id", as: "documents" });
     Estate.hasMany(models.EstateImages, { foreignKey: "estate_id", as: "images" });
     Estate.hasMany(models.EstateStages, { foreignKey: "estate_id", as: "stages" });

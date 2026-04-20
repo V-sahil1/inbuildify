@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class LeadLostReason extends Model {
   static associate(models) {
-    LeadLostReason.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    LeadLostReason.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    LeadLostReason.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    LeadLostReason.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    LeadLostReason.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    LeadLostReason.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    LeadLostReason.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    LeadLostReason.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

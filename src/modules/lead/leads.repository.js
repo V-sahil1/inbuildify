@@ -1,5 +1,7 @@
 import getPool from "../../config/database.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { QueryTypes } from "sequelize";
 
 class LeadsRepository {
   constructor() {
@@ -39,9 +41,9 @@ class LeadsRepository {
           company_id, builder_id, name, email, phone, 
           notes, send_letter, lead_source_id, status, rating, land, finance, 
           face_to_face, purpose, assignee_id, created_by, updated_by, reference_number,
-          house_land_package_id, property_detail_id
+          house_land_package_id, property_detail_id, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW()
         ) RETURNING *
       `;
 
@@ -204,6 +206,8 @@ class LeadsRepository {
         search,
         email, 
         created_at, 
+        sort_by = "created_at",
+        sort_order = "desc",
       } = filters;
 
       const offset = (page - 1) * limit;
@@ -264,13 +268,13 @@ class LeadsRepository {
         paramIndex++;
       }
 
-      if (rating) {
-        whereConditions.push(`l.rating = $${paramIndex++}`);
+      if (rating?.length) {
+        whereConditions.push(`l.rating = ANY($${paramIndex++})`);
         queryParams.push(rating);
       }
 
-      if (lead_source_id) {
-        whereConditions.push(`l.lead_source_id = $${paramIndex++}`);
+      if (lead_source_id?.length) {
+        whereConditions.push(`l.lead_source_id = ANY($${paramIndex++}::uuid[])`);
         queryParams.push(lead_source_id);
       }
 
@@ -284,8 +288,8 @@ class LeadsRepository {
         queryParams.push(region_id);
       }
 
-      if (assignee_id) {
-        whereConditions.push(`l.assignee_id = $${paramIndex++}`);
+      if (assignee_id?.length) {
+        whereConditions.push(`l.assignee_id = ANY($${paramIndex++}::uuid[])`);
         queryParams.push(assignee_id);
       }
 
@@ -308,11 +312,35 @@ class LeadsRepository {
       }
 
       const whereClause = whereConditions.join(" AND ");
+      const allowedSortColumns = {
+        created_at: "l.created_at",
+      };
+      const normalizedSortOrder =
+        String(sort_order || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
+      const orderByColumn = allowedSortColumns[sort_by] || "l.created_at";
 
       const dataQuery = `
         SELECT 
           l.*,
           ls.name as lead_source_name,
+          COALESCE(
+            NULLIF(
+              TRIM(
+                CONCAT_WS(
+                  ', ',
+                  NULLIF(TRIM(COALESCE(pd.lot_number, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.street, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line1, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.address_line2, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.city, '')), ''),
+                  NULLIF(TRIM(COALESCE(st.name, '')), ''),
+                  NULLIF(TRIM(COALESCE(pd.zip_code, '')), '')
+                )
+              ),
+              ''
+            ),
+            'N/A'
+          ) as property_details,
           ct.client_type as client_type_name,
           s.name as state_name,
           assignee.name as assignee_name,
@@ -333,13 +361,15 @@ class LeadsRepository {
           (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
+        LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
         LEFT JOIN client_type ct ON l.client_type_id = ct.client_type_id
+        LEFT JOIN state st ON pd.state_id = st.state_id
         LEFT JOIN state s ON l.region_id = s.state_id
         LEFT JOIN users assignee ON l.assignee_id = assignee.users_id
         LEFT JOIN users created_by_user ON l.created_by = created_by_user.users_id
         LEFT JOIN users updated_by_user ON l.updated_by = updated_by_user.users_id
         WHERE ${whereClause}
-        ORDER BY l.created_at DESC
+        ORDER BY ${orderByColumn} ${normalizedSortOrder} NULLS LAST, l.updated_at DESC NULLS LAST, l.reference_number DESC
         LIMIT $${paramIndex++} OFFSET $${paramIndex++}
       `;
 
@@ -459,25 +489,31 @@ async getLeadById(leadId, builderId, companyId) {
                   'is_approve', qv.is_approve,
                   'sketch_number', qv.sketch_number,
                   'total_package_cost', COALESCE(
-                    (SELECT p.cost
-                     FROM package p
-                     WHERE p.package_id = qv.package_id), 0
+                    (SELECT package_cost 
+                     FROM quotation_version_items 
+                     WHERE quotation_version_id = qv.quotation_version_id 
+                     AND package_id IS NOT NULL 
+                     LIMIT 1), 0
                   ),
                   'total_pricelist_cost', COALESCE(
                     (SELECT SUM(total_price)
-                     FROM quotation_version_pricelist_item_map qvpim
-                     WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
+                     FROM quotation_version_items
+                     WHERE quotation_version_id = qv.quotation_version_id
+                     AND package_id IS NULL), 0
                   ),
                   'grand_total_cost', (
                     COALESCE(
-                      (SELECT p.cost
-                       FROM package p
-                       WHERE p.package_id = qv.package_id), 0
+                      (SELECT package_cost 
+                       FROM quotation_version_items 
+                       WHERE quotation_version_id = qv.quotation_version_id 
+                       AND package_id IS NOT NULL 
+                       LIMIT 1), 0
                     ) + COALESCE(
                       (SELECT SUM(total_price)
-                       FROM quotation_version_pricelist_item_map qvpim
-                       WHERE qvpim.quotation_version_id = qv.quotation_version_id), 0
-                    )
+                       FROM quotation_version_items
+                       WHERE quotation_version_id = qv.quotation_version_id
+                       AND package_id IS NULL), 0
+                    ) + COALESCE(qv.structure_engineer_price, 0)
                   ),
                   'package', (
                     SELECT json_build_object(
@@ -897,7 +933,225 @@ async getLeadById(leadId, builderId, companyId) {
       client.release();
     }
   }
+
+  async getSalesDashboard(builderId, filters = {}) {
+    const {
+      userId = null,
+      createdAt = null,
+      createdAtFrom = null,
+      createdAtTo = null,
+    } = filters;
+
+    const whereConditions = ["l.builder_id = :builderId"];
+    const replacements = { builderId };
+
+    if (userId) {
+      whereConditions.push("l.assignee_id = :userId");
+      replacements.userId = userId;
+    }
+
+    if (createdAtFrom) {
+      whereConditions.push("l.created_at >= :createdAtFrom");
+      replacements.createdAtFrom = createdAtFrom;
+    }
+
+    if (createdAtTo) {
+      whereConditions.push("l.created_at <= :createdAtTo");
+      replacements.createdAtTo = createdAtTo;
+    }
+
+    if (createdAt && !createdAtFrom && !createdAtTo) {
+      const now = new Date();
+      let dateFilter = null;
+      let dateFilterEnd = null;
+
+      switch (String(createdAt).toLowerCase()) {
+        case "last_7_days":
+          dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_15_days":
+          dateFilter = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+          break;
+        case "last_30_days":
+          dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          break;
+      }
+
+      if (dateFilter) {
+        whereConditions.push("l.created_at >= :createdAtStart");
+        replacements.createdAtStart = dateFilter.toISOString();
+      }
+
+      if (dateFilterEnd) {
+        whereConditions.push("l.created_at <= :createdAtEnd");
+        replacements.createdAtEnd = dateFilterEnd.toISOString();
+      }
+    }
+
+    const whereClause = whereConditions.join(" AND ");
+
+    // 1. Monthly leads for the last 6 months
+    const monthlyLeads = await db.sequelize.query(
+      `
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', l.created_at), 'Mon') AS month,
+          COUNT(*)::int AS total,
+          COUNT(CASE WHEN l.status = 'New' THEN 1 END)::int AS new_count,
+          COUNT(CASE WHEN l.status = 'Working' THEN 1 END)::int AS working_count,
+          COUNT(CASE WHEN l.status IN ('Convert', 'Qualified') THEN 1 END)::int AS converted_count
+        FROM leads l
+        WHERE ${whereClause}
+          AND l.created_at >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+        GROUP BY DATE_TRUNC('month', l.created_at)
+        ORDER BY DATE_TRUNC('month', l.created_at) ASC
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 2. Lead sources distribution — GROUP BY the coalesced value to avoid mismatch
+    const leadSources = await db.sequelize.query(
+      `
+        SELECT
+          COALESCE(ls.name, 'Unknown') AS source,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
+        WHERE ${whereClause}
+        GROUP BY COALESCE(ls.name, 'Unknown')
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 3. Top 5 performers by assigned leads
+    const topPerformers = await db.sequelize.query(
+      `
+        SELECT
+          u.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN users u ON l.assignee_id = u.users_id
+        WHERE ${whereClause} AND l.assignee_id IS NOT NULL
+        GROUP BY u.users_id, u.name
+        ORDER BY lead_count DESC
+        LIMIT 5
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 4. Overall summary by status
+    const overallSummary = await db.sequelize.query(
+      `
+        SELECT
+          COUNT(*)::int AS total_leads,
+          COUNT(CASE WHEN status = 'New' THEN 1 END)::int AS new_leads,
+          COUNT(CASE WHEN status = 'Working' THEN 1 END)::int AS working_leads,
+          COUNT(CASE WHEN status IN ('Convert', 'Qualified') THEN 1 END)::int AS converted_leads
+        FROM leads l
+        WHERE ${whereClause}
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 5. Top 10 floor plans via house_land_package
+    const topFloorplans = await db.sequelize.query(
+      `
+        SELECT
+          fp.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN house_land_package hlp ON l.house_land_package_id = hlp.house_land_package_id
+        JOIN floor_plan fp ON hlp.floor_plan_id = fp.floor_plan_id
+        WHERE ${whereClause}
+        GROUP BY fp.floor_plan_id, fp.name
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 6. Top 10 facades via house_land_package
+    const topFacades = await db.sequelize.query(
+      `
+        SELECT
+          f.name,
+          COUNT(l.leads_id)::int AS lead_count
+        FROM leads l
+        JOIN house_land_package hlp ON l.house_land_package_id = hlp.house_land_package_id
+        JOIN facade f ON hlp.facade_id = f.facade_id
+        WHERE ${whereClause}
+        GROUP BY f.facade_id, f.name
+        ORDER BY lead_count DESC
+        LIMIT 10
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    // 7. Lead lost reasons — count each reason entry (no FK from leads to lost reason)
+    const lostReasons = await db.sequelize.query(
+      `
+        SELECT
+          llr.lost_reason AS name,
+          0::int AS lead_count
+        FROM lead_lost_reason llr
+        WHERE llr.builder_id = :builderId AND llr.is_active = true
+        ORDER BY llr.sort_order ASC
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    return {
+      monthlyLeads: monthlyLeads.map(r => keysToCamelCase(r)),
+      leadSources: leadSources.map(r => ({
+        source: r.source,
+        count: r.lead_count,
+      })),
+      topPerformers: topPerformers.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      overallSummary: overallSummary.length > 0
+        ? keysToCamelCase(overallSummary[0])
+        : { totalLeads: 0, newLeads: 0, workingLeads: 0, convertedLeads: 0 },
+      topFloorplans: topFloorplans.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      topFacades: topFacades.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+      leadLostReasons: lostReasons.map(r => ({
+        name: r.name,
+        count: r.lead_count,
+      })),
+    };
+  }
 }
 
 
-export default new LeadsRepository(); 
+export default new LeadsRepository();

@@ -3,10 +3,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionEtsRecharge extends Model {
   static associate(models) {
-    ConstructionEtsRecharge.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionEtsRecharge.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ConstructionEtsRecharge.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionEtsRecharge.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionEtsRecharge.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionEtsRecharge.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ConstructionEtsRecharge.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionEtsRecharge.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     ConstructionEtsRecharge.hasMany(models.ConstructionEtsRechargeApproval, { foreignKey: "construction_ets_recharge_id", as: "approvals" });
   }
 }

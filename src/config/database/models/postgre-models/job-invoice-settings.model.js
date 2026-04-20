@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobInvoiceSettings extends Model {
   static associate(models) {
-    JobInvoiceSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobInvoiceSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobInvoiceSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobInvoiceSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobInvoiceSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobInvoiceSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobInvoiceSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobInvoiceSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     JobInvoiceSettings.hasMany(models.JobInvoiceStagePayments, { foreignKey: "job_invoice_settings_id", as: "stagePayments" });
   }
 }

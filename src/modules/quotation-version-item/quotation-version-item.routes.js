@@ -13,6 +13,8 @@ import {
   getItemsByVersionQuerySchema,
   idParamsSchema,
   deletePackageParamsSchema,
+  addExtraQuotationItemSchema,
+  updateExtraQuotationItemSchema,
 } from "./quotation-version-item.validation.js";
 
 const router = express.Router();
@@ -26,6 +28,24 @@ router.post(
   camelToSnakeMiddleware,
   validateRequest(addQuotationItemSchema, REQUEST_SOURCE.BODY),
   quotationVersionItemController.addQuotationItem,
+);
+
+// Add extra item snapshot
+router.post(
+  "/extra-item/:quotation_version_id",
+  camelToSnakeMiddleware,
+  validateRequest(getItemsByVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(addExtraQuotationItemSchema, REQUEST_SOURCE.BODY),
+  quotationVersionItemController.addExtraQuotationItem,
+);
+
+// Update extra item snapshot
+router.put(
+  "/extra-item/:id",
+  camelToSnakeMiddleware,
+  validateRequest(idParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(updateExtraQuotationItemSchema, REQUEST_SOURCE.BODY),
+  quotationVersionItemController.updateExtraQuotationItem,
 );
 
 // Add package items snapshot

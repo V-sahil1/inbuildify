@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class TemplatePdf extends Model {
   static associate(models) {
-    TemplatePdf.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    TemplatePdf.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    TemplatePdf.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    TemplatePdf.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    TemplatePdf.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    TemplatePdf.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    TemplatePdf.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    TemplatePdf.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class DocumentFileNamingRule extends Model {
   static associate(models) {
-    DocumentFileNamingRule.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    DocumentFileNamingRule.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    DocumentFileNamingRule.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    DocumentFileNamingRule.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    DocumentFileNamingRule.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    DocumentFileNamingRule.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    DocumentFileNamingRule.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    DocumentFileNamingRule.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

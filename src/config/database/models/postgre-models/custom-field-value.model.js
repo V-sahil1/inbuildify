@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class CustomFieldValue extends Model {
   static associate(models) {
-    CustomFieldValue.belongsTo(models.CustomField, { foreignKey: "custom_field_id", as: "customField" });
-    CustomFieldValue.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    CustomFieldValue.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    CustomFieldValue.belongsTo(models.CustomField, { foreignKey: "custom_field_id", as: "customField", onDelete: "CASCADE" });
+    CustomFieldValue.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    CustomFieldValue.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
   }
 }
 

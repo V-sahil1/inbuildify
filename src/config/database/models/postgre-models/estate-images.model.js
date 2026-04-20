@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class EstateImages extends Model {
   static associate(models) {
-    EstateImages.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate" });
-    EstateImages.belongsTo(models.Users, { foreignKey: "uploaded_by", as: "uploadedByUser" });
+    EstateImages.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate", onDelete: "CASCADE" });
+    EstateImages.belongsTo(models.Users, { foreignKey: "uploaded_by", as: "uploadedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

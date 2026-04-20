@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class DocumentFolderMapping extends Model {
   static associate(models) {
-    DocumentFolderMapping.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    DocumentFolderMapping.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    DocumentFolderMapping.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    DocumentFolderMapping.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    DocumentFolderMapping.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    DocumentFolderMapping.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    DocumentFolderMapping.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    DocumentFolderMapping.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class LeadSource extends Model {
   static associate(models) {
-    LeadSource.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    LeadSource.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    LeadSource.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    LeadSource.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    LeadSource.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    LeadSource.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    LeadSource.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    LeadSource.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     LeadSource.hasMany(models.Leads, { foreignKey: "lead_source_id", as: "leads" });
   }
 }

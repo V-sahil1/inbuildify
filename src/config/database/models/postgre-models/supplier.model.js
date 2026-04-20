@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class Supplier extends Model {
   static associate(models) {
-    Supplier.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Supplier.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Supplier.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    Supplier.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Supplier.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Supplier.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Supplier.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Supplier.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
+    Supplier.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Supplier.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Supplier.hasMany(models.SupplierContacts, { foreignKey: "supplier_id", as: "contacts" });
     Supplier.hasMany(models.SupplierDocuments, { foreignKey: "supplier_id", as: "documents" });
     Supplier.hasMany(models.SupplierSupplierTypeMap, { foreignKey: "supplier_id", as: "supplierTypeMaps" });

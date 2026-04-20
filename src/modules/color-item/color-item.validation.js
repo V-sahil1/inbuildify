@@ -79,7 +79,10 @@ export const createColorItemSchema = Joi.object({
       "string.empty": "Item name cannot be empty",
       "string.max": "Item name must not exceed 255 characters",
     }),
-
+  color_group_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.uuid": "color group ID must be a valid UUID",
+    "string.guid": "color group ID must be a valid UUID",
+  }),
   color_category_id: Joi.string().uuid().optional().allow(null).messages({
     "string.uuid": "color category ID must be a valid UUID",
     "string.guid": "color category ID must be a valid UUID",
@@ -124,7 +127,10 @@ export const createColorItemSchema = Joi.object({
     "array.empty": "Color type ID cannot be empty",
     "array.includes": "Color type ID must be a valid UUID",
   }),
-
+  color_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.uuid": "color ID must be a valid UUID",
+    "string.guid": "color ID must be a valid UUID",
+  }),
   range_id: Joi.array().optional().allow(null).messages({
     "array.base": "Range ID must be an array",
     "array.empty": "Range ID cannot be empty",
@@ -187,6 +193,7 @@ export const createColorItemSchema = Joi.object({
     "number.integer": "Sort order must be an integer",
   }),
 
+
   custom_fields: Joi.alternatives()
     .try(
       Joi.array().items(
@@ -195,7 +202,7 @@ export const createColorItemSchema = Joi.object({
             "any.required": "Field name is required",
             "string.empty": "Field name cannot be empty",
           }),
-          field_type: Joi.string().trim() .valid("text", "checkbox", "dropdown_list", "radio_button").required().messages({
+          field_type: Joi.string().trim().valid("text", "checkbox", "dropdown_list", "radio_button").required().messages({
             "any.required": "Field type is required",
             "string.empty": "Field type cannot be empty",
           }),
@@ -303,13 +310,31 @@ export const updateColorItemSchema = Joi.object({
         "Units must be one of: mandatory, non_mandatory, not_required",
     }),
 
-  color_image: Joi.string().trim().max(500).allow("").optional().messages({
+  color_image: Joi.string().trim().max(500).allow("", null).optional().messages({
     "string.max": "Color image must not exceed 500 characters",
   }),
 
-  specification: Joi.string().trim().max(500).allow("").optional().messages({
+  specification: Joi.string().trim().max(500).allow("", null).optional().messages({
     "string.max": "Specification must not exceed 500 characters",
   }),
+
+  // color_image: Joi.array()
+  //   .items(Joi.string().uri())
+  //   .optional()
+  //   .allow(null)
+  //   .messages({
+  //     "array.base": "Color image must be an array",
+  //     "array.includes": "Color image must be a valid URL",
+  //   }),
+
+  // specification: Joi.array()
+  //   .items(Joi.string().uri())
+  //   .optional()
+  //   .allow(null)
+  //   .messages({
+  //     "array.base": "Specification must be an array",
+  //     "array.includes": "Specification must be a valid URL",
+  //   }),
 
   range_id: Joi.array().optional().allow(null).messages({
     "array.base": "Range ID must be an array",

@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class RoleType extends Model {
   static associate(models) {
-    RoleType.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
-    RoleType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    RoleType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    RoleType.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "CASCADE" });
+    RoleType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    RoleType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     RoleType.hasMany(models.UserRoleMapping, { foreignKey: "role_type_id", as: "userRoleMappings" });
   }
 }

@@ -136,7 +136,7 @@ export async function getOhsListService(user, filters = {}) {
 
   if (recordCount === 0) {
     try {
-      const settingsResult = await exports.getSettingsService(user);
+      const settingsResult = await getSettingsService(user);
 
       if (settingsResult && settingsResult.construction_ohs_settings_id) {
         const settingsId = settingsResult.construction_ohs_settings_id;
@@ -208,7 +208,7 @@ export async function createOhsListItemService(user, payload) {
   const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const settings = await exports.getSettingsService(user);
+  const settings = await getSettingsService(user);
 
   if (payload.field_type === "category") {
     throw new Error("Cannot create category items. Only items can be created.");

@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class IntegrationCustomFieldItem extends Model {
   static associate(models) {
-    IntegrationCustomFieldItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    IntegrationCustomFieldItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    IntegrationCustomFieldItem.belongsTo(models.IntegrationCustomFieldHeader, { foreignKey: "header1_id", as: "header1" });
-    IntegrationCustomFieldItem.belongsTo(models.IntegrationCustomFieldHeader, { foreignKey: "header2_id", as: "header2" });
-    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "assignee_user_id", as: "assigneeUser" });
-    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    IntegrationCustomFieldItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    IntegrationCustomFieldItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    IntegrationCustomFieldItem.belongsTo(models.IntegrationCustomFieldHeader, { foreignKey: "header1_id", as: "header1", onDelete: "SET NULL" });
+    IntegrationCustomFieldItem.belongsTo(models.IntegrationCustomFieldHeader, { foreignKey: "header2_id", as: "header2", onDelete: "SET NULL" });
+    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "assignee_user_id", as: "assigneeUser", onDelete: "SET NULL" });
+    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    IntegrationCustomFieldItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

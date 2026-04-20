@@ -5,6 +5,7 @@ const router = express.Router();
 import {
   createAppointment,
   getAllAppointments,
+  getAppointmentTabCounts,
   deleteAppointment,
   updateAppointment,
   searchUserBuilderTables,
@@ -12,6 +13,7 @@ import {
 import {
   createAppointmentSchema,
   getAllAppointmentSchema,
+  getAppointmentTabCountsSchema,
   deleteAppointmentSchema,
   updateAppointmentParamsSchema,
   updateAppointmentSchema,
@@ -30,6 +32,11 @@ router.post(
   "/",
   validateRequest(createAppointmentSchema, REQUEST_SOURCE.BODY),
   createAppointment,
+);
+router.get(
+  "/tab-counts",
+  validateRequest(getAppointmentTabCountsSchema, REQUEST_SOURCE.QUERY),
+  getAppointmentTabCounts,
 );
 router.get(
   "/",

@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class PropertyDetail extends Model {
   static associate(models) {
-    PropertyDetail.belongsTo(models.Lot, { foreignKey: "lot_id", as: "lot" });
-    PropertyDetail.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    PropertyDetail.belongsTo(models.Country, { foreignKey: "country_id", as: "country" });
-    PropertyDetail.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate" });
-    PropertyDetail.belongsTo(models.EstateStages, { foreignKey: "estate_stage_id", as: "estateStage" });
+    PropertyDetail.belongsTo(models.Lot, { foreignKey: "lot_id", as: "lot", onDelete: "SET NULL" });
+    PropertyDetail.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
+    PropertyDetail.belongsTo(models.Country, { foreignKey: "country_id", as: "country", onDelete: "SET NULL" });
+    PropertyDetail.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate", onDelete: "CASCADE" });
+    PropertyDetail.belongsTo(models.EstateStages, { foreignKey: "estate_stage_id", as: "estateStage", onDelete: "CASCADE" });
     PropertyDetail.hasMany(models.Leads, { foreignKey: "property_detail_id", as: "leads" });
   }
 }

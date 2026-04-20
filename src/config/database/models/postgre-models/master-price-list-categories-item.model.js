@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class MasterPriceListCategoriesItem extends Model {
   static associate(models) {
-    MasterPriceListCategoriesItem.belongsTo(models.MasterPriceListCategories, { foreignKey: "master_price_list_category_id", as: "category" });
-    MasterPriceListCategoriesItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    MasterPriceListCategoriesItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    MasterPriceListCategoriesItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    MasterPriceListCategoriesItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    MasterPriceListCategoriesItem.belongsTo(models.MasterPriceListCategories, { foreignKey: "master_price_list_category_id", as: "category", onDelete: "CASCADE" });
+    MasterPriceListCategoriesItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    MasterPriceListCategoriesItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    MasterPriceListCategoriesItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    MasterPriceListCategoriesItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

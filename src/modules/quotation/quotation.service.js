@@ -269,6 +269,45 @@ class QuotationService {
     }
   }
 
+  async getAllQuotations(builderId, companyId, options = {}) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const result = await quotationRepository.getAllQuotations(builderId, companyId, options);
+      return { success: true, data: result, message: "Quotations fetched successfully" };
+    } catch (error) {
+      console.error("Error in getAllQuotations service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getQuotationCountsByStatus(builderId, companyId) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const counts = await quotationRepository.getQuotationCountsByStatus(builderId, companyId);
+      return { success: true, data: counts, message: "Quotation counts fetched successfully" };
+    } catch (error) {
+      console.error("Error in getQuotationCountsByStatus service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getQuotationFilterOptions(builderId, companyId) {
+    try {
+      if (!builderId) {
+        return { success: false, message: "Builder ID is required" };
+      }
+      const options = await quotationRepository.getQuotationFilterOptions(builderId, companyId);
+      return { success: true, data: options, message: "Quotation filter options fetched successfully" };
+    } catch (error) {
+      console.error("Error in getQuotationFilterOptions service:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
   async syncQuotationFromHLP(leadsId, houseLandPackageId, userId, builderId, companyId) {
     const client = await getPool().connect();
     try {
@@ -497,6 +536,17 @@ class QuotationService {
         ? updateData.range_id
         : existingVersion.range_id;
 
+      // Track floor plan change — needed for facade clearing and price list auto-mapping below
+      const previousFloorPlanId = existingVersion.floor_plan_id;
+      const floorPlanChanged = updateData.floor_plan_id !== undefined
+        && updateData.floor_plan_id !== previousFloorPlanId;
+
+      // Floor plan changed → the old facade belongs to the old floor plan and must be cleared.
+      // Only force-clear if the request does NOT explicitly supply a new facade_id.
+      if (floorPlanChanged && updateData.facade_id === undefined) {
+        updateData.facade_id = null;
+      }
+
       if ((updateData.floor_plan_id || updateData.facade_id) && !effectiveDwellingTypeId) {
         return {
           success: false,
@@ -555,6 +605,47 @@ class QuotationService {
         }
       }
       console.log("test1@mailinat")
+
+      // Facade → Floor Plan constraint:
+      // If the user is setting a non-null facade_id, verify it is mapped to the currently
+      // selected floor plan (if that floor plan has any facade mappings at all).
+      // When no mappings exist, any facade matching range + dwelling_type is allowed.
+      const effectiveFloorPlanIdForConstraint = updateData.floor_plan_id !== undefined
+        ? updateData.floor_plan_id
+        : existingVersion.floor_plan_id;
+
+      if (updateData.facade_id && effectiveFloorPlanIdForConstraint) {
+        const facadeMappings = await quotationRepository.getFloorPlanFacadeMappings(
+          effectiveFloorPlanIdForConstraint
+        );
+        // if (facadeMappings.length > 0) {
+        //   const mappedFacadeIds = facadeMappings.map((r) => r.facade_id);
+        //   if (!mappedFacadeIds.includes(updateData.facade_id)) {
+        //     return {
+        //       success: false,
+        //       message: "The selected Facade is not mapped to the selected Floor Plan",
+        //     };
+        //   }
+        // }
+      }
+
+      // Handle facade_price snapshotting
+      if (updateData.facade_id !== undefined) {
+        if (updateData.facade_id === null) {
+          updateData.facade_price = 0;
+        } else {
+          const { Facade } = db;
+          const facade = await Facade.findOne({
+            attributes: ["cost"],
+            where: {
+              facade_id: updateData.facade_id,
+            },
+          });
+          if (facade) {
+            updateData.facade_price = facade.cost || 0;
+          }
+        }
+      }
 
       // Handle structure_engineer_id: validate and auto-populate price from StructureEngineer
       if (updateData.structure_engineer_id !== undefined) {
@@ -647,7 +738,7 @@ class QuotationService {
         // Delete version items (snapshots)
         const deleteItemsQuery = isCompactionMandatory
           ? `DELETE FROM quotation_version_items 
-             WHERE quotation_version_id = $1 AND price_list_item_description != 'Compaction Report Charge'`
+             WHERE quotation_version_id = $1 AND (price_list_item_description != 'Compaction Report Charge' OR package_id IS NOT NULL)`
           : `DELETE FROM quotation_version_items WHERE quotation_version_id = $1`;
 
         await client.query(deleteItemsQuery, [versionId]);
@@ -690,12 +781,45 @@ class QuotationService {
         }
       }
 
+      // Handle package_id snapshotting: 
+      // If package_id is explicitly being updated (even to null), manage the snapshots.
+      if (updateData.package_id !== undefined) {
+        // 1. Clear any existing package snapshot for this version
+        await quotationRepository.removePackageFromVersion(versionId, null, builderId, companyId);
+
+        // 2. If a new package is selected, snapshot it
+        if (updateData.package_id !== null) {
+          const { Package } = db;
+          const pkg = await Package.findOne({
+            where: { package_id: updateData.package_id },
+            attributes: ["package_id", "name", "cost"]
+          });
+          if (pkg) {
+            await quotationRepository.addPackageSnapshot(versionId, pkg);
+          }
+        }
+      }
+
       const oldVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
       updateData.updated_by = userId;
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
       // Invalidate cached PDF since version data changed
       await quotationRepository.clearPdfUrl(versionId);
+
+      // Floor Plan price list item auto-mapping.
+      // Only runs when floor_plan_id is explicitly included in the update payload.
+      if (updateData.floor_plan_id !== undefined) {
+        // If the floor plan changed, remove items that were auto-mapped from the OLD floor plan.
+        // Manually added items (not in the old floor plan's mapping) are preserved.
+        if (floorPlanChanged && previousFloorPlanId) {
+          await quotationRepository.removeFloorPlanPricelistItems(versionId, previousFloorPlanId);
+        }
+        // If the new floor plan is non-null, insert its mapped price list items (duplicates skipped).
+        if (updateData.floor_plan_id) {
+          await quotationRepository.autoMapFloorPlanPricelistItems(versionId, updateData.floor_plan_id);
+        }
+      }
 
       if (!updated) {
         return {
@@ -720,6 +844,7 @@ class QuotationService {
           recordName: quotationDetails.rows[0].reference_number,
           oldData: oldVersion,
           newData: newVersion,
+          metadata: { quotationVersionNo: newVersion.quotationVersionNo }
         });
       }
 
@@ -912,7 +1037,7 @@ class QuotationService {
         moduleId: quotationId,
         recordName: quotationDetails.rows[0].reference_number,
         action: "CREATE",
-        description: `Quotation version duplicated: v${newVersionNo}`
+        description: `Duplicated Quotation Version V${newVersionNo}`
       });
 
       // Fetch the full newly created version using repository to return all enriched fields
@@ -1241,25 +1366,10 @@ class QuotationService {
       const v1No = data1.version.quotationVersionNo;
       const v2No = data2.version.quotationVersionNo;
 
-      // 4. Build items array
+      // 4. Build items array using unified items structure
       const items = [];
 
-      // 4a. Package
-      if (data1.package || data2.package) {
-        const row = {
-          type: "package",
-          name: (data1.package || data2.package).packageName,
-          packageId: (data1.package || data2.package).packageId,
-          version1Value: data1.package ? data1.package.packageCost : null,
-          version2Value: data2.package ? data2.package.packageCost : null,
-        };
-
-        if (showAll || row.version1Value !== row.version2Value) {
-          items.push(row);
-        }
-      }
-
-      // 4b. Floor Plan
+      // 4a. Floor Plan
       if (data1.version.floorPlanName || data2.version.floorPlanName) {
         const floorPlanRow = {
           type: "floor_plan",
@@ -1272,7 +1382,7 @@ class QuotationService {
         }
       }
 
-      // 4c. Facade
+      // 4b. Facade
       if (data1.version.facadeName || data2.version.facadeName) {
         const facadeRow = {
           type: "facade",
@@ -1285,39 +1395,94 @@ class QuotationService {
         }
       }
 
-      // 4c. Pricelist items — union by price_list_item_id
-      const allPricelistItemIds = new Set([
-        ...data1.pricelistItems.map(p => p.priceListItemId),
-        ...data2.pricelistItems.map(p => p.priceListItemId),
-      ]);
+      // 4c. Unified items comparison using quotation_version_items
+      const allItemKeys = new Set();
 
-      for (const pliId of allPricelistItemIds) {
-        const v1Item = data1.pricelistItems.find(p => p.priceListItemId === pliId);
-        const v2Item = data2.pricelistItems.find(p => p.priceListItemId === pliId);
+      // Collect all unique item identifiers from both versions
+      data1.items.forEach(item => {
+        if (item.itemType === 'package' && item.packageId) {
+          allItemKeys.add(`package_${item.packageId}`);
+        } else if (item.itemType === 'item' && item.priceListItemId) {
+          allItemKeys.add(`item_${item.priceListItemId}`);
+        }
+      });
+
+      data2.items.forEach(item => {
+        if (item.itemType === 'package' && item.packageId) {
+          allItemKeys.add(`package_${item.packageId}`);
+        } else if (item.itemType === 'item' && item.priceListItemId) {
+          allItemKeys.add(`item_${item.priceListItemId}`);
+        }
+      });
+
+      for (const itemKey of allItemKeys) {
+        const [type, id] = itemKey.split('_');
+        
+        // Skip if key is malformed
+        if (!type || !id || (type !== 'package' && type !== 'item')) {
+          continue;
+        }
+        
+        const v1Item = data1.items.find(item => {
+          if (type === 'package') {
+            return item.itemType === 'package' && item.packageId === id;
+          } else {
+            return item.itemType === 'item' && item.priceListItemId === id;
+          }
+        });
+        const v2Item = data2.items.find(item => {
+          if (type === 'package') {
+            return item.itemType === 'package' && item.packageId === id;
+          } else {
+            return item.itemType === 'item' && item.priceListItemId === id;
+          }
+        });
+        
         const refItem = v1Item || v2Item;
 
-        const row = {
-          type: "pricelist_item",
-          name: refItem.itemDescription,
-          priceListItemId: pliId,
-          priceListId: refItem.priceListId,
-          priceListName: refItem.priceListName,
-          itemCost: refItem.itemCost,
-          version1Quantity: v1Item ? v1Item.quantity : null,
-          version1TotalPrice: v1Item ? v1Item.totalPrice : null,
-          version1Note: v1Item ? v1Item.note : null,
-          version2Quantity: v2Item ? v2Item.quantity : null,
-          version2TotalPrice: v2Item ? v2Item.totalPrice : null,
-          version2Note: v2Item ? v2Item.note : null,
-        };
+        // Skip if no reference item found
+        if (!refItem) {
+          continue;
+        }
 
-        const isDifferent =
-          row.version1Quantity !== row.version2Quantity ||
-          row.version1TotalPrice !== row.version2TotalPrice ||
-          row.version1Note !== row.version2Note;
+        if (type === 'package') {
+          // Package comparison
+          const row = {
+            type: "package",
+            name: refItem.packageName || "-",
+            packageId: refItem.packageId,
+            version1Value: v1Item ? v1Item.packageCost : null,
+            version2Value: v2Item ? v2Item.packageCost : null,
+          };
 
-        if (showAll || isDifferent) {
-          items.push(row);
+          if (showAll || row.version1Value !== row.version2Value) {
+            items.push(row);
+          }
+        } else {
+          // Individual item comparison
+          const row = {
+            type: "pricelist_item",
+            name: refItem.priceListItemDescription || refItem.packageName || "-",
+            priceListItemId: refItem.priceListItemId,
+            priceListId: refItem.priceListId,
+            priceListName: refItem.priceListName,
+            itemCost: refItem.priceListItemCost,
+            version1Quantity: v1Item ? v1Item.quantity : null,
+            version1TotalPrice: v1Item ? v1Item.totalPrice : null,
+            version1Note: v1Item ? v1Item.note : null,
+            version2Quantity: v2Item ? v2Item.quantity : null,
+            version2TotalPrice: v2Item ? v2Item.totalPrice : null,
+            version2Note: v2Item ? v2Item.note : null,
+          };
+
+          const isDifferent =
+            row.version1Quantity !== row.version2Quantity ||
+            row.version1TotalPrice !== row.version2TotalPrice ||
+            row.version1Note !== row.version2Note;
+
+          if (showAll || isDifferent) {
+            items.push(row);
+          }
         }
       }
 

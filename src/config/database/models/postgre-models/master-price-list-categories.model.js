@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class MasterPriceListCategories extends Model {
   static associate(models) {
-    MasterPriceListCategories.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    MasterPriceListCategories.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    MasterPriceListCategories.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    MasterPriceListCategories.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    MasterPriceListCategories.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    MasterPriceListCategories.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    MasterPriceListCategories.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    MasterPriceListCategories.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     MasterPriceListCategories.hasMany(models.MasterPriceListCategoriesItem, { foreignKey: "master_price_list_category_id", as: "items" });
   }
 }

@@ -48,7 +48,10 @@ export const env = {
   REDIS: {
     REDIS_HOST: getEnvValue("REDIS_HOST"),
     REDIS_PORT: getEnvValue("REDIS_PORT"),
-    REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
+    // REDIS_PASSWORD: getEnvValue("REDIS_PASSWORD"),
+    ...(process.env.REDIS_PASSWORD
+      ? { password: process.env.REDIS_PASSWORD }
+      : {}),
   },
   DOCUSIGN: {
     BASE_URL: getEnvValue("DOCUSIGN_BASE_URL") || "https://demo.docusign.net/restapi",

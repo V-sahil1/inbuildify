@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class PackagePricelistItemMap extends Model {
   static associate(models) {
-    PackagePricelistItemMap.belongsTo(models.Package, { foreignKey: "package_id", as: "package" });
-    PackagePricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem" });
+    PackagePricelistItemMap.belongsTo(models.Package, { foreignKey: "package_id", as: "package", onDelete: "CASCADE" });
+    PackagePricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

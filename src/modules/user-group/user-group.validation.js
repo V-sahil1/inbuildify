@@ -20,6 +20,7 @@ export const createUserGroupSchema = Joi.object({
 });
 export const getAllUserGroupSchema = Joi.object({
   is_active: Joi.boolean().optional(),
+  search: Joi.string().trim().allow("").optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({
     "number.base": "Page must be a number",

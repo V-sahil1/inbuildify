@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class NotesTag extends Model {
   static associate(models) {
-    NotesTag.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    NotesTag.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    NotesTag.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    NotesTag.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    NotesTag.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    NotesTag.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    NotesTag.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    NotesTag.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

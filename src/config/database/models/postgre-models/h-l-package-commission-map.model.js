@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class HLPackageCommissionMap extends Model {
   static associate(models) {
-    HLPackageCommissionMap.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage" });
-    HLPackageCommissionMap.belongsTo(models.JobCommission, { foreignKey: "job_commission_id", as: "jobCommission" });
+    HLPackageCommissionMap.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage", onDelete: "CASCADE" });
+    HLPackageCommissionMap.belongsTo(models.JobCommission, { foreignKey: "job_commission_id", as: "jobCommission", onDelete: "CASCADE" });
   }
 }
 

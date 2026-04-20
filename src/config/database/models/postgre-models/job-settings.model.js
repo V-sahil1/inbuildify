@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobSettings extends Model {
   static associate(models) {
-    JobSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

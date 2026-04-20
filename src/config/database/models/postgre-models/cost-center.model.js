@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class CostCenter extends Model {
   static associate(models) {
-    CostCenter.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    CostCenter.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    CostCenter.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    CostCenter.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    CostCenter.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    CostCenter.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    CostCenter.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    CostCenter.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     CostCenter.hasMany(models.CostCenterChecklistMap, { foreignKey: "cost_center_id", as: "checklistMaps" });
   }
 }

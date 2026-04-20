@@ -3,6 +3,8 @@ import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { QueryTypes } from "sequelize";
 
 export async function createTask(req, res) {
   const pool = getPool();
@@ -204,9 +206,6 @@ export async function createTask(req, res) {
 }
 
 export async function getAllTasks(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
 
@@ -225,183 +224,151 @@ export async function getAllTasks(req, res) {
       link_to,
       link_type,
       lead_id,
+      date_filter,
+      sort_by = "created_at",
+      sort_order = "DESC",
     } = req.query;
 
     const pageValue = parseInt(page, 10);
     const limitValue = parseInt(limit, 10);
     const offset = (pageValue - 1) * limitValue;
-    const filters = [];
-    const values = [];
 
-    let index = 1;
+    // Whitelist sort params to prevent SQL injection
+    const validSortFields = ["name", "due_date", "priority", "status", "created_at"];
+    const validSortOrders = ["ASC", "DESC"];
+    const safeSortBy = validSortFields.includes(sort_by) ? sort_by : "created_at";
+    const safeSortOrder = validSortOrders.includes(sort_order?.toUpperCase()) ? sort_order.toUpperCase() : "DESC";
 
-    filters.push(`t.builder_id = $${index}`);
-    values.push(builderId);
-    index++;
+    const conditions = ["t.builder_id = :builderId"];
+    const replacements = { builderId };
 
     if (name) {
-      filters.push(`LOWER(t.name) LIKE LOWER($${index})`);
-      values.push(`%${name}%`);
-      index++;
+      conditions.push("LOWER(t.name) LIKE LOWER(:name)");
+      replacements.name = `%${name}%`;
     }
-
     if (due_date) {
-      filters.push(`t.due_date = $${index}`);
-      values.push(due_date);
-      index++;
+      conditions.push("t.due_date = :dueDate");
+      replacements.dueDate = due_date;
     }
-
     if (status) {
-      filters.push(`t.status = $${index}`);
-      values.push(status);
-      index++;
+      conditions.push("t.status = :status");
+      replacements.status = status;
     }
-
     if (priority) {
-      filters.push(`t.priority = $${index}`);
-      values.push(priority);
-      index++;
+      conditions.push("t.priority = :priority");
+      replacements.priority = priority;
     }
-
     if (assignee_id) {
-      filters.push(`t.assignee_id = $${index}`);
-      values.push(assignee_id);
-      index++;
+      const assigneeIds = (Array.isArray(assignee_id) ? assignee_id : [assignee_id])
+        .flatMap((value) => String(value).split(","))
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (assigneeIds.length > 0) {
+        conditions.push("t.assignee_id IN (:assigneeIds)");
+        replacements.assigneeIds = assigneeIds;
+      }
     }
-
     if (link_to) {
-      filters.push(`t.link_to = $${index}`);
-      values.push(link_to);
-      index++;
+      conditions.push("t.link_to = :linkTo");
+      replacements.linkTo = link_to;
     }
-
     if (link_type) {
-      filters.push(`t.link_type = $${index}`);
-      values.push(link_type);
-      index++;
+      conditions.push("t.link_type = :linkType");
+      replacements.linkType = link_type;
     }
-
     if (lead_id) {
-      filters.push(`t.lead_id = $${index}`);
-      values.push(lead_id);
-      index++;
+      conditions.push("t.lead_id = :leadId");
+      replacements.leadId = lead_id;
     }
 
-    const whereClause =
-      filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+    if (date_filter) {
+      switch (date_filter) {
+        case "today":
+          conditions.push("t.due_date = CURRENT_DATE");
+          conditions.push("t.status NOT IN ('Completed','Cancelled','Skipped')");
+          break;
+        case "tomorrow":
+          conditions.push("t.due_date = CURRENT_DATE + INTERVAL '1 day'");
+          conditions.push("t.status NOT IN ('Completed','Cancelled','Skipped')");
+          break;
+        case "this_week":
+          conditions.push("t.due_date BETWEEN date_trunc('week', CURRENT_DATE) AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'");
+          conditions.push("t.status NOT IN ('Completed','Cancelled','Skipped')");
+          break;
+        case "next_week":
+          conditions.push("t.due_date BETWEEN date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days'");
+          conditions.push("t.status NOT IN ('Completed','Cancelled','Skipped')");
+          break;
+        case "overdue":
+          conditions.push("t.due_date < CURRENT_DATE");
+          conditions.push("t.status NOT IN ('Completed','Cancelled','Skipped')");
+          break;
+        case "pending":
+          conditions.push("t.status IN ('Yet to Start','In Progress')");
+          break;
+      }
+    }
 
-    const counterQuery = `
-    SELECT
-      COUNT(*) FILTER (
-        WHERE t.due_date = CURRENT_DATE
-        AND t.status NOT IN ('Completed','Cancelled','Skipped')
-      ) AS today_count,
+    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+    const { sequelize } = db;
 
-      COUNT(*) FILTER (
-        WHERE t.due_date = CURRENT_DATE + INTERVAL '1 day'
-        AND t.status NOT IN ('Completed','Cancelled','Skipped')
-      ) AS tomorrow_count,
+    const counterRows = await sequelize.query(
+      `SELECT
+        COUNT(*) AS all_count,
+        COUNT(*) FILTER (WHERE t.due_date = CURRENT_DATE AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS today_count,
+        COUNT(*) FILTER (WHERE t.due_date = CURRENT_DATE + INTERVAL '1 day' AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS tomorrow_count,
+        COUNT(*) FILTER (WHERE t.due_date BETWEEN date_trunc('week', CURRENT_DATE) AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days' AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS this_week_count,
+        COUNT(*) FILTER (WHERE t.due_date BETWEEN date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days' AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS next_week_count,
+        COUNT(*) FILTER (WHERE t.due_date < CURRENT_DATE AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS overdue_count,
+        COUNT(*) FILTER (WHERE t.status IN ('Yet to Start','In Progress')) AS pending_count
+       FROM task t
+       WHERE t.builder_id = :builderId`,
+      { type: QueryTypes.SELECT, replacements: { builderId } }
+    );
 
-      COUNT(*) FILTER (
-        WHERE t.due_date BETWEEN
-          date_trunc('week', CURRENT_DATE)
-          AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'
-        AND t.status NOT IN ('Completed','Cancelled','Skipped')
-      ) AS this_week_count,
-
-      COUNT(*) FILTER (
-        WHERE t.due_date BETWEEN
-          date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
-          AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days'
-        AND t.status NOT IN ('Completed','Cancelled','Skipped')
-      ) AS next_week_count,
-
-      COUNT(*) FILTER (
-        WHERE t.due_date < CURRENT_DATE
-        AND t.status NOT IN ('Completed','Cancelled','Skipped')
-      ) AS overdue_count,
-
-      COUNT(*) FILTER (
-        WHERE t.status IN ('Yet to Start','In Progress')
-      ) AS pending_count
-
-    FROM task t
-    WHERE t.builder_id = $1
-  `;
-
-    const counterResult = await client.query(counterQuery, [builderId]);
     const counters = {
-      todayCount: Number(counterResult.rows[0].today_count) || 0,
-      tomorrowCount: Number(counterResult.rows[0].tomorrow_count) || 0,
-      thisWeekCount: Number(counterResult.rows[0].this_week_count) || 0,
-      nextWeekCount: Number(counterResult.rows[0].next_week_count) || 0,
-      overdueCount: Number(counterResult.rows[0].overdue_count) || 0,
-      pendingCount: Number(counterResult.rows[0].pending_count) || 0,
+      allCount: Number(counterRows[0]?.all_count) || 0,
+      todayCount: Number(counterRows[0]?.today_count) || 0,
+      tomorrowCount: Number(counterRows[0]?.tomorrow_count) || 0,
+      thisWeekCount: Number(counterRows[0]?.this_week_count) || 0,
+      nextWeekCount: Number(counterRows[0]?.next_week_count) || 0,
+      overdueCount: Number(counterRows[0]?.overdue_count) || 0,
+      pendingCount: Number(counterRows[0]?.pending_count) || 0,
     };
 
-    const countQuery = `
-        SELECT COUNT(*) AS total
-        FROM task t
-        ${whereClause}
-      `;
-
-    const countResult = await client.query(countQuery, values);
-    const totalRecords = parseInt(countResult.rows[0].total, 10);
+    const countRows = await sequelize.query(
+      `SELECT COUNT(*) AS total FROM task t ${whereClause}`,
+      { type: QueryTypes.SELECT, replacements }
+    );
+    const totalRecords = parseInt(countRows[0]?.total, 10) || 0;
     const totalPages = Math.ceil(totalRecords / limitValue);
-    const dataQuery = `
 
-        SELECT t.*,
-              u.name as assignee_name,
+    const dataRows = await sequelize.query(
+      `SELECT t.*,
+              u.name AS assignee_name,
               (SELECT name FROM users WHERE users_id = t.created_by) AS createdbyname
-        FROM task t
-        LEFT JOIN users u ON t.assignee_id = u.users_id
-        ${whereClause}
-        ORDER BY t.created_at DESC
-        LIMIT ${limitValue}
-        OFFSET ${offset}
+       FROM task t
+       LEFT JOIN users u ON t.assignee_id = u.users_id
+       ${whereClause}
+       ORDER BY t.${safeSortBy} ${safeSortOrder}
+       LIMIT ${limitValue} OFFSET ${offset}`,
+      { type: QueryTypes.SELECT, replacements }
+    );
 
-      `;
-
-    const dataResult = await client.query(dataQuery, values);
-
-    const transformedTasks = keysToCamelCase(dataResult.rows).map((task) => {
-      const transformed = {
-        ...task,
-        assigneeName: task.assigneeName,
-        linkTo: task.linkTo,
-        linkType: task.linkType,
-      };
-
+    const transformedTasks = keysToCamelCase(dataRows).map((task) => {
       const orderedTask = {};
       const fieldOrder = [
-        "taskId",
-        "companyId",
-        "builderId",
-        "name",
-        "description",
-        "dueDate",
-        "dueTime",
-        "assigneeId",
-        "assigneeName",
-        "linkTo",
-        "linkType",
-        "leadId",
-        "priority",
-        "status",
-        "attachFiles",
-        "createdBy",
-        "createdbyname",
-        "updatedBy",
-        "createdAt",
-        "updatedAt",
+        "taskId", "companyId", "builderId", "name", "description",
+        "dueDate", "dueTime", "assigneeId", "assigneeName",
+        "linkTo", "linkType", "leadId", "priority", "status",
+        "attachFiles", "createdBy", "createdbyname", "updatedBy",
+        "createdAt", "updatedAt",
       ];
-
       fieldOrder.forEach((field) => {
-        if (transformed.hasOwnProperty(field)) {
-          orderedTask[field] = transformed[field];
+        if (task.hasOwnProperty(field)) {
+          orderedTask[field] = task[field];
         }
       });
-
       return orderedTask;
     });
 
@@ -409,22 +376,14 @@ export async function getAllTasks(req, res) {
       res,
       {
         tasks: transformedTasks,
-        pagination: {
-          currentPage: pageValue,
-          totalPages,
-          totalRecords,
-          limit: limitValue,
-        },
+        pagination: { currentPage: pageValue, totalPages, totalRecords, limit: limitValue },
         counters,
       },
       "Tasks fetched successfully",
     );
   } catch (error) {
     console.error("Error in getAllTasks:", error);
-
     return errorResponse(res, 500, "Internal server error");
-  } finally {
-    client.release();
   }
 }
 

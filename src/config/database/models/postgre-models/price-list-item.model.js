@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class PriceListItem extends Model {
   static associate(models) {
-    PriceListItem.belongsTo(models.PriceList, { foreignKey: "price_list_id", as: "priceList" });
-    PriceListItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    PriceListItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    PriceListItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    PriceListItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    PriceListItem.belongsTo(models.PriceList, { foreignKey: "price_list_id", as: "priceList", onDelete: "CASCADE" });
+    PriceListItem.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    PriceListItem.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    PriceListItem.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    PriceListItem.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     PriceListItem.hasMany(models.PriceListItemCondition, { foreignKey: "price_list_item_id", as: "conditions" });
   }
 }

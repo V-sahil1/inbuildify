@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationSettings extends Model {
   static associate(models) {
-    QuotationSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    QuotationSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    QuotationSettings.belongsTo(models.PriceList, { foreignKey: "default_pricelist_id", as: "defaultPricelist" });
-    QuotationSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    QuotationSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    QuotationSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    QuotationSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    QuotationSettings.belongsTo(models.PriceList, { foreignKey: "default_pricelist_id", as: "defaultPricelist", onDelete: "SET NULL" });
+    QuotationSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    QuotationSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

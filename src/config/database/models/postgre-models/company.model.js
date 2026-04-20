@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class Company extends Model {
   static associate(models) {
-    Company.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Company.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
+    Company.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Company.belongsTo(models.Address, { foreignKey: "address_id", as: "address", onDelete: "SET NULL" });
     Company.belongsTo(models.Timezones, { foreignKey: "timezone_id", as: "timezone", onDelete: "CASCADE" });
   }
 }

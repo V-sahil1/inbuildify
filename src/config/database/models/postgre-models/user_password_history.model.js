@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class UserPasswordHistory extends Model {
   static associate(models) {
-    UserPasswordHistory.belongsTo(models.Users, { foreignKey: "user_id", as: "user" });
+    UserPasswordHistory.belongsTo(models.Users, { foreignKey: "user_id", as: "user", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

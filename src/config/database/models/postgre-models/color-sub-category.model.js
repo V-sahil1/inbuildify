@@ -31,8 +31,8 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
+      createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     },
     {
       sequelize,

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class PortalSettings extends Model {
   static associate(models) {
-    PortalSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    PortalSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    PortalSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    PortalSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    PortalSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    PortalSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    PortalSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    PortalSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

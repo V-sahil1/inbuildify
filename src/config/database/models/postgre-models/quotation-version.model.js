@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class QuotationVersion extends Model {
   static associate(models) {
-    QuotationVersion.belongsTo(models.Quotation, { foreignKey: "quotation_id", as: "quotation" });
-    QuotationVersion.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan" });
-    QuotationVersion.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade" });
+    QuotationVersion.belongsTo(models.Quotation, { foreignKey: "quotation_id", as: "quotation", onDelete: "CASCADE" });
+    QuotationVersion.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "SET NULL" });
+    QuotationVersion.belongsTo(models.Facade, { foreignKey: "facade_id", as: "facade", onDelete: "SET NULL" });
     QuotationVersion.hasMany(models.Job, { foreignKey: "quotation_version_id", as: "jobs" });
     QuotationVersion.hasMany(models.QuotationVersionPricelistItemMap, { foreignKey: "quotation_version_id", as: "pricelistItemMaps" });
     QuotationVersion.hasMany(models.QuotationVersionCustomSection, { foreignKey: "quotation_version_id", as: "customSections" });
@@ -29,6 +29,7 @@ export default (sequelize) => {
       package_id: { type: DataTypes.UUID, allowNull: true },
       structure_engineer_id: { type: DataTypes.UUID, allowNull: true },
       structure_engineer_price: { type: DataTypes.INTEGER, allowNull: true },
+      facade_price: { type: DataTypes.DECIMAL(12, 2), allowNull: true, defaultValue: 0 },
       pdf_url: { type: DataTypes.TEXT, allowNull: true },
       esign_status: { type: DataTypes.ENUM('pending', 'sent', 'signed', 'completed', 'declined'), allowNull: true, defaultValue: null },
       esign_envelope_id: { type: DataTypes.UUID, allowNull: true },

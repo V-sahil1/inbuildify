@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class DwellingType extends Model {
   static associate(models) {
-    DwellingType.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    DwellingType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    DwellingType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    DwellingType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    DwellingType.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    DwellingType.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    DwellingType.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    DwellingType.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

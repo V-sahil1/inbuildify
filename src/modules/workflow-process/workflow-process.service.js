@@ -1,13 +1,13 @@
 import { fn, col, literal, Op } from "sequelize";
 import db from "../../config/database/models/postgre-models/index.js";
 
-const { WorkflowProcess, WorkflowProcessTask, Users } = db;
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 // formatUserObject takes (userId, usersMap) — used for services where
 // WorkflowProcess has no direct Users association (no created_by column on model)
 const formatUserObject = (userId, usersMap) => {
+  
+
   if (!userId) return null;
   return {
     id: userId,
@@ -16,6 +16,7 @@ const formatUserObject = (userId, usersMap) => {
 };
 
 const getUsersDetails = async (userIds) => {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const validUserIds = userIds.filter(Boolean);
   if (validUserIds.length === 0) return {};
 
@@ -33,6 +34,7 @@ const getUsersDetails = async (userIds) => {
 // ─── WorkflowProcess Services ────────────────────────────────────────────────
 
 export async function getAllWorkFlowProcessService({ builderId, parsedLimit, parsedOffset }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   try {
     // WorkflowProcess has no created_by/updated_by columns and no Users association,
     // so we fetch workflows as-is with no user enrichment
@@ -67,6 +69,7 @@ export async function getAllWorkFlowProcessService({ builderId, parsedLimit, par
 }
 
 export async function createWorkFlowProcessService({ name, description, builderId, userId }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   try {
     // Step 1: Check if workflow process name already exists for this builder
     const existing = await WorkflowProcess.findOne({
@@ -120,6 +123,7 @@ export async function createWorkFlowProcessService({ name, description, builderI
 }
 
 export async function updateWorkFlowProcessService({ id, name, description, builderId, userId }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   try {
     // Step 1: Find the workflow process to confirm it exists and belongs to this builder
     const workflow = await WorkflowProcess.findOne({
@@ -161,6 +165,7 @@ export async function updateWorkFlowProcessService({ id, name, description, buil
 }
 
 export async function displayOrderManageService({ orderedWorkflowProcess, builderId }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const transaction = await db.sequelize.transaction();
   try {
     const workflowProcessIds = orderedWorkflowProcess.map((c) => c.workflowProcessId);
@@ -215,6 +220,7 @@ export async function displayOrderManageService({ orderedWorkflowProcess, builde
 }
 
 export async function deleteWorkFlowProcessService({ id, builderId, userId }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   try {
     // Step 1: Verify the workflow process exists and belongs to this builder
     const workflow = await WorkflowProcess.findOne({
@@ -255,6 +261,7 @@ export async function deleteWorkFlowProcessService({ id, builderId, userId }) {
 // ─── WorkflowProcessTask Services ────────────────────────────────────────────
 
 export async function getWorkflowProcessesByCategoryIdService({ workflow_process_id, builderId }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   try {
     // Step 1: Verify the workflow process exists and belongs to this builder
     const workflowProcess = await WorkflowProcess.findOne({
@@ -297,6 +304,7 @@ export async function createWorkflowProcessTaskService({
   timespent,
   imageUrl,
 }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const transaction = await db.sequelize.transaction();
   try {
     // Step 1: Verify the workflow process exists and belongs to this builder
@@ -366,6 +374,7 @@ export async function updateWorkflowProcessTaskService({
   timespent,
   imageUrl,
 }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const transaction = await db.sequelize.transaction();
   try {
     // Step 1: Verify the task exists and its parent workflow process belongs to this builder
@@ -440,6 +449,7 @@ export async function updateWorkflowProcessTaskService({
 }
 
 export async function deleteWorkflowProcessTaskService({ builderId, workflow_process_task_id }) {
+  const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const transaction = await db.sequelize.transaction();
   try {
     // Step 1: Verify the task exists and its parent workflow process belongs to this builder

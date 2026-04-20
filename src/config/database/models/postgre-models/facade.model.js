@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class Facade extends Model {
   static associate(models) {
-    Facade.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Facade.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Facade.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType" });
-    Facade.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Facade.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Facade.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Facade.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Facade.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType", onDelete: "SET NULL" });
+    Facade.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Facade.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Facade.hasMany(models.FloorPlanFacadeMap, { foreignKey: "facade_id", as: "floorPlanMaps" });
   }
 }

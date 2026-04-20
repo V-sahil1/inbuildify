@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class Quotation extends Model {
   static associate(models) {
-    Quotation.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    Quotation.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Quotation.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Quotation.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
+    Quotation.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Quotation.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Quotation.hasMany(models.QuotationVersion, { foreignKey: "quotation_id", as: "versions" });
   }
 }

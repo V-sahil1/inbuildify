@@ -2,8 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobProcessStage extends Model {
   static associate(models) {
-    JobProcessStage.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobProcessStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
+    JobProcessStage.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobProcessStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobProcessStage.belongsTo(models.JobProcessStage, { foreignKey: "dependent_stage_id", as: "dependentStage", onDelete: "SET NULL" });
     JobProcessStage.hasMany(models.JobProcessSubStage, { foreignKey: "stage_id", as: "subStages" });
   }
 }

@@ -33,7 +33,15 @@ export const createTaskSchema = Joi.object({
         "Due time must be in HH:MM format OR due time must be valid",
     }),
 
-  assignee_id: Joi.string().uuid().allow(null).optional(),
+  assignee_id: Joi.alternatives()
+    .try(
+      Joi.string().uuid(),
+      Joi.string().pattern(
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/
+      )
+    )
+    .allow(null)
+    .optional(),
 
   link_to: Joi.string().uuid().allow(null).optional().messages({
     "string.uuid": "Link to must be a valid UUID",
@@ -77,7 +85,16 @@ export const getAllTaskSchema = Joi.object({
     })
     .optional(),
 
-  assignee_id: Joi.string().uuid().allow(null).optional(),
+  assignee_id: Joi.alternatives()
+    .try(
+      Joi.string().uuid(),
+      Joi.string().pattern(
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/
+      ),
+      Joi.array().items(Joi.string().uuid())
+    )
+    .allow(null)
+    .optional(),
 
   link_to: Joi.string().uuid().allow(null).optional().messages({
     "string.uuid": "Link to must be a valid UUID",
@@ -94,6 +111,18 @@ export const getAllTaskSchema = Joi.object({
   status: Joi.string()
     .max(20)
     .valid("Yet to Start", "In Progress", "Completed", "Cancelled", "Skipped")
+    .optional(),
+
+  date_filter: Joi.string()
+    .valid("today", "tomorrow", "this_week", "next_week", "overdue", "pending")
+    .optional(),
+
+  sort_by: Joi.string()
+    .valid("name", "due_date", "priority", "status", "created_at")
+    .optional(),
+
+  sort_order: Joi.string()
+    .valid("asc", "desc", "ASC", "DESC")
     .optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({

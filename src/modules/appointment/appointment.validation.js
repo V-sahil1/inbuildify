@@ -23,9 +23,10 @@ export const createAppointmentSchema = Joi.object({
       "string.pattern.base": "end_time must be in HH:MM format",
     }),
 
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "location ID must be a valid UUID",
-  }),
+  location_text: Joi.string()
+    .max(500)
+    .pattern(/^[^<>]*$/)
+    .allow(null, ""),
 
   link_to: Joi.string().uuid().optional().messages({
     "string.guid": "link_to ID must be a valid UUID",
@@ -52,11 +53,17 @@ export const createAppointmentSchema = Joi.object({
 export const getAllAppointmentSchema = Joi.object({
   title: Joi.string().max(255).optional(),
 
-  date: Joi.date().optional(),
+  date: Joi.string().optional(),
 
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "location ID must be a valid UUID",
+  date_from: Joi.string().isoDate().optional().messages({
+    "string.isoDate": "date_from must be a valid ISO date string",
   }),
+
+  date_to: Joi.string().isoDate().optional().messages({
+    "string.isoDate": "date_to must be a valid ISO date string",
+  }),
+
+  location_text: Joi.string().max(255).optional(),
 
   link_to: Joi.string().uuid().optional().messages({
     "string.guid": "link_to ID must be a valid UUID",
@@ -66,6 +73,12 @@ export const getAllAppointmentSchema = Joi.object({
     "string.guid": "lead ID must be a valid UUID",
   }),
 
+  assignee_id: Joi.string().uuid().optional().messages({
+    "string.guid": "assignee_id must be a valid UUID",
+  }),
+
+  include_cancelled: Joi.boolean().optional(),
+
   is_deleted: Joi.boolean().optional(),
 
   page: Joi.number().integer().min(1).default(1).messages({
@@ -74,7 +87,7 @@ export const getAllAppointmentSchema = Joi.object({
     "number.min": "Page must be greater than 0",
   }),
 
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+  limit: Joi.number().integer().min(1).max(100).default(25).messages({
     "number.base": "Limit must be a number",
     "number.integer": "Limit must be an integer",
     "number.min": "Limit must be at least 1",
@@ -119,9 +132,11 @@ export const updateAppointmentSchema = Joi.object({
       "string.pattern.base": "end_time must be in HH:MM format",
     }),
 
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "location ID must be a valid UUID",
-  }),
+  location_text: Joi.string()
+    .max(500)
+    .pattern(/^[^<>]*$/)
+    .allow(null, "")
+    .optional(),
 
   link_to: Joi.string().uuid().optional().messages({
     "string.guid": "link_to ID must be a valid UUID",
@@ -142,10 +157,30 @@ export const updateAppointmentSchema = Joi.object({
   }),
 });
 
+export const getAppointmentTabCountsSchema = Joi.object({
+  anchor_date: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "anchor_date must be YYYY-MM-DD",
+    }),
+
+  title: Joi.string().max(255).optional(),
+
+  assignee_id: Joi.string().uuid().optional().messages({
+    "string.guid": "assignee_id must be a valid UUID",
+  }),
+
+  include_cancelled: Joi.alternatives()
+    .try(Joi.boolean(), Joi.string().valid("true", "false"))
+    .optional(),
+});
+
 export default {
   createAppointmentSchema,
   getAllAppointmentSchema,
   deleteAppointmentSchema,
   updateAppointmentParamsSchema,
   updateAppointmentSchema,
+  getAppointmentTabCountsSchema,
 };

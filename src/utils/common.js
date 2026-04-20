@@ -68,6 +68,18 @@ function toCamelCase(str) {
   return str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
 }
 
+export function formatCamelCaseToReadable(text) {
+  if (!text || typeof text !== 'string') {
+    return text;
+  }
+  
+  return text
+    .replace(/_/g, ' ') // Replace underscores with spaces
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between lowercase and uppercase
+    .replace(/\b\w/g, str => str.toUpperCase()) // Capitalize first letter of each word
+    .trim();
+}
+
 export function keysToSnakeCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();

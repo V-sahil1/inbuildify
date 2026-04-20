@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class SupplierContacts extends Model {
   static associate(models) {
-    SupplierContacts.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier" });
+    SupplierContacts.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier", onDelete: "CASCADE" });
   }
 }
 

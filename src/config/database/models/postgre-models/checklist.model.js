@@ -10,12 +10,12 @@ export class Checklist extends Model {
 
     Checklist.belongsTo(models.Users, {
       foreignKey: "created_by",
-      as: "createdByUser"
+      as: "createdByUser", onDelete: "SET NULL"
     });
 
     Checklist.belongsTo(models.Users, {
       foreignKey: "updated_by",
-      as: "updatedByUser"
+      as: "updatedByUser", onDelete: "SET NULL"
     });
 
     Checklist.hasMany(models.ChecklistItem, {
@@ -26,12 +26,12 @@ export class Checklist extends Model {
     // ✅ MISSING ones — add these
     Checklist.belongsTo(models.Screen, {
       foreignKey: "screen_id",
-      as: "screen"
+      as: "screen", onDelete: "CASCADE"
     });
 
     Checklist.belongsTo(models.Functionality, {
       foreignKey: "functionality_id",
-      as: "functionality"
+      as: "functionality", onDelete: "CASCADE"
     });
   }
 }

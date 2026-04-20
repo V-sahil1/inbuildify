@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class LeadActivityLog extends Model {
   static associate(models) {
-    LeadActivityLog.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
-    LeadActivityLog.belongsTo(models.Users, { foreignKey: "user_id", as: "user" });
+    LeadActivityLog.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "SET NULL" });
+    LeadActivityLog.belongsTo(models.Users, { foreignKey: "user_id", as: "user", onDelete: "SET NULL" });
   }
 }
 

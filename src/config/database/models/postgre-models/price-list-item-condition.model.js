@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class PriceListItemCondition extends Model {
   static associate(models) {
-    PriceListItemCondition.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem" });
+    PriceListItemCondition.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobColorSettings extends Model {
   static associate(models) {
-    JobColorSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobColorSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobColorSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobColorSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobColorSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobColorSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobColorSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobColorSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     JobColorSettings.hasMany(models.JobColorColumnSections, { foreignKey: "job_color_settings_id", as: "columnSections" });
     JobColorSettings.hasMany(models.JobColorColumns, { foreignKey: "job_color_settings_id", as: "columns" });
   }

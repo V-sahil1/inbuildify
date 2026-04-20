@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobCommissionSubStage extends Model {
   static associate(models) {
-    JobCommissionSubStage.belongsTo(models.JobCommission, { foreignKey: "job_commission_id", as: "jobCommission" });
-    JobCommissionSubStage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobCommissionSubStage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobCommissionSubStage.belongsTo(models.JobCommission, { foreignKey: "job_commission_id", as: "jobCommission", onDelete: "CASCADE" });
+    JobCommissionSubStage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobCommissionSubStage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

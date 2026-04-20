@@ -2,9 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class SurveyTemplateQuestions extends Model {
   static associate(models) {
-    SurveyTemplateQuestions.belongsTo(models.SurveyTemplate, { foreignKey: "survey_template_id", as: "surveyTemplate" });
-    SurveyTemplateQuestions.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    SurveyTemplateQuestions.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    SurveyTemplateQuestions.belongsTo(models.SurveyTemplate, { foreignKey: "survey_template_id", as: "surveyTemplate", onDelete: "CASCADE" });
+    SurveyTemplateQuestions.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    SurveyTemplateQuestions.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

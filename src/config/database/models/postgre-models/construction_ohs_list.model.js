@@ -2,11 +2,12 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionOhsList extends Model {
   static associate(models) {
-    ConstructionOhsList.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionOhsList.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ConstructionOhsList.belongsTo(models.ConstructionOhsSettings, { foreignKey: "construction_ohs_settings_id", as: "ohsSettings" });
-    ConstructionOhsList.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionOhsList.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionOhsList.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionOhsList.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ConstructionOhsList.belongsTo(models.ConstructionOhsSettings, { foreignKey: "construction_ohs_settings_id", as: "ohsSettings", onDelete: "CASCADE" });
+    ConstructionOhsList.belongsTo(models.ConstructionOhsList, { foreignKey: "parent_id", as: "parent", onDelete: "CASCADE" });
+    ConstructionOhsList.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionOhsList.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class TemplateEmailSignature extends Model {
   static associate(models) {
-    TemplateEmailSignature.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    TemplateEmailSignature.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    TemplateEmailSignature.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    TemplateEmailSignature.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    TemplateEmailSignature.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    TemplateEmailSignature.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    TemplateEmailSignature.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    TemplateEmailSignature.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

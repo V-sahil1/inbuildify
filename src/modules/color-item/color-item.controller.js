@@ -15,10 +15,11 @@ export async function getColorItemsWithoutCategory(req, res) {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
-        AND ci.color_category_id IS NULL`;
+    // let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)
+    //     AND ci.color_category_id IS NULL`;
     const queryParams = [companyId, builderId];
     let paramIndex = 3;
+    let whereClause = `WHERE (ci.company_id = $1 OR ci.builder_id = $2)`;
 
     // Add color_group_id filter if provided
     if (color_group_id) {
@@ -36,6 +37,7 @@ export async function getColorItemsWithoutCategory(req, res) {
         ci.color_item_id,
         ci.company_id,
         ci.builder_id,
+        ci.color_id,
         ci.item_name,
         ci.item_code,
         ci.supplier_id,
@@ -55,6 +57,22 @@ export async function getColorItemsWithoutCategory(req, res) {
         ci.specification,
         ci.created_at,
         ci.updated_at,
+        CASE 
+          WHEN ci.color_category_id IS NOT NULL THEN
+            json_build_object(
+              'id', cc.color_category_id,
+              'name', cc.category_name
+            )
+          ELSE NULL 
+        END AS color_category,
+        CASE 
+          WHEN ci.color_id IS NOT NULL THEN
+            json_build_object(
+              'id', c.color_id,
+              'name', c.color_name
+            )
+          ELSE NULL 
+        END AS color,
         COALESCE(
           (
             SELECT json_agg(
@@ -68,8 +86,26 @@ export async function getColorItemsWithoutCategory(req, res) {
             WHERE cgim_sub.color_item_id = ci.color_item_id
           ),
           '[]'::json
-        ) AS color_groups
+        ) AS color_groups,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = ci.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item ci
+      LEFT JOIN color_category cc ON ci.color_category_id = cc.color_category_id
+      LEFT JOIN color c ON ci.color_id = c.color_id
       ${whereClause}
       ORDER BY ci.created_at DESC
     `;
@@ -89,10 +125,9 @@ export async function getColorItemsWithoutCategory(req, res) {
   }
 }
 
-export async function createColorItem(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+import { ColorItemService } from "./color-item.service.js";
 
+export async function createColorItem(req, res) {
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
@@ -107,19 +142,67 @@ export async function createColorItem(req, res) {
       supplier_id,
       color_category_id,
       upgrade_option,
-      cost_type = "standard",
+      cost_type: rawCostType,
       cost,
       features,
       description,
       specification_name,
-      units = "non_mandatory",
+      units: rawUnits,
       sort_order,
       color_type_id,
       range_id,
-      status = true,
+      status: rawStatus,
       default_image_index,
       custom_fields,
+      color_id,
+      color_group_id,
     } = req.body;
+
+    // Normalize multipart/form-data fields (they arrive as strings, not JS defaults)
+    const cost_type = !rawCostType || rawCostType.trim() === "" ? "standard" : rawCostType.trim();
+    const units = !rawUnits || rawUnits.trim() === "" ? "non_mandatory" : rawUnits.trim();
+    const status =
+      rawStatus === undefined || rawStatus === "" || rawStatus === null
+        ? true
+        : rawStatus === "true" || rawStatus === true;
+
+    // --- color_id / color_category_id / color_group_id validation ---
+    const hasColorId = !!color_id;
+    const hasColorCategoryId = !!color_category_id;
+    const hasColorGroupId = !!color_group_id;
+
+    if (hasColorGroupId) {
+      // When color_group_id is provided:
+      // - Allowed: both color_id + color_category_id together  
+      // - Allowed: neither color_id nor color_category_id
+      // - NOT Allowed: only one of them
+      if (hasColorId !== hasColorCategoryId) {
+        return errorResponse(
+          res,
+          400,
+          "When color_group_id is provided, color_id and color_category_id must both be sent together or both omitted.",
+        );
+      }
+    } else {
+      // When color_group_id is NOT provided:
+      // - color_category_id is MANDATORY
+      // - color_id must NOT be sent (only color_category_id is accepted)
+      if (!hasColorCategoryId) {
+        return errorResponse(
+          res,
+          400,
+          "color_category_id is required when color_group_id is not provided.",
+        );
+      }
+      if (hasColorId) {
+        return errorResponse(
+          res,
+          400,
+          "color_id must not be provided when color_group_id is not used. Only color_category_id is accepted in this case.",
+        );
+      }
+    }
+
 
     let parsedCustomFields = [];
     if (typeof custom_fields === "string") {
@@ -162,35 +245,15 @@ export async function createColorItem(req, res) {
     }
 
     if (color_category_id && (color_type_id || range_id)) {
-      const categoryCheck = await client.query(
-        `
-        SELECT cc.color_category_id
-        FROM color_category cc
-        JOIN color c ON cc.color_id = c.color_id
-        WHERE cc.color_category_id = $1
-          AND (c.company_id = $2 OR c.builder_id = $3)
-        `,
-        [color_category_id, companyId, builderId],
-      );
-
-      if (categoryCheck.rowCount === 0) {
-        return errorResponse(res, 400, "Invalid color category ID.");
-      }
-
       if (color_type_id) {
         let colorTypeIds = color_type_id;
 
         if (Array.isArray(color_type_id)) {
-          if (
-            color_type_id.length === 1 &&
-            typeof color_type_id[0] === "string"
-          ) {
+          if (color_type_id.length === 1 && typeof color_type_id[0] === "string") {
             try {
               const parsed = JSON.parse(color_type_id[0]);
-              if (Array.isArray(parsed)) {
-                colorTypeIds = parsed;
-              }
-            } catch (e) {}
+              if (Array.isArray(parsed)) colorTypeIds = parsed;
+            } catch (e) { }
           }
         } else if (typeof color_type_id === "string") {
           try {
@@ -205,37 +268,9 @@ export async function createColorItem(req, res) {
         }
 
         if (!Array.isArray(colorTypeIds) || colorTypeIds.length === 0) {
-          return errorResponse(
-            res,
-            400,
-            "Color type IDs must be a non-empty array.",
-          );
+          return errorResponse(res, 400, "Color type IDs must be a non-empty array.");
         }
 
-        const colorTypeCheck = await client.query(
-          `
-          SELECT color_type_id
-          FROM color_type
-          WHERE color_type_id = ANY($1)
-            AND (company_id = $2 OR builder_id = $3)
-          `,
-          [colorTypeIds, companyId, builderId],
-        );
-
-        const validColorTypeIds = colorTypeCheck.rows.map(
-          (row) => row.color_type_id,
-        );
-        const invalidColorTypeIds = colorTypeIds.filter(
-          (id) => !validColorTypeIds.includes(id),
-        );
-
-        if (invalidColorTypeIds.length > 0) {
-          return errorResponse(
-            res,
-            400,
-            `Invalid color type IDs: ${invalidColorTypeIds.join(", ")}`,
-          );
-        }
         finalColorTypeIds = colorTypeIds;
       }
 
@@ -246,10 +281,8 @@ export async function createColorItem(req, res) {
           if (range_id.length === 1 && typeof range_id[0] === "string") {
             try {
               const parsed = JSON.parse(range_id[0]);
-              if (Array.isArray(parsed)) {
-                rangeIds = parsed;
-              }
-            } catch (e) {}
+              if (Array.isArray(parsed)) rangeIds = parsed;
+            } catch (e) { }
           }
         } else if (typeof range_id === "string") {
           try {
@@ -264,36 +297,9 @@ export async function createColorItem(req, res) {
         }
 
         if (!Array.isArray(rangeIds) || rangeIds.length === 0) {
-          return errorResponse(
-            res,
-            400,
-            "Range IDs must be a non-empty array.",
-          );
+          return errorResponse(res, 400, "Range IDs must be a non-empty array.");
         }
 
-        const rangeCheck = await client.query(
-          `
-          SELECT range_id
-          FROM range
-          WHERE range_id = ANY($1)
-            AND (company_id = $2 OR builder_id = $3)
-            AND is_active = true
-          `,
-          [rangeIds, companyId, builderId],
-        );
-
-        const validRangeIds = rangeCheck.rows.map((row) => row.range_id);
-        const invalidRangeIds = rangeIds.filter(
-          (id) => !validRangeIds.includes(id),
-        );
-
-        if (invalidRangeIds.length > 0) {
-          return errorResponse(
-            res,
-            400,
-            `Invalid range IDs: ${invalidRangeIds.join(", ")}`,
-          );
-        }
         finalRangeIds = rangeIds;
       }
     }
@@ -374,84 +380,12 @@ export async function createColorItem(req, res) {
       originalName: file.originalname,
     }));
 
-    await client.query("BEGIN");
-
-    const duplicateCheck = await client.query(
-      `
-      SELECT 1
-      FROM color_item
-      WHERE (company_id = $1 OR builder_id = $2)
-        AND item_code = $3
-      `,
-      [companyId, builderId, item_code.trim()],
-    );
-
-    if (duplicateCheck.rowCount > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 409, "Item code already exists.");
-    }
-
-    if (supplier_id) {
-      const supplierCheck = await client.query(
-        `
-        SELECT 1
-        FROM supplier
-        WHERE supplier_id = $1
-          AND (company_id = $2 OR builder_id = $3)
-        `,
-        [supplier_id, companyId, builderId],
-      );
-
-      if (supplierCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return errorResponse(res, 400, "Invalid supplier ID.");
-      }
-    }
-
-    let finalSortOrder = sort_order;
-
-    if (color_category_id) {
-      const maxSortOrderQuery = `
-        SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
-        FROM color_item
-        WHERE color_category_id = $1
-          AND (company_id = $2 OR builder_id = $3)
-      `;
-      const maxSortResult = await client.query(maxSortOrderQuery, [
-        color_category_id,
-        companyId,
-        builderId,
-      ]);
-
-      const maxSortOrder = parseInt(maxSortResult.rows[0].max_sort_order) || 0;
-
-      if (!sort_order) {
-        finalSortOrder = maxSortOrder + 1;
-      } else if (sort_order <= maxSortOrder) {
-        const shiftQuery = `
-          UPDATE color_item 
-          SET sort_order = sort_order + 1 
-          WHERE color_category_id = $1
-            AND (company_id = $2 OR builder_id = $3)
-            AND sort_order >= $4
-        `;
-        await client.query(shiftQuery, [
-          color_category_id,
-          companyId,
-          builderId,
-          sort_order,
-        ]);
-      }
-    }
-
-    const insertQuery = `
-      INSERT INTO color_item (
-        company_id,
-        builder_id,
-        color_category_id,
+    const result = await ColorItemService.createColorItemService(
+      {
         item_name,
         item_code,
         supplier_id,
+        color_category_id,
         upgrade_option,
         cost_type,
         cost,
@@ -459,82 +393,26 @@ export async function createColorItem(req, res) {
         description,
         specification_name,
         units,
-        color_image,
-        specification,
         sort_order,
-        color_type_id,
-        range_id,
+        finalColorTypeIds,
+        finalRangeIds,
         status,
-        created_at,
-        updated_at
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19,NOW(),NOW()
-      )
-      RETURNING *;
-    `;
-
-    const values = [
-      companyId,
-      builderId,
-      color_category_id || null,
-      item_name.trim(),
-      item_code.trim(),
-      supplier_id || null,
-      upgrade_option || null,
-      cost_type,
-      cost || null,
-      features?.trim() || null,
-      description?.trim() || null,
-      specification_name?.trim() || null,
-      units,
-      JSON.stringify(colorImageJson),
-      JSON.stringify(specificationJson),
-      finalSortOrder,
-      finalColorTypeIds,
-      finalRangeIds,
-      status,
-    ];
-
-    const result = await client.query(insertQuery, values);
-    const colorItemId = result.rows[0].color_item_id;
-
-    if (
-      parsedCustomFields &&
-      Array.isArray(parsedCustomFields) &&
-      parsedCustomFields.length > 0
-    ) {
-      for (const field of parsedCustomFields) {
-        const {
-          field_type,
-          field_name,
-          required_field = false,
-          sort_order = 1,
-        } = field;
-        await client.query(
-          `INSERT INTO color_item_custom_field (
-            color_item, field_type, field_name, required_field, sort_order, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-          [colorItemId, field_type, field_name, required_field, sort_order],
-        );
-      }
-    }
-
-    await client.query("COMMIT");
-
-    return successResponse(
-      res,
-      keysToCamelCase(result.rows[0]),
-      "Color item created successfully.",
+        colorImageJson,
+        specificationJson,
+        parsedCustomFields,
+        color_id: color_id || undefined,
+        color_group_id: color_group_id || undefined,
+      },
+      req.user
     );
+
+    return successResponse(res, result, "Color item created successfully.");
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Create Color Item Error:", error);
-    return errorResponse(res, 500, "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, error.statusCode || 500, error.message || "Internal Server Error");
   }
 }
+
 
 export async function getAllColorItems(req, res) {
   const pool = getPool();
@@ -638,7 +516,23 @@ export async function getAllColorItems(req, res) {
     `;
 
     const listQuery = `
-      SELECT ci.*
+      SELECT ci.*,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = ci.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item ci
       ${color_group_id ? "LEFT JOIN color_group_item_map cgim ON ci.color_item_id = cgim.color_item_id" : ""}
       ${whereClause}
@@ -797,7 +691,7 @@ export async function updateColorItem(req, res) {
 
     const existingCheck = await client.query(
       `
-      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost, sort_order, color_category_id
+      SELECT color_item_id, item_code, color_image, cost_type, upgrade_option, cost, sort_order, color_category_id, specification
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)
@@ -1293,13 +1187,35 @@ export async function updateColorItem(req, res) {
         return errorResponse(res, 400, "Invalid default image index.");
       }
 
-      const colorImageJson = colorImages.map((file, index) => ({
+      let existingColorImages = [];
+      if (existing.color_image) {
+        try {
+          existingColorImages =
+            typeof existing.color_image === "string"
+              ? JSON.parse(existing.color_image)
+              : existing.color_image;
+        } catch (error) {
+          console.error("Error parsing existing color images:", error);
+        }
+      }
+
+      // If a new default is set, remove default from all existing images
+      if (hasDefaultIndex) {
+        existingColorImages = existingColorImages.map((img) => ({
+          ...img,
+          is_default: false,
+        }));
+      }
+
+      const newColorImages = colorImages.map((file, index) => ({
         url: file.location,
         is_default: hasDefaultIndex && index === defaultIndex,
       }));
 
+      const combinedColorImages = [...existingColorImages, ...newColorImages];
+
       updateFields.push(`color_image = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(colorImageJson));
+      updateValues.push(JSON.stringify(combinedColorImages));
     } else if (
       default_image_index !== undefined &&
       default_image_index !== ""
@@ -1339,12 +1255,28 @@ export async function updateColorItem(req, res) {
     }
 
     if (specificationImages.length > 0) {
-      const specificationJson = specificationImages.map((file) => ({
+      let existingSpecs = [];
+      if (existing.specification) {
+        try {
+          existingSpecs =
+            typeof existing.specification === "string"
+              ? JSON.parse(existing.specification)
+              : existing.specification;
+        } catch (error) {
+          console.error("Error parsing existing specifications:", error);
+        }
+      }
+
+      const newSpecs = specificationImages.map((file) => ({
         url: file.location,
+        type: file.mimetype.startsWith("image/") ? "image" : "pdf",
+        originalName: file.originalname,
       }));
 
+      const combinedSpecs = [...existingSpecs, ...newSpecs];
+
       updateFields.push(`specification = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(specificationJson));
+      updateValues.push(JSON.stringify(combinedSpecs));
     }
 
     if (status !== undefined) {
@@ -1591,7 +1523,23 @@ export async function getColorItemById(req, res) {
     const { color_item_id } = req.params;
 
     const query = `
-      SELECT *
+      SELECT *,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'color_item_custom_field_id', cicf.color_item_custom_field_id,
+                'field_type', cicf.field_type,
+                'field_name', cicf.field_name,
+                'required_field', cicf.required_field,
+                'sort_order', cicf.sort_order
+              ) ORDER BY cicf.sort_order
+            )
+            FROM color_item_custom_field cicf
+            WHERE cicf.color_item = color_item.color_item_id
+          ),
+          '[]'::json
+        ) AS custom_fields
       FROM color_item
       WHERE color_item_id = $1
         AND (company_id = $2 OR builder_id = $3)

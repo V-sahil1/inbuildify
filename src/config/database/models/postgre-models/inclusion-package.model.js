@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class InclusionPackage extends Model {
   static associate(models) {
-    InclusionPackage.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    InclusionPackage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    InclusionPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    InclusionPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    InclusionPackage.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    InclusionPackage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    InclusionPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    InclusionPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

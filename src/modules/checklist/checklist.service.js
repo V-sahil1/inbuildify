@@ -126,9 +126,9 @@ export async function createChecklistService({
 
     // ── Clean response format ─────────────────────────────
     return {
-      checklist_id: result.checklist_id,
+      checklistId: result.checklist_id,
       name: result.name,
-      is_active: result.is_active,
+      isActive: result.is_active,
       screen: result.screen,
       functionality: result.functionality,
     };

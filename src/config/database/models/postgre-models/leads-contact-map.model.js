@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class LeadsContactMap extends Model {
   static associate(models) {
-    LeadsContactMap.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    LeadsContactMap.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
   }
 }
 

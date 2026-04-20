@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class RecalculateDate extends Model {
   static associate(models) {
-    RecalculateDate.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    RecalculateDate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    RecalculateDate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    RecalculateDate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    RecalculateDate.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    RecalculateDate.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    RecalculateDate.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    RecalculateDate.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

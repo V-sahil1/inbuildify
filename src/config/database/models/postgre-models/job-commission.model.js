@@ -2,12 +2,12 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobCommission extends Model {
   static associate(models) {
-    JobCommission.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobCommission.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobCommission.belongsTo(models.JobCommissionSettings, { foreignKey: "job_commission_settings_id", as: "commissionSettings" });
-    JobCommission.belongsTo(models.Users, { foreignKey: "recipient_user_id", as: "recipientUser" });
-    JobCommission.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobCommission.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobCommission.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobCommission.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobCommission.belongsTo(models.JobCommissionSettings, { foreignKey: "job_commission_settings_id", as: "commissionSettings", onDelete: "CASCADE" });
+    JobCommission.belongsTo(models.Users, { foreignKey: "recipient_user_id", as: "recipientUser", onDelete: "SET NULL" });
+    JobCommission.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobCommission.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     JobCommission.hasMany(models.JobCommissionSubStage, { foreignKey: "job_commission_id", as: "subStages" });
   }
 }

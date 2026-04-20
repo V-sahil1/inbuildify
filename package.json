@@ -12,7 +12,10 @@
     "lint:fix": "eslint . --fix",
     "seed:all": "node src/seeder/seedAll.js",
     "seeder": "node src/seeder/seedDeveloperEssentials.js",
-    "migrate": "npx sequelize-cli db:migrate"
+    "migrate": "node src/config/database/run-migrations.mjs",
+    "migrate:undo": "node src/config/database/run-migrations.mjs down",
+    "migrate:pending": "node src/config/database/run-migrations.mjs pending",
+    "migrate:executed": "node src/config/database/run-migrations.mjs executed"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.873.0",
@@ -34,10 +37,12 @@
     "pg": "^8.20.0",
     "pg-hstore": "^2.3.4",
     "puppeteer": "^24.40.0",
+    "redis": "^5.12.1",
     "seeder": "^0.2.4",
     "sequelize": "^6.37.8",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "umzug": "^3.8.2",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

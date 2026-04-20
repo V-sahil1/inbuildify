@@ -2,11 +2,11 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobVariationApproval extends Model {
   static associate(models) {
-    JobVariationApproval.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    JobVariationApproval.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    JobVariationApproval.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
-    JobVariationApproval.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    JobVariationApproval.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    JobVariationApproval.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    JobVariationApproval.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    JobVariationApproval.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "CASCADE" });
+    JobVariationApproval.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    JobVariationApproval.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

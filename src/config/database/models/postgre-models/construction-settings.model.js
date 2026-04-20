@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionSettings extends Model {
   static associate(models) {
-    ConstructionSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    ConstructionSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionSettings.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionSettings.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    ConstructionSettings.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionSettings.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 export default (sequelize) => {

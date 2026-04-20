@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobForm extends Model {
   static associate(models) {
-    JobForm.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead" });
+    JobForm.belongsTo(models.Leads, { foreignKey: "leads_id", as: "lead", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

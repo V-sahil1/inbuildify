@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class AgentReferralPartner extends Model {
   static associate(models) {
-    AgentReferralPartner.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    AgentReferralPartner.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "user_id", as: "user" });
-    AgentReferralPartner.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
-    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "referred_user_id", as: "referredUser" });
-    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    AgentReferralPartner.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    AgentReferralPartner.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "user_id", as: "user", onDelete: "SET NULL" });
+    AgentReferralPartner.belongsTo(models.Address, { foreignKey: "address_id", as: "address", onDelete: "SET NULL" });
+    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "referred_user_id", as: "referredUser", onDelete: "SET NULL" });
+    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    AgentReferralPartner.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class Drive extends Model {
   static associate(models) {
-    Drive.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Drive.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Drive.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Drive.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Drive.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Drive.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Drive.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Drive.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
   }
 }
 

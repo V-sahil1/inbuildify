@@ -2,8 +2,8 @@ import { Model, DataTypes } from "sequelize";
 
 export class CostCenterChecklistMap extends Model {
   static associate(models) {
-    CostCenterChecklistMap.belongsTo(models.CostCenter, { foreignKey: "cost_center_id", as: "costCenter" });
-    CostCenterChecklistMap.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist" });
+    CostCenterChecklistMap.belongsTo(models.CostCenter, { foreignKey: "cost_center_id", as: "costCenter", onDelete: "CASCADE" });
+    CostCenterChecklistMap.belongsTo(models.ConstructionChecklist, { foreignKey: "construction_checklist_id", as: "constructionChecklist", onDelete: "CASCADE" });
   }
 }
 export default (sequelize) => {

@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class MasterSection extends Model {
   static associate(models) {
-    MasterSection.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    MasterSection.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    MasterSection.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    MasterSection.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    MasterSection.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    MasterSection.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    MasterSection.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    MasterSection.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     MasterSection.hasMany(models.MasterSectionHeader, { foreignKey: "master_section", as: "headers" });
   }
 }

@@ -2,13 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class Lot extends Model {
   static associate(models) {
-    Lot.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    Lot.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    Lot.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate" });
-    Lot.belongsTo(models.EstateStages, { foreignKey: "estate_stage_id", as: "estateStage" });
-    Lot.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
-    Lot.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    Lot.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    Lot.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    Lot.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Lot.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate", onDelete: "CASCADE" });
+    Lot.belongsTo(models.EstateStages, { foreignKey: "estate_stage_id", as: "estateStage", onDelete: "CASCADE" });
+    Lot.belongsTo(models.State, { foreignKey: "state_id", as: "state", onDelete: "SET NULL" });
+    Lot.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    Lot.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     Lot.hasMany(models.LotPackage, { foreignKey: "lot_id", as: "lotPackages" });
   }
 }

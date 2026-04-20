@@ -2,8 +2,9 @@ import { Model, DataTypes } from "sequelize";
 
 export class JobProcessTask extends Model {
   static associate(models) {
-    JobProcessTask.belongsTo(models.JobProcessSubStage, { foreignKey: "sub_stage_id", as: "subStage" });
-    JobProcessTask.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
+    JobProcessTask.belongsTo(models.JobProcessSubStage, { foreignKey: "sub_stage_id", as: "subStage", onDelete: "CASCADE" });
+    JobProcessTask.belongsTo(models.DocumentCommonFolder, { foreignKey: "folder_id", as: "folder", onDelete: "SET NULL" });
+    JobProcessTask.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee", onDelete: "SET NULL" });
     JobProcessTask.hasMany(models.JobProcessSubtask, { foreignKey: "job_process_task_id", as: "subtasks" });
   }
 }

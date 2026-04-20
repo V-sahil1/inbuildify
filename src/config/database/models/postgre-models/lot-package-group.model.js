@@ -2,10 +2,10 @@ import { Model, DataTypes } from "sequelize";
 
 export class LotPackageGroup extends Model {
   static associate(models) {
-    LotPackageGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    LotPackageGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder" });
-    LotPackageGroup.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    LotPackageGroup.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    LotPackageGroup.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    LotPackageGroup.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    LotPackageGroup.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    LotPackageGroup.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     LotPackageGroup.hasMany(models.LotPackage, { foreignKey: "lot_package_group_id", as: "lotPackages" });
   }
 }

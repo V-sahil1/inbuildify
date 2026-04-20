@@ -2,11 +2,13 @@ import { Model, DataTypes } from "sequelize";
 
 export class ConstructionChecklist extends Model {
   static associate(models) {
-    ConstructionChecklist.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
-    ConstructionChecklist.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef" });
-    ConstructionChecklist.belongsTo(models.ComplianceType, { foreignKey: "compliance_type_id", as: "complianceType" });
-    ConstructionChecklist.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser" });
-    ConstructionChecklist.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser" });
+    ConstructionChecklist.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
+    ConstructionChecklist.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builderRef", onDelete: "CASCADE" });
+    ConstructionChecklist.belongsTo(models.ConstructionType, { foreignKey: "construction_type_id", as: "constructionType", onDelete: "CASCADE" });
+    ConstructionChecklist.belongsTo(models.ConstructionStage, { foreignKey: "construction_stage_id", as: "constructionStage", onDelete: "CASCADE" });
+    ConstructionChecklist.belongsTo(models.ComplianceType, { foreignKey: "compliance_type_id", as: "complianceType", onDelete: "SET NULL" });
+    ConstructionChecklist.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
+    ConstructionChecklist.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
     ConstructionChecklist.hasMany(models.ConstructionChecklistPredecessor, { foreignKey: "construction_checklist_id", as: "predecessors" });
     ConstructionChecklist.hasMany(models.ConstructionSubChecklist, { foreignKey: "construction_checklist_id", as: "subChecklists" });
     ConstructionChecklist.hasMany(models.CostCenterChecklistMap, { foreignKey: "construction_checklist_id", as: "costCenterMaps" });
