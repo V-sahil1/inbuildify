@@ -8,6 +8,7 @@ export class ColorItem extends Model {
     ColorItem.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier", onDelete: "SET NULL" });
     ColorItem.hasMany(models.ColorGroupItemMap, { foreignKey: "color_item_id", as: "colorGroupItemMaps" });
     ColorItem.hasMany(models.ColorItemCustomField, { foreignKey: "color_item", as: "customFields" });
+    ColorItem.belongsTo(models.Color,{foreignKey:"color_id",as:"color",onDelete:"SET NULL"});
   }
 }
 
@@ -20,6 +21,10 @@ export default (sequelize) => {
         primaryKey: true,
       },
       company_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      color_id: {
         type: DataTypes.UUID,
         allowNull: true,
       },
@@ -97,9 +102,11 @@ export default (sequelize) => {
       },
       createdAt: {
         type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
       },
       updatedAt: {
         type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
       },
     },
     {

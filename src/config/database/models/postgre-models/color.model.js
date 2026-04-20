@@ -21,8 +21,8 @@ export default (sequelize) => {
       status: { type: DataTypes.BOOLEAN, defaultValue: true },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },
-      createdAt: { type: DataTypes.DATE },
-      updatedAt: { type: DataTypes.DATE },
+      createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+      updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     },
     { sequelize, tableName: "color", modelName: "Color", underscored: true }
   );

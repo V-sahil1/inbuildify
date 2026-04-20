@@ -61,7 +61,10 @@ export async function createColorGroup(req, res) {
     const values = [companyId, builderId, name.trim(), true, userId, userId];
 
     const result = await client.query(insertQuery, values);
-    const createdColorGroup = keysToCamelCase(result.rows[0]);
+    const createdColorGroup = {
+      ...keysToCamelCase(result.rows[0]),
+      isMapped: false,
+    };
 
     await client.query("COMMIT");
 
@@ -118,10 +121,16 @@ export async function getAllColorGroups(req, res) {
 
     const query = `
       SELECT *,
-             EXISTS (
-               SELECT 1 
-               FROM color_category cc 
-               WHERE color_group.color_group_id = ANY(cc.color_group)
+             (
+               EXISTS (
+                 SELECT 1 
+                 FROM color_category cc 
+                 WHERE color_group.color_group_id = ANY(cc.color_group)
+               ) OR EXISTS (
+                 SELECT 1 
+                 FROM color_group_item_map cgim 
+                 WHERE cgim.color_group_id = color_group.color_group_id
+               )
              ) AS is_mapped
       FROM color_group
       ${whereClause}
@@ -156,10 +165,16 @@ export async function getColorGroupById(req, res) {
 
     const query = `
       SELECT *,
-             EXISTS (
-               SELECT 1 
-               FROM color_category cc 
-               WHERE color_group.color_group_id = ANY(cc.color_group)
+             (
+               EXISTS (
+                 SELECT 1 
+                 FROM color_category cc 
+                 WHERE color_group.color_group_id = ANY(cc.color_group)
+               ) OR EXISTS (
+                 SELECT 1 
+                 FROM color_group_item_map cgim 
+                 WHERE cgim.color_group_id = color_group.color_group_id
+               )
              ) AS is_mapped
       FROM color_group
       WHERE color_group_id = $1
@@ -283,7 +298,19 @@ export async function updateColorGroup(req, res) {
       UPDATE color_group
       SET ${updateFields.join(", ")}
       WHERE color_group_id = $${paramIndex}
-      RETURNING *;
+      RETURNING *, (
+               (
+                 EXISTS (
+                   SELECT 1 FROM color_category cc 
+                   WHERE color_group.color_group_id = ANY(cc.color_group)
+                 ) 
+                 OR 
+                 EXISTS (
+                   SELECT 1 FROM color_group_item_map cgim 
+                   WHERE cgim.color_group_id = color_group.color_group_id
+                 )
+               )
+             ) AS is_mapped;
     `;
 
     const result = await client.query(updateQuery, updateValues);
