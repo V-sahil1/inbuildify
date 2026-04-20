@@ -614,6 +614,7 @@ export async function getAllPriceListItems(req, res) {
         range: item.rangeData || [],
         dwellingType: item.dwellingTypeData || [],
         additionalItem: item.additionalItem,
+        isSystemData: item.isSystemData,
         createdBy: item.createdBy,
         updatedBy: item.updatedBy,
         createdAt: item.createdAt,

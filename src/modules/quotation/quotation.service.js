@@ -162,12 +162,13 @@ class QuotationService {
         } else if (compactionReport === "not_available" && compactionReportProvider === "builder") {
           // If first quotation and compaction report is not available and provided by builder, map "Compaction Report Charge"
           const priceListItemQuery = `
-            SELECT price_list_item_id, cost 
-            FROM price_list_item 
-            WHERE item_description = $1 
-            AND (builder_id = $2 OR (company_id = $3 AND $3 IS NOT NULL))
-            AND status = 'active'
-            ORDER BY created_at ASC
+            SELECT pli.*, pl.name as price_list_name 
+            FROM price_list_item pli
+            JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+            WHERE pli.item_description = $1 
+            AND (pli.builder_id = $2 OR (pli.company_id = $3 AND $3 IS NOT NULL))
+            AND pli.status = 'active'
+            ORDER BY pli.created_at ASC
             LIMIT 1
           `;
           const priceListItemResult = await client.query(priceListItemQuery, [
@@ -181,18 +182,27 @@ class QuotationService {
             await client.query(
               `
               INSERT INTO quotation_version_items (
-                quotation_version_id, price_list_item_id, price_list_item_description,
-                price_list_item_cost, quantity, total_price,
+                quotation_version_id, price_list_id, price_list_name, price_list_item_id,
+                price_list_item_description, price_list_item_short_description,
+                price_list_item_cost_type, price_list_item_cost_type_text,
+                price_list_item_cost_option, price_list_item_cost, price_list_item_builder_cost,
+                price_list_item_sort_order, price_list_item_uom, price_list_item_status,
+                price_list_item_include_by_default, price_list_item_allow_remove_from_quotation,
+                price_list_item_show_in_hl_package, price_list_item_package_only,
+                price_list_item_range_id, price_list_item_dwelling_type_id,
+                price_list_item_is_system_data,
+                price_list_item_created_at, price_list_item_updated_at,
+                quantity, total_price,
                 created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             `,
               [
-                quotationVersion.quotation_version_id,
-                pli.price_list_item_id,
-                "Compaction Report Charge",
-                pli.cost,
-                1,
-                pli.cost,
+                quotationVersion.quotation_version_id, pli.price_list_id, pli.price_list_name, pli.price_list_item_id,
+                pli.item_description, pli.short_description, pli.cost_type, pli.cost_type_text,
+                pli.cost_option, pli.cost, pli.builder_cost, pli.sort_order,
+                pli.uom, pli.status, pli.include_by_default, pli.allow_remove_from_quotation,
+                pli.show_in_hl_package, pli.show_only_in_package, pli.range_id, pli.dwelling_type_id,
+                pli.is_system_data, pli.created_at, pli.updated_at, 1, pli.cost
               ]
             );
           }

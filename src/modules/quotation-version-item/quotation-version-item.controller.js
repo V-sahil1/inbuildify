@@ -352,8 +352,15 @@ export async function getQuotationVersionItems(req, res) {
             (COALESCE(pc.saved_count, 0) != COALESCE(mpc.current_count, 0))
           ) THEN true 
           ELSE false 
-        END AS is_package_cost_mismatch
+        END AS is_package_cost_mismatch,
+        CASE 
+          WHEN fppim.price_list_item_id IS NOT NULL THEN true 
+          ELSE false 
+        END AS is_automatically_mapped
       FROM quotation_version_items qvi
+      JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
+      LEFT JOIN floor_plan_pricelist_item_map fppim ON qv.floor_plan_id = fppim.floor_plan_id 
+                                                   AND qvi.price_list_item_id = fppim.price_list_item_id
       LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
       LEFT JOIN package p ON qvi.package_id = p.package_id
       LEFT JOIN package_counts pc ON qvi.package_id = pc.package_id
@@ -378,7 +385,9 @@ export async function getQuotationVersionItems(req, res) {
       return {
         ...item,
         isPriceListItemCostMismatch: row.is_price_list_item_cost_mismatch,
-        isPackageCostMismatch: row.is_package_cost_mismatch
+        isPackageCostMismatch: row.is_package_cost_mismatch,
+        isAutomaticallyMapped: row.is_automatically_mapped,
+        priceListItemIsSystemData: row.price_list_item_is_system_data
       };
     });
 
