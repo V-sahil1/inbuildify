@@ -358,7 +358,9 @@ class LeadsRepository {
             JOIN users u ON lcm.contact_id = u.users_id
             WHERE lcm.leads_id = l.leads_id
           ) as lead_contacts,
-          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status
+          (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status,
+          (SELECT out_come FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_outcome,
+          (SELECT j.job_id FROM job j JOIN opportunity o ON j.opportunity_id = o.opportunity_id WHERE o.leads_id = l.leads_id LIMIT 1) as job_id
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id
         LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
@@ -575,7 +577,9 @@ async getLeadById(leadId, builderId, companyId) {
             FROM invoice inv WHERE inv.leads_id = l.leads_id
           ) as invoices,
           (SELECT status FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_status,
-          (SELECT opportunity_id FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_id
+          (SELECT out_come FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_outcome,
+          (SELECT opportunity_id FROM opportunity WHERE leads_id = l.leads_id LIMIT 1) as opportunity_id,
+          (SELECT j.job_id FROM job j JOIN opportunity o ON j.opportunity_id = o.opportunity_id WHERE o.leads_id = l.leads_id LIMIT 1) as job_id
 
         FROM leads l
         LEFT JOIN lead_source ls ON l.lead_source_id = ls.lead_source_id

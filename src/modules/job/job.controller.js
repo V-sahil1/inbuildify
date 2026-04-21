@@ -437,7 +437,7 @@ export async function convertOpportunityToJob(req, res) {
       `SELECT
          o.opportunity_id,
          o.status,
-         o.outcome,
+         o.out_come,
          l.reference_number,
          l.leads_id,
          l.builder_id,
@@ -457,7 +457,7 @@ export async function convertOpportunityToJob(req, res) {
     // ── Lost ─────────────────────────────────────────────────────────────────
     if (out_come === "lost") {
       await client.query(
-        "UPDATE opportunity SET status = 'Close', outcome = 'lost', updated_at = NOW() WHERE opportunity_id = $1",
+        "UPDATE opportunity SET status = 'Close', out_come = 'lost', updated_at = NOW() WHERE opportunity_id = $1",
         [opportunity_id],
       );
       await client.query(
@@ -493,7 +493,7 @@ export async function convertOpportunityToJob(req, res) {
       }
 
       await client.query(
-        "UPDATE opportunity SET status = 'Close', outcome = $1, updated_at = NOW() WHERE opportunity_id = $2",
+        "UPDATE opportunity SET status = 'Close', out_come = $1, updated_at = NOW() WHERE opportunity_id = $2",
         ["won", opportunity_id],
       );
 

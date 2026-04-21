@@ -217,7 +217,7 @@ class LeadsService {
       // Check if lead has any opportunity with outcome = 'lost'
       const pool = getPool();
       const lostOppResult = await pool.query(
-        "SELECT 1 FROM opportunity WHERE leads_id = $1 AND outcome = 'lost' LIMIT 1",
+        "SELECT 1 FROM opportunity WHERE leads_id = $1 AND out_come = 'lost' LIMIT 1",
         [leadId],
       );
 

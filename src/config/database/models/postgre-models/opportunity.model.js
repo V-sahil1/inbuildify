@@ -14,7 +14,7 @@ export default (sequelize) => {
       leads_id: { type: DataTypes.UUID, allowNull: true },
       opportunity_notes: { type: DataTypes.STRING(1000), allowNull: true },
       status: { type: DataTypes.STRING(252), allowNull: true },
-      outcome: { type: DataTypes.STRING(10), allowNull: true },
+      out_come: { type: DataTypes.STRING(10), allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

@@ -56,7 +56,7 @@ export const updateQuotationVersionBodySchema = Joi.object({
   is_approve: Joi.boolean().optional().messages({
     "boolean.base": "is_approve must be a boolean",
   }),
-  sketch_number: Joi.number().precision(2).optional().allow(null).messages({
+  sketch_number: Joi.number().precision(2).max(99999999).optional().allow(null).messages({
     "number.base": "Sketch number must be a number",
   }),
 });

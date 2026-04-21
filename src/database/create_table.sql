@@ -3165,7 +3165,7 @@ CREATE TABLE opportunity(
   leads_id UUID REFERENCES leads(leads_id) ON DELETE CASCADE,
   opportunity_notes VARCHAR(1000),
   status VARCHAR(252),                                -- valid  Proposal, negotiation, closed
-  outcome VARCHAR(10), -- Won / Lost               -- make different api for won/lost
+  out_come VARCHAR(10), -- Won / Lost               -- make different api for won/lost
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

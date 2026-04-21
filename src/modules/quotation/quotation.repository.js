@@ -74,11 +74,18 @@ class QuotationRepository {
                       WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
                            AND qvi.package_cost::numeric != p.cost::numeric THEN true 
                       ELSE false 
+                    END,
+                    'is_system_data', qvi.price_list_item_is_system_data,
+                    'is_automatically_mapped', CASE 
+                      WHEN fppim.price_list_item_id IS NOT NULL THEN true 
+                      ELSE false 
                     END
                   )), '[]'::json)
                   FROM quotation_version_items qvi
                   LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
                   LEFT JOIN package p ON qvi.package_id = p.package_id
+                  LEFT JOIN floor_plan_pricelist_item_map fppim ON qv.floor_plan_id = fppim.floor_plan_id 
+                                                               AND qvi.price_list_item_id = fppim.price_list_item_id
                   WHERE qvi.quotation_version_id = qv.quotation_version_id
                 ),
                 'package', (
@@ -443,11 +450,18 @@ class QuotationRepository {
                 WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
                      AND qvi.package_cost::numeric != p.cost::numeric THEN true 
                 ELSE false 
+              END,
+              'is_system_data', qvi.price_list_item_is_system_data,
+              'is_automatically_mapped', CASE 
+                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
+                ELSE false 
               END
             )), '[]'::json)
             FROM quotation_version_items qvi
             LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
             LEFT JOIN package p ON qvi.package_id = p.package_id
+            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
+                                                                AND qvi.price_list_item_id = fppim_items.price_list_item_id
             WHERE qvi.quotation_version_id = qv.quotation_version_id
           ) as quotation_version_items,
           leads.leads_id as lead_id,
@@ -685,11 +699,18 @@ class QuotationRepository {
                 WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
                      AND qvi.package_cost::numeric != p.cost::numeric THEN true 
                 ELSE false 
+              END,
+              'is_system_data', qvi.price_list_item_is_system_data,
+              'is_automatically_mapped', CASE 
+                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
+                ELSE false 
               END
             )), '[]'::json)
             FROM quotation_version_items qvi
             LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
             LEFT JOIN package p ON qvi.package_id = p.package_id
+            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
+                                                            AND qvi.price_list_item_id = fppim_items.price_list_item_id
             WHERE qvi.quotation_version_id = qv.quotation_version_id
           ) as quotation_version_items,
           leads.leads_id as lead_id,
@@ -849,11 +870,18 @@ class QuotationRepository {
                 WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
                      AND qvi.package_cost::numeric != p.cost::numeric THEN true 
                 ELSE false 
+              END,
+              'is_system_data', qvi.price_list_item_is_system_data,
+              'is_automatically_mapped', CASE 
+                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
+                ELSE false 
               END
             )), '[]'::json)
             FROM quotation_version_items qvi
             LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
             LEFT JOIN package p ON qvi.package_id = p.package_id
+            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
+                                                                AND qvi.price_list_item_id = fppim_items.price_list_item_id
             WHERE qvi.quotation_version_id = qv.quotation_version_id
           ) as quotation_version_items,
           leads.leads_id as lead_id,
