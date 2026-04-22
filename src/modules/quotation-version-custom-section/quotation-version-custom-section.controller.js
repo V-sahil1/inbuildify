@@ -3,6 +3,7 @@ import { errorResponse, successResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import path from "path";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export const extractFileNameFromUrl = (url) => {
   if (!url) return null;
@@ -33,7 +34,7 @@ export async function createCustomSection(req, res) {
     }
 
     const versionCheck = await client.query(
-      `SELECT qv.quotation_version_id, qv.is_approve
+      `SELECT qv.quotation_version_id, qv.is_approve, q.leads_id
        FROM quotation_version qv
        JOIN quotation q ON qv.quotation_id = q.quotation_id
        JOIN leads l ON q.leads_id = l.leads_id
@@ -51,6 +52,8 @@ export async function createCustomSection(req, res) {
     if (versionCheck.rows[0].is_approve === true) {
       return errorResponse(res, 400, "Cannot add custom sections to an approved quotation version");
     }
+
+    await checkLeadLockStatus(versionCheck.rows[0].leads_id);
 
     let finalSortOrder = sort_order;
 
@@ -96,7 +99,7 @@ export async function createCustomSection(req, res) {
     return successResponse(res, responseData, 201, "Custom section created successfully");
   } catch (error) {
     console.error("Create custom section error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -148,7 +151,7 @@ export async function getCustomSectionsByVersionId(req, res) {
     );
   } catch (error) {
     console.error("Get custom sections error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -169,7 +172,7 @@ export async function updateCustomSection(req, res) {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*, qv.is_approve
+      `SELECT cs.*, qv.is_approve, q.leads_id
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -188,6 +191,8 @@ export async function updateCustomSection(req, res) {
     if (checkResult.rows[0].is_approve === true) {
       return errorResponse(res, 400, "Cannot modify custom sections of an approved quotation version");
     }
+
+    await checkLeadLockStatus(checkResult.rows[0].leads_id);
 
     const existingSection = checkResult.rows[0];
 
@@ -272,7 +277,7 @@ export async function updateCustomSection(req, res) {
     return successResponse(res, responseData, "Custom section updated successfully");
   } catch (error) {
     console.error("Update custom section error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -292,7 +297,7 @@ export async function deleteCustomSection(req, res) {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*, qv.is_approve
+      `SELECT cs.*, qv.is_approve, q.leads_id
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -311,6 +316,8 @@ export async function deleteCustomSection(req, res) {
     if (checkResult.rows[0].is_approve === true) {
       return errorResponse(res, 400, "Cannot delete custom sections from an approved quotation version");
     }
+
+    await checkLeadLockStatus(checkResult.rows[0].leads_id);
 
     const deletedSection = checkResult.rows[0];
 
@@ -333,7 +340,7 @@ export async function deleteCustomSection(req, res) {
     return successResponse(res, null, "Custom section deleted successfully");
   } catch (error) {
     console.error("Delete custom section error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

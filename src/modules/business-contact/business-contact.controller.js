@@ -1,6 +1,7 @@
 import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createBusinessContact(req, res) {
   const pool = getPool();
@@ -42,6 +43,8 @@ export async function createBusinessContact(req, res) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Lead not found or does not belong to your organization");
     }
+
+    await checkLeadLockStatus(leads_id);
 
     // Check existing contacts for this lead and contact type
     const existingContactsCheck = await client.query(
@@ -157,7 +160,7 @@ export async function createBusinessContact(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating business contact:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -246,7 +249,7 @@ export async function getAllBusinessContacts(req, res) {
     });
   } catch (err) {
     console.error("Error fetching business contacts:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -301,7 +304,7 @@ export async function getBusinessContactById(req, res) {
     );
   } catch (err) {
     console.error("Error fetching business contact:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -360,6 +363,8 @@ export async function updateBusinessContact(req, res) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Business contact not found.");
     }
+
+    await checkLeadLockStatus(checkResult.rows[0].leads_id);
 
     let finalCountryId = checkResult.rows[0].country_id;
     if (country_id !== undefined) {
@@ -487,7 +492,7 @@ export async function updateBusinessContact(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error updating business contact:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -533,6 +538,8 @@ export async function deleteBusinessContact(req, res) {
       return errorResponse(res, 404, "Business contact not found.");
     }
 
+    await checkLeadLockStatus(checkResult.rows[0].leads_id);
+
     // Remove ownership check as table doesn't have builder_id/company_id
 
     await client.query(
@@ -546,7 +553,7 @@ export async function deleteBusinessContact(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error deleting business contact:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }

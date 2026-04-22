@@ -3,6 +3,7 @@ import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createNote(req, res) {
   const pool = getPool();
@@ -70,6 +71,8 @@ export async function createNote(req, res) {
       if (attach_file) await deleteFromS3(attach_file);
       return errorResponse(res, 403, "Invalid leads_id or access denied.");
     }
+
+    await checkLeadLockStatus(effectiveLeadsId);
 
     // Check note_tag_id existence and ownership if provided
     if (note_tag_id && Array.isArray(note_tag_id) && note_tag_id.length > 0) {
@@ -174,10 +177,12 @@ export async function createNote(req, res) {
       "Note created successfully."
     );
   } catch (err) {
+    if (!err.status || err.status >= 500) {
+      console.error("Note operation error:", err);
+    }
     await client.query("ROLLBACK");
     if (req.file?.location) await deleteFromS3(req.file.location);
-    console.error("Error creating note:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -322,6 +327,8 @@ export async function updateNote(req, res) {
       return errorResponse(res, 404, "Note not found or access denied.");
     }
 
+    await checkLeadLockStatus(checkNote.rows[0].leads_id);
+
     let parsedNoteTagId = null;
     if (note_tag_id) {
       parsedNoteTagId = typeof note_tag_id === 'string' ? JSON.parse(note_tag_id) : note_tag_id;
@@ -443,7 +450,7 @@ export async function updateNote(req, res) {
     await client.query("ROLLBACK");
     if (req.file?.location) await deleteFromS3(req.file.location);
     console.error("Error updating note:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -461,7 +468,7 @@ export async function deleteNote(req, res) {
     const companyId = req.user?.company_id;
 
     const checkNote = await client.query(
-      `SELECT n.attach_file FROM notes n
+      `SELECT n.attach_file, n.leads_id FROM notes n
        JOIN leads l ON n.leads_id = l.leads_id
        WHERE n.notes_id = $1 AND (l.builder_id = $2 OR l.company_id = $3)`,
       [notes_id, builderId, companyId]
@@ -471,6 +478,8 @@ export async function deleteNote(req, res) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Note not found or access denied.");
     }
+
+    await checkLeadLockStatus(checkNote.rows[0].leads_id);
 
     const fileUrl = checkNote.rows[0].attach_file;
 
@@ -500,7 +509,7 @@ export async function deleteNote(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error deleting note:", err);
-    return errorResponse(res, 500, "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }

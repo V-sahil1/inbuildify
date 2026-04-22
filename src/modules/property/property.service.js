@@ -1,4 +1,5 @@
 import db from "../../config/database/models/postgre-models/index.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export const createPropertyService = async (leadsId, propertyData, user) => {
   const { Leads, PropertyDetail, State, Country, EstateStages, PriceList, PriceListItem } = db;
@@ -27,6 +28,8 @@ export const createPropertyService = async (leadsId, propertyData, user) => {
     if (!lead) {
       throw { status: 400, message: "Invalid lead id." };
     }
+
+    await checkLeadLockStatus(leadsId);
 
     // 3. Existing property check
     if (lead.property_detail_id) {

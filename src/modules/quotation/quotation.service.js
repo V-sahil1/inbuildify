@@ -9,6 +9,7 @@ import { generatePDF } from "./pdf.service.js";
 import sendEmail from "../../service/sendMail.service.js";
 import { generateQuotationHTML } from "../../utils/template.js";
 import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -21,6 +22,8 @@ class QuotationService {
           message: "Lead not found or unauthorized",
         };
       }
+
+      await checkLeadLockStatus(leadsId);
 
       if (!existingLead.propertyDetailId) {
         return {
@@ -336,6 +339,8 @@ class QuotationService {
 
       const hlp = hlpResult.rows[0];
 
+      await checkLeadLockStatus(leadsId);
+
       await client.query('BEGIN');
 
       // Check if any other quotation versions exist for this lead before inserting new ones
@@ -511,6 +516,8 @@ class QuotationService {
       }
 
       const existingVersion = checkResult.rows[0];
+
+      await checkLeadLockStatus(existingVersion.leads_id);
 
       // Block updates to older versions (only the latest version can be updated)
       // const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
@@ -1076,7 +1083,7 @@ class QuotationService {
       // Verify the quotation exists and belongs to a lead the user can access
       const client = getPool();
       const checkQuery = `
-        SELECT q.quotation_id FROM quotation q
+        SELECT q.quotation_id, q.leads_id FROM quotation q
         JOIN leads l ON q.leads_id = l.leads_id
         WHERE q.quotation_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
       `;
@@ -1088,6 +1095,8 @@ class QuotationService {
           message: "Quotation not found or unauthorized",
         };
       }
+
+      await checkLeadLockStatus(checkResult.rows[0].leads_id);
 
       const deleted = await quotationRepository.deleteQuotation(quotationId);
 

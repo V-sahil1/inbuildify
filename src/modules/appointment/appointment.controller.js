@@ -2,6 +2,7 @@ import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createAppointment(req, res) {
   const pool = getPool();
@@ -48,6 +49,8 @@ export async function createAppointment(req, res) {
           "Invalid lead_id. Lead not found for this builder/company.",
         );
       }
+
+      await checkLeadLockStatus(lead_id);
     }
 
     if (select_users && select_users.length > 0) {
@@ -211,7 +214,7 @@ export async function createAppointment(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating appointment:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -394,7 +397,7 @@ export async function getAllAppointments(req, res) {
     });
   } catch (err) {
     console.error("Error fetching appointments:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -535,7 +538,7 @@ export async function getAppointmentTabCounts(req, res) {
     });
   } catch (err) {
     console.error("Error fetching appointment tab counts:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -571,6 +574,8 @@ export async function deleteAppointment(req, res) {
     if (checkResult.rows[0].is_deleted) {
       return errorResponse(res, 400, "Appointment is already deleted.");
     }
+
+    await checkLeadLockStatus(checkResult.rows[0].lead_id);
 
     const deleteQuery = `
       UPDATE appointment
@@ -673,6 +678,8 @@ export async function updateAppointment(req, res) {
     }
 
     const existing = checkResult.rows[0];
+
+    await checkLeadLockStatus(existing.lead_id);
 
     const newStartTime =
       start_time !== undefined ? start_time : existing.start_time;

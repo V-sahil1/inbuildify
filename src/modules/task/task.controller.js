@@ -5,6 +5,7 @@ import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 import db from "../../config/database/models/postgre-models/index.js";
 import { QueryTypes } from "sequelize";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createTask(req, res) {
   const pool = getPool();
@@ -75,6 +76,8 @@ export async function createTask(req, res) {
           "Invalid lead_id. Lead not found for this builder/company.",
         );
       }
+
+      await checkLeadLockStatus(lead_id);
     }
 
     function isValidDate(dateString) {
@@ -199,7 +202,7 @@ export async function createTask(req, res) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating task:", err);
-    return errorResponse(res, 500, err.message || "Internal Server Error");
+    return errorResponse(res, err.status || 500, err.message || "Internal Server Error");
   } finally {
     client.release();
   }
@@ -383,7 +386,7 @@ export async function getAllTasks(req, res) {
     );
   } catch (error) {
     console.error("Error in getAllTasks:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -421,6 +424,8 @@ export async function deleteTask(req, res) {
       );
     }
 
+    await checkLeadLockStatus(task.lead_id);
+
     await client.query("DELETE FROM task WHERE task_id = $1", [task_id]);
     
     // Log Activity
@@ -441,7 +446,7 @@ export async function deleteTask(req, res) {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error deleting task:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -489,6 +494,8 @@ export async function updateTask(req, res) {
         "Task not found or you do not have permission to update it",
       );
     }
+
+    await checkLeadLockStatus(findResult.rows[0].lead_id);
 
     function isValidDate(dateString) {
       const date = new Date(dateString);
@@ -714,7 +721,7 @@ export async function updateTask(req, res) {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating task:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

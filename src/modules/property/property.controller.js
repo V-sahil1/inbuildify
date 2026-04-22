@@ -7,6 +7,7 @@ import {
   createPropertyService,
 } from "./property.service.js"
 import db from "../../config/database/models/postgre-models/index.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createProperty(req, res) {
   try {
@@ -231,7 +232,7 @@ export async function updateProperty(req, res) {
     const { compaction_report, compaction_report_content, compaction_report_url } = req.body;
 
     const existing = await client.query(
-      `SELECT pd.property_detail_id, pd.compaction_report, pd.compaction_report_url
+      `SELECT pd.property_detail_id, pd.compaction_report, pd.compaction_report_url, l.leads_id
        FROM property_detail pd
        JOIN leads l ON l.property_detail_id = pd.property_detail_id
        WHERE pd.property_detail_id = $1 AND (
@@ -244,6 +245,8 @@ export async function updateProperty(req, res) {
     if (existing.rowCount === 0) {
       return errorResponse(res, 404, "Property not found or does not belong to your organization.");
     }
+
+    await checkLeadLockStatus(existing.rows[0].leads_id);
 
     // Business Logic: If status is not_available, clear all details
     if (compaction_report === "not_available") {
@@ -559,7 +562,7 @@ export async function deleteProperty(req, res) {
     const { property_detail_id } = req.params;
 
     const existing = await client.query(
-      `SELECT pd.property_detail_id
+      `SELECT pd.property_detail_id, l.leads_id
        FROM property_detail pd
        JOIN leads l ON l.property_detail_id = pd.property_detail_id
        WHERE pd.property_detail_id = $1 AND (
@@ -573,6 +576,8 @@ export async function deleteProperty(req, res) {
       await client.query("ROLLBACK");
       return errorResponse(res, 404, "Property not found or does not belong to your organization.");
     }
+
+    await checkLeadLockStatus(existing.rows[0].leads_id);
 
     // Unlink from leads first
     await client.query(

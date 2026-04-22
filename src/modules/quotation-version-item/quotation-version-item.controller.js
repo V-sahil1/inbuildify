@@ -1,11 +1,12 @@
 import getPool from "../../config/database.js";
 import { errorResponse, successResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 // Ownership check helper
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
   const result = await client.query(
-    `SELECT qv.quotation_version_id, qv.is_approve, qv.dwelling_type_id, qv.range_id
+    `SELECT qv.quotation_version_id, qv.is_approve, qv.dwelling_type_id, qv.range_id, q.leads_id
      FROM quotation_version qv
      JOIN quotation q ON qv.quotation_id = q.quotation_id
      JOIN leads l ON q.leads_id = l.leads_id
@@ -82,6 +83,8 @@ export async function addQuotationItem(req, res) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
 
+    await checkLeadLockStatus(version.leads_id);
+
     // Fetch master item details
     const itemResult = await client.query(
       `SELECT pli.*, pl.name as price_list_name
@@ -147,7 +150,7 @@ export async function addQuotationItem(req, res) {
     return successResponse(res, keysToCamelCase(result.rows[0]), 201, "Item added to quotation version successfully");
   } catch (error) {
     console.error("Add quotation item error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -175,6 +178,8 @@ export async function addQuotationPackage(req, res) {
     if (version.is_approve) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
+
+    await checkLeadLockStatus(version.leads_id);
 
     // Fetch package details
     const packageResult = await client.query(
@@ -276,7 +281,7 @@ export async function addQuotationPackage(req, res) {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Add quotation package error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -394,7 +399,7 @@ export async function getQuotationVersionItems(req, res) {
     return successResponse(res, formattedItems, 200, "Quotation version items fetched successfully");
   } catch (error) {
     console.error("Get quotation version items error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -412,7 +417,7 @@ export async function updateQuotationVersionItem(req, res) {
     const companyId = req.user?.company_id;
 
     const itemCheck = await client.query(
-      `SELECT qvi.*, qv.is_approve 
+      `SELECT qvi.*, qv.is_approve, q.leads_id 
        FROM quotation_version_items qvi
        JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -431,6 +436,8 @@ export async function updateQuotationVersionItem(req, res) {
     if (itemCheck.rows[0].is_approve) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
+
+    await checkLeadLockStatus(itemCheck.rows[0].leads_id);
 
     const item = itemCheck.rows[0];
     const qty = quantity !== undefined ? parseFloat(quantity) : parseFloat(item.quantity);
@@ -458,7 +465,7 @@ export async function updateQuotationVersionItem(req, res) {
     return successResponse(res, keysToCamelCase(result.rows[0]), 200, "Quotation version item updated successfully");
   } catch (error) {
     console.error("Update quotation version item error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -475,7 +482,7 @@ export async function deleteQuotationVersionItem(req, res) {
     const companyId = req.user?.company_id;
 
     const itemCheck = await client.query(
-      `SELECT qvi.*, qv.is_approve 
+      `SELECT qvi.*, qv.is_approve, q.leads_id 
        FROM quotation_version_items qvi
        JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -495,6 +502,8 @@ export async function deleteQuotationVersionItem(req, res) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
 
+    await checkLeadLockStatus(itemCheck.rows[0].leads_id);
+
     if (itemCheck.rows[0].package_id) {
       return errorResponse(res, 400, "Cannot delete an item that belongs to a package. Please remove the entire package instead.");
     }
@@ -504,7 +513,7 @@ export async function deleteQuotationVersionItem(req, res) {
     return successResponse(res, null, 200, "Quotation version item deleted successfully");
   } catch (error) {
     console.error("Delete quotation version item error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -529,6 +538,8 @@ export async function deletePackageFromVersion(req, res) {
         return errorResponse(res, 400, "Cannot modify an approved quotation version");
       }
   
+      await checkLeadLockStatus(version.leads_id);
+  
       const result = await client.query(
         `DELETE FROM quotation_version_items 
          WHERE quotation_version_id = $1 AND package_id = $2`,
@@ -542,7 +553,7 @@ export async function deletePackageFromVersion(req, res) {
       return successResponse(res, null, 200, "Package items removed from quotation version successfully");
     } catch (error) {
       console.error("Delete package from version error:", error);
-      return errorResponse(res, 500, "Internal server error");
+      return errorResponse(res, error.status || 500, error.message || "Internal server error");
     } finally {
       client.release();
     }
@@ -584,6 +595,8 @@ export async function addExtraQuotationItem(req, res) {
     if (version.is_approve) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
+
+    await checkLeadLockStatus(version.leads_id);
 
     // Verify ownership of range and dwelling types if provided
     const rangesValid = await verifyMetadataOwnership(client, "range", price_list_item_range_id, companyId, builderId);
@@ -671,7 +684,7 @@ export async function addExtraQuotationItem(req, res) {
     return successResponse(res, keysToCamelCase({ ...result.rows[0], ...enrichedMetadata }), 201, "Extra quotation item added successfully");
   } catch (error) {
     console.error("Add extra quotation item error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -701,7 +714,7 @@ export async function updateExtraQuotationItem(req, res) {
 
     // Fetch existing item and check ownership/approval status
     const itemCheck = await client.query(
-      `SELECT qvi.*, qv.is_approve 
+      `SELECT qvi.*, qv.is_approve, q.leads_id 
        FROM quotation_version_items qvi
        JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -721,6 +734,8 @@ export async function updateExtraQuotationItem(req, res) {
     if (item.is_approve) {
       return errorResponse(res, 400, "Cannot modify an approved quotation version");
     }
+
+    await checkLeadLockStatus(item.leads_id);
 
     // Verify ownership of range and dwelling types if provided as part of the update
     if (price_list_item_range_id !== undefined) {
@@ -804,7 +819,7 @@ export async function updateExtraQuotationItem(req, res) {
     return successResponse(res, keysToCamelCase({ ...result.rows[0], ...enrichedMetadata }), 200, "Extra quotation item updated successfully");
   } catch (error) {
     console.error("Update extra quotation item error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

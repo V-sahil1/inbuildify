@@ -3,6 +3,7 @@ import quotationService from "../quotation/quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { generateDynamicReferenceNumber, keysToCamelCase, formatCamelCaseToReadable } from "../../utils/common.js";
 import getPool from "../../config/database.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 class LeadsService {
   async createLead(
@@ -214,16 +215,8 @@ class LeadsService {
         };
       }
 
-      // Check if lead has any opportunity with outcome = 'lost'
-      const pool = getPool();
-      const lostOppResult = await pool.query(
-        "SELECT 1 FROM opportunity WHERE leads_id = $1 AND out_come = 'lost' LIMIT 1",
-        [leadId],
-      );
-
-      if (lostOppResult.rowCount > 0) {
-        throw new Error("This lead cannot be updated because an associated opportunity has been marked as lost.");
-      }
+      // Check if lead has any opportunity with outcome = 'lost' or 'won'
+      await checkLeadLockStatus(leadId);
 
       if (leadData.email && leadData.email !== existingLead.email) {
         const existingLeads = await leadsRepository.getAllLeads(builderId, companyId, {
@@ -352,6 +345,8 @@ class LeadsService {
         };
       }
 
+      await checkLeadLockStatus(leadId);
+
       const deletedLead = await leadsRepository.deleteLead(leadId, builderId, companyId);
       return {
         success: true,
@@ -408,6 +403,8 @@ class LeadsService {
         };
       }
 
+      await checkLeadLockStatus(leadId);
+
       const updatedLead = await leadsRepository.updateLead(
         leadId,
         { status, updatedBy: userId },
@@ -449,6 +446,8 @@ class LeadsService {
             "Invalid assignee: User not found or does not belong to your organization",
         };
       }
+
+      await checkLeadLockStatus(leadId);
 
       const updatedLead = await leadsRepository.updateLead(
         leadId,
@@ -696,6 +695,8 @@ class LeadsService {
 
   async removeHLPackage(leadId, options, builderId, companyId) {
     try {
+      await checkLeadLockStatus(leadId);
+
       const { remove_hl_package_lot_quotation } = options;
       await leadsRepository.removeHLPData(
         leadId,

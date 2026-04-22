@@ -1,6 +1,7 @@
 import getPool from "../../config/database.js";
 import { errorResponse, successResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 
 export async function createLeadContactMap(req, res) {
   const pool = getPool();
@@ -26,6 +27,8 @@ export async function createLeadContactMap(req, res) {
     if (leadCheck.rowCount === 0) {
       return errorResponse(res, 404, "Lead not found or does not belong to your organization");
     }
+
+    await checkLeadLockStatus(leads_id);
 
     const contactCheck = await client.query(
       `SELECT u.users_id, u.name, u.email, u.phone, u.secondary_phone, u.remark, u.role_id, u.address_id, u.has_login, u.is_active, u.created_at, u.updated_at, r.name as role_name,
@@ -107,7 +110,7 @@ export async function createLeadContactMap(req, res) {
     return successResponse(res, responseData, 201, "Contact mapped to lead successfully");
   } catch (error) {
     console.error("Create lead contact map error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -197,7 +200,7 @@ export async function getContactsByLeadId(req, res) {
     );
   } catch (error) {
     console.error("Get lead contacts error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }
@@ -217,7 +220,7 @@ export async function deleteLeadContactMap(req, res) {
     }
 
     const checkResult = await client.query(
-      `SELECT m.id FROM leads_contact_map m
+      `SELECT m.id, m.leads_id FROM leads_contact_map m
        JOIN leads l ON m.leads_id = l.leads_id
        WHERE m.id = $1 AND (
          (l.builder_id = $2 AND $2 IS NOT NULL)
@@ -230,12 +233,14 @@ export async function deleteLeadContactMap(req, res) {
       return errorResponse(res, 404, "Lead contact mapping not found or does not belong to your organization");
     }
 
+    await checkLeadLockStatus(checkResult.rows[0].leads_id);
+
     await client.query("DELETE FROM leads_contact_map WHERE id = $1", [id]);
 
     return successResponse(res, null, "Lead contact mapping deleted successfully");
   } catch (error) {
     console.error("Delete lead contact map error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   } finally {
     client.release();
   }

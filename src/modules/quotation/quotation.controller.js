@@ -61,8 +61,10 @@ export async function getAllQuotations(req, res) {
     }
     return errorResponse(res, 400, result.message);
   } catch (error) {
-    console.error("Get all quotations error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -81,8 +83,10 @@ export async function getQuotationFilterOptions(req, res) {
     }
     return errorResponse(res, 400, result.message);
   } catch (error) {
-    console.error("Get quotation filter options error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -102,8 +106,10 @@ export async function getQuotationStatusCounts(req, res) {
     }
     return errorResponse(res, 400, result.message);
   } catch (error) {
-    console.error("Get quotation status counts error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -135,8 +141,10 @@ export async function createQuotation(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Create quotation error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -166,8 +174,10 @@ export async function getQuotationsByLeadId(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Get quotations by lead error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -195,8 +205,10 @@ export async function getQuotationVersions(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Get quotation versions error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -222,8 +234,10 @@ export async function getQuotationVersionById(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Get quotation version by ID error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -251,8 +265,10 @@ export async function updateQuotationVersion(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Update quotation version error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -279,8 +295,10 @@ export async function deleteQuotation(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Delete quotation error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -307,8 +325,10 @@ export async function duplicateQuotationVersion(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Duplicate quotation version error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -339,8 +359,10 @@ export async function compareQuotationVersions(req, res) {
     return errorResponse(res, 400, result.message);
 
   } catch (error) {
-    console.error("Compare quotation versions error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -368,8 +390,10 @@ export const removePackageFromVersion = async (req, res) => {
       return errorResponse(res, 400, result.message);
     }
   } catch (error) {
-    console.error("Remove package from quotation version error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 };
 
@@ -396,8 +420,10 @@ export async function previewPDF(req, res) {
     }
     return errorResponse(res, 400, result.message);
   } catch (error) {
-    console.error("Preview PDF error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
@@ -422,8 +448,10 @@ export async function sendQuotationEmail(req, res) {
     }
     return errorResponse(res, 400, result.message);
   } catch (error) {
-    console.error("Send quotation email error:", error);
-    return errorResponse(res, 500, "Internal server error");
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
 
