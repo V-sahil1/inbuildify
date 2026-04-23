@@ -287,6 +287,131 @@ export async function addQuotationPackage(req, res) {
   }
 }
 
+// Update package snapshot (Replace existing package)
+export async function updateQuotationPackage(req, res) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { quotation_version_id, package_id } = req.body;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized");
+    }
+
+    const version = await verifyVersionOwnership(client, quotation_version_id, companyId, builderId);
+    if (!version) {
+      return errorResponse(res, 404, "Quotation version not found or unauthorized");
+    }
+
+    if (version.is_approve) {
+      return errorResponse(res, 400, "Cannot modify an approved quotation version");
+    }
+
+    await checkLeadLockStatus(version.leads_id);
+
+    // Fetch new package details
+    const packageResult = await client.query(
+      `SELECT * FROM package WHERE package_id = $1 AND status = true AND (
+        (company_id = $2 AND $2 IS NOT NULL)
+        OR (builder_id = $3 AND $3 IS NOT NULL)
+      ) LIMIT 1`,
+      [package_id, companyId, builderId]
+    );
+
+    if (packageResult.rowCount === 0) {
+      return errorResponse(res, 404, "New package not found or inactive");
+    }
+
+    const pkg = packageResult.rows[0];
+  
+    // Fetch all items for the new package
+    const itemsResult = await client.query(
+      `SELECT pli.*, pl.name as price_list_name
+       FROM package_pricelist_item_map ppim
+       JOIN price_list_item pli ON ppim.price_list_item_id = pli.price_list_item_id
+       JOIN price_list pl ON pli.price_list_id = pl.price_list_id
+       WHERE ppim.package_id = $1 AND pli.status = 'active'`,
+      [package_id]
+    );
+
+    await client.query("BEGIN");
+
+    // 1. Remove existing package items (if any)
+    await client.query(
+      `DELETE FROM quotation_version_items 
+       WHERE quotation_version_id = $1 AND package_id IS NOT NULL`,
+      [quotation_version_id]
+    );
+
+    const insertedItems = [];
+
+    // 2. Insert "Package Summary" row
+    const summaryResult = await client.query(
+      `INSERT INTO quotation_version_items (
+        quotation_version_id, package_id, package_name, package_cost, package_builder_cost,
+        quantity, total_price,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *`,
+      [
+        quotation_version_id, pkg.package_id, pkg.name, pkg.cost, pkg.builder_cost,
+        1, pkg.cost || 0
+      ]
+    );
+    insertedItems.push(summaryResult.rows[0]);
+
+    // 3. Insert new package items
+    if (itemsResult.rowCount > 0) {
+      for (const masterItem of itemsResult.rows) {
+        const result = await client.query(
+          `INSERT INTO quotation_version_items (
+            quotation_version_id, price_list_id, price_list_name, price_list_item_id,
+            price_list_item_description, price_list_item_short_description,
+            price_list_item_cost_type, price_list_item_cost_type_text,
+            price_list_item_cost_option, price_list_item_cost, price_list_item_builder_cost,
+            price_list_item_sort_order, price_list_item_uom, price_list_item_status,
+            price_list_item_include_by_default, price_list_item_allow_remove_from_quotation,
+            price_list_item_show_in_hl_package, price_list_item_package_only,
+            price_list_item_range_id, price_list_item_dwelling_type_id,
+            price_list_item_created_at, price_list_item_updated_at,
+            package_id, package_name, package_cost, package_builder_cost,
+            quantity, total_price,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING *`,
+          [
+            quotation_version_id, masterItem.price_list_id, masterItem.price_list_name, masterItem.price_list_item_id,
+            masterItem.item_description, masterItem.short_description,
+            masterItem.cost_type, masterItem.cost_type_text,
+            masterItem.cost_option, masterItem.cost, masterItem.builder_cost,
+            masterItem.sort_order, masterItem.uom, masterItem.status,
+            masterItem.include_by_default, masterItem.allow_remove_from_quotation,
+            masterItem.show_in_hl_package, masterItem.show_only_in_package,
+            masterItem.range_id, masterItem.dwelling_type_id,
+            masterItem.created_at, masterItem.updated_at,
+            pkg.package_id, pkg.name, pkg.cost, pkg.builder_cost,
+            1, 0
+          ]
+        );
+        insertedItems.push(result.rows[0]);
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return successResponse(res, insertedItems.map(item => keysToCamelCase(item)), 200, "Package updated in quotation version successfully");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update quotation package error:", error);
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  } finally {
+    client.release();
+  }
+}
+
 // Get all items for a version
 export async function getQuotationVersionItems(req, res) {
   const pool = getPool();
@@ -828,6 +953,7 @@ export async function updateExtraQuotationItem(req, res) {
 export default {
   addQuotationItem,
   addQuotationPackage,
+  updateQuotationPackage,
   getQuotationVersionItems,
   updateQuotationVersionItem,
   deleteQuotationVersionItem,

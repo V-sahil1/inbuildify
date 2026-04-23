@@ -29,6 +29,17 @@ export const addQuotationPackageSchema = Joi.object({
   }),
 });
 
+export const updateQuotationPackageSchema = Joi.object({
+  quotation_version_id: Joi.string().uuid().required().messages({
+    "string.guid": "Quotation Version ID must be a valid UUID",
+    "any.required": "Quotation Version ID is required",
+  }),
+  package_id: Joi.string().uuid().required().messages({
+    "string.guid": "Package ID must be a valid UUID",
+    "any.required": "Package ID is required",
+  }),
+});
+
 export const updateQuotationItemSchema = Joi.object({
   quantity: Joi.number().min(0.01).optional().messages({
     "number.base": "Quantity must be a number",
@@ -216,6 +227,7 @@ export const updateExtraQuotationItemSchema = Joi.object({
 export default {
   addQuotationItemSchema,
   addQuotationPackageSchema,
+  updateQuotationPackageSchema,
   updateQuotationItemSchema,
   getItemsByVersionParamsSchema,
   idParamsSchema,

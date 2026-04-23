@@ -101,9 +101,10 @@ class QuotationService {
             package_id,
             structure_engineer_id,
             structure_engineer_price,
+            facade_price,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, NULL, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           RETURNING *
         `;
         const versionResult = await client.query(insertVersionQuery, [
@@ -117,6 +118,7 @@ class QuotationService {
           latestVersion ? latestVersion.package_id : null,
           latestVersion ? latestVersion.structure_engineer_id : null,
           latestVersion ? latestVersion.structure_engineer_price : null,
+          latestVersion ? latestVersion.facade_price : null,
         ]);
         const quotationVersion = versionResult.rows[0];
 
@@ -326,7 +328,7 @@ class QuotationService {
     try {
       // 1. Fetch HLP details
       const hlpQuery = `
-        SELECT hlp.*, f.location_id
+        SELECT hlp.*, f.location_id, f.cost as facade_cost
         FROM house_land_package hlp
         LEFT JOIN facade f ON hlp.facade_id = f.facade_id
         WHERE hlp.house_land_package_id = $1
@@ -373,13 +375,13 @@ class QuotationService {
         INSERT INTO quotation_version (
           quotation_id, quotation_version_no, location_id, range_id,
           dwelling_type_id, floor_plan_id, facade_id, is_approve, package_id,
-          created_at, updated_at
-        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          facade_price, created_at, updated_at
+        ) VALUES ($1, 1, $2, $3, $4, $5, $6, FALSE, NULL, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING quotation_version_id
       `;
       const versionResult = await client.query(insertVersionQuery, [
         quotationId, hlp.location_id, hlp.range_id,
-        hlp.dwelling_type_id, hlp.floor_plan_id, hlp.facade_id
+        hlp.dwelling_type_id, hlp.floor_plan_id, hlp.facade_id, hlp.facade_cost || 0
       ]);
       const versionId = versionResult.rows[0].quotation_version_id;
 
@@ -923,9 +925,10 @@ class QuotationService {
           structure_engineer_price,
           sketch_number,
           package_id,
+          facade_price,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING quotation_version_id
       `;
       const insertVersionValues = [
@@ -940,6 +943,7 @@ class QuotationService {
         sourceVersion.structure_engineer_price || 0,
         sourceVersion.sketch_number || null,
         sourceVersion.package_id || null,
+        sourceVersion.facade_price || 0,
       ];
 
       const newVersionResult = await client.query(insertVersionQuery, insertVersionValues);

@@ -8,6 +8,7 @@ import quotationVersionItemController from "./quotation-version-item.controller.
 import {
   addQuotationItemSchema,
   addQuotationPackageSchema,
+  updateQuotationPackageSchema,
   updateQuotationItemSchema,
   getItemsByVersionParamsSchema,
   getItemsByVersionQuerySchema,
@@ -54,6 +55,14 @@ router.post(
   camelToSnakeMiddleware,
   validateRequest(addQuotationPackageSchema, REQUEST_SOURCE.BODY),
   quotationVersionItemController.addQuotationPackage,
+);
+
+// Update package items snapshot (Replace)
+router.put(
+  "/package",
+  camelToSnakeMiddleware,
+  validateRequest(updateQuotationPackageSchema, REQUEST_SOURCE.BODY),
+  quotationVersionItemController.updateQuotationPackage,
 );
 
 // List all items for a version
