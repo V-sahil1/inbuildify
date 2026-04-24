@@ -14,6 +14,7 @@ function getEnvValue(name) {
 export const env = {
   NODE_ENV: (PROCESSENV.NODE_ENV) || "development",
   PORT: getEnvValue("PORT"),
+  BACKEND_URL: process.env.BACKEND_URL || `http://localhost:${PROCESSENV.PORT || 5000}`,
   DB: {
     DB_NAME: getEnvValue("DB_NAME"),
     DB_PORT: getEnvValue("DB_PORT"),
@@ -36,7 +37,7 @@ export const env = {
     PASSWORD: getEnvValue("PASSWORD"),
     PASSWORD_SECRET: getEnvValue("JWT_REFRESH_SECRET_EXPIRATION"),
     FRONTEND_BASE_URL: getEnvValue("FRONTEND_BASE_URL"),
-    BACKEND_BASE_URL: process.env.BACKEND_BASE_URL || `http://localhost:${process.env.PORT || 5000}`,
+    BACKEND_BASE_URL: process.env.BACKEND_URL || process.env.BACKEND_BASE_URL || `http://localhost:${process.env.PORT || 5000}`,
   },
   AWS: {
     AWS_ACCESS_KEY_ID: getEnvValue("AWS_ACCESS_KEY_ID"),
