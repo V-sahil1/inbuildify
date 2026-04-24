@@ -430,6 +430,7 @@ export async function previewPDF(req, res) {
 export async function sendQuotationEmail(req, res) {
   try {
     const { quotation_version_id } = req.params;
+    const userId = req.user?.user_id;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -439,6 +440,7 @@ export async function sendQuotationEmail(req, res) {
 
     const result = await quotationService.sendQuotationEmail(
       quotation_version_id,
+      userId,
       builderId,
       companyId
     );
@@ -452,6 +454,21 @@ export async function sendQuotationEmail(req, res) {
       console.error("Quotation operation error:", error);
     }
     return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
+export async function viewQuotationByHash(req, res) {
+  try {
+    const { hash } = req.params;
+    const result = await quotationService.getQuotationByHash(hash);
+
+    if (result.success) {
+      return successResponse(res, result.data, "Quotation fetched successfully");
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    console.error("View quotation by hash error:", error);
+    return errorResponse(res, 500, "Internal server error");
   }
 }
 
@@ -469,5 +486,6 @@ export default {
   compareQuotationVersions,
   removePackageFromVersion,
   previewPDF,
-  sendQuotationEmail
+  sendQuotationEmail,
+  viewQuotationByHash
 };

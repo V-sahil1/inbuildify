@@ -28,6 +28,7 @@ import { seedDocumentFolderMapping } from "./seed-document-folder-mapping.js";
 import { seedDocumentFileNamingFormat } from "./seed-document-file-naming-format.js";
 import { seedTemplateEmail } from "./seed-template-email.js";
 import { seedInitialPdfTemplates } from "./template-pdf.seed.js";
+import { seedNotificationTemplate } from "./seed-notification-template.js";
 
 /**
  * Seeds all default settings for a newly registered builder.
@@ -118,6 +119,9 @@ export async function seedBuilderDefaults({ company_id, builder_id, created_by, 
 
   // 22. Price List (Base Price) and default Price List Item
   await seedPriceList(ctx);
+
+  // 23. Notification Templates
+  await seedNotificationTemplate(ctx);
 
   console.log("✅ All default settings seeded for builder:", builder_id);
   

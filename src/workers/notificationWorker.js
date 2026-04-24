@@ -19,7 +19,7 @@ const notificationQueue = new Bull("notificationQueue", {
 });
 
 notificationQueue.process(async (job) => {
-  const { to, subject, text, html, attachments } = job.data;
+  const { to, subject, text, html, attachments, cc } = job.data;
 
   try {
     const linkRegex = /(https?:\/\/[^\s]+)/g;
@@ -31,6 +31,7 @@ notificationQueue.process(async (job) => {
     const mailOptions = {
       from: env.EMAIL.GMAIL,
       to,
+      ...(cc && cc.length > 0 ? { cc } : {}),
       subject,
       text,
       html: html || `

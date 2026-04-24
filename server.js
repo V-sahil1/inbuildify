@@ -12,6 +12,8 @@ import { createBullBoard } from "@bull-board/api";
 import { BullAdapter } from "@bull-board/api/bullAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 import notificationQueue from "./src/workers/notificationWorker.js";
+import quotationEmailQueue from "./src/workers/quotationEmailWorker.js";
+import quoteApprovedEmailQueue from "./src/workers/quoteApprovedEmailWorker.js";
 
 connectPostgre()
   .then(() => console.log("database connected successfully"))
@@ -23,7 +25,11 @@ app.use(
     origin: "*",
   }),
 );
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 const PORT = Number(env.PORT) || 5000;
 
@@ -34,7 +40,11 @@ const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");
 
 createBullBoard({
-  queues: [new BullAdapter(notificationQueue)],
+  queues: [
+    new BullAdapter(notificationQueue),
+    new BullAdapter(quotationEmailQueue),
+    new BullAdapter(quoteApprovedEmailQueue),
+  ],
   serverAdapter,
 });
 
