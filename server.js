@@ -13,6 +13,7 @@ import { BullAdapter } from "@bull-board/api/bullAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 import notificationQueue from "./src/workers/notificationWorker.js";
 import quotationEmailQueue from "./src/workers/quotationEmailWorker.js";
+import quoteApprovedEmailQueue from "./src/workers/quoteApprovedEmailWorker.js";
 
 connectPostgre()
   .then(() => console.log("database connected successfully"))
@@ -42,6 +43,7 @@ createBullBoard({
   queues: [
     new BullAdapter(notificationQueue),
     new BullAdapter(quotationEmailQueue),
+    new BullAdapter(quoteApprovedEmailQueue),
   ],
   serverAdapter,
 });

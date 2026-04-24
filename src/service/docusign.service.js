@@ -6,7 +6,7 @@ import docusignConfig from "../config/docusign.config.js";
 import { generatePresignedDownloadUrl, uploadFile } from "./s3.service.js";
 import { logActivity } from "../utils/activityLogger.js";
 import getPool from "../config/database.js";
-import quotationEmailQueue from "../workers/quoteApprovedEmailWorker.js";
+import quoteApprovedEmailQueue from "../workers/quoteApprovedEmailWorker.js";
 
 /**
  * Extracts and logs every available detail from a DocuSign / Axios error.
@@ -492,7 +492,7 @@ class DocuSignService {
           }
 
           // Queue email to structural engineer with full quote + lead + property details
-          await quotationEmailQueue.add(
+          await quoteApprovedEmailQueue.add(
             { quotationVersionId: envelope.quotation_version_id, envelopeId },
             { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
           );

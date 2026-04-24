@@ -1,5 +1,4 @@
-export async function up(context) {
-  const { queryInterface } = context;
+export async function up(queryInterface) {
   await queryInterface.sequelize.query(
     `ALTER TYPE "enum_notification_template_template_type" ADD VALUE IF NOT EXISTS 'QUOTATION_SEND';`
   );

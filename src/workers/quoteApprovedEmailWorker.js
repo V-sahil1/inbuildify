@@ -10,10 +10,11 @@ const redisConfig = {
   ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
 };
 
-const quotationEmailQueue = new Bull("quotationEmailQueue", { redis: redisConfig });
+const quoteApprovedEmailQueue = new Bull("quoteApprovedEmailQueue", { redis: redisConfig });
 
-quotationEmailQueue.process(async (job) => {
-  const { quotationVersionId, envelopeId } = job.data;
+quoteApprovedEmailQueue.process(async (job) => {
+  const { quotationVersionId, versionId, envelopeId } = job.data;
+  const qvId = quotationVersionId || versionId;
   const client = getPool();
 
   // Fetch quotation + lead + property + structural engineer in one query
@@ -61,10 +62,10 @@ quotationEmailQueue.process(async (job) => {
      LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
      LEFT JOIN state st ON pd.state_id = st.state_id
      WHERE qv.quotation_version_id = $1`,
-    [quotationVersionId]
+    [qvId]
   );
 
-  if (result.rowCount === 0) throw new Error(`Quotation version ${quotationVersionId} not found`);
+  if (result.rowCount === 0) throw new Error(`Quotation version ${qvId} not found`);
   const row = result.rows[0];
 
   if (!row.engineer_email) {
@@ -140,7 +141,7 @@ quotationEmailQueue.process(async (job) => {
     to: row.engineer_email,
     context,
     metadata: {
-      quotationVersionId,
+      quotationVersionId: qvId,
       envelopeId,
       leadsId: row.leads_id,
       quoteReference: row.quote_reference,
@@ -155,11 +156,12 @@ quotationEmailQueue.process(async (job) => {
   return { success: true, engineerEmail: row.engineer_email };
 });
 
-quotationEmailQueue.on("failed", async (job, err) => {
+quoteApprovedEmailQueue.on("failed", async (job, err) => {
   console.log("🚀 ~ quoteApprovedEmailWorker.js:159 ~ job:", job.data);
-  const { quotationVersionId } = job.data;
+  const { quotationVersionId, versionId } = job.data;
+  const qvId = quotationVersionId || versionId;
   console.error(
-    `[QuoteApprovedEmailWorker] Job ${job.id} failed for version ${quotationVersionId}:`,
+    `[QuoteApprovedEmailWorker] Job ${job.id} failed for version ${qvId}:`,
     err.message
   );
 
@@ -168,12 +170,12 @@ quotationEmailQueue.on("failed", async (job, err) => {
       const { Notifications } = db;
       await Notifications.create({
         sender_id: null,
-        receiver_info: JSON.stringify({ quotationVersionId }),
+        receiver_info: JSON.stringify({ quotationVersionId: qvId }),
         template_id: null,
         notification_type: "EMAIL",
         title: "Quote approved — structural engineer email failed",
-        body: `Failed to send approval email for version ${quotationVersionId}`,
-        metadata_json: JSON.stringify({ quotationVersionId, error: err.message }),
+        body: `Failed to send approval email for version ${qvId}`,
+        metadata_json: JSON.stringify({ quotationVersionId: qvId, error: err.message }),
         delivery_status: "FAILED",
         failure_reason: err.message.slice(0, 500),
       });
@@ -183,10 +185,10 @@ quotationEmailQueue.on("failed", async (job, err) => {
   }
 });
 
-quotationEmailQueue.on("completed", (job, result) => {
+quoteApprovedEmailQueue.on("completed", (job, result) => {
   console.log(`[QuoteApprovedEmailWorker] Job ${job.id} completed:`, result);
 });
 
 console.log("Quote approved email worker started...");
 
-export default quotationEmailQueue;
+export default quoteApprovedEmailQueue;

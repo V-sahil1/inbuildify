@@ -236,7 +236,9 @@ class DocuSignController {
       const { envelopeId, signerEmail, signerName } = decoded;
       console.log(`[DocuSign] publicSigningRedirect — envelopeId: ${envelopeId}, signer: ${signerEmail}`);
 
-      const returnUrl = `${frontendBaseUrl}/quotation/sign-complete?envelopeId=${envelopeId}`;
+      const isDev = (process.env.NODE_ENV || "development") === "development";
+      const backendBaseUrl = isDev ? `http://localhost:${env.PORT || 5001}` : env.BACKEND_URL;
+      const returnUrl = `${backendBaseUrl}/docusign/public/signing-callback?envelopeId=${envelopeId}`;
       const result = await docusignService.getRecipientViewUrl(envelopeId, returnUrl, signerEmail, signerName);
 
       console.log(`[DocuSign] Redirecting signer to DocuSign URL`);
@@ -358,6 +360,47 @@ class DocuSignController {
     } catch (error) {
       console.error("Error resending e-signature request:", error);
       return errorResponse(res, 500, error.message);
+    }
+  }
+
+  /**
+   * Public — no auth. DocuSign redirects here after the signer finishes.
+   * Processes the approval immediately, then redirects the browser to the lead dashboard.
+   */
+  async signingCallback(req, res) {
+    const frontendBaseUrl = env.EMAIL.FRONTEND_BASE_URL || "http://localhost:3000";
+    try {
+      const { envelopeId, event } = req.query;
+      console.log(`[DocuSign] signingCallback — envelopeId: ${envelopeId}, event: ${event}`);
+
+      if (!envelopeId) {
+        return res.redirect(`${frontendBaseUrl}/signing-error?reason=missing_envelope`);
+      }
+
+      // Look up the lead ID for this envelope so we can redirect to the right page
+      const pool = getPool();
+      const envelopeResult = await pool.query(
+        `SELECT reference_id, leads_id FROM docusign_envelopes WHERE envelope_id = $1`,
+        [envelopeId]
+      );
+
+      if (event === "signing_complete") {
+        // Process the approval immediately
+        await docusignService.processWebhook({ envelopeId, status: "completed" });
+        console.log(`[DocuSign] ✅ Approval processed for envelope ${envelopeId}`);
+      } else {
+        console.log(`[DocuSign] Signing event: ${event} (not completing approval)`);
+      }
+
+      // Redirect to the lead dashboard
+      const leadsId = envelopeResult.rows[0]?.leads_id;
+      if (leadsId) {
+        return res.redirect(`${frontendBaseUrl}/leads/${leadsId}`);
+      }
+      return res.redirect(`${frontendBaseUrl}`);
+    } catch (error) {
+      console.error("[DocuSign] signingCallback error:", error.message);
+      return res.redirect(`${frontendBaseUrl}/signing-error?reason=callback_error`);
     }
   }
 }
