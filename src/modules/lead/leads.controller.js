@@ -1,6 +1,6 @@
 import leadsService from "./leads.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
-import { deleteFromS3 } from "../../utils/s3Upload.js";
+
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 
 export async function createLead(req, res) {
@@ -192,18 +192,7 @@ export async function updateLead(req, res) {
       return errorResponse(res, 404, "Lead not found");
     }
 
-    if (req.file) {
-      const activeEngineerId = req.body.structure_engineer_id || existingLeadResult.data.structureEngineerId;
-      if (!activeEngineerId) {
-        return errorResponse(res, 400, "Structure Engineer is required to upload a structure report.");
-      }
 
-      const oldFileUrl = existingLeadResult.data.structureReportFile;
-      if (oldFileUrl) {
-        await deleteFromS3(oldFileUrl);
-      }
-      req.body.structure_report_file = req.file.location;
-    }
 
     const result = await leadsService.updateLead(
       leads_id,

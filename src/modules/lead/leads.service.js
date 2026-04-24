@@ -1015,22 +1015,46 @@ class LeadsService {
       
       // Format activity log entries for professional presentation
       activityLogs.forEach(log => {
+        // Helper to clean up technical/JSON values
+        const formatValue = (val) => {
+          if (val === null || val === undefined || val === 'null' || val === 'undefined' || val === '') return 'None';
+          
+          // Try to parse if it looks like JSON
+          if (typeof val === 'string' && (val.trim().startsWith('{') || val.trim().startsWith('['))) {
+            try {
+              const parsed = JSON.parse(val);
+              if (parsed && typeof parsed === 'object') {
+                return parsed.name || parsed.label || parsed.title || 'Data';
+              }
+            } catch (e) {
+              // Not valid JSON, continue with original value
+            }
+          }
+          return val;
+        };
+
         // Capitalize names and modules
         if (log.userName) log.userName = formatCamelCaseToReadable(log.userName);
-        if (log.recordName) log.recordName = formatCamelCaseToReadable(log.recordName);
+        if (log.recordName && !log.recordName.startsWith('QT')) {
+          log.recordName = formatCamelCaseToReadable(log.recordName);
+        }
         if (log.module) log.module = formatCamelCaseToReadable(log.module);
 
         if (log.action === 'UPDATE' && log.fieldName) {
           const readableField = formatCamelCaseToReadable(log.fieldName);
-          const oldValue = log.oldValue || 'None';
-          const newValue = log.newValue || 'None';
+          const oldValue = formatValue(log.oldValue);
+          const newValue = formatValue(log.newValue);
           
           let context = "";
-          if (log.module === "Quotation" && log.metadata?.quotationVersionNo) {
-            context = ` in Quotation Version V${log.metadata.quotationVersionNo}`;
+          if (log.module === "Quotation") {
+            const refNo = log.recordName || "";
+            const versionNo = log.metadata?.quotationVersionNo ? ` V${log.metadata.quotationVersionNo}` : "";
+            if (refNo || versionNo) {
+              context = ` in ${refNo}${versionNo}`.replace(/\s+/g, ' ');
+            }
           }
 
-          log.description = `Updated ${readableField}${context} ${oldValue} → ${newValue}`;
+          log.description = `Updated ${readableField}${context} from ${oldValue} to ${newValue}`;
         } else if (log.action === 'CREATE') {
           log.description = `Created ${log.module} ${log.recordName || ""}`.trim();
         } else if (log.action === 'DELETE') {

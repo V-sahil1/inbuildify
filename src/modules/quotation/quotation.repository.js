@@ -44,6 +44,9 @@ class QuotationRepository {
                 'floor_plan_name', fp.name,
                 'facade_id', qv.facade_id,
                 'facade_name', f.name,
+                'upload_report', qv.upload_report,
+                'structure_engineer_id', qv.structure_engineer_id,
+                'structure_engineer_name', se.name,
                 'structural_engineer', CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
                   json_build_object(
                     'id', qv.structure_engineer_id,
@@ -341,9 +344,10 @@ class QuotationRepository {
       let query = `
         SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, qv.facade_price, l.name as location_name,
+          qv.location_id, qv.facade_price, qv.upload_report, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
+          qv.structure_engineer_id, se.name as structure_engineer_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
             json_build_object(
               'id', qv.structure_engineer_id,
@@ -558,7 +562,7 @@ class QuotationRepository {
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
-        "structure_engineer_id", "structure_engineer_price", "facade_price",
+        "structure_engineer_id", "structure_engineer_price", "facade_price", "upload_report",
       ];
 
       const updateFields = [];
@@ -595,9 +599,10 @@ class QuotationRepository {
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, qv.facade_price, l.name as location_name,
+          qv.location_id, qv.facade_price, qv.upload_report, l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
+          qv.structure_engineer_id, se.name as structure_engineer_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
             json_build_object(
               'id', qv.structure_engineer_id,
@@ -760,7 +765,8 @@ class QuotationRepository {
       const enrichQuery = `
         SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
           qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
-          qv.facade_price, qv.sketch_number, qv.created_at, qv.updated_at,
+          qv.facade_price, qv.sketch_number, qv.upload_report, qv.created_at, qv.updated_at,
+          qv.structure_engineer_id, se.name as structure_engineer_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
             json_build_object(
               'id', qv.structure_engineer_id,

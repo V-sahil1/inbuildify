@@ -59,6 +59,9 @@ export const updateQuotationVersionBodySchema = Joi.object({
   sketch_number: Joi.number().precision(2).max(99999999).optional().allow(null).messages({
     "number.base": "Sketch number must be a number",
   }),
+  upload_report: Joi.string().optional().allow(null).messages({
+    "string.base": "Upload report must be a string",
+  }),
 });
 
 export const removePackageFromVersionSchema = Joi.object({

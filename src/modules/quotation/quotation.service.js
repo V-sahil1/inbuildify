@@ -9,6 +9,7 @@ import { generatePDF } from "./pdf.service.js";
 import sendEmail from "../../service/sendMail.service.js";
 import { generateQuotationHTML } from "../../utils/template.js";
 import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
+import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 import { checkQuotationLockStatus, syncCompactionReportCharge } from "../../helper/quotation.helper.js";
 import docusignService from "../../service/docusign.service.js";
@@ -487,25 +488,25 @@ class QuotationService {
       }
 
       const existingVersion = checkResult.rows[0];
+      
+      // Identify fields being updated
+      const updateFields = Object.keys(updateData);
+      const isOnlySafeFields = updateFields.every(field => 
+        ["upload_report", "structure_engineer_id", "updated_by"].includes(field)
+      );
 
-      await checkLeadLockStatus(existingVersion.leads_id);
-      await checkQuotationLockStatus(existingVersion.quotation_id);
+      // Only apply lock checks if updating core quotation data
+      if (!isOnlySafeFields) {
+        await checkLeadLockStatus(existingVersion.leads_id);
+        await checkQuotationLockStatus(existingVersion.quotation_id);
 
-      // Block updates to older versions (only the latest version can be updated)
-      // const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);
-      // if (existingVersion.quotation_version_no !== currentMaxVersion) {
-      //   return {
-      //     success: false,
-      //     message: "Only the latest quotation version can be updated",
-      //   };
-      // }
-
-      // If already approved, block all updates
-      if (existingVersion.is_approve === true) {
-        return {
-          success: false,
-          message: "This quotation version is already approved and cannot be updated",
-        };
+        // If already approved, block all updates to core data
+        if (existingVersion.is_approve === true) {
+          return {
+            success: false,
+            message: "This quotation version is already approved and cannot be updated",
+          };
+        }
       }
 
       // If user is approving now, sketch_number is required
@@ -790,6 +791,12 @@ class QuotationService {
       }
 
       const oldVersion = await quotationRepository.getQuotationVersionDetailsById(versionId);
+
+      // S3 Cleanup: If a new upload_report is provided, delete the old one
+      if (updateData.upload_report && oldVersion.uploadReport && updateData.upload_report !== oldVersion.uploadReport) {
+        await deleteFromS3(oldVersion.uploadReport);
+      }
+
       updateData.updated_by = userId;
       const updated = await quotationRepository.updateQuotationVersion(versionId, updateData);
 
@@ -833,7 +840,8 @@ class QuotationService {
           recordName: quotationDetails.rows[0].reference_number,
           oldData: oldVersion,
           newData: newVersion,
-          metadata: { quotationVersionNo: newVersion.quotationVersionNo }
+          metadata: { quotationVersionNo: newVersion.quotationVersionNo },
+          ignoreFields: ['quotationVersionItems', 'leadContacts', 'property', 'versions']
         });
       }
 

@@ -19,6 +19,7 @@ import {
   getQuotationVersionsQuerySchema,
 } from "./quotation.validation.js";
 import quotationController from "./quotation.controller.js";
+import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 // Public route — no auth required; must be registered before auth middleware
 router.get("/view/:hash", quotationController.viewQuotationByHash);
@@ -86,9 +87,11 @@ router.delete(
 
 router.put(
   "/version/:quotation_version_id",
+  createPdfUpload("quotation-reports").single("uploadReport"),
+  handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateQuotationVersionBodySchema, REQUEST_SOURCE.BODY),
+  validateRequest(updateQuotationVersionBodySchema, REQUEST_SOURCE.FORM_DATA),
   quotationController.updateQuotationVersion,
 );
 

@@ -128,10 +128,6 @@ export const updateLeadSchema = Joi.object({
   assignee_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Assignee ID must be a valid UUID",
   }),
-  structure_engineer_id: Joi.string().uuid().optional().allow(null).messages({
-    "string.guid": "Structure engineer ID must be a valid UUID",
-  }),
-  structure_report_file: Joi.string().max(500).optional().allow(null, ""),
 })
   .min(1)
   .messages({

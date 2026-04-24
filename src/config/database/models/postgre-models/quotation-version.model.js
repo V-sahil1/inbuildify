@@ -34,6 +34,7 @@ export default (sequelize) => {
       esign_status: { type: DataTypes.ENUM('pending', 'sent', 'signed', 'completed', 'declined', 'voided'), allowNull: true, defaultValue: null },
       esign_envelope_id: { type: DataTypes.UUID, allowNull: true },
       signed_pdf_url: { type: DataTypes.TEXT, allowNull: true },
+      upload_report: { type: DataTypes.TEXT, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

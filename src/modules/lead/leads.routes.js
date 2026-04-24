@@ -21,7 +21,6 @@ import {
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
-import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
   createLeadSchema,
@@ -40,7 +39,7 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-const upload = createPdfUpload("leads/structure-reports");
+
 
 router.post(
   "/",
@@ -86,9 +85,6 @@ router.get(
 // Update lead
 router.put(
   "/:leads_id",
-  upload.single("structureReportFile"),
-  handleMulterError,
-  camelToSnakeMiddleware,
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateLeadSchema, REQUEST_SOURCE.BODY),
   updateLead,

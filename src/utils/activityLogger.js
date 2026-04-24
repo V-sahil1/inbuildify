@@ -1,5 +1,13 @@
 import getPool from "../config/database.js";
 
+const toLogString = (val) => {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'object') {
+    return val.name || val.label || val.title || JSON.stringify(val);
+  }
+  return String(val);
+};
+
 /**
  * Logs an activity for a lead into the lead_activity_log table.
  * 
@@ -27,13 +35,6 @@ export const logActivity = async (client, {
         field_name, old_value, new_value, description, metadata, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
     `;
-    const toString = (val) => {
-      if (val === null || val === undefined) return null;
-      if (typeof val === 'object') {
-        return val.name || val.label || val.title || JSON.stringify(val);
-      }
-      return String(val);
-    };
 
     const values = [
       leadsId,
@@ -43,8 +44,8 @@ export const logActivity = async (client, {
       recordName,
       action,
       fieldName,
-      toString(oldValue),
-      toString(newValue),
+      toLogString(oldValue),
+      toLogString(newValue),
       description,
       metadata ? JSON.stringify(metadata) : null,
     ];
@@ -87,8 +88,11 @@ export const compareAndLogUpdates = async (client, {
     const oldValue = oldData[field];
     const newValue = newData[field];
 
+    const oldStr = toLogString(oldValue);
+    const newStr = toLogString(newValue);
+
     // Check for changes (handling nulls and type differences)
-    if (String(oldValue) !== String(newValue) && !(oldValue === null && newValue === undefined) && !(oldValue === undefined && newValue === null)) {
+    if (oldStr !== newStr && !(oldValue === null && newValue === undefined) && !(oldValue === undefined && newValue === null)) {
       await logActivity(client, {
         userId,
         leadsId,
