@@ -13,9 +13,7 @@ import { BullAdapter } from "@bull-board/api/bullAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 import notificationQueue from "./src/workers/notificationWorker.js";
 
-connectPostgre()
-  .then(() => console.log("database connected successfully"))
-  .catch((error) => console.error("error to connect database", error));
+// Removed top-level connectPostgre call. It's now moved to wrap app.listen.
 
 const app = express();
 app.use(
@@ -52,12 +50,14 @@ app.use("*", (req, res) => {
   );
 });
 
-app.listen(PORT, (err, res) => {
-  if (!err) {
-    console.log(`server running on PORT ${PORT}...`);
-  }
+connectPostgre()
+  .then(() => {
+    app.listen(PORT, (err, res) => {
+      if (!err) {
+        console.log(`server running on PORT ${PORT}...`);
+      }
 
-  console.log(`     
+      console.log(`     
   ░██           ░████████              ░██░██        ░██ ░██    ░████            
                 ░██    ░██                ░██        ░██       ░██               
   ░██░████████  ░██    ░██  ░██    ░██ ░██░██  ░████████ ░██░████████ ░██    ░██ 
@@ -68,4 +68,9 @@ app.listen(PORT, (err, res) => {
                                                                             ░██ 
                                                                       ░███████                                                                                     
       `);
-});
+    });
+  })
+  .catch((error) => {
+    console.error("Critical: Could not connect to database. Server not started.", error);
+    process.exit(1);
+  });

@@ -8,6 +8,7 @@ import {
 } from "./property.service.js"
 import db from "../../config/database/models/postgre-models/index.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
+import { syncCompactionReportCharge, checkLeadQuotationLockStatus } from "../../helper/quotation.helper.js";
 
 export async function createProperty(req, res) {
   try {
@@ -247,6 +248,7 @@ export async function updateProperty(req, res) {
     }
 
     await checkLeadLockStatus(existing.rows[0].leads_id);
+    await checkLeadQuotationLockStatus(existing.rows[0].leads_id);
 
     // Business Logic: If status is not_available, clear all details
     if (compaction_report === "not_available") {
@@ -410,9 +412,10 @@ export async function updateProperty(req, res) {
 
     // Business Logic: Create Base Price and Compaction Report Charge if compaction_report_provider is 'builder'
     const currentProvider = req.body.compaction_report_provider || updatedProperty.compaction_report_provider;
+    const userId = req.user?.user_id;
+
     if (currentProvider === "builder") {
       const { PriceList, PriceListItem } = db;
-      const userId = req.user?.user_id;
 
       // Create or find "Base Price" PriceList
       const [priceList] = await PriceList.findOrCreate({
@@ -449,6 +452,17 @@ export async function updateProperty(req, res) {
           is_system_data: true,
         },
       });
+    }
+
+    // Business Logic: Sync Compaction Report Charge across all non-approved quotation versions
+    if (req.body.compaction_report !== undefined || req.body.compaction_report_provider !== undefined) {
+      await syncCompactionReportCharge(
+        existing.rows[0].leads_id,
+        builderId,
+        companyId,
+        userId,
+        client
+      );
     }
 
     // Re-fetch with state/country/estate names

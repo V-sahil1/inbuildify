@@ -39,28 +39,30 @@ export const initModels = async () => {
 
   const files = allFiles.filter((file) => file.endsWith(".model.js"));
 
-  // STEP 1: Load and initialize ALL models first
-  for (const file of files) {
-    try {
-      const fileUrl = pathToFileURL(path.join(__dirname, file)).href;
-      const modelModule = await import(fileUrl);
-      const modelFactory = modelModule.default;
+  // STEP 1: Load and initialize ALL models first (Parallelized)
+  await Promise.all(
+    files.map(async (file) => {
+      try {
+        const fileUrl = pathToFileURL(path.join(__dirname, file)).href;
+        const modelModule = await import(fileUrl);
+        const modelFactory = modelModule.default;
 
-      if (typeof modelFactory !== "function") {
-        continue;
+        if (typeof modelFactory !== "function") {
+          return;
+        }
+
+        const model = modelFactory(sequelize);
+
+        if (!model || !model.name) {
+          return;
+        }
+
+        db[model.name] = model;
+      } catch (error) {
+        console.error(`Error loading model ${file}:`, error.stack);
       }
-
-      const model = modelFactory(sequelize);
-
-      if (!model || !model.name) {
-        continue;
-      }
-
-      db[model.name] = model;
-    } catch (error) {
-      console.error(error.stack); // ← full stack trace to find exact issue
-    }
-  }
+    })
+  );
 
   // STEP 2: Run associations AFTER all models are loaded
   Object.keys(db).forEach((modelName) => {

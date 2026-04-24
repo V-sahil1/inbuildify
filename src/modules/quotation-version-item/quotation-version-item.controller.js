@@ -2,11 +2,12 @@ import getPool from "../../config/database.js";
 import { errorResponse, successResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
+import { checkQuotationLockStatus } from "../../helper/quotation.helper.js";
 
 // Ownership check helper
 const verifyVersionOwnership = async (client, quotationVersionId, companyId, builderId) => {
   const result = await client.query(
-    `SELECT qv.quotation_version_id, qv.is_approve, qv.dwelling_type_id, qv.range_id, q.leads_id
+    `SELECT qv.quotation_version_id, qv.is_approve, qv.dwelling_type_id, qv.range_id, q.leads_id, q.quotation_id
      FROM quotation_version qv
      JOIN quotation q ON qv.quotation_id = q.quotation_id
      JOIN leads l ON q.leads_id = l.leads_id
@@ -84,6 +85,7 @@ export async function addQuotationItem(req, res) {
     }
 
     await checkLeadLockStatus(version.leads_id);
+    await checkQuotationLockStatus(version.quotation_id);
 
     // Fetch master item details
     const itemResult = await client.query(
@@ -180,6 +182,7 @@ export async function addQuotationPackage(req, res) {
     }
 
     await checkLeadLockStatus(version.leads_id);
+    await checkQuotationLockStatus(version.quotation_id);
 
     // Fetch package details
     const packageResult = await client.query(
@@ -311,6 +314,7 @@ export async function updateQuotationPackage(req, res) {
     }
 
     await checkLeadLockStatus(version.leads_id);
+    await checkQuotationLockStatus(version.quotation_id);
 
     // Fetch new package details
     const packageResult = await client.query(
@@ -542,7 +546,7 @@ export async function updateQuotationVersionItem(req, res) {
     const companyId = req.user?.company_id;
 
     const itemCheck = await client.query(
-      `SELECT qvi.*, qv.is_approve, q.leads_id 
+      `SELECT qvi.*, qv.is_approve, q.leads_id, q.quotation_id 
        FROM quotation_version_items qvi
        JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -563,6 +567,7 @@ export async function updateQuotationVersionItem(req, res) {
     }
 
     await checkLeadLockStatus(itemCheck.rows[0].leads_id);
+    await checkQuotationLockStatus(itemCheck.rows[0].quotation_id);
 
     const item = itemCheck.rows[0];
     const qty = quantity !== undefined ? parseFloat(quantity) : parseFloat(item.quantity);
@@ -607,7 +612,7 @@ export async function deleteQuotationVersionItem(req, res) {
     const companyId = req.user?.company_id;
 
     const itemCheck = await client.query(
-      `SELECT qvi.*, qv.is_approve, q.leads_id 
+      `SELECT qvi.*, qv.is_approve, q.leads_id, q.quotation_id 
        FROM quotation_version_items qvi
        JOIN quotation_version qv ON qvi.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -628,6 +633,7 @@ export async function deleteQuotationVersionItem(req, res) {
     }
 
     await checkLeadLockStatus(itemCheck.rows[0].leads_id);
+    await checkQuotationLockStatus(itemCheck.rows[0].quotation_id);
 
     if (itemCheck.rows[0].package_id) {
       return errorResponse(res, 400, "Cannot delete an item that belongs to a package. Please remove the entire package instead.");
@@ -664,6 +670,7 @@ export async function deletePackageFromVersion(req, res) {
       }
   
       await checkLeadLockStatus(version.leads_id);
+      await checkQuotationLockStatus(version.quotation_id);
   
       const result = await client.query(
         `DELETE FROM quotation_version_items 
@@ -722,6 +729,7 @@ export async function addExtraQuotationItem(req, res) {
     }
 
     await checkLeadLockStatus(version.leads_id);
+    await checkQuotationLockStatus(version.quotation_id);
 
     // Verify ownership of range and dwelling types if provided
     const rangesValid = await verifyMetadataOwnership(client, "range", price_list_item_range_id, companyId, builderId);

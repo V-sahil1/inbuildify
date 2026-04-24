@@ -10,6 +10,7 @@ import sendEmail from "../../service/sendMail.service.js";
 import { generateQuotationHTML } from "../../utils/template.js";
 import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
+import { checkQuotationLockStatus, syncCompactionReportCharge } from "../../helper/quotation.helper.js";
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -164,54 +165,10 @@ class QuotationService {
             FROM quotation_version_custom_section
             WHERE quotation_version_id = $2
           `, [quotationVersion.quotation_version_id, latestVersion.quotation_version_id]);
-        } else if (compactionReport === "not_available" && compactionReportProvider === "builder") {
-          // If first quotation and compaction report is not available and provided by builder, map "Compaction Report Charge"
-          const priceListItemQuery = `
-            SELECT pli.*, pl.name as price_list_name 
-            FROM price_list_item pli
-            JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-            WHERE pli.item_description = $1 
-            AND (pli.builder_id = $2 OR (pli.company_id = $3 AND $3 IS NOT NULL))
-            AND pli.status = 'active'
-            ORDER BY pli.created_at ASC
-            LIMIT 1
-          `;
-          const priceListItemResult = await client.query(priceListItemQuery, [
-            "Compaction Report Charge",
-            builderId,
-            companyId,
-          ]);
-
-          if (priceListItemResult.rowCount > 0) {
-            const pli = priceListItemResult.rows[0];
-            await client.query(
-              `
-              INSERT INTO quotation_version_items (
-                quotation_version_id, price_list_id, price_list_name, price_list_item_id,
-                price_list_item_description, price_list_item_short_description,
-                price_list_item_cost_type, price_list_item_cost_type_text,
-                price_list_item_cost_option, price_list_item_cost, price_list_item_builder_cost,
-                price_list_item_sort_order, price_list_item_uom, price_list_item_status,
-                price_list_item_include_by_default, price_list_item_allow_remove_from_quotation,
-                price_list_item_show_in_hl_package, price_list_item_package_only,
-                price_list_item_range_id, price_list_item_dwelling_type_id,
-                price_list_item_is_system_data,
-                price_list_item_created_at, price_list_item_updated_at,
-                quantity, total_price,
-                created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            `,
-              [
-                quotationVersion.quotation_version_id, pli.price_list_id, pli.price_list_name, pli.price_list_item_id,
-                pli.item_description, pli.short_description, pli.cost_type, pli.cost_type_text,
-                pli.cost_option, pli.cost, pli.builder_cost, pli.sort_order,
-                pli.uom, pli.status, pli.include_by_default, pli.allow_remove_from_quotation,
-                pli.show_in_hl_package, pli.show_only_in_package, pli.range_id, pli.dwelling_type_id,
-                pli.is_system_data, pli.created_at, pli.updated_at, 1, pli.cost
-              ]
-            );
-          }
         }
+
+        // Sync Compaction Report Charge across all non-approved quotation versions for this lead
+        await syncCompactionReportCharge(leadsId, builderId, companyId, userId, client);
 
         // Auto-convert lead to opportunity with status depending on whether previous versions exist
         const firstTimeConvertStatus = latestVersion ? 'Negotiation' : 'Proposal';
@@ -520,6 +477,7 @@ class QuotationService {
       const existingVersion = checkResult.rows[0];
 
       await checkLeadLockStatus(existingVersion.leads_id);
+      await checkQuotationLockStatus(existingVersion.quotation_id);
 
       // Block updates to older versions (only the latest version can be updated)
       // const currentMaxVersion = await quotationRepository.getLatestQuotationVersionNo(existingVersion.quotation_id);

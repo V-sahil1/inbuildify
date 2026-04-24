@@ -4,6 +4,7 @@ import { keysToCamelCase } from "../../utils/common.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import path from "path";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
+import { checkQuotationLockStatus } from "../../helper/quotation.helper.js";
 
 export const extractFileNameFromUrl = (url) => {
   if (!url) return null;
@@ -34,7 +35,7 @@ export async function createCustomSection(req, res) {
     }
 
     const versionCheck = await client.query(
-      `SELECT qv.quotation_version_id, qv.is_approve, q.leads_id
+      `SELECT qv.quotation_version_id, qv.is_approve, q.leads_id, q.quotation_id
        FROM quotation_version qv
        JOIN quotation q ON qv.quotation_id = q.quotation_id
        JOIN leads l ON q.leads_id = l.leads_id
@@ -54,6 +55,7 @@ export async function createCustomSection(req, res) {
     }
 
     await checkLeadLockStatus(versionCheck.rows[0].leads_id);
+    await checkQuotationLockStatus(versionCheck.rows[0].quotation_id);
 
     let finalSortOrder = sort_order;
 
@@ -172,7 +174,7 @@ export async function updateCustomSection(req, res) {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*, qv.is_approve, q.leads_id
+      `SELECT cs.*, qv.is_approve, q.leads_id, q.quotation_id
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -193,6 +195,7 @@ export async function updateCustomSection(req, res) {
     }
 
     await checkLeadLockStatus(checkResult.rows[0].leads_id);
+    await checkQuotationLockStatus(checkResult.rows[0].quotation_id);
 
     const existingSection = checkResult.rows[0];
 
@@ -297,7 +300,7 @@ export async function deleteCustomSection(req, res) {
     }
 
     const checkResult = await client.query(
-      `SELECT cs.*, qv.is_approve, q.leads_id
+      `SELECT cs.*, qv.is_approve, q.leads_id, q.quotation_id
        FROM quotation_version_custom_section cs
        JOIN quotation_version qv ON cs.quotation_version_id = qv.quotation_version_id
        JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -318,6 +321,7 @@ export async function deleteCustomSection(req, res) {
     }
 
     await checkLeadLockStatus(checkResult.rows[0].leads_id);
+    await checkQuotationLockStatus(checkResult.rows[0].quotation_id);
 
     const deletedSection = checkResult.rows[0];
 
