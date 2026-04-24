@@ -14,6 +14,12 @@ import {
 } from "./docusign.validation.js";
 import docusignController from "./docusign.controller.js";
 
+// Public routes — no auth required
+router.get("/public/sign", docusignController.publicSigningRedirect);
+router.get("/public/status/:envelope_id", docusignController.publicStatusSync);
+// express.json() is already applied globally in server.js (with rawBody capture); no need to re-apply here.
+router.post("/webhook", docusignController.handleWebhook);
+
 // Authenticated Routes
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -45,7 +51,5 @@ router.get(
   docusignController.getSigningUrl
 );
 
-// Webhook Route (No Auth Middleware applied to this specific route)
-router.post("/webhook", express.json(), docusignController.handleWebhook);
 
 export default router;

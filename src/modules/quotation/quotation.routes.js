@@ -20,6 +20,9 @@ import {
 } from "./quotation.validation.js";
 import quotationController from "./quotation.controller.js";
 
+// Public route — no auth required; must be registered before auth middleware
+router.get("/view/:hash", quotationController.viewQuotationByHash);
+
 router.use(authMiddleware);
 router.use(roleMiddleware);
 

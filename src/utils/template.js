@@ -29,7 +29,7 @@ export const generateQuotationHTML = (data) => {
     .map(
       (item) => `
     <tr>
-      <td>${item.priceListItemDescription || (item.packageId ? 'Package Item' : 'Miscellaneous')}</td>
+      <td>${item.priceListItemDescription || (item.packageId ? "Package Item" : "Miscellaneous")}</td>
       <td style="text-align: center;">${item.quantity || 1}</td>
       <td style="text-align: right;">$${parseFloat(item.priceListItemCost || item.packageCost || 0).toLocaleString()}</td>
       <td style="text-align: right;">$${parseFloat(item.totalPrice || item.packageCost || 0).toLocaleString()}</td>
@@ -131,7 +131,7 @@ export const generateQuotationHTML = (data) => {
         </div>
     </div>
 
-    ${pkg.name ? `
+    ${pkg?.name ? `
     <div class="section">
         <div class="section-title">Selected Package</div>
         <div style="background: #f0f7ff; padding: 15px; border-radius: 4px; border-left: 4px solid #0056b3;">
@@ -147,8 +147,8 @@ export const generateQuotationHTML = (data) => {
     <div class="section">
         <div class="section-title">Structural Engineer</div>
         <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; font-size: 14px;">
-            <span><strong>Engineer:</strong> ${structuralEngineer.name}</span>
-            <span><strong>Service Price:</strong> $${parseFloat(structuralEngineer.price || 0).toLocaleString()}</span>
+            <span><strong>Engineer:</strong> ${structuralEngineer?.name}</span>
+            <span><strong>Service Price:</strong> $${parseFloat(structuralEngineer?.price || 0).toLocaleString()}</span>
         </div>
     </div>
     ` : ''}
