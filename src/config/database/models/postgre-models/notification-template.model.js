@@ -47,6 +47,7 @@ export default (sequelize) => {
           "CONSTRUCTION_UPDATE",
           "MAINTENANCE_REQUEST",
           "COLOR_SELECTION_REMINDER",
+          "QUOTATION_SEND",
         ),
         allowNull: false,
       },

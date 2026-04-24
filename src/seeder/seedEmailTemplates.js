@@ -63,11 +63,22 @@ const seedEmailTemplates = async () => {
         category: "Payments",
         subject: "Payment Confirmation – CRMSimplify",
         title: "Payment Successful",
-        message: `Hello,<br/><br/>We are pleased to confirm that we have received your payment for the project. 
+        message: `Hello,<br/><br/>We are pleased to confirm that we have received your payment for the project.
         The payment details have been securely recorded in your CRMSimplify account.<br/><br/>
         You can log in to your dashboard anytime to view invoices, track payment history, and manage your financial records.`,
         cta_text: "View Invoice",
         cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/dashboard/payments/\${paymentId}`,
+      },
+      {
+        template_key: "quotation_send",
+        category: "Quotation",
+        subject: "Your Quotation is Ready – InBuildify",
+        title: "Your Quotation is Ready",
+        message: `Hello,<br/><br/>Thank you for your interest. Your quotation has been prepared and is ready for your review.<br/><br/>
+        Please click the button below to view your quotation details and proceed with the signing process.<br/><br/>
+        This link is securely generated and contains your quotation information. If you did not request this, please ignore this email.`,
+        cta_text: "View Quotation",
+        cta_link: `${env.EMAIL.FRONTEND_BASE_URL}/quotation/view?token=\${secureToken}`,
       },
     ];
 

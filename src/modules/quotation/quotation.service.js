@@ -11,6 +11,18 @@ import { generateQuotationHTML } from "../../utils/template.js";
 import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 import { checkQuotationLockStatus, syncCompactionReportCharge } from "../../helper/quotation.helper.js";
+import docusignService from "../../service/docusign.service.js";
+import { encodeQuotationHash, decodeQuotationHash } from "../../utils/hashEncoder.js";
+import { env } from "../../config/env.config.js";
+import Bull from "bull";
+
+const quotationEmailQueue = new Bull("quotationEmailQueue", {
+  redis: {
+    host: env.REDIS.REDIS_HOST,
+    port: env.REDIS.REDIS_PORT,
+    ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
+  },
+});
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -1167,105 +1179,79 @@ class QuotationService {
     }
   }
 
-  async sendQuotationEmail(versionId, builderId, companyId) {
+  async sendQuotationEmail(versionId, userId, builderId, companyId) {
     try {
       const client = getPool();
-      // Verify ownership
-      const checkQuery = `
-        SELECT qv.quotation_version_id
-        FROM quotation_version qv
-        JOIN quotation q ON qv.quotation_id = q.quotation_id
-        JOIN leads l ON q.leads_id = l.leads_id
-        WHERE qv.quotation_version_id = $1 AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))
-      `;
-      const checkResult = await client.query(checkQuery, [versionId, builderId, companyId]);
 
-      if (checkResult.rowCount === 0) {
-        return {
-          success: false,
-          message: "Quotation version not found or unauthorized",
-        };
-      }
-
-      const versionDetails = await quotationRepository.getQuotationVersionDetailsById(versionId);
-      if (!versionDetails) {
-        return {
-          success: false,
-          message: "Quotation version details not found",
-        };
-      }
-
-      const leadContact = versionDetails.leadContacts && versionDetails.leadContacts[0];
-      if (!leadContact || !leadContact.email) {
-        return {
-          success: false,
-          message: "Customer email not available for this quotation",
-        };
-      }
-
-      // 1. Generate PDF
-      const htmlContent = generateQuotationHTML(versionDetails);
-      const pdfBuffer = await generatePDF(htmlContent);
-      console.log("PDF buffer generated, size:", pdfBuffer.length, "bytes");
-
-      // 2. Upload to S3
-      const fileName = `Quotation_v${versionDetails.quotationVersionNo}.pdf`;
-      const s3Key = `quotations/${versionId}/${fileName}`;
-      const uploadResult = await uploadFile(s3Key, pdfBuffer, "application/pdf");
-
-      if (!uploadResult.success) {
-        return {
-          success: false,
-          message: "Failed to upload PDF to storage",
-        };
-      }
-
-      // 3. Save S3 URL to DB
-      await quotationRepository.updatePdfUrl(versionId, uploadResult.location);
-
-      // 4. Generate presigned download URL (7 days expiry)
-      const presignedResult = await generatePresignedDownloadUrl(s3Key, 604800);
-      const downloadUrl = presignedResult.success ? presignedResult.url : uploadResult.location;
-
-      // 5. Send email with download link
-      const emailSubject = "Your Quotation";
-      const customerName = leadContact.name || "Customer";
-
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-          <div style="background-color: #0056b3; color: white; padding: 20px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">Your Quotation is Ready</h1>
-          </div>
-          <div style="padding: 30px; line-height: 1.6; color: #333;">
-            <p>Dear ${customerName},</p>
-            <p>Thank you for your interest. Your quotation <strong>(Version ${versionDetails.quotationVersionNo})</strong> has been prepared and is ready for your review.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${downloadUrl}" style="display: inline-block; background-color: #0056b3; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold;">📄 Download Quotation PDF</a>
-            </div>
-            <p style="font-size: 13px; color: #888; text-align: center;">This download link is valid for 7 days.</p>
-            <p>If you have any questions or need further clarification, please don't hesitate to reach out to us.</p>
-            <p style="margin-top: 25px;">Best regards,<br><strong>CRMSimplify Team</strong></p>
-          </div>
-          <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #777;">
-            This is an automated message. Please do not reply directly to this email.
-          </div>
-        </div>
-      `;
-
-      const emailResult = await sendEmail(
-        leadContact.email,
-        emailSubject,
-        `Dear ${customerName}, Your quotation (Version ${versionDetails.quotationVersionNo}) is ready. Download it here: ${downloadUrl}`,
-        emailHtml
+      // Quick ownership + guard check only — heavy processing handled by worker
+      const checkResult = await client.query(
+        `SELECT qv.esign_envelope_id, l.email AS lead_email
+         FROM quotation_version qv
+         JOIN quotation q ON qv.quotation_id = q.quotation_id
+         JOIN leads l ON q.leads_id = l.leads_id
+         WHERE qv.quotation_version_id = $1
+           AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))`,
+        [versionId, builderId, companyId]
       );
 
-      return emailResult;
+      if (checkResult.rowCount === 0) {
+        return { success: false, message: "Quotation version not found or unauthorized" };
+      }
+
+      const row = checkResult.rows[0];
+      // if (row.esign_envelope_id) {
+      //   return { success: false, message: "Quotation email has already been sent via DocuSign" };
+      // }
+      if (!row.lead_email) {
+        return { success: false, message: "Customer email not available for this quotation" };
+      }
+
+      // Queue the job — PDF generation, DocuSign envelope, and email all run in background
+      await quotationEmailQueue.add(
+        { versionId, userId, builderId, companyId },
+        { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+      );
+
+      return { success: true, message: "Quotation email is being processed and will be sent shortly" };
     } catch (error) {
-      console.error("DEBUG: Error in sendQuotationEmail service:", error);
-      return {
-        success: false,
-        message: error.message,
-      };
+      console.error("Error queuing quotation email:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async getQuotationByHash(hash) {
+    try {
+      const { quotationId, leadId } = decodeQuotationHash(hash);
+
+      const client = getPool();
+      const query = `
+        SELECT q.quotation_id, q.reference_number,
+               l.leads_id, l.name AS lead_name, l.email AS lead_email, l.phone AS lead_phone,
+               (
+                 SELECT json_agg(json_build_object(
+                   'quotation_version_id', qv.quotation_version_id,
+                   'quotation_version_no', qv.quotation_version_no,
+                   'is_approve', qv.is_approve,
+                   'esign_status', qv.esign_status,
+                   'pdf_url', qv.pdf_url,
+                   'signed_pdf_url', qv.signed_pdf_url,
+                   'created_at', qv.created_at
+                 ) ORDER BY qv.quotation_version_no DESC)
+                 FROM quotation_version qv WHERE qv.quotation_id = q.quotation_id
+               ) AS versions
+        FROM quotation q
+        JOIN leads l ON q.leads_id = l.leads_id
+        WHERE q.quotation_id = $1 AND l.leads_id = $2
+      `;
+      const result = await client.query(query, [quotationId, leadId]);
+
+      if (result.rowCount === 0) {
+        return { success: false, message: "Quotation not found" };
+      }
+
+      return { success: true, data: keysToCamelCase(result.rows[0]) };
+    } catch (error) {
+      return { success: false, message: "Invalid or expired link" };
     }
   }
 

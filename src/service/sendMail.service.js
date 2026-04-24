@@ -9,7 +9,7 @@ const notificationQueue = new Bull("notificationQueue", {
   },
 });
 
-const sendEmail = async (to, subject, text, html = null, attachments = []) => {
+const sendEmail = async (to, subject, text, html = null, attachments = [], cc = null) => {
   try {
     await notificationQueue.add({
       to,
@@ -17,6 +17,7 @@ const sendEmail = async (to, subject, text, html = null, attachments = []) => {
       text,
       html,
       attachments,
+      cc,
     });
 
     return {

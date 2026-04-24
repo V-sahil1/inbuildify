@@ -36,6 +36,7 @@ export const env = {
     PASSWORD: getEnvValue("PASSWORD"),
     PASSWORD_SECRET: getEnvValue("JWT_REFRESH_SECRET_EXPIRATION"),
     FRONTEND_BASE_URL: getEnvValue("FRONTEND_BASE_URL"),
+    BACKEND_BASE_URL: process.env.BACKEND_BASE_URL || `http://localhost:${process.env.PORT || 5000}`,
   },
   AWS: {
     AWS_ACCESS_KEY_ID: getEnvValue("AWS_ACCESS_KEY_ID"),
@@ -52,5 +53,17 @@ export const env = {
     ...(process.env.REDIS_PASSWORD
       ? { password: process.env.REDIS_PASSWORD }
       : {}),
+  },
+  QUOTATION_HASH_SECRET: process.env.QUOTATION_HASH_SECRET || "inbuildify-quotation-hash-key-2024",
+  DOCUSIGN: {
+    BASE_URL: process.env.DOCUSIGN_BASE_URL || "https://demo.docusign.net/restapi",
+    OAUTH_BASE_PATH: process.env.DOCUSIGN_OAUTH_BASE_PATH || "account-d.docusign.com",
+    CLIENT_ID: getEnvValue("DOCUSIGN_CLIENT_ID"),
+    USER_ID: getEnvValue("DOCUSIGN_USER_ID"),
+    RSA_KEY: getEnvValue("DOCUSIGN_RSA_KEY"),
+    WEBHOOK_URL: process.env.DOCUSIGN_WEBHOOK_URL || "",
+    WEBHOOK_SECRET: process.env.DOCUSIGN_WEBHOOK_SECRET || "",
+    SIGNING_REDIRECT_URL: process.env.DOCUSIGN_SIGNING_REDIRECT_URL || "",
+    EXPIRATION_DAYS: parseInt(process.env.DOCUSIGN_EXPIRATION_DAYS || "30"),
   },
 };
