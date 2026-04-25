@@ -172,6 +172,7 @@ export async function createTask(req, res) {
       "leadId",
       "priority",
       "status",
+      "isDeleted",
       "attachFiles",
       "createdBy",
       "createdbyname",
@@ -228,6 +229,7 @@ export async function getAllTasks(req, res) {
       link_type,
       lead_id,
       date_filter,
+      is_deleted,
       sort_by = "created_at",
       sort_order = "DESC",
     } = req.query;
@@ -284,6 +286,12 @@ export async function getAllTasks(req, res) {
       replacements.leadId = lead_id;
     }
 
+    if (is_deleted === "true" || is_deleted === true) {
+      // Show all records (deleted and non-deleted)
+    } else {
+      conditions.push("t.is_deleted = false");
+    }
+
     if (date_filter) {
       switch (date_filter) {
         case "today":
@@ -325,7 +333,7 @@ export async function getAllTasks(req, res) {
         COUNT(*) FILTER (WHERE t.due_date < CURRENT_DATE AND t.status NOT IN ('Completed','Cancelled','Skipped')) AS overdue_count,
         COUNT(*) FILTER (WHERE t.status IN ('Yet to Start','In Progress')) AS pending_count
        FROM task t
-       WHERE t.builder_id = :builderId`,
+       WHERE t.builder_id = :builderId AND t.is_deleted = false`,
       { type: QueryTypes.SELECT, replacements: { builderId } }
     );
 
@@ -363,7 +371,7 @@ export async function getAllTasks(req, res) {
       const fieldOrder = [
         "taskId", "companyId", "builderId", "name", "description",
         "dueDate", "dueTime", "assigneeId", "assigneeName",
-        "linkTo", "linkType", "leadId", "priority", "status",
+        "linkTo", "linkType", "leadId", "priority", "status", "isDeleted",
         "attachFiles", "createdBy", "createdbyname", "updatedBy",
         "createdAt", "updatedAt",
       ];
@@ -426,8 +434,62 @@ export async function deleteTask(req, res) {
 
     await checkLeadLockStatus(task.lead_id);
 
-    await client.query("DELETE FROM task WHERE task_id = $1", [task_id]);
+    if (task.is_deleted) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 400, "Task is already deleted.");
+    }
+
+    const deleteQuery = `
+      UPDATE task
+      SET 
+        is_deleted = TRUE,
+        updated_at = NOW(),
+        updated_by = $2
+      WHERE task_id = $1
+      RETURNING *;
+    `;
+
+    const result = await client.query(deleteQuery, [task_id, req.user?.users_id]);
     
+    const taskData = keysToCamelCase(result.rows[0]);
+
+    // Get assignee name
+    let assigneeName = null;
+    if (taskData.assigneeId) {
+      const assigneeResult = await client.query(
+        "SELECT name as assignee_name FROM users WHERE users_id = $1",
+        [taskData.assigneeId],
+      );
+      if (assigneeResult.rowCount > 0) {
+        assigneeName = assigneeResult.rows[0].assignee_name;
+      }
+    }
+
+    // Get creator name
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [result.rows[0].created_by]
+    );
+
+    const transformed = keysToCamelCase(result.rows[0]);
+    transformed.assigneeName = assigneeName;
+    transformed.createdbyname = creatorResult.rows[0]?.name || null;
+
+    const orderedTask = {};
+    const fieldOrder = [
+      "taskId", "companyId", "builderId", "name", "description",
+      "dueDate", "dueTime", "assigneeId", "assigneeName",
+      "linkTo", "linkType", "leadId", "priority", "status", "isDeleted",
+      "attachFiles", "createdBy", "createdbyname", "updatedBy",
+      "createdAt", "updatedAt",
+    ];
+
+    fieldOrder.forEach((field) => {
+      if (transformed.hasOwnProperty(field)) {
+        orderedTask[field] = transformed[field];
+      }
+    });
+
     // Log Activity
     if (task.lead_id) {
       await logActivity(client, {
@@ -442,7 +504,7 @@ export async function deleteTask(req, res) {
     }
 
     await client.query("COMMIT");
-    return successResponse(res, {}, "Task deleted successfully");
+    return successResponse(res, orderedTask, "Task deleted successfully");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error deleting task:", error);
@@ -480,7 +542,7 @@ export async function updateTask(req, res) {
 
     const findQuery = `
       SELECT * FROM task 
-      WHERE task_id = $1 AND builder_id = $2
+      WHERE task_id = $1 AND builder_id = $2 AND is_deleted = false
     `;
 
     const findResult = await client.query(findQuery, [task_id, builderId]);
@@ -703,6 +765,7 @@ export async function updateTask(req, res) {
       "leadId",
       "priority",
       "status",
+      "isDeleted",
       "attachFiles",
       "createdBy",
       "createdbyname",

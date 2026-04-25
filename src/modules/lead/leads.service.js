@@ -876,7 +876,7 @@ class LeadsService {
         (SELECT name FROM users WHERE users_id = t.created_by) AS createdbyname
         FROM task t 
         LEFT JOIN users u ON t.assignee_id = u.users_id 
-        WHERE t.lead_id = $1 
+        WHERE t.lead_id = $1 AND t.is_deleted = false 
         ORDER BY t.created_at DESC
       `;
       const tasksResult = await client.query(tasksQuery, [leadId]);
@@ -895,7 +895,7 @@ class LeadsService {
           ) as select_users,
           (SELECT name FROM users WHERE users_id = a.created_by) AS createdbyname
         FROM appointment a 
-        WHERE a.lead_id = $1 AND a.is_deleted = false 
+        WHERE a.lead_id = $1
         ORDER BY a.date DESC, a.start_time DESC
       `;
       const appointmentsResult = await client.query(appointmentsQuery, [leadId]);

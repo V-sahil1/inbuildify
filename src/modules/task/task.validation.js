@@ -137,6 +137,7 @@ export const getAllTaskSchema = Joi.object({
     "number.min": "Limit must be at least 1",
     "number.max": "Limit must not exceed 100",
   }),
+  is_deleted: Joi.boolean().optional(),
 });
 
 export const deleteTaskSchema = Joi.object({

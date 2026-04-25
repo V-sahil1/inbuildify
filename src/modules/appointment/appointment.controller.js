@@ -318,12 +318,8 @@ export async function getAllAppointments(req, res) {
     }
 
     // include_cancelled=true means include soft-deleted (cancelled) appointments
-    if (include_cancelled === "true" || include_cancelled === true) {
-      // no is_deleted filter — return all
-    } else if (is_deleted !== undefined) {
-      whereClauses.push(`a.is_deleted = $${idx}`);
-      values.push(is_deleted === "true");
-      idx++;
+    if (include_cancelled === "true" || include_cancelled === true || is_deleted === "true" || is_deleted === true) {
+      // include all records (active and deleted)
     } else {
       whereClauses.push("a.is_deleted = false");
     }
@@ -448,7 +444,7 @@ export async function getAppointmentTabCounts(req, res) {
       );
     }
 
-    const { anchor_date, title, assignee_id, include_cancelled } = req.query;
+    const { anchor_date, title, assignee_id, include_cancelled, is_deleted } = req.query;
 
     const todayYmd =
       anchor_date && /^\d{4}-\d{2}-\d{2}$/.test(anchor_date)
@@ -496,8 +492,8 @@ export async function getAppointmentTabCounts(req, res) {
         idx++;
       }
 
-      if (include_cancelled === "true" || include_cancelled === true) {
-        // include cancelled
+      if (include_cancelled === "true" || include_cancelled === true || is_deleted === "true" || is_deleted === true) {
+        // include all records
       } else {
         whereClauses.push("a.is_deleted = false");
       }
@@ -585,7 +581,7 @@ export async function deleteAppointment(req, res) {
         updated_by = $2
       WHERE appointment_id = $1
         AND (company_id = $3 OR builder_id = $4)
-      RETURNING appointment_id, title, is_deleted, updated_at;
+      RETURNING *;
     `;
 
     const result = await client.query(deleteQuery, [
@@ -594,6 +590,51 @@ export async function deleteAppointment(req, res) {
       companyId,
       builderId,
     ]);
+
+    const appointmentData = keysToCamelCase(result.rows[0]);
+
+    // Get select_users details if users exist
+    let selectUsersData = [];
+    if (appointmentData.selectUsers && appointmentData.selectUsers.length > 0) {
+      const usersQuery = await client.query(
+        "SELECT users_id, name FROM users WHERE users_id = ANY($1) AND is_deleted = false",
+        [appointmentData.selectUsers],
+      );
+      if (usersQuery.rowCount > 0) {
+        selectUsersData = usersQuery.rows.map((user) => ({
+          id: user.users_id,
+          name: user.name,
+        }));
+      }
+    }
+
+    // Get creator name
+    const creatorResult = await client.query(
+      "SELECT name FROM users WHERE users_id = $1",
+      [result.rows[0].created_by]
+    );
+
+    const response = {
+      appointmentId: appointmentData.appointmentId,
+      companyId: appointmentData.companyId,
+      builderId: appointmentData.builderId,
+      title: appointmentData.title,
+      date: appointmentData.date,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      locationText: appointmentData.locationText ?? null,
+      linkTo: appointmentData.linkTo,
+      leadId: appointmentData.leadId,
+      selectUsers: selectUsersData,
+      notes: appointmentData.notes,
+      sendAppointmentCustomer: appointmentData.sendAppointmentCustomer,
+      isDeleted: appointmentData.isDeleted,
+      createdBy: appointmentData.createdBy,
+      createdbyname: creatorResult.rows[0]?.name || null,
+      updatedBy: appointmentData.updatedBy,
+      createdAt: appointmentData.createdAt,
+      updatedAt: appointmentData.updatedAt,
+    };
 
     // Log Activity
     if (checkResult.rows[0].lead_id) {
@@ -608,7 +649,7 @@ export async function deleteAppointment(req, res) {
       });
     }
 
-    return successResponse(res, {}, "Appointment deleted successfully.");
+    return successResponse(res, response, "Appointment deleted successfully.");
   } catch (err) {
     console.error("Error soft deleting appointment:", err);
     return errorResponse(
