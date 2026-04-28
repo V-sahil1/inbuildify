@@ -27,6 +27,7 @@ export default (sequelize) => {
     priority: { type: DataTypes.STRING(20), defaultValue: "Medium" },
     status: { type: DataTypes.STRING(20), defaultValue: "Yet to Start" },
     attach_files: { type: DataTypes.STRING(500), allowNull: true },
+    is_deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
     created_by: { type: DataTypes.UUID, allowNull: true },
     updated_by: { type: DataTypes.UUID, allowNull: true },
     createdAt: { type: DataTypes.DATE },
