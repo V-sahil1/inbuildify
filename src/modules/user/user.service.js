@@ -144,10 +144,9 @@ export async function getProfile(userId) {
   // Extract builder's company
   const companyObj = plainUser.builder?.company ? plainUser.builder.company : null;
 
-  // Onboarding is finished if company exists and has timezone_id and address_id set
+  // Onboarding is finished if company exists and has address_id set
   const isOnboardingFinished = !!(
     companyObj &&
-    companyObj.timezone_id &&
     companyObj.address_id
   );
 
