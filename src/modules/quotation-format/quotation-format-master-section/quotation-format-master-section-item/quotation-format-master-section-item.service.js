@@ -139,10 +139,15 @@ export async function getMasterSectionItems(currentUser, filters = {}) {
     limit = 25,
     search,
     status,
+    master_section_header_id,
   } = filters;
   const offset = (page - 1) * limit;
 
   const where = {};
+
+  if (master_section_header_id) {
+    where.master_section_header_id = master_section_header_id;
+  }
 
   if (search) {
     where.item_name = { [Op.iLike]: `%${search}%` };
@@ -436,6 +441,96 @@ export async function deleteMasterSectionItem(currentUser, itemId) {
   }
 }
 
+export async function copyMasterSectionItem(currentUser, itemId) {
+  const { MasterSection, MasterSectionHeader, MasterSectionItem, sequelize } = db;
+  const transaction = await sequelize.transaction();
+
+  try {
+    const userCompanyId = currentUser.company_id;
+    const userBuilderId = currentUser.builder_id;
+
+    // Find the source MasterSectionItem
+    const sourceItem = await MasterSectionItem.findOne({
+      where: { master_section_item_id: itemId },
+      include: [
+        {
+          model: MasterSectionHeader,
+          as: "masterSectionHeader",
+          required: true,
+          include: [
+            {
+              model: MasterSection,
+              as: "masterSection",
+              required: true,
+              where: {
+                [Op.or]: [{ company_id: userCompanyId }, { builder_id: userBuilderId }],
+              },
+            },
+          ],
+        },
+      ],
+      transaction,
+    });
+
+    if (!sourceItem) {
+      throw {
+        status: 404,
+        message: "Master section item not found or does not belong to your organization",
+      };
+    }
+
+    const masterSectionHeaderId = sourceItem.master_section_header_id;
+
+    // Determine target name (default: "Name - Copy")
+    const targetName = `${sourceItem.item_name} - Copy`;
+
+    // Check for duplicate in the same master section header scope
+    const duplicateCheck = await MasterSectionItem.findOne({
+      where: {
+        master_section_header_id: masterSectionHeaderId,
+        item_name: sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("item_name")),
+          sequelize.fn("LOWER", targetName)
+        ),
+      },
+      transaction,
+    });
+
+    if (duplicateCheck) {
+      throw {
+        status: 409,
+        message: "Master section item with this name already exists in this scope",
+      };
+    }
+
+    // Determine sort order
+    const maxSortOrder = await MasterSectionItem.max("sort_order", {
+      where: { master_section_header_id: masterSectionHeaderId },
+      transaction,
+    });
+    const finalSortOrder = (maxSortOrder || 0) + 1;
+
+    // Create the new MasterSectionItem
+    const newItem = await MasterSectionItem.create(
+      {
+        master_section_header_id: masterSectionHeaderId,
+        item_name: targetName,
+        effective_start_date: sourceItem.effective_start_date,
+        effective_end_date: sourceItem.effective_end_date,
+        sort_order: finalSortOrder,
+        status: sourceItem.status,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+    return keysToCamelCase(newItem.get({ plain: true }));
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
 export default {
   // Master Section Item
   createMasterSectionItem,
@@ -443,4 +538,5 @@ export default {
   getMasterSectionItemById,
   updateMasterSectionItem,
   deleteMasterSectionItem,
+  copyMasterSectionItem,
 };

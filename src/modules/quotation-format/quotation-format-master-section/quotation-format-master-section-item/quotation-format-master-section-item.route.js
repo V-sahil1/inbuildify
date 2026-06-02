@@ -8,15 +8,15 @@ import { paramsMasterSectionHeaderIdSchema } from "../quotation-format-master-se
 import {
   createMasterSectionItem,
   getMasterSectionItems,
-  getMasterSectionItemById,
   updateMasterSectionItem,
   deleteMasterSectionItem,
+  copyMasterSectionItem,
 } from "./quotation-format-master-section-item.controller.js";
 import {
   createMasterSectionItemSchema,
   updateMasterSectionItemSchema,
   getMasterSectionItemSchema,
-  paramsItemIdSchema,
+  paramsItemIdSchema
 } from "./quotation-format-master-section-item.validation.js";
 
 const router = express.Router();
@@ -33,13 +33,8 @@ router.post(
 );
 
 router.get(
-  "/:item_id",
-  validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
-  getMasterSectionItemById,
-);
-
-router.get(
-  "/",
+  "/:master_section_header_id",
+  validateRequest(paramsMasterSectionHeaderIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(getMasterSectionItemSchema, REQUEST_SOURCE.QUERY),
   getMasterSectionItems,
 );
@@ -55,6 +50,12 @@ router.delete(
   "/:item_id",
   validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
   deleteMasterSectionItem,
+);
+
+router.post(
+  "/:item_id/copy",
+  validateRequest(paramsItemIdSchema, REQUEST_SOURCE.PARAMS),
+  copyMasterSectionItem,
 );
 
 export default router;

@@ -26,11 +26,21 @@ router.post(
   ]),
   handleMulterError,
   (req, res, next) => {
-    // Parse address if it's a string in form data
-    if (req.body.address && typeof req.body.address === "string") {
+    if (!req.body.address) {
+      const address = {};
+      for (const key in req.body) {
+        const match = key.match(/^address\[(\w+)\]$/);
+        if (match) {
+          address[match[1]] = req.body[key];
+          delete req.body[key];
+        }
+      }
+      if (Object.keys(address).length > 0) req.body.address = address;
+    }
+    if (typeof req.body.address === "string") {
       try {
         req.body.address = JSON.parse(req.body.address);
-      } catch (error) {
+      } catch {
         return res.status(400).json({ message: "Invalid address format" });
       }
     }

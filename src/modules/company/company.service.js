@@ -2,9 +2,9 @@ import { createOrUpdateAddress } from "../../repositories/address.repository.js"
 import { keysToCamelCase } from "../../utils/common.js";
 import db from "../../config/database/models/postgre-models/index.js";
 
-export async function getCompanyService({ builderId }) {
+export async function getCompanyService({ builderId, companyId }) {
 
-  const company = await getCompanyWithAddress(builderId);
+  const company = await getCompanyWithAddress(builderId, companyId);
 
   if (!company) {
     const error = new Error("Company not found");
@@ -36,9 +36,18 @@ async function attachTimezone(companyPlain, t) {
 }
 
 // ── Fetch company with nested address ────────────────────────────────────────
-async function getCompanyWithAddress(builderId, t) {
+async function getCompanyWithAddress(builderId, companyId, t) {
+  const where = {};
+  if (builderId) {
+    where.builder_id = builderId;
+  } else if (companyId) {
+    where.company_id = companyId;
+  } else {
+    return null;
+  }
+
   const company = await db.Company.findOne({
-    where: { builder_id: builderId },
+    where,
     include: [
       {
         association: "address",
@@ -139,11 +148,11 @@ async function getCompanyWithAddress(builderId, t) {
 //   }
 // }
 
-export async function upsertCompanyService(builderId, payload, transaction = null) {
+export async function upsertCompanyService({ builderId, companyId }, payload, transaction = null) {
   const isExternalTransaction = !!transaction;
   const t = transaction || await db.sequelize.transaction();
   try {
-    const existingCompany = await getCompanyWithAddress(builderId, t);
+    const existingCompany = await getCompanyWithAddress(builderId, companyId, t);
 
     // ── Address upsert ────────────────────────────────────────────────────────
     let addressId = null;
@@ -158,7 +167,7 @@ export async function upsertCompanyService(builderId, payload, transaction = nul
     if (!existingCompany) {
       // ── INSERT ──────────────────────────────────────────────────────────────
       const newCompany = await db.Company.create({
-        builder_id: builderId,
+        builder_id: builderId || null,
         name: payload.name,
         abn_number: payload.abn_number,
         timezone_id: payload.timezone_id,
@@ -169,15 +178,18 @@ export async function upsertCompanyService(builderId, payload, transaction = nul
         account_bsb: payload.account_bsb,
         email_signature_logo: payload.email_signature_logo,
         company_logo: payload.company_logo,
+        website: payload.website,
       }, { transaction: t });
 
-      // Link company → builder
-      await db.Builder.update(
-        { company_id: newCompany.company_id },
-        { where: { builder_id: builderId }, transaction: t },
-      );
+      if (builderId) {
+        // Link company → builder
+        await db.Builder.update(
+          { company_id: newCompany.company_id },
+          { where: { builder_id: builderId }, transaction: t },
+        );
+      }
 
-      result = await getCompanyWithAddress(builderId, t);
+      result = await getCompanyWithAddress(builderId, companyId, t);
     } else {
       // ── UPDATE ──────────────────────────────────────────────────────────────
       const updatePayload = {};
@@ -212,14 +224,24 @@ export async function upsertCompanyService(builderId, payload, transaction = nul
       if (payload.company_logo !== undefined) {
         updatePayload.company_logo = payload.company_logo;
       }
+      if (payload.website !== undefined) {
+        updatePayload.website = payload.website;
+      }
+
+      const updateWhere = {};
+      if (builderId) {
+        updateWhere.builder_id = builderId;
+      } else if (companyId) {
+        updateWhere.company_id = companyId;
+      }
 
       const [, [updatedCompany]] = await db.Company.update(updatePayload, {
-        where: { builder_id: builderId },
+        where: updateWhere,
         returning: true,
         transaction: t,
       });
 
-      result = await getCompanyWithAddress(builderId, t);
+      result = await getCompanyWithAddress(builderId, companyId, t);
     }
 
     if (!isExternalTransaction) {

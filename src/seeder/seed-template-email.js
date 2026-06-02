@@ -68,6 +68,12 @@ export async function seedTemplateEmail({ company_id, builder_id, created_by, tr
       email_content: "Hello,<br/><br/>We have received your maintenance request and it has been logged in our system. Our team will review the request and get back to you with the next steps.<br/><br/>You can track the status of your request through your customer portal.",
     },
     {
+      name: "Structural Engineer Request",
+      type: "standard",
+      subject: "Structural Engineer Report – Engineering Requirement",
+      email_content: "Hello,<br/><br/>Please find the attached <b>Engineering Requirement</b> for the upcoming project. The document outlines the floor plan, facade, package selection, and site/soil details needed for the structural design.<br/><br/>Kindly review and prepare the structural engineering report at your earliest convenience. If any additional information is required, please reply to this email or use the upload link provided in the attached request.<br/><br/>Thank you for your assistance.",
+    },
+    {
       name: "Color Selection Reminder",
       type: "customized",
       subject: "Reminder: Complete Your Color Selections",

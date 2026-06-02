@@ -6,15 +6,30 @@ import {
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
+import { Agent as HttpsAgent } from "https";
 import { env } from "../config/env.config.js";
 
-// Configure AWS SDK
+// Configure AWS SDK. Keep-alive reuses TCP/TLS connections (no per-request
+// handshake), and explicit socket timeouts stop a stalled S3 connection from
+// hanging the whole request — both matter because PDF generation downloads
+// several images from S3 on the hot path.
 const s3Client = new S3Client({
   region: env.AWS.AWS_REGION || "us-east-1",
   credentials: {
     accessKeyId: env.AWS.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS.AWS_SECRET_ACCESS_KEY,
   },
+  // AWS SDK v3 (>=3.729) defaults these to "WHEN_SUPPORTED", which appends
+  // `x-amz-checksum-mode=ENABLED` to presigned GET URLs and breaks previewing
+  // files directly in the browser. "WHEN_REQUIRED" keeps presigned URLs clean.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
+  requestHandler: new NodeHttpHandler({
+    httpsAgent: new HttpsAgent({ keepAlive: true, maxSockets: 50 }),
+    connectionTimeout: 3000,
+    requestTimeout: 15000,
+  }),
 });
 
 const BUCKET_NAME = env.AWS.S3_BUCKET_NAME;

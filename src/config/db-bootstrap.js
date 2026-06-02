@@ -10,12 +10,20 @@ import { env } from "./env.config.js";
 export async function ensureDatabase() {
   const dbName = env.DB.DB_NAME;
 
+  const isProduction = env.NODE_ENV === "production";
+
   // Connect to the default "postgres" database to check/create the application database
   const sequelize = new Sequelize("postgres", env.DB.DB_USER, env.DB.DB_PASSWORD, {
     host: env.DB.DB_HOST,
     port: parseInt(env.DB.DB_PORT),
     dialect: "postgres",
     logging: false,
+    dialectOptions: isProduction ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    } : {},
   });
 
   try {

@@ -1,8 +1,5 @@
 import { Model, DataTypes } from "sequelize";
-import { env } from "../../../env.config.js";
-
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (val) => typeof val === "string" && uuidRegex.test(val);
+import { resolveImageUrls } from "../../../../helper/imageDriveFile.helper.js";
 
 export class FloorPlan extends Model {
   static associate(models) {
@@ -53,50 +50,10 @@ export default (sequelize) => {
     { sequelize, tableName: "floor_plan", modelName: "FloorPlan", underscored: true },
   );
 
-  // Hook to automatically resolve floor plan image UUIDs to absolute S3 URLs
-  FloorPlan.addHook("afterFind", async (results, options) => {
-    if (!results) {
-      return;
-    }
-
-    const { DriveFile } = sequelize.models;
-    const s3BaseUrl = `https://${env.AWS.S3_BUCKET_NAME}.s3.amazonaws.com`;
-    const instances = Array.isArray(results) ? results : [results];
-
-    const fileIds = [];
-    instances.forEach((inst) => {
-      if (inst) {
-        if (isUuid(inst.detailed_image)) {
-          fileIds.push(inst.detailed_image);
-        }
-        if (isUuid(inst.simple_image)) {
-          fileIds.push(inst.simple_image);
-        }
-      }
-    });
-
-    if (fileIds.length > 0 && DriveFile) {
-      const driveFiles = await DriveFile.findAll({ transaction: options?.transaction,
-        where: { file_id: fileIds },
-        attributes: ["file_id", "s3_key"],
-      });
-
-      const fileMap = new Map(driveFiles.map(f => [f.file_id, f.s3_key]));
-
-      instances.forEach((inst) => {
-        if (inst) {
-          if (isUuid(inst.detailed_image)) {
-            const key = fileMap.get(inst.detailed_image);
-            inst.detailed_image = key ? `${s3BaseUrl}/${key}` : null;
-          }
-          if (isUuid(inst.simple_image)) {
-            const key = fileMap.get(inst.simple_image);
-            inst.simple_image = key ? `${s3BaseUrl}/${key}` : null;
-          }
-        }
-      });
-    }
-  });
+  // Resolve image UUID FKs → absolute S3 URLs on read (one batched query).
+  FloorPlan.addHook("afterFind", (results, options) =>
+    resolveImageUrls(results, ["detailed_image", "simple_image"], sequelize, options?.transaction),
+  );
 
   return FloorPlan;
 };

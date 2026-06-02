@@ -62,7 +62,7 @@ export async function registerRoot({ name, email, password, role_id }) {
 
     // Create default company for the new builder
     const defaultCompanyPayload = {
-      name: `${name}'s Company`,
+      name: `${name}`,
       abn_number: null,
       timezone_id: null,
       address: null,
@@ -75,8 +75,12 @@ export async function registerRoot({ name, email, password, role_id }) {
     };
 
     // upsertCompanyService now accepts a Sequelize transaction — pass t
-    const companyResult = await upsertCompanyService(builder_id, defaultCompanyPayload, t);
+    const companyResult = await upsertCompanyService({ builderId: builder_id }, defaultCompanyPayload, t);
     const company_id = companyResult?.companyId || null;
+
+    if (company_id) {
+      await user.update({ company_id }, { transaction: t });
+    }
 
     // Seed all default settings
     await seedBuilderDefaults({
@@ -239,7 +243,16 @@ export async function login({ email, login_id, password }) {
       lowerEmail,
     );
   } else if (login_id) {
-    whereClause = { login_id };
+    const lowerLoginId = login_id.toLowerCase();
+    whereClause = {
+      [Op.or]: [
+        { login_id },
+        sequelize.where(
+          sequelize.fn("LOWER", sequelize.col("email")),
+          lowerLoginId,
+        ),
+      ],
+    };
   } else {
     throw { statusCode: 400, message: "Email or login ID is required." };
   }
@@ -323,6 +336,24 @@ export async function login({ email, login_id, password }) {
     refresh_token: refreshToken,
   });
 
+  // Phase 4 — the frontend reads isOnboardingFinished to decide whether
+  // to drop the user on the dashboard or push them back into onboarding.
+  // Company Administrator users sit under company_id directly; sub-users
+  // sit under builder_id and inherit the company via Builder.company_id.
+  const { Company, Builder } = db;
+  let company = null;
+  if (user.company_id) {
+    company = await Company.findByPk(user.company_id, {
+      attributes: ["company_id", "is_onboarding_finished"],
+    });
+  } else if (user.builder_id) {
+    const builder = await Builder.findByPk(user.builder_id, { attributes: ["company_id"] });
+    if (builder?.company_id) {
+      company = await Company.findByPk(builder.company_id, {
+        attributes: ["company_id", "is_onboarding_finished"],
+      });
+    }
+  }
   return {
     accessToken,
     refreshToken,
@@ -331,6 +362,8 @@ export async function login({ email, login_id, password }) {
       email: user.email,
       role_id: user.role_id,
     },
+    companyId: company?.company_id || null,
+    isOnboardingFinished: company ? !!company.is_onboarding_finished : false,
   };
 }
 
@@ -542,7 +575,7 @@ export async function autoRegisterGoogleUser(profile, email) {
 
     // Create default company
     const defaultCompanyPayload = {
-      name: `${displayName}'s Company`,
+      name: `${displayName}`,
       abn_number: null,
       timezone_id: null,
       address: null,
@@ -554,8 +587,12 @@ export async function autoRegisterGoogleUser(profile, email) {
       company_logo: null,
     };
 
-    const companyResult = await upsertCompanyService(builder_id, defaultCompanyPayload, t);
+    const companyResult = await upsertCompanyService({ builderId: builder_id }, defaultCompanyPayload, t);
     const company_id = companyResult?.companyId || null;
+
+    if (company_id) {
+      await user.update({ company_id }, { transaction: t });
+    }
 
     // Seed all default settings
     await seedBuilderDefaults({

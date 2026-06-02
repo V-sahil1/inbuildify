@@ -37,26 +37,32 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     req.user.id = userRecord.users_id;
     req.user.access_token = token;
 
-    if (!req.user || !req.user.builder_id) {
+    // The user must belong to either a Builder (regular tenant user) or a
+    // Company directly (Company Administrator created via /company-signup).
+    if (!req.user || (!req.user.builder_id && !req.user.company_id)) {
       return errorResponse(
         res,
         401,
-        "Unauthorized: Missing user or builder_id.",
+        "Unauthorized: User is not linked to a company or builder.",
       );
     }
 
-    const builderId = req.user.builder_id;
-
-    // ✅ Fetch company_id from DB if not already attached
-    const company = await authService.getCompanyByBuilderId(builderId);
-
-    const isCompanyExists = !!company;
+    // Resolve company_id — prefer the direct link on the user, fall back to
+    // looking it up from the builder.
+    let resolvedCompanyId = req.user.company_id || null;
+    if (!resolvedCompanyId && req.user.builder_id) {
+      const company = await authService.getCompanyByBuilderId(req.user.builder_id);
+      if (company) resolvedCompanyId = company.company_id;
+    }
 
     // ✅ Detect create-company API
     // adjust path/method if needed
     const isCreateCompanyRequest =
       (req.method === "GET" && req.originalUrl.includes("/company")) ||
       (req.method === "POST" && req.originalUrl.includes("/company")) ||
+      // Phase 3 onboarding endpoints — must remain reachable while the
+      // company is still being set up (no company row yet, or flag false).
+      req.originalUrl.includes("/company-onboarding") ||
       (req.method === "GET" && req.originalUrl.includes("/timezone")) ||
       (req.method === "POST" && req.originalUrl.includes("/address")) ||
       (req.method === "GET" && req.originalUrl.includes("/state")) ||
@@ -64,21 +70,15 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       (req.method === "GET" && req.originalUrl.includes("/user/profile")) ||
       (req.method === "POST" && req.originalUrl.includes("/auth/logout"));
 
-    // ❌ Company does not exist
-    if (!isCompanyExists) {
-      // ✅ Allow only create-company API
+    if (!resolvedCompanyId) {
       if (isCreateCompanyRequest) {
         return next();
       }
-
-      // ❌ Block all other APIs
-      return errorResponse(res, 404, "Company not found for this builder.");
+      return errorResponse(res, 404, "Company not found for this user.");
     }
 
-    // ✅ Company exists → attach company_id
-    req.user.company_id = company.company_id;
-
-    next();
+    req.user.company_id = resolvedCompanyId;
+    return next();
   } catch (error) {
     console.error({
       requestId,
@@ -116,14 +116,14 @@ const authMiddleware = (req, res, next) => {
     }
 
     const [scheme, token] = authorizationHeader.split(" ");
-    if (scheme !== "Bearer" || !token) {
+    if (scheme !== "Bearer" || !token || token === "undefined" || token === "null") {
       console.warn({
         requestId,
         message: "⚠️ Invalid authorization scheme or missing token",
       });
       return errorResponse(
         res,
-        400,
+        401,
         "Unauthorized: Invalid authorization scheme or no token provided.",
       );
     }

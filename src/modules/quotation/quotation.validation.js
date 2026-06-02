@@ -64,6 +64,20 @@ export const updateQuotationVersionBodySchema = Joi.object({
   }),
 });
 
+export const sendEngineerEmailBodySchema = Joi.object({
+  subject: Joi.string().trim().min(1).required().messages({
+    "string.empty": "Subject is required",
+    "any.required": "Subject is required",
+  }),
+  email_body: Joi.string().trim().min(1).required().messages({
+    "string.empty": "Email body is required",
+    "any.required": "Email body is required",
+  }),
+  template_email_id: Joi.string().uuid().optional().allow(null, "").messages({
+    "string.guid": "Template Email ID must be a valid UUID",
+  }),
+});
+
 export const removePackageFromVersionSchema = Joi.object({
   quotation_version_id: Joi.string().uuid().required().messages({
     "string.guid": "Quotation Version ID must be a valid UUID",
@@ -118,4 +132,5 @@ export default {
   compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema,
   getQuotationVersionsQuerySchema,
+  sendEngineerEmailBodySchema,
 };

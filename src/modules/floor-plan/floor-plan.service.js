@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import db from "../../config/database/models/postgre-models/index.js";
-import { env } from "../../config/env.config.js";
-import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
-
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (val) => typeof val === "string" && uuidRegex.test(val);
+import {
+  s3UrlForKey,
+  createImageDriveFile,
+  removeImageByRef,
+  getRawImageColumns,
+} from "../../helper/imageDriveFile.helper.js";
 
 export async function getFloorPlansService({
   builder_id,
@@ -198,41 +199,31 @@ export async function createFloorPlanService(payload) {
     let simpleDriveFile = null;
 
     if (detailed_file) {
-      detailedDriveFile = await db.DriveFile.create({
-        file_id: detailedFileId,
-        company_id,
-        builder_id,
-        uploaded_by: created_by,
-        original_name: detailed_file.originalname,
-        file_name: `floor_plan_detailed_${floorPlanId}_${Date.now()}_${detailed_file.originalname}`,
-        s3_key: detailed_file.key,
-        file_extension: detailed_file.originalname.split(".").pop(),
-        mime_type: detailed_file.mimetype,
-        size: detailed_file.size,
-        reference_id: floorPlanId,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_DETAILED,
-      }, { transaction: t });
+      detailedDriveFile = await createImageDriveFile({
+        file: detailed_file,
+        fileId: detailedFileId,
+        companyId: company_id,
+        builderId: builder_id,
+        uploadedBy: created_by,
+        referenceId: floorPlanId,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_DETAILED,
+        namePrefix: `floor_plan_detailed_${floorPlanId}`,
+      }, t);
     }
 
     if (simple_file) {
-      simpleDriveFile = await db.DriveFile.create({
-        file_id: simpleFileId,
-        company_id,
-        builder_id,
-        uploaded_by: created_by,
-        original_name: simple_file.originalname,
-        file_name: `floor_plan_simple_${floorPlanId}_${Date.now()}_${simple_file.originalname}`,
-        s3_key: simple_file.key,
-        file_extension: simple_file.originalname.split(".").pop(),
-        mime_type: simple_file.mimetype,
-        size: simple_file.size,
-        reference_id: floorPlanId,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_SIMPLE,
-      }, { transaction: t });
+      simpleDriveFile = await createImageDriveFile({
+        file: simple_file,
+        fileId: simpleFileId,
+        companyId: company_id,
+        builderId: builder_id,
+        uploadedBy: created_by,
+        referenceId: floorPlanId,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_SIMPLE,
+        namePrefix: `floor_plan_simple_${floorPlanId}`,
+      }, t);
     }
 
     const newFloorPlan = await db.FloorPlan.create({
@@ -263,10 +254,9 @@ export async function createFloorPlanService(payload) {
 
     await t.commit();
 
-    const s3BaseUrl = `https://${env.AWS.S3_BUCKET_NAME}.s3.amazonaws.com`;
     const plain = newFloorPlan.get({ plain: true });
-    plain.detailed_image = detailedDriveFile ? `${s3BaseUrl}/${detailedDriveFile.s3_key}` : null;
-    plain.simple_image = simpleDriveFile ? `${s3BaseUrl}/${simpleDriveFile.s3_key}` : null;
+    plain.detailed_image = detailedDriveFile ? s3UrlForKey(detailedDriveFile.s3_key) : null;
+    plain.simple_image = simpleDriveFile ? s3UrlForKey(simpleDriveFile.s3_key) : null;
 
     return {
       ...plain,
@@ -390,118 +380,49 @@ export async function updateFloorPlanService({
       }
     }
 
-    // 5. Image Management — fetch raw UUIDs directly from DB to bypass afterFind hook
-    // (afterFind hook resolves UUID → full S3 URL, so isUuid() would fail on the hook's output)
-    const [[rawFP]] = await db.sequelize.query(
-      `SELECT "detailed_image", "simple_image" FROM "floor_plan" WHERE "floor_plan_id" = :floor_plan_id`,
-      { replacements: { floor_plan_id }, transaction: t },
+    // 5. Image Management — read raw UUIDs/keys directly from DB to bypass the
+    // afterFind hook (which would have rewritten them into full S3 URLs).
+    const rawFP = await getRawImageColumns(
+      "floor_plan", "floor_plan_id", floor_plan_id, ["detailed_image", "simple_image"], t,
     );
-    let updatedDetailedImageId = rawFP?.detailed_image ?? null;
-    let updatedSimpleImageId = rawFP?.simple_image ?? null;
+    let updatedDetailedImageId = rawFP.detailed_image ?? null;
+    let updatedSimpleImageId = rawFP.simple_image ?? null;
 
-    // Detailed file updated
+    // Detailed image: replaced by a new upload, or explicitly cleared.
     if (detailed_file) {
-      if (updatedDetailedImageId) {
-        if (isUuid(updatedDetailedImageId)) {
-          const oldFile = await db.DriveFile.findOne({
-            where: { file_id: updatedDetailedImageId },
-            transaction: t,
-          });
-          if (oldFile) {
-            await deleteFromS3(oldFile.s3_key);
-            await oldFile.destroy({ transaction: t });
-          }
-        } else {
-          await deleteFromS3(updatedDetailedImageId);
-        }
-      }
-
-      const driveFile = await db.DriveFile.create({
-        company_id: existing.company_id,
-        builder_id: existing.builder_id,
-        uploaded_by: updated_by,
-        original_name: detailed_file.originalname,
-        file_name: `floor_plan_detailed_${floor_plan_id}_${Date.now()}_${detailed_file.originalname}`,
-        s3_key: detailed_file.key,
-        file_extension: detailed_file.originalname.split(".").pop(),
-        mime_type: detailed_file.mimetype,
-        size: detailed_file.size,
-        reference_id: floor_plan_id,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_DETAILED,
-      }, { transaction: t });
-
+      await removeImageByRef(updatedDetailedImageId, t);
+      const driveFile = await createImageDriveFile({
+        file: detailed_file,
+        companyId: existing.company_id,
+        builderId: existing.builder_id,
+        uploadedBy: updated_by,
+        referenceId: floor_plan_id,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_DETAILED,
+        namePrefix: `floor_plan_detailed_${floor_plan_id}`,
+      }, t);
       updatedDetailedImageId = driveFile.file_id;
     } else if (payload.hasOwnProperty("detailed_image") && !detailed_image) {
-      // Detailed image explicitly removed
-      if (updatedDetailedImageId) {
-        if (isUuid(updatedDetailedImageId)) {
-          const oldFile = await db.DriveFile.findOne({
-            where: { file_id: updatedDetailedImageId },
-            transaction: t,
-          });
-          if (oldFile) {
-            await deleteFromS3(oldFile.s3_key);
-            await oldFile.destroy({ transaction: t });
-          }
-        } else {
-          await deleteFromS3(updatedDetailedImageId);
-        }
-      }
+      await removeImageByRef(updatedDetailedImageId, t);
       updatedDetailedImageId = null;
     }
 
-    // Simple file updated
+    // Simple image: replaced by a new upload, or explicitly cleared.
     if (simple_file) {
-      if (updatedSimpleImageId) {
-        if (isUuid(updatedSimpleImageId)) {
-          const oldFile = await db.DriveFile.findOne({
-            where: { file_id: updatedSimpleImageId },
-            transaction: t,
-          });
-          if (oldFile) {
-            await deleteFromS3(oldFile.s3_key);
-            await oldFile.destroy({ transaction: t });
-          }
-        } else {
-          await deleteFromS3(updatedSimpleImageId);
-        }
-      }
-
-      const driveFile = await db.DriveFile.create({
-        company_id: existing.company_id,
-        builder_id: existing.builder_id,
-        uploaded_by: updated_by,
-        original_name: simple_file.originalname,
-        file_name: `floor_plan_simple_${floor_plan_id}_${Date.now()}_${simple_file.originalname}`,
-        s3_key: simple_file.key,
-        file_extension: simple_file.originalname.split(".").pop(),
-        mime_type: simple_file.mimetype,
-        size: simple_file.size,
-        reference_id: floor_plan_id,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_SIMPLE,
-      }, { transaction: t });
-
+      await removeImageByRef(updatedSimpleImageId, t);
+      const driveFile = await createImageDriveFile({
+        file: simple_file,
+        companyId: existing.company_id,
+        builderId: existing.builder_id,
+        uploadedBy: updated_by,
+        referenceId: floor_plan_id,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FLOOR_PLAN,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FLOOR_PLAN_SIMPLE,
+        namePrefix: `floor_plan_simple_${floor_plan_id}`,
+      }, t);
       updatedSimpleImageId = driveFile.file_id;
     } else if (payload.hasOwnProperty("simple_image") && !simple_image) {
-      // Simple image explicitly removed
-      if (updatedSimpleImageId) {
-        if (isUuid(updatedSimpleImageId)) {
-          const oldFile = await db.DriveFile.findOne({
-            where: { file_id: updatedSimpleImageId },
-            transaction: t,
-          });
-          if (oldFile) {
-            await deleteFromS3(oldFile.s3_key);
-            await oldFile.destroy({ transaction: t });
-          }
-        } else {
-          await deleteFromS3(updatedSimpleImageId);
-        }
-      }
+      await removeImageByRef(updatedSimpleImageId, t);
       updatedSimpleImageId = null;
     }
 
@@ -574,45 +495,13 @@ export async function deleteFloorPlanService(floor_plan_id, builder_id) {
       throw error;
     }
 
-    // Fetch raw UUIDs directly from DB — bypasses afterFind hook which converts UUID → URL
-    const [[rawFPForDelete]] = await db.sequelize.query(
-      `SELECT "detailed_image", "simple_image" FROM "floor_plan" WHERE "floor_plan_id" = :floor_plan_id`,
-      { replacements: { floor_plan_id }, transaction: t },
+    // Read raw image columns (bypassing the afterFind URL hook) and drop the
+    // backing DriveFiles / S3 objects before deleting the floor plan.
+    const rawFPForDelete = await getRawImageColumns(
+      "floor_plan", "floor_plan_id", floor_plan_id, ["detailed_image", "simple_image"], t,
     );
-
-    // Clean up detailed image
-    const rawDetailed = rawFPForDelete?.detailed_image;
-    if (rawDetailed) {
-      if (isUuid(rawDetailed)) {
-        const oldFile = await db.DriveFile.findOne({
-          where: { file_id: rawDetailed },
-          transaction: t,
-        });
-        if (oldFile) {
-          await deleteFromS3(oldFile.s3_key);
-          await oldFile.destroy({ transaction: t });
-        }
-      } else {
-        await deleteFromS3(rawDetailed);
-      }
-    }
-
-    // Clean up simple image
-    const rawSimple = rawFPForDelete?.simple_image;
-    if (rawSimple) {
-      if (isUuid(rawSimple)) {
-        const oldFile = await db.DriveFile.findOne({
-          where: { file_id: rawSimple },
-          transaction: t,
-        });
-        if (oldFile) {
-          await deleteFromS3(oldFile.s3_key);
-          await oldFile.destroy({ transaction: t });
-        }
-      } else {
-        await deleteFromS3(rawSimple);
-      }
-    }
+    await removeImageByRef(rawFPForDelete.detailed_image, t);
+    await removeImageByRef(rawFPForDelete.simple_image, t);
 
     await existing.destroy({ transaction: t });
     await t.commit();

@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { Op, literal } from "sequelize";
 import db from "../../config/database/models/postgre-models/index.js";
-import { env } from "../../config/env.config.js";
-import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
-
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (val) => typeof val === "string" && uuidRegex.test(val);
+import {
+  s3UrlForKey,
+  createImageDriveFile,
+  removeImageByRef,
+  getRawImageColumns,
+} from "../../helper/imageDriveFile.helper.js";
 
 /**
  * Transforms a facade instance/object to include both old (id) and new (modelId) keys
@@ -82,15 +83,6 @@ export async function getMasterFacadesService(query, builderId, companyId) {
     where.location_id = location_id;
   }
 
-  if (floor_plan_id) {
-    const mappings = await db.FloorPlanFacadeMap.findAll({
-      where: { floor_plan_id },
-      attributes: ["facade_id"],
-    });
-    const facadeIds = mappings.map((m) => m.facade_id);
-    where.facade_id = { [Op.in]: facadeIds };
-  }
-
   if (dwelling_type_id) {
     where.dwelling_type_id = dwelling_type_id;
   }
@@ -110,6 +102,26 @@ export async function getMasterFacadesService(query, builderId, companyId) {
     delete where[Op.and];
   }
 
+  let mappedFacadeIds = [];
+  if (floor_plan_id) {
+    const mappings = await db.FloorPlanFacadeMap.findAll({
+      where: { floor_plan_id },
+      attributes: ["facade_id"],
+    });
+    mappedFacadeIds = mappings.map((m) => m.facade_id);
+    
+    if (mappedFacadeIds.length > 0) {
+      const testWhere = { ...where };
+      testWhere.facade_id = { [Op.in]: mappedFacadeIds };
+      
+      const matchingMappedCount = await db.Facade.count({ where: testWhere });
+      
+      if (matchingMappedCount > 0) {
+        where.facade_id = { [Op.in]: mappedFacadeIds };
+      }
+    }
+  }
+
   const result = await db.Facade.findAndCountAll({
     where,
     include: [
@@ -120,11 +132,17 @@ export async function getMasterFacadesService(query, builderId, companyId) {
     order: [["createdAt", "DESC"]],
     limit: limitValue,
     offset,
-    distinct: true, // Crucial for count accuracy when using includes
+    distinct: true,
   });
 
   return {
-    facades: result.rows.map(f => transformFacade(f)),
+    facades: result.rows.map(f => {
+      const plain = transformFacade(f);
+      if (floor_plan_id) {
+        plain.is_mapped = mappedFacadeIds.includes(plain.facade_id);
+      }
+      return plain;
+    }),
     pagination: {
       currentPage: parseInt(page, 10),
       totalPages: Math.ceil(result.count / limitValue),
@@ -184,8 +202,6 @@ export async function createMasterFacadeService(payload, user, file) {
   const trimmedName = name.trim();
   const escapedName = trimmedName.replace(/'/g, "''");
 
-  // Run all read validations in parallel on independent connections so they
-  // genuinely overlap at the DB level (no shared transaction serialization).
   const [location, range, dwelling, uniqueFacade] = await Promise.all([
     location_id
       ? db.Location.findOne({
@@ -251,22 +267,17 @@ export async function createMasterFacadeService(payload, user, file) {
   try {
     let driveFileRow = null;
     if (file) {
-      driveFileRow = await db.DriveFile.create({
-        file_id: driveFileId,
-        company_id: companyId,
-        builder_id: builderId,
-        uploaded_by: userId,
-        original_name: file.originalname,
-        file_name: `facade_${facadeId}_${Date.now()}_${file.originalname}`,
-        s3_key: file.key,
-        file_extension: file.originalname.split(".").pop(),
-        mime_type: file.mimetype,
-        size: file.size,
-        reference_id: facadeId,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FACADE,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FACADE_IMAGE,
-      }, { transaction: t });
+      driveFileRow = await createImageDriveFile({
+        file,
+        fileId: driveFileId,
+        companyId,
+        builderId,
+        uploadedBy: userId,
+        referenceId: facadeId,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FACADE,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FACADE_IMAGE,
+        namePrefix: `facade_${facadeId}`,
+      }, t);
     }
 
     const newFacade = await db.Facade.create({
@@ -288,9 +299,8 @@ export async function createMasterFacadeService(payload, user, file) {
 
     await t.commit();
 
-    const s3BaseUrl = `https://${env.AWS.S3_BUCKET_NAME}.s3.amazonaws.com`;
     const plain = newFacade.toJSON();
-    plain.image = driveFileRow ? `${s3BaseUrl}/${driveFileRow.s3_key}` : null;
+    plain.image = driveFileRow ? s3UrlForKey(driveFileRow.s3_key) : null;
     plain.location = location
       ? { location_id: location.location_id, name: location.name }
       : null;
@@ -446,46 +456,23 @@ export async function updateMasterFacadeService(facadeId, payload, user, file) {
       }
     }
 
-    // Handle Image
+    // Handle Image. Read the raw column (UUID/key) before the afterFind hook
+    // can rewrite it into a URL, drop the old file, then store the new one.
     let newImageVal = undefined;
     if (file) {
-      // Fetch raw image UUID directly from DB (bypasses afterFind hook which converts UUID → URL)
-      const [[rawFacade]] = await db.sequelize.query(
-        `SELECT "image" FROM "facade" WHERE "facade_id" = :facadeId`,
-        { replacements: { facadeId }, transaction: t },
-      );
-      const rawImage = rawFacade?.image;
+      const { image: rawImage } = await getRawImageColumns("facade", "facade_id", facadeId, ["image"], t);
+      await removeImageByRef(rawImage, t);
 
-      if (rawImage) {
-        if (isUuid(rawImage)) {
-          const oldFile = await db.DriveFile.findOne({
-            where: { file_id: rawImage },
-            transaction: t,
-          });
-          if (oldFile) {
-            await deleteFromS3(oldFile.s3_key);
-            await oldFile.destroy({ transaction: t });
-          }
-        } else {
-          await deleteFromS3(rawImage);
-        }
-      }
-
-      const driveFile = await db.DriveFile.create({
-        company_id: companyId,
-        builder_id: builderId,
-        uploaded_by: userId,
-        original_name: file.originalname,
-        file_name: `facade_${facadeId}_${Date.now()}_${file.originalname}`,
-        s3_key: file.key,
-        file_extension: file.originalname.split(".").pop(),
-        mime_type: file.mimetype,
-        size: file.size,
-        reference_id: facadeId,
-        reference_type: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FACADE,
-        sub_reference_id: null,
-        sub_reference_type: DRIVE_FILE_MAPPING.SUB_REFERENCES.FACADE_IMAGE,
-      }, { transaction: t });
+      const driveFile = await createImageDriveFile({
+        file,
+        companyId,
+        builderId,
+        uploadedBy: userId,
+        referenceId: facadeId,
+        referenceType: DRIVE_FILE_MAPPING.REFERENCE_NAMES.FACADE,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.FACADE_IMAGE,
+        namePrefix: `facade_${facadeId}`,
+      }, t);
 
       newImageVal = driveFile.file_id;
     }
@@ -546,27 +533,10 @@ export async function deleteMasterFacadeService(facadeId, builderId) {
       throw error;
     }
 
-    // Fetch raw image UUID directly from DB (bypasses afterFind hook which converts UUID → URL)
-    const [[rawFacadeForDelete]] = await db.sequelize.query(
-      `SELECT "image" FROM "facade" WHERE "facade_id" = :facadeId`,
-      { replacements: { facadeId }, transaction: t },
-    );
-    const rawImage = rawFacadeForDelete?.image;
-
-    if (rawImage) {
-      if (isUuid(rawImage)) {
-        const oldFile = await db.DriveFile.findOne({
-          where: { file_id: rawImage },
-          transaction: t,
-        });
-        if (oldFile) {
-          await deleteFromS3(oldFile.s3_key);
-          await oldFile.destroy({ transaction: t });
-        }
-      } else {
-        await deleteFromS3(rawImage);
-      }
-    }
+    // Read the raw image column (bypassing the afterFind URL hook) and drop the
+    // backing DriveFile / S3 object before deleting the facade.
+    const { image: rawImage } = await getRawImageColumns("facade", "facade_id", facadeId, ["image"], t);
+    await removeImageByRef(rawImage, t);
 
     await facade.destroy({ transaction: t });
     await t.commit();

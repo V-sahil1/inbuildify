@@ -4,7 +4,12 @@ import { generateDynamicReferenceNumber, keysToCamelCase } from "../../utils/com
 import {
   getQuotationDriveFileS3Key,
   getQuotationDriveFilePresignedUrl,
+  getQuotationDriveFile,
+  upsertQuotationDriveFile,
 } from "../../helper/quotationDriveFile.helper.js";
+import { generateEngineerPdfHtml } from "../../utils/engineerPdfTemplate.js";
+import { wrapEngineerEmailHTML } from "../../templates/engineer-email.template.js";
+import { resolveCompactionS3Key } from "../../helper/propertyDriveFile.helper.js";
 import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 import db from "../../config/database/models/postgre-models/index.js";
@@ -110,6 +115,12 @@ const syncQuotationVersionFiles = async (quotationVersion, leadsId, transaction)
     }
   }
 };
+// NOTE: cloning a version's facade / floor-plan images into drive_files is
+// handled centrally by the QuotationVersion afterCreate / afterUpdate hooks
+// (see helper/quotationVersionImage.helper.js). The service no longer clones
+// them inline — doing so issued redundant destroy/find/create queries on every
+// version create + update (and used mismatched reference_type casing, so it
+// never actually matched a source row).
 
 class QuotationService {
   async createQuotation(leadsId, userId, builderId, companyId) {
@@ -191,8 +202,7 @@ class QuotationService {
       }, { transaction: t });
       console.log(`[DEBUG] Created Quotation Version ID: ${quotationVersion.quotation_version_id}`);
 
-      // Sync drive files
-      await syncQuotationVersionFiles(quotationVersion, leadsId, t);
+      // Facade / floor-plan images are cloned by the QuotationVersion afterCreate hook.
 
       // 6. Copy items and sections if latest version exists
       if (latestVersion) {
@@ -833,95 +843,9 @@ class QuotationService {
         }
       }
 
-      // Sync drive files if facade or floor plan changed
-      const facadeChanged = updateData.facade_id !== undefined && updateData.facade_id !== existingVersion.facade_id;
-      // floorPlanChanged is already declared at line 535!
-
-      const { DriveFile } = db;
-      const leadsId = existingVersion.quotation?.leads_id;
-
-      if (facadeChanged) {
-        // Delete old facade drive files for this QV
-        await DriveFile.destroy({
-          where: {
-            reference_id: versionId,
-            sub_reference_type: DRIVE_FILE_SUB_REFERENCE_TYPE.FACADE_IMAGE,
-          },
-          transaction: t,
-        });
-
-        if (updateData.facade_id) {
-          // Clone new facade files
-          const facadeFiles = await DriveFile.findAll({
-            where: {
-              reference_id: updateData.facade_id,
-              reference_type: DRIVE_FILE_REFERENCE_TYPE.FACADE,
-              sub_reference_type: DRIVE_FILE_SUB_REFERENCE_TYPE.FACADE_IMAGE,
-            },
-            transaction: t,
-          });
-
-          for (const file of facadeFiles) {
-            const fileData = file.get({ plain: true });
-            delete fileData.file_id;
-            delete fileData.created_at;
-            delete fileData.updated_at;
-            delete fileData.deleted_at;
-
-            fileData.reference_id = versionId;
-            fileData.reference_type = DRIVE_FILE_REFERENCE_TYPE.QUOTATION;
-            fileData.sub_reference_id = updateData.facade_id;
-            fileData.sub_reference_type = DRIVE_FILE_SUB_REFERENCE_TYPE.FACADE_IMAGE;
-            fileData.file_name = `qv_${versionId}_${Date.now()}_${fileData.original_name}`;
-            fileData.lead_id = leadsId;
-
-            await DriveFile.create(fileData, { transaction: t });
-          }
-        }
-      }
-
-      if (floorPlanChanged) {
-        // Delete old floor plan drive files for this QV
-        await DriveFile.destroy({
-          where: {
-            reference_id: versionId,
-            sub_reference_type: {
-              [Op.in]: [DRIVE_FILE_SUB_REFERENCE_TYPE.FLOOR_PLAN_SIMPLE_IMAGE, DRIVE_FILE_SUB_REFERENCE_TYPE.FLOOR_PLAN_DETAILED_IMAGE],
-            },
-          },
-          transaction: t,
-        });
-
-        if (updateData.floor_plan_id) {
-          // Clone new floor plan files
-          const floorPlanFiles = await DriveFile.findAll({
-            where: {
-              reference_id: updateData.floor_plan_id,
-              reference_type: DRIVE_FILE_REFERENCE_TYPE.FLOOR_PLAN,
-              sub_reference_type: {
-                [Op.in]: [DRIVE_FILE_SUB_REFERENCE_TYPE.FLOOR_PLAN_SIMPLE_IMAGE, DRIVE_FILE_SUB_REFERENCE_TYPE.FLOOR_PLAN_DETAILED_IMAGE],
-              },
-            },
-            transaction: t,
-          });
-
-          for (const file of floorPlanFiles) {
-            const fileData = file.get({ plain: true });
-            delete fileData.file_id;
-            delete fileData.created_at;
-            delete fileData.updated_at;
-            delete fileData.deleted_at;
-
-            fileData.reference_id = versionId;
-            fileData.reference_type = DRIVE_FILE_REFERENCE_TYPE.QUOTATION;
-            fileData.sub_reference_id = updateData.floor_plan_id;
-            fileData.file_name = `qv_${versionId}_${Date.now()}_${fileData.original_name}`;
-            fileData.lead_id = leadsId;
-
-            await DriveFile.create(fileData, { transaction: t });
-          }
-        }
-      }
+      // Facade / floor-plan image clones are kept in sync by the
+      // QuotationVersion afterUpdate hook (it re-clones only the image type
+      // whose FK actually changed). No inline sync needed here.
 
       if (!updated) {
         await t.rollback();
@@ -973,73 +897,246 @@ class QuotationService {
     }
   }
 
-  async sendEngineerEmail(versionId, builderId, companyId) {
-    try {
-      const {
-        QuotationVersion, StructureEngineer, Quotation, Range, DwellingType,
-        FloorPlan, Facade, Package, Leads, PropertyDetail
-      } = db.sequelize?.models || db;
+  /**
+   * Fetch a QuotationVersion with every association needed to build the
+   * Engineering Requirement PDF. All data comes from quotation_version and its
+   * Sequelize associations — the job_form table is intentionally NOT used.
+   */
+  async _fetchQuotationVersionForEngineer(versionId) {
+    const {
+      QuotationVersion, StructureEngineer, Quotation, Leads, PropertyDetail,
+      Location, Range, DwellingType, FloorPlan, Facade, Package,
+    } = db.sequelize?.models || db;
 
-      // 1. Fetch QuotationVersion with StructureEngineer and additional PDF data (including nested property details)
+    return QuotationVersion.findOne({
+      where: { quotation_version_id: versionId },
+      include: [
+        { model: StructureEngineer, as: "structureEngineer" },
+        {
+          model: Quotation,
+          as: "quotation",
+          include: [
+            {
+              model: Leads,
+              as: "lead",
+              include: [{ model: PropertyDetail, as: "propertyDetail" }],
+            },
+          ],
+        },
+        { model: Location, as: "location", attributes: ["name"] },
+        { model: Range, as: "range", attributes: ["name", "logo_url", "header_url"] },
+        { model: DwellingType, as: "dwellingType", attributes: ["name"] },
+        {
+          model: FloorPlan,
+          as: "floorPlan",
+          attributes: [
+            "name", "description", "beds", "baths", "carpark", "living",
+            "dwelling_area", "total_area", "garage_area", "porch_area",
+            "alfresco_area", "min_land_width", "min_land_depth",
+            "detailed_image", "simple_image",
+          ],
+        },
+        { model: Facade, as: "facade", attributes: ["name", "cost_type", "cost", "builder_cost", "image"] },
+        { model: Package, as: "package", attributes: ["name", "cost", "builder_cost"] },
+      ],
+    });
+  }
+
+  /**
+   * Build the nested pdfData object consumed by generateEngineerPdfHtml
+   * (the old "Engineering Spec" template).
+   *
+   * Image URLs (range logo/header, floor plan images, facade image) are
+   * downloaded from S3 and inlined as data URIs so Puppeteer can render
+   * deterministically offline. The compaction report URL is replaced with
+   * a presigned download link.
+   */
+  async _buildEngineerPdfData(versionPlain) {
+    const lead = versionPlain.quotation?.lead || {};
+    const property = lead.propertyDetail || lead.property_detail || null;
+
+    const range = versionPlain.range ? { ...versionPlain.range } : null;
+    const floorPlan = versionPlain.floorPlan ? { ...versionPlain.floorPlan } : null;
+    const facade = versionPlain.facade ? { ...versionPlain.facade } : null;
+    const pkg = versionPlain.package || null;
+    const propertyDetail = property ? { ...property } : null;
+
+    // FloorPlan/Facade store image fields as DriveFile UUIDs. Their afterFind
+    // hooks only fire for direct queries, not nested includes — so when loaded
+    // through QuotationVersion we still see raw UUIDs. Resolve them to s3_keys
+    // in a single batched lookup.
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUuid = (v) => typeof v === "string" && uuidRe.test(v);
+    const uuidsToResolve = [
+      floorPlan?.detailed_image,
+      floorPlan?.simple_image,
+      facade?.image,
+    ].filter(isUuid);
+
+    const uuidToKey = new Map();
+    if (uuidsToResolve.length) {
+      const { DriveFile } = db.sequelize?.models || db;
+      const rows = await DriveFile.findAll({
+        where: { file_id: uuidsToResolve },
+        attributes: ["file_id", "s3_key"],
+      });
+      rows.forEach((r) => uuidToKey.set(r.file_id, r.s3_key));
+    }
+    const resolveImage = (val) => (isUuid(val) ? uuidToKey.get(val) || null : val);
+
+    if (floorPlan) {
+      floorPlan.detailed_image = resolveImage(floorPlan.detailed_image);
+      floorPlan.simple_image = resolveImage(floorPlan.simple_image);
+    }
+    if (facade) {
+      facade.image = resolveImage(facade.image);
+    }
+
+    // Infer image MIME from file extension when S3 metadata is missing/wrong.
+    const mimeFromKey = (k) => {
+      const ext = (k || "").toLowerCase().split("?")[0].split(".").pop();
+      switch (ext) {
+        case "jpg":
+        case "jpeg": return "image/jpeg";
+        case "png": return "image/png";
+        case "gif": return "image/gif";
+        case "webp": return "image/webp";
+        case "svg": return "image/svg+xml";
+        default: return "image/png";
+      }
+    };
+
+    // Convert an S3 URL or raw key into a base64 data URI so Puppeteer can
+    // render the image without network access. Each download is capped so a
+    // single slow/oversized object can't stall PDF generation (was a major
+    // contributor to the request timing out) — on timeout we drop the image
+    // and render the PDF without it rather than blocking the whole request.
+    const IMAGE_DL_TIMEOUT_MS = 8000;
+    const toDataUri = async (urlOrKey) => {
+      if (!urlOrKey || typeof urlOrKey !== "string") return null;
+      if (urlOrKey.startsWith("data:")) return urlOrKey;
+      if (urlOrKey.startsWith("blob:")) return null;
+
+      let key = urlOrKey;
+      try {
+        if (urlOrKey.startsWith("http://") || urlOrKey.startsWith("https://")) {
+          const parsed = new URL(urlOrKey);
+          key = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+        }
+      } catch (_) {
+        // treat as raw key
+      }
+
+      try {
+        const result = await Promise.race([
+          getObject(key),
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ success: false, error: "timeout" }), IMAGE_DL_TIMEOUT_MS),
+          ),
+        ]);
+        if (result?.success && result?.data) {
+          const ct = result.contentType;
+          const mimeType = ct && ct.startsWith("image/") ? ct : mimeFromKey(key);
+          return `data:${mimeType};base64,${result.data.toString("base64")}`;
+        }
+        console.warn(`[EngineeringRequirement] getObject failed/timeout for ${key}:`, result?.error);
+      } catch (err) {
+        console.error(`[EngineeringRequirement] Failed to inline image ${key}:`, err.message);
+      }
+      return null;
+    };
+
+    // Inline all images and presign the compaction report in parallel — each
+    // is an independent S3 round-trip. Running them serially (as before) added
+    // ~N×latency on top of PDF generation for no reason.
+    // compaction_report_url is a DriveFile UUID FK here (nested include, so the
+    // afterFind hook hasn't resolved it) — map it to the real s3_key.
+    const compactionKey = propertyDetail?.compaction_report_url
+      ? await resolveCompactionS3Key(propertyDetail.compaction_report_url)
+      : null;
+
+    const [
+      rangeLogo,
+      rangeHeader,
+      fpDetailed,
+      fpSimple,
+      facadeImg,
+      compactionPresign,
+    ] = await Promise.all([
+      range ? toDataUri(range.logo_url) : null,
+      range ? toDataUri(range.header_url) : null,
+      floorPlan ? toDataUri(floorPlan.detailed_image) : null,
+      floorPlan ? toDataUri(floorPlan.simple_image) : null,
+      facade ? toDataUri(facade.image) : null,
+      compactionKey
+        ? generatePresignedDownloadUrl(compactionKey, 604800).catch((err) => {
+          console.error("[EngineeringRequirement] Failed to presign compaction report:", err.message);
+          return null;
+        })
+        : null,
+    ]);
+
+    if (range) {
+      range.logo_url = rangeLogo;
+      range.header_url = rangeHeader;
+    }
+    if (floorPlan) {
+      floorPlan.detailed_image = fpDetailed;
+      floorPlan.simple_image = fpSimple;
+    }
+    if (facade) {
+      facade.image = facadeImg;
+    }
+
+    if (propertyDetail?.compaction_report_url) {
+      propertyDetail.compaction_report_download_url =
+        (compactionPresign?.success && compactionPresign.url) || propertyDetail.compaction_report_url;
+    }
+
+    return {
+      range,
+      dwellingType: versionPlain.dwellingType || null,
+      floorPlan,
+      facade,
+      package: pkg,
+      propertyDetail,
+      uploadReport: null,
+      structureEngineerReport: null,
+      leadId: lead.leads_id || null,
+      versionId: versionPlain.quotation_version_id || null,
+    };
+  }
+
+  /**
+   * Data for the slide-over "Mail to Structural Engineer" panel: engineer
+   * contact, presence/links of both PDFs, the active email templates, and the
+   * send_to_engineer flag.
+   */
+  async getEngineerMailPreview(versionId, builderId, companyId) {
+    try {
+      const { QuotationVersion, StructureEngineer, TemplateEmail, Quotation, Leads, PropertyDetail } =
+        db.sequelize?.models || db;
+
       const quotationVersion = await QuotationVersion.findOne({
         where: { quotation_version_id: versionId },
+        attributes: ["quotation_version_id", "send_to_engineer", "structure_engineer_id"],
         include: [
-          {
-            model: StructureEngineer,
-            as: "structureEngineer",
-          },
+          { model: StructureEngineer, as: "structureEngineer", attributes: ["name", "email", "phone"] },
           {
             model: Quotation,
             as: "quotation",
+            attributes: ["quotation_id"],
             include: [
               {
                 model: Leads,
                 as: "lead",
+                attributes: ["leads_id"],
                 include: [
-                  {
-                    model: PropertyDetail,
-                    as: "propertyDetail"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            model: Range,
-            as: "range",
-            attributes: ["name", "logo_url", "header_url"]
-          },
-          {
-            model: DwellingType,
-            as: "dwellingType",
-            attributes: ["name"]
-          },
-          {
-            model: FloorPlan,
-            as: "floorPlan",
-            attributes: [
-              "name", "min_land_width", "min_land_depth", "dwelling_area", "beds",
-              "baths", "carpark", "living", "garage_area", "porch_area",
-              "total_area", "detailed_image", "simple_image", "description"
+                  { model: PropertyDetail, as: "propertyDetail", attributes: ["property_detail_id", "compaction_report_url"] },
+                ],
+              },
             ],
-            include: [
-              { model: db.sequelize?.models?.DriveFile || db.DriveFile, as: "detailedImageFile", attributes: ["s3_key"] },
-              { model: db.sequelize?.models?.DriveFile || db.DriveFile, as: "simpleImageFile", attributes: ["s3_key"] }
-            ]
           },
-          {
-            model: Facade,
-            as: "facade",
-            attributes: ["name", "cost_type", "cost", "builder_cost", "image"],
-            include: [
-              { model: db.sequelize?.models?.DriveFile || db.DriveFile, as: "facadeImageFile", attributes: ["s3_key"] }
-            ]
-          },
-          {
-            model: Package,
-            as: "package",
-            attributes: ["name", "cost", "builder_cost"]
-          }
         ],
       });
 
@@ -1047,76 +1144,242 @@ class QuotationService {
         return { success: false, message: "Quotation version not found" };
       }
 
-      if (!quotationVersion.structure_engineer_id) {
-        return { success: false, message: "No Structure Engineer is assigned to this quotation version" };
+      const engineer = quotationVersion.structureEngineer;
+      const compactionUrlRaw = quotationVersion.quotation?.lead?.propertyDetail?.compaction_report_url || null;
+
+      const [engReqFile, emailTemplates] = await Promise.all([
+        getQuotationDriveFile(versionId, DRIVE_FILE_MAPPING.SUB_REFERENCES.ENGINEERING_REQUIREMENT),
+        TemplateEmail.findAll({
+          where: {
+            is_active: true,
+            [Op.or]: [
+              ...(builderId ? [{ builder_id: builderId }] : []),
+              ...(companyId ? [{ company_id: companyId }] : []),
+            ],
+          },
+          attributes: ["template_email_id", "name", "subject", "email_content"],
+          order: [["name", "ASC"]],
+        }),
+      ]);
+
+      const presignedFor = async (file, subRef) =>
+        file?.s3_key ? await getQuotationDriveFilePresignedUrl(versionId, subRef) : null;
+
+      const engReqUrl = await presignedFor(engReqFile, DRIVE_FILE_MAPPING.SUB_REFERENCES.ENGINEERING_REQUIREMENT);
+
+      // compaction_report_url is a DriveFile UUID FK (nested include here, so the
+      // afterFind hook hasn't resolved it to a URL) — map it to the real s3_key
+      // before presigning, otherwise we'd sign the UUID and get NoSuchKey.
+      let compactionUrl = null;
+      const compactionKey = await resolveCompactionS3Key(compactionUrlRaw);
+      if (compactionKey) {
+        const presigned = await generatePresignedDownloadUrl(compactionKey);
+        compactionUrl = presigned?.success ? presigned.url : null;
+      }
+
+      return {
+        success: true,
+        data: {
+          engineer: engineer
+            ? { name: engineer.name || null, email: engineer.email || null, phone: engineer.phone || null }
+            : null,
+          engineeringRequirement: {
+            exists: !!engReqFile,
+            fileId: engReqFile?.file_id || null,
+            presignedUrl: engReqUrl,
+          },
+          compactionReport: {
+            exists: !!compactionUrlRaw,
+            presignedUrl: compactionUrl,
+          },
+          emailTemplates: (emailTemplates || []).map((t) => ({
+            templateEmailId: t.template_email_id,
+            name: t.name,
+            subject: t.subject,
+            emailContent: t.email_content,
+          })),
+          sendToEngineer: !!quotationVersion.send_to_engineer,
+        },
+        message: "Engineer mail preview fetched successfully",
+      };
+    } catch (error) {
+      console.error("Error in getEngineerMailPreview:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Generate the Engineering Requirement PDF fresh from QuotationVersion data,
+   * store it in S3 + drive_files, and return a presigned URL for preview.
+   * Safe to call repeatedly — upsertQuotationDriveFile overwrites the existing
+   * active row (partial unique index), so re-generating replaces the file.
+   */
+  async generateEngineeringRequirement(versionId, builderId, companyId, userId) {
+    try {
+      const t0 = Date.now();
+      const quotationVersion = await this._fetchQuotationVersionForEngineer(versionId);
+
+      if (!quotationVersion) {
+        return { success: false, message: "Quotation version not found" };
+      }
+      const tFetch = Date.now();
+
+      const versionPlain = quotationVersion.get({ plain: true });
+      const pdfData = await this._buildEngineerPdfData(versionPlain);
+      const tBuild = Date.now();
+
+      const html = generateEngineerPdfHtml(pdfData);
+      const buffer = await generatePDF(html);
+      const tPdf = Date.now();
+
+      const s3Key = `engineering-requirements/qv_${versionId}_${Date.now()}.pdf`;
+      const uploadResult = await uploadFile(s3Key, buffer, "application/pdf");
+      const tUpload = Date.now();
+      console.log(
+        `[EngReq] timings ms — dbFetch:${tFetch - t0} buildData(imgDL):${tBuild - tFetch} pdf:${tPdf - tBuild} upload:${tUpload - tPdf} total:${tUpload - t0}`,
+      );
+      if (!uploadResult?.success) {
+        return { success: false, message: "Failed to upload Engineering Requirement PDF" };
+      }
+
+      // The DriveFile upsert and the presigned-URL generation are independent
+      // once we have the s3Key — run them in parallel. Skipping the secondary
+      // DB lookup in getQuotationDriveFilePresignedUrl saves one round-trip.
+      const [, presignedResult] = await Promise.all([
+        upsertQuotationDriveFile({
+          versionId,
+          subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.ENGINEERING_REQUIREMENT,
+          s3Key,
+          size: buffer.length,
+          originalName: "Engineering_Requirement.pdf",
+          mimeType: "application/pdf",
+          builderId,
+          companyId,
+          uploadedBy: userId,
+        }),
+        generatePresignedDownloadUrl(s3Key, 3600),
+      ]);
+      const presignedUrl = presignedResult?.success ? presignedResult.url : null;
+
+      return {
+        success: true,
+        data: { presignedUrl },
+        message: "Engineering Requirement generated successfully",
+      };
+    } catch (error) {
+      console.error("Error in generateEngineeringRequirement:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Send the engineering request email to the structural engineer with the
+   * Engineering Requirement PDF (and Completion Report, if uploaded) attached.
+   *
+   * Attachments are passed as S3 keys (attachmentKeys) — the notificationWorker
+   * downloads bytes at send time. Storing base64 PDFs in the Bull job payload
+   * pushed Redis past maxmemory and caused queueing to fail with OOM.
+   */
+  async sendEngineerEmail(versionId, builderId, companyId, emailData = {}) {
+    try {
+      const { subject, email_body: emailBody } = emailData;
+      if (!subject || !emailBody) {
+        return { success: false, message: "Subject and email body are required" };
+      }
+
+      const quotationVersion = await this._fetchQuotationVersionForEngineer(versionId);
+
+      if (!quotationVersion) {
+        return { success: false, message: "Quotation version not found" };
       }
 
       const engineer = quotationVersion.structureEngineer;
       if (!engineer || !engineer.email) {
         return { success: false, message: "Structure Engineer does not have a valid email address" };
       }
-      // Temporary placeholder content until user specifies format
-      const subject = `Engineering Request - Quotation ${quotationVersion.quotation?.reference_number || versionId}`;
-      const text = `Dear ${engineer.name},\n\nPlease review the engineering requirements for this quotation.\n\nMore details will follow.`;
-      const html = `<p>Dear ${engineer.name},</p><p>Please review the engineering requirements for this quotation.</p><p>More details will follow.</p>`;
+
+      // The Engineering Requirement PDF must be generated before sending.
+      if (!quotationVersion.quotation_version_detail) {
+        return {
+          success: false,
+          message: "Please generate the Engineering Requirement PDF before sending the email",
+        };
+      }
 
       const versionPlain = quotationVersion.get({ plain: true });
+      const property = versionPlain.quotation?.lead?.propertyDetail || {};
 
-      const s3BaseUrl = `https://${env.AWS.S3_BUCKET_NAME}.s3.amazonaws.com`;
-      if (versionPlain.facade && versionPlain.facade.facadeImageFile?.s3_key) {
-        versionPlain.facade.image = `${s3BaseUrl}/${versionPlain.facade.facadeImageFile.s3_key}`;
+      // Resolve S3 keys: Engineering Requirement (required) + Compaction Report
+      // (property level, optional).
+      const engReqKey = await getQuotationDriveFileS3Key(
+        versionId,
+        DRIVE_FILE_MAPPING.SUB_REFERENCES.ENGINEERING_REQUIREMENT,
+      );
+      // compaction_report_url is a DriveFile UUID FK (nested include) — resolve
+      // it to the real s3_key so the email attachment isn't a missing object.
+      const compactionKey = await resolveCompactionS3Key(property.compaction_report_url || null);
+
+      if (!engReqKey) {
+        return {
+          success: false,
+          message: "Engineering Requirement PDF is missing. Please generate it again before sending.",
+        };
       }
-      if (versionPlain.floorPlan) {
-        if (versionPlain.floorPlan.detailedImageFile?.s3_key) {
-          versionPlain.floorPlan.detailed_image = `${s3BaseUrl}/${versionPlain.floorPlan.detailedImageFile.s3_key}`;
-        }
-        if (versionPlain.floorPlan.simpleImageFile?.s3_key) {
-          versionPlain.floorPlan.simple_image = `${s3BaseUrl}/${versionPlain.floorPlan.simpleImageFile.s3_key}`;
-        }
+
+      // Pass only S3 keys through the queue — the notification worker downloads
+      // bytes at send time. Putting base64 PDFs in the job payload pushed Redis
+      // past maxmemory and made `notificationQueue.add` fail with OOM.
+      const attachmentKeys = [
+        { key: engReqKey, filename: "Engineering_Requirement.pdf", contentType: "application/pdf" },
+      ];
+      if (compactionKey) {
+        attachmentKeys.push({
+          key: compactionKey,
+          filename: "Compaction_Report.pdf",
+          contentType: "application/pdf",
+        });
       }
 
-      // Resolve report S3 keys from DriveFile records (replaces direct reads of
-      // the legacy upload_report / structure_engineer_report columns, which now
-      // hold the DriveFile primary key, not the S3 URL).
-      const [uploadReportKey, structureEngineerReportKey] = await Promise.all([
-        getQuotationDriveFileS3Key(versionId, DRIVE_FILE_MAPPING.SUB_REFERENCES.STRUCTURE_ENGINEER_UPLOAD),
-        getQuotationDriveFileS3Key(versionId, DRIVE_FILE_MAPPING.SUB_REFERENCES.STRUCTURE_ENGINEER_REPORT),
-      ]);
+      // Wrap the user-authored body in the branded email layout.
+      const address = [
+        property.lot_number ? `Lot ${property.lot_number}` : null,
+        property.street,
+        property.city,
+        property.zip_code,
+      ].filter(Boolean).join(", ") || null;
 
-      // Extract fetched data for the PDF
-      const pdfData = {
-        range: versionPlain.range || null,
-        dwellingType: versionPlain.dwellingType || null,
-        floorPlan: versionPlain.floorPlan || null,
-        facade: versionPlain.facade || null,
-        package: versionPlain.package || null,
-        propertyDetail: versionPlain.quotation?.lead?.propertyDetail || versionPlain.quotation?.lead?.property_detail || null,
-        uploadReport: uploadReportKey,
-        structureEngineerReport: structureEngineerReportKey,
-        leadId: versionPlain.quotation?.lead?.leads_id || versionPlain.quotation?.leads_id || null,
-        versionId: versionId || versionPlain.quotation_version_id || null
-      };
+      const uploadUrl = env.EMAIL?.FRONTEND_BASE_URL
+        ? `${env.EMAIL.FRONTEND_BASE_URL}/external?Type=structuralengineer&id=${versionId}`
+        : "";
 
-      // Add to background queue
-      engineerEmailQueue.add({
-        email: engineer.email,
+      const html = wrapEngineerEmailHTML({
         subject,
-        text,
-        html,
-        pdfData, // Passing the fetched data to the worker
-        versionId: quotationVersion.quotation_version_id // Pass the quotation_version_id
-      }, {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true
-      }).catch(err => console.error("Error adding engineer email job:", err));
+        bodyHtml: emailBody,
+        specs: {
+          address,
+          rangeName: versionPlain.range?.name,
+          floorPlanName: versionPlain.floorPlan?.name,
+          facadeName: versionPlain.facade?.name,
+          packageName: versionPlain.package?.name,
+        },
+        uploadUrl,
+      });
 
-      // Mark as sent to engineer and reset is_uploaded to false
+      // notificationWorker calls text.replace(...), so text must be a string.
+      const plainText = String(emailBody)
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "Please find the attached engineering requirement documents.";
+
+      await sendEmail(engineer.email, subject, plainText, html, [], null, attachmentKeys);
+
+      // Mark as sent. The updateQuotationVersion safeguard then blocks changing
+      // the structure_engineer_id once send_to_engineer is true.
       quotationVersion.send_to_engineer = true;
       quotationVersion.is_uploaded = false;
       await quotationVersion.save();
 
-      return { success: true, message: "Engineer email has been queued successfully" };
+      return { success: true, message: "Engineer email has been sent successfully" };
     } catch (error) {
       console.error("Error in sendEngineerEmail service:", error);
       return { success: false, message: error.message };
@@ -1190,8 +1453,7 @@ class QuotationService {
         facade_price: hlp.facade?.cost || 0,
       }, { transaction: t });
 
-      // Sync drive files
-      await syncQuotationVersionFiles(quotationVersion, leadsId, t);
+      // Facade / floor-plan images are cloned by the QuotationVersion afterCreate hook.
 
       // 5. Copy Pricelist Items from HLP
       const hlpItems = await HLPackagePricelistItemMap.findAll({
@@ -1309,9 +1571,7 @@ class QuotationService {
 
       const newVersionId = newVersion.quotation_version_id;
 
-      // Sync drive files
-      const leadsId = sourceVersion.quotation?.leads_id;
-      await syncQuotationVersionFiles(newVersion, leadsId, t);
+      // Facade / floor-plan images are cloned by the QuotationVersion afterCreate hook.
 
       // 4. Copy quotation version items (Snapshots)
       const oldItems = await QuotationVersionItem.findAll({
@@ -1568,53 +1828,26 @@ class QuotationService {
   async getQuotationByHash(hash) {
     try {
       const { quotationId, leadId } = decodeQuotationHash(hash);
-      // pdf_url / signed_pdf_url now hold DriveFile UUIDs — resolve them to the
-      // underlying s3_key via subqueries so the public response stays usable.
-      const query = `
-        SELECT q.quotation_id, q.reference_number,
-               l.leads_id, l.name AS lead_name, l.email AS lead_email, l.phone AS lead_phone,
-               (
-                 SELECT json_agg(json_build_object(
-                   'quotation_version_id', qv.quotation_version_id,
-                   'quotation_version_no', qv.quotation_version_no,
-                   'is_approve', qv.is_approve,
-                   'esign_status', qv.esign_status,
-                   'pdf_url', (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = qv.quotation_version_id AND df.reference_type = 'QuotationVersion' AND df.sub_reference_type = 'QuotationReport' AND df.deleted_at IS NULL LIMIT 1),
-                   'signed_pdf_url', (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = qv.quotation_version_id AND df.reference_type = 'QuotationVersion' AND df.sub_reference_type = 'SignedQuotationReport' AND df.deleted_at IS NULL LIMIT 1),
-                   'created_at', qv.created_at
-                 ) ORDER BY qv.quotation_version_no DESC)
-                 FROM quotation_version qv WHERE qv.quotation_id = q.quotation_id
-               ) AS versions
-        FROM quotation q
-        JOIN leads l ON q.leads_id = l.leads_id
-        WHERE q.quotation_id = :quotationId AND l.leads_id = :leadId
-      `;
-      const rows = await db.sequelize.query(query, {
-        replacements: { quotationId, leadId },
-        type: db.Sequelize.QueryTypes.SELECT
+      const { Quotation } = db.sequelize.models;
+
+      // 1. Verify ownership and existence
+      const quotation = await Quotation.findOne({
+        where: {
+          quotation_id: quotationId,
+          leads_id: leadId,
+        },
       });
 
-      if (rows.length === 0) {
+      if (!quotation) {
         return { success: false, message: "Quotation not found" };
       }
 
-      const data = keysToCamelCase(rows[0]);
-      const s3Prefix = `https://${env.AWS.S3_BUCKET_NAME}.s3.${env.AWS.AWS_REGION}.amazonaws.com/`;
-      if (data.versions) {
-        data.versions = data.versions.map(v => {
-          const keysV = keysToCamelCase(v);
-          if (keysV.pdfUrl && !keysV.pdfUrl.startsWith("http")) {
-            keysV.pdfUrl = `${s3Prefix}${keysV.pdfUrl}`;
-          }
-          if (keysV.signedPdfUrl && !keysV.signedPdfUrl.startsWith("http")) {
-            keysV.signedPdfUrl = `${s3Prefix}${keysV.signedPdfUrl}`;
-          }
-          return keysV;
-        });
-      }
+      // 2. Fetch all detailed versions using the repository method
+      const versions = await quotationRepository.getVersionsByQuotationId(quotationId);
 
-      return { success: true, data };
+      return { success: true, data: versions };
     } catch (error) {
+      console.error("Error in getQuotationByHash:", error);
       return { success: false, message: "Invalid or expired link" };
     }
   }

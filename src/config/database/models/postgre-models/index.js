@@ -15,6 +15,8 @@ const DB_USER = env.DB.DB_USER;
 const DB_PASSWORD = env.DB.DB_PASSWORD;
 const DB_HOST = env.DB.DB_HOST;
 
+const isProduction = env.NODE_ENV === "production";
+
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   port: DB_PORT,
@@ -27,6 +29,12 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
     acquire: 30000,
     idle: 10000,
   },
+  dialectOptions: isProduction ? {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  } : {},
 });
 
 const db = {

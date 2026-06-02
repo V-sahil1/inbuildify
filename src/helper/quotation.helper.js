@@ -12,11 +12,9 @@ import db from "../config/database/models/postgre-models/index.js";
  */
 export const syncCompactionReportCharge = async (leadsId, builderId, companyId, userId, transaction) => {
   try {
-    let status, provider;
-    let versions = [];
+    const { Leads, PropertyDetail, Quotation, QuotationVersion, PriceList, PriceListItem, QuotationVersionItem } = db;
 
-    // Use Sequelize models
-    const { Leads, PropertyDetail, Quotation, QuotationVersion } = db;
+    // 1. Get lead and property detail
     const lead = await Leads.findOne({
       where: { leads_id: leadsId },
       include: [
@@ -30,10 +28,10 @@ export const syncCompactionReportCharge = async (leadsId, builderId, companyId, 
     });
 
     if (!lead || !lead.propertyDetail) return;
-    status = lead.propertyDetail.compaction_report;
-    provider = lead.propertyDetail.compaction_report_provider;
+    const { compaction_report: status, compaction_report_provider: provider } = lead.propertyDetail;
 
-    const versionsFound = await QuotationVersion.findAll({
+    // 2. Get all non-approved quotation versions for this lead
+    const versions = await QuotationVersion.findAll({
       where: { is_approve: false },
       include: [
         {
@@ -45,15 +43,16 @@ export const syncCompactionReportCharge = async (leadsId, builderId, companyId, 
       ],
       transaction,
     });
-    versions = versionsFound.map((v) => ({ quotation_version_id: v.quotation_version_id }));
 
     if (versions.length === 0) return;
 
     if (status === "not_available" && provider === "builder") {
-      let pli;
-      const { PriceList, PriceListItem, QuotationVersionItem } = db;
+      // 3. Find or create "Base Price" PriceList
       const [priceList] = await PriceList.findOrCreate({
-        where: { builder_id: builderId, name: "Base Price" },
+        where: { 
+          builder_id: builderId, 
+          name: "Base Price" 
+        },
         defaults: {
           company_id: companyId || null,
           builder_id: builderId,
@@ -65,6 +64,7 @@ export const syncCompactionReportCharge = async (leadsId, builderId, companyId, 
         transaction,
       });
 
+      // 4. Find or create "Compaction Report Charge" PriceListItem
       const [pliRecord] = await PriceListItem.findOrCreate({
         where: {
           price_list_id: priceList.price_list_id,
@@ -85,8 +85,9 @@ export const syncCompactionReportCharge = async (leadsId, builderId, companyId, 
         transaction,
       });
 
-      pli = pliRecord.get({ plain: true });
+      const pli = pliRecord.get({ plain: true });
 
+      // 5. Sync item across all non-approved versions
       for (const version of versions) {
         await QuotationVersionItem.findOrCreate({
           where: {
@@ -124,7 +125,7 @@ export const syncCompactionReportCharge = async (leadsId, builderId, companyId, 
         });
       }
     } else if (status === "available") {
-      const { QuotationVersionItem } = db;
+      // 6. Remove the charge if it's no longer applicable
       await QuotationVersionItem.destroy({
         where: {
           quotation_version_id: versions.map((v) => v.quotation_version_id),

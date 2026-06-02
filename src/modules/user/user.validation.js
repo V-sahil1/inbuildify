@@ -37,6 +37,7 @@ export const createUserSchema = Joi.object({
   email: emailRule,
   login_id: loginIdRule.optional(),
   role_id: uuidRule.required(),
+  company_id: uuidRule.required(),
   phone: phoneRule,
   secondary_phone: phoneRule,
   initials: Joi.string().max(10).allow(null, ""),

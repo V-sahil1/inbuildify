@@ -13,6 +13,7 @@ export async function createMasterSectionHeader(req, res) {
     res.status(201).json({
       success: true,
       message: "Master section header created successfully",
+      master_section_header_id: result.masterSectionHeaderId || result.master_section_header_id,
       data: result,
     });
   } catch (error) {
@@ -28,7 +29,11 @@ export async function createMasterSectionHeader(req, res) {
 export async function getMasterSectionHeaders(req, res) {
   try {
     const currentUser = req.user;
-    const filters = req.query;
+    const { master_section_id } = req.params;
+    const filters = { ...req.query };
+    if (master_section_id) {
+      filters.master_section_id = master_section_id;
+    }
     const result = await quotationFormatMasterSectionHeaderService.getMasterSectionHeaders(currentUser, filters);
     res.status(200).json({
       success: true,
@@ -106,6 +111,27 @@ export async function deleteMasterSectionHeader(req, res) {
   }
 }
 
+export async function copyMasterSectionHeader(req, res) {
+  try {
+    const currentUser = req.user;
+    const { header_id } = req.params;
+    console.log("🚀 ~ copyMasterSectionHeader ~ payload:")
+    const result = await quotationFormatMasterSectionHeaderService.copyMasterSectionHeader(currentUser, header_id);
+    res.status(201).json({
+      success: true,
+      message: "Master section header copied successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error copying master section header:", error);
+    const statusCode = error.status || 500;
+    res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to copy master section header",
+    });
+  }
+}
+
 export default {
   // Master Section Header
   createMasterSectionHeader,
@@ -113,4 +139,5 @@ export default {
   getMasterSectionHeaderById,
   updateMasterSectionHeader,
   deleteMasterSectionHeader,
+  copyMasterSectionHeader,
 };

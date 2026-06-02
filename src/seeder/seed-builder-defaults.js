@@ -7,6 +7,7 @@ import { seedGeneralSettings } from "./seed-general-settings.js";
 import { seedPriceList } from "./seed-price-list.js";
 import { seedSalesModuleSettings } from "./seed-sales-module-settings.js";
 import { seedQuotationSettings } from "./seed-quotation-settings.js";
+import { seedLeadLostReasons } from "./seed-lead-lost-reasons.js";
 import { seedHouseLandPackageSettings } from "./seed-house-land-package-settings.js";
 import { seedJobSettings } from "./seed-job-settings.js";
 import { seedJobColorSettings } from "./seed-job-color-settings.js";
@@ -119,6 +120,9 @@ export async function seedBuilderDefaults({ company_id, builder_id, created_by, 
 
   // 22. Price List (Base Price) and default Price List Item
   await seedPriceList(ctx);
+
+  // 23. Lead Lost Reasons
+  await seedLeadLostReasons(ctx);
 
   // 23. Notification Templates
   await seedNotificationTemplate(ctx);

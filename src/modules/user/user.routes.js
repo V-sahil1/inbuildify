@@ -57,7 +57,7 @@ router.post(
   },
   camelToSnakeMiddleware,
   authMiddleware,
-  roleMiddleware,
+  roleMiddleware("Company Administrator"),
   validateRequest(createUserSchema, REQUEST_SOURCE.FORM_DATA),
   userController.createUser,
 );

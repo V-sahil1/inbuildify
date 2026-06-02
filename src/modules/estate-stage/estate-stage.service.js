@@ -64,8 +64,7 @@ export const createEstateStageService = async ({ builderId, data }) => {
       return true;
     }
     const date = new Date(dateString);
-    // Simple ISO date YYYY-MM-DD check parity with legacy
-    return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+    return !isNaN(date.getTime());
   }
 
   if (release_date && !isValidDate(release_date)) {
@@ -157,7 +156,7 @@ export const updateEstateStageService = async ({ builderId, stageId, data, uploa
       return true;
     }
     const date = new Date(dateString);
-    return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+    return !isNaN(date.getTime());
   }
 
   if (release_date && !isValidDate(release_date)) {

@@ -19,6 +19,7 @@ import engineerEmailQueue from "./src/workers/engineerEmailWorker.js";
 
 import passport from "passport";
 import "./src/config/passport.config.js";
+import { warmupBrowser } from "./src/modules/quotation/pdf.service.js";
 
 // Removed top-level connectPostgre call. It's now moved to wrap app.listen.
 
@@ -74,6 +75,9 @@ connectPostgre()
     app.listen(PORT, (err, res) => {
       if (!err) {
         console.log(`server running on PORT ${PORT}...`);
+        // Pre-warm Puppeteer so the first PDF request doesn't pay the cold
+        // Chromium launch (the dominant first-hit cost behind the 504s).
+        warmupBrowser();
       }
 
       console.log(`     

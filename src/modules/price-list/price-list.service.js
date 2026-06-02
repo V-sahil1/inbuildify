@@ -188,13 +188,13 @@ export async function getAllPriceListService({
 
   // Default: only show non-suggested; overridden when filter is provided
   if (is_suggested !== undefined) {
-    where.is_suggested = is_suggested === "true";
+    where.is_suggested = String(is_suggested) === "true";
   } else {
     where.is_suggested = false;
   }
 
   if (is_active !== undefined) {
-    where.is_active = is_active === "true";
+    where.is_active = String(is_active) === "true";
   }
 
   if (search) {

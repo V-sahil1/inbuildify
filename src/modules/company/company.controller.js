@@ -5,14 +5,15 @@ import {
   from "./company.service.js";
 
 export async function getCompany(req, res) {
-  const builderId = req.user?.builder_id;
+  const builderId = req.user?.builder_id || null;
+  const companyId = req.user?.company_id || null;
 
   try {
-    if (!builderId) {
+    if (!builderId && !companyId) {
       return errorResponse(res, 401, "Unauthorized");
     }
 
-    const company = await getCompanyService({ builderId });
+    const company = await getCompanyService({ builderId, companyId });
 
     return successResponse(res, company, "Company fetched successfully");
   } catch (err) {
@@ -22,14 +23,15 @@ export async function getCompany(req, res) {
 }
 
 export async function upsertCompany(req, res) {
-  const builderId = req.user?.builder_id;
+  const builderId = req.user?.builder_id || null;
+  const companyId = req.user?.company_id || null;
 
   try {
-    if (!builderId) {
+    if (!builderId && !companyId) {
       return errorResponse(res, 401, "Unauthorized");
     }
 
-    const company = await upsertCompanyService(builderId, req.body);
+    const company = await upsertCompanyService({ builderId, companyId }, req.body);
 
     return successResponse(res, company, "Company saved successfully");
   } catch (err) {

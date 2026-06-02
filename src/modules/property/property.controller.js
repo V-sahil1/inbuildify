@@ -60,9 +60,16 @@ export async function getPropertyByLeadId(req, res) {
 export async function updateProperty(req, res) {
   try {
     const { property_detail_id } = req.params;
+    const propertyData = { ...req.body };
+
+    // Handle file upload
+    if (req.file) {
+      propertyData.compaction_report_url = req.file.location;
+    }
+
     const updatedProperty = await updatePropertyService(
       property_detail_id,
-      req.body,
+      propertyData,
       req.file,
       req.user
     );

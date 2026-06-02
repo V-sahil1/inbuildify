@@ -1,6 +1,7 @@
 import Bull from "bull";
 import nodemailer from "nodemailer";
 import { env } from "../config/env.config.js";
+import { getObject } from "../service/s3.service.js";
 
 const transporter = nodemailer.createTransport({
   service: "Gmail",
@@ -17,7 +18,7 @@ const notificationQueue = new Bull("notificationQueue", {
 });
 
 notificationQueue.process(async (job) => {
-  const { to, subject, text, html, attachments, cc } = job.data;
+  const { to, subject, text, html, attachments = [], cc, attachmentKeys = [] } = job.data;
 
   try {
     const linkRegex = /(https?:\/\/[^\s]+)/g;
@@ -25,6 +26,28 @@ notificationQueue.process(async (job) => {
       linkRegex,
       "<a href=\"$1\" style=\"color: #007bff; text-decoration: none;\">$1</a>",
     );
+
+    // Resolve attachmentKeys (S3 references) into real attachments here so the
+    // PDF bytes never sit in Redis as base64 — that's what tripped OOM on the
+    // engineer email path.
+    const resolvedAttachments = Array.isArray(attachments) ? [...attachments] : [];
+    for (const item of attachmentKeys) {
+      if (!item?.key) continue;
+      try {
+        const obj = await getObject(item.key);
+        if (obj?.success && obj?.data) {
+          resolvedAttachments.push({
+            filename: item.filename,
+            content: obj.data,
+            contentType: item.contentType || obj.contentType || "application/octet-stream",
+          });
+        } else {
+          console.error(`Failed to fetch S3 attachment ${item.key}: ${obj?.error || "no data"}`);
+        }
+      } catch (e) {
+        console.error(`Error fetching S3 attachment ${item.key}:`, e.message);
+      }
+    }
 
     const mailOptions = {
       from: env.EMAIL.GMAIL,
@@ -43,7 +66,7 @@ notificationQueue.process(async (job) => {
           </p>
         </div>
       `,
-      attachments,
+      attachments: resolvedAttachments,
     };
 
     const info = await transporter.sendMail(mailOptions);

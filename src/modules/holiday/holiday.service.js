@@ -137,7 +137,7 @@ export const createHolidayService = async ({ companyId, builderId, userId, data 
 
   const isValidDate = (dateString) => {
     const date = new Date(dateString);
-    return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+    return !isNaN(date.getTime());
   };
 
   if (holiday_start_date && !isValidDate(holiday_start_date)) {

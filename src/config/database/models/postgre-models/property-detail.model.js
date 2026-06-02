@@ -1,4 +1,5 @@
 import { Model, DataTypes } from "sequelize";
+import { resolveImageUrls } from "../../../../helper/imageDriveFile.helper.js";
 
 export class PropertyDetail extends Model {
   static associate(models) {
@@ -8,6 +9,9 @@ export class PropertyDetail extends Model {
     PropertyDetail.belongsTo(models.Estate, { foreignKey: "estate_id", as: "estate", onDelete: "CASCADE" });
     PropertyDetail.belongsTo(models.EstateStages, { foreignKey: "estate_stage_id", as: "estateStage", onDelete: "CASCADE" });
     PropertyDetail.hasMany(models.Leads, { foreignKey: "property_detail_id", as: "leads" });
+    // compaction_report_url stores a DriveFile PK (UUID FK); the real file lives
+    // in drive_files. constraints:false because the FK is managed by migration.
+    PropertyDetail.belongsTo(models.DriveFile, { foreignKey: "compaction_report_url", as: "compactionReportFile", constraints: false });
   }
 }
 
@@ -31,7 +35,10 @@ export default (sequelize) => {
       title_date: { type: DataTypes.DATEONLY, allowNull: true },
       clearing_date: { type: DataTypes.DATEONLY, allowNull: true },
       compaction_report: { type: DataTypes.STRING(255), allowNull: true },
-      compaction_report_url: { type: DataTypes.STRING(500), allowNull: true },
+      // Holds the DriveFile PK (sub_reference_type=CompactionReport). The
+      // s3_key/URL lives in drive_files; the afterFind hook below resolves this
+      // UUID back to an absolute S3 URL so API responses stay unchanged.
+      compaction_report_url: { type: DataTypes.UUID, allowNull: true },
       compaction_report_content: { type: DataTypes.JSONB, allowNull: true },
       land_type: { type: DataTypes.STRING(255), allowNull: true },
       width_m: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
@@ -49,5 +56,12 @@ export default (sequelize) => {
     },
     { sequelize, tableName: "property_detail", modelName: "PropertyDetail", underscored: true },
   );
+
+  // Resolve the compaction_report_url UUID FK → absolute S3 URL on read (one
+  // batched DriveFile query). Mirrors Facade.image / FloorPlan image columns.
+  PropertyDetail.addHook("afterFind", (results, options) =>
+    resolveImageUrls(results, ["compaction_report_url"], sequelize, options?.transaction),
+  );
+
   return PropertyDetail;
 };

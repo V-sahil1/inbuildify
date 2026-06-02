@@ -99,6 +99,27 @@ const QUOTE_ACCEPTED_BODY = `<!DOCTYPE html>
 </body>
 </html>`;
 
+export const WELCOME_EMAIL_BODY = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f4f4f4;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+    <div style="background:#0056b3;color:#ffffff;padding:24px 30px;text-align:center;">
+      <h1 style="margin:0;font-size:24px;">Welcome to {{builderName}}</h1>
+    </div>
+    <div style="padding:30px;line-height:1.6;color:#333333;">
+      <p>Dear {{leadName}},</p>
+      <p>Thank you for your interest in building with <strong>{{builderName}}</strong>. We are thrilled to have the opportunity to work with you and help bring your vision to life.</p>
+      <p>Our team is dedicated to providing you with the highest quality service and guidance throughout your building journey.</p>
+      <p>If you have any questions or would like to schedule a consultation, please don't hesitate to reach out to us.</p>
+      <p style="margin-top:25px;">Best regards,<br><strong>The {{builderName}} Team</strong></p>
+    </div>
+    <div style="background:#f1f1f1;padding:15px;text-align:center;font-size:12px;color:#777777;">
+      This is an automated message. Please do not reply directly to this email.
+    </div>
+  </div>
+</body>
+</html>`;
+
 export async function seedNotificationTemplate({ company_id, builder_id, transaction }) {
   const { NotificationTemplate } = db;
 
@@ -135,6 +156,24 @@ export async function seedNotificationTemplate({ company_id, builder_id, transac
     },
     transaction,
   });
+
+  await NotificationTemplate.findOrCreate({
+    where: {
+      builder_id,
+      template_type: "WELCOME_EMAIL",
+    },
+    defaults: {
+      company_id: company_id || null,
+      builder_id,
+      notification_type: "EMAIL",
+      template_type: "WELCOME_EMAIL",
+      title: "Welcome to {{builderName}}!",
+      body: WELCOME_EMAIL_BODY,
+      is_active: true,
+    },
+    transaction,
+  });
 }
 
 export default { seedNotificationTemplate };
+

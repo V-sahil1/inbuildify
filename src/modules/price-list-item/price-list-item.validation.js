@@ -246,7 +246,6 @@ export const updatePriceListItemSchema = Joi.object({
 
   cost_option: Joi.string()
     .valid("none", "tba", "tbc")
-    .default("none")
     .max(50)
     .optional(),
 
@@ -254,7 +253,7 @@ export const updatePriceListItemSchema = Joi.object({
 
   builder_cost: Joi.number().precision(2).allow(null).optional(),
 
-  sort_order: Joi.number().integer().min(0).default(0).optional(),
+  sort_order: Joi.number().integer().min(0).optional(),
 
   uom: Joi.string()
     .valid(...UOM_VALUES)
@@ -268,7 +267,6 @@ export const updatePriceListItemSchema = Joi.object({
 
   status: Joi.string()
     .valid("active", "inactive")
-    .default("active")
     .trim()
     .max(20)
     .optional(),

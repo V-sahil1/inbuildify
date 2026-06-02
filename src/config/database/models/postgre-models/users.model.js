@@ -3,6 +3,7 @@ import { Model, DataTypes } from "sequelize";
 export class Users extends Model {
   static associate(models) {
     Users.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
+    Users.belongsTo(models.Company, { foreignKey: "company_id", as: "company", onDelete: "CASCADE" });
     Users.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
     Users.belongsTo(models.Users, { foreignKey: "reporting_to", as: "reportingToUser" });
     Users.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
@@ -15,7 +16,10 @@ export class Users extends Model {
 export default (sequelize) => {
   Users.init({
     users_id: { type: DataTypes.UUID, defaultValue: sequelize.literal("gen_random_uuid()"), primaryKey: true },
-    builder_id: { type: DataTypes.UUID, allowNull: false },
+    // Either company_id (Company Administrator at company level) or
+    // builder_id (everyone else, scoped under a specific Builder) must be set.
+    builder_id: { type: DataTypes.UUID, allowNull: true },
+    company_id: { type: DataTypes.UUID, allowNull: true },
     name: { type: DataTypes.STRING(100), allowNull: false },
     email: { type: DataTypes.STRING(100), allowNull: false },
     password: { type: DataTypes.STRING(255), allowNull: true },

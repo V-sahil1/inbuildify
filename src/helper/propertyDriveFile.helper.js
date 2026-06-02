@@ -1,6 +1,7 @@
 import db from "../config/database/models/postgre-models/index.js";
 import { DRIVE_FILE_MAPPING } from "../constants/driveFile.js";
 import { env } from "../config/env.config.js";
+import { isUuid } from "./imageDriveFile.helper.js";
 
 const REFERENCE_TYPE = DRIVE_FILE_MAPPING.REFERENCE_NAMES.PROPERTY_DETAIL;
 
@@ -33,6 +34,39 @@ export function getS3KeyFromUrl(fileUrl) {
   } catch (e) {
     return fileUrl;
   }
+}
+
+/**
+ * Resolve a compaction_report_url column value into a real S3 key for presigning.
+ *
+ * After migration 20260527120000 the column is a UUID FK to drive_files.file_id.
+ * The PropertyDetail afterFind hook rewrites that UUID into an absolute S3 URL,
+ * but ONLY on direct queries — when PropertyDetail is loaded as a nested include
+ * (e.g. through QuotationVersion → Quotation → Leads) the hook does not fire and
+ * the value is still the raw UUID. Presigning that UUID as a key yields NoSuchKey.
+ *
+ * Handles all three shapes a caller might hold:
+ *   - DriveFile UUID  → look up drive_files.s3_key
+ *   - absolute S3 URL → strip to the key (hook already resolved it)
+ *   - raw S3 key      → returned as-is
+ *
+ * @returns {Promise<string|null>} the S3 key, or null if it can't be resolved.
+ */
+export async function resolveCompactionS3Key(rawValue, { transaction } = {}) {
+  if (!rawValue || typeof rawValue !== "string") return null;
+
+  if (isUuid(rawValue)) {
+    const { DriveFile } = db.sequelize.models;
+    const file = await DriveFile.findOne({
+      where: { file_id: rawValue },
+      attributes: ["s3_key"],
+      transaction,
+    });
+    return file?.s3_key || null;
+  }
+
+  // Absolute S3 URL or an already-bare key.
+  return getS3KeyFromUrl(rawValue);
 }
 
 async function findOrCreateFolder({ name, companyId, builderId, transaction }) {
@@ -124,6 +158,28 @@ export async function upsertPropertyDriveFile({
     },
     { transaction },
   );
+}
+
+/**
+ * Fetch the DriveFile a PropertyDetail currently points at via the polymorphic
+ * (reference_id, reference_type, sub_reference_type) tuple. Returns the active
+ * (non-deleted) row or null. Used to read the current s3_key before an upsert
+ * replaces it (so the old S3 object can be cleaned up).
+ */
+export async function getPropertyDriveFile(
+  propertyDetailId,
+  subReferenceType = DRIVE_FILE_MAPPING.SUB_REFERENCES.COMPACTION_REPORT,
+  { transaction } = {}
+) {
+  const { DriveFile } = db.sequelize.models;
+  return DriveFile.findOne({
+    where: {
+      reference_id: propertyDetailId,
+      reference_type: REFERENCE_TYPE,
+      sub_reference_type: subReferenceType,
+    },
+    transaction,
+  });
 }
 
 /**

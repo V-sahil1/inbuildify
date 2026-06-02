@@ -450,14 +450,186 @@ export const deleteQuotationFormatsService = async (quotation_format_id) => {
 
   return { success: true };
 
-
-
 }
+
+export const copyQuotationFormatService = async ({ quotationFormatId, builderId, companyId, userId, body }) => {
+  const { QuotationFormat, QuotationFormatCustomSection, MasterSection, MasterSectionHeader, MasterSectionItem, sequelize } = db;
+  const transaction = await sequelize.transaction();
+
+  try {
+
+    // Find the source QuotationFormat
+    const sourceFormat = await QuotationFormat.findOne({
+      where: {
+        quotation_format_id: quotationFormatId,
+        builder_id: builderId,
+      },
+      transaction,
+    });
+
+    if (!sourceFormat) {
+      throw {
+        status: 404,
+        message: "Quotation Format not found or access denied.",
+      };
+    }
+
+    // Determine target name (default: "Name - Copy")
+    const targetName = `${sourceFormat.format_name} - Copy`;
+
+    // Check for duplicate in the same builder scope
+    const duplicate = await QuotationFormat.findOne({
+      where: {
+        builder_id: builderId,
+        format_name: { [db.Sequelize.Op.iLike]: targetName }
+      },
+      transaction,
+    });
+
+    if (duplicate) {
+      throw {
+        status: 409,
+        message: "Quotation format name already exists.",
+      };
+    }
+
+    // Create the new QuotationFormat clone
+    const clonedFormat = await QuotationFormat.create(
+      {
+        builder_id: builderId,
+        company_id: companyId,
+        created_by: userId,
+        updated_by: userId,
+        role_id: sourceFormat.role_id,
+        format_name: targetName,
+        logo_alignment: sourceFormat.logo_alignment,
+        logo_size_height: sourceFormat.logo_size_height,
+        logo_size_width: sourceFormat.logo_size_width,
+        logo_padding: sourceFormat.logo_padding,
+        hide_logo_first_page: sourceFormat.hide_logo_first_page,
+        label_logo_size_height: sourceFormat.label_logo_size_height,
+        label_logo_size_width: sourceFormat.label_logo_size_width,
+        show_account: sourceFormat.show_account,
+        show_excel: sourceFormat.show_excel,
+        watermark: sourceFormat.watermark,
+        default_facade: sourceFormat.default_facade,
+        draft_background_image: sourceFormat.draft_background_image,
+        draft_background: sourceFormat.draft_background,
+        hide_watermark: sourceFormat.hide_watermark,
+        status: sourceFormat.status,
+        make_default: false, // Default copies to non-default to prevent multiple default formats
+        include_package_price_list: sourceFormat.include_package_price_list,
+        show_quotation_with_builder: sourceFormat.show_quotation_with_builder,
+        show_quotation_with_builder_detailed: sourceFormat.show_quotation_with_builder_detailed,
+        show_job_address: sourceFormat.show_job_address,
+        footer_column_count: sourceFormat.footer_column_count,
+        custom_footer: sourceFormat.custom_footer,
+        bg_color: sourceFormat.bg_color,
+        description: sourceFormat.description,
+        description_2: sourceFormat.description_2,
+        description_3: sourceFormat.description_3,
+      },
+      { transaction }
+    );
+
+    // Fetch and duplicate all Custom Sections
+    const customSections = await QuotationFormatCustomSection.findAll({
+      where: { quotation_format_id: quotationFormatId },
+      transaction,
+    });
+
+    for (const cs of customSections) {
+      await QuotationFormatCustomSection.create(
+        {
+          company_id: companyId,
+          builder_id: builderId,
+          quotation_format_id: clonedFormat.quotation_format_id,
+          field_name: cs.field_name,
+          field_label: cs.field_label,
+          is_applicable: cs.is_applicable,
+          group_field: cs.group_field,
+          sort_order: cs.sort_order,
+          parent_field: cs.parent_field,
+          created_by: userId,
+          updated_by: userId,
+        },
+        { transaction }
+      );
+    }
+
+    // Fetch and duplicate all Master Sections (along with headers and items)
+    const masterSections = await MasterSection.findAll({
+      where: { quotation_format_id: quotationFormatId },
+      transaction,
+    });
+
+    for (const ms of masterSections) {
+      const clonedMasterSection = await MasterSection.create(
+        {
+          company_id: companyId,
+          builder_id: builderId,
+          quotation_format_id: clonedFormat.quotation_format_id,
+          master_name: ms.master_name,
+          status: ms.status,
+          created_by: userId,
+          updated_by: userId,
+        },
+        { transaction }
+      );
+
+      // Fetch headers of this master section
+      const headers = await MasterSectionHeader.findAll({
+        where: { master_section_id: ms.master_section_id },
+        transaction,
+      });
+
+      for (const header of headers) {
+        const clonedHeader = await MasterSectionHeader.create(
+          {
+            master_section_id: clonedMasterSection.master_section_id,
+            heading_name: header.heading_name,
+            effective_start_date: header.effective_start_date,
+            effective_end_date: header.effective_end_date,
+            sort_order: header.sort_order,
+            status: header.status,
+          },
+          { transaction }
+        );
+
+        // Fetch items of this header
+        const items = await MasterSectionItem.findAll({
+          where: { master_section_header_id: header.master_section_header_id },
+          transaction,
+        });
+
+        if (items.length > 0) {
+          const itemsToCreate = items.map((item) => ({
+            master_section_header_id: clonedHeader.master_section_header_id,
+            item_name: item.item_name,
+            effective_start_date: item.effective_start_date,
+            effective_end_date: item.effective_end_date,
+            sort_order: item.sort_order,
+            status: item.status,
+          }));
+
+          await MasterSectionItem.bulkCreate(itemsToCreate, { transaction });
+        }
+      }
+    }
+
+    await transaction.commit();
+    return keysToCamelCase(clonedFormat.toJSON());
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    throw error;
+  }
+};
 
 export default {
   createQuotationFormatService,
   updateQuotationFormatService,
   getQuotationFormatByIdService,
   getAllQuotationFormatsService,
-  deleteQuotationFormatsService
+  deleteQuotationFormatsService,
+  copyQuotationFormatService,
 };

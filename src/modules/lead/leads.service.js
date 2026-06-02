@@ -6,6 +6,7 @@ import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
 import { orderTaskFields } from "../task/task.service.js";
 import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
 import { env } from "../../config/env.config.js";
+import welcomeEmailQueue from "../../workers/welcomeEmailWorker.js";
 
 class LeadsService {
   async createLead(leadData, userId, builderId, companyId, forceCreate = false) {
@@ -166,9 +167,15 @@ class LeadsService {
       };
 
       await t.commit();
+
+      welcomeEmailQueue.add(
+        "welcomeEmail",
+        { leadsId: lead.leads_id, builderId, companyId, userId },
+        { attempts: 3, backoff: { type: "exponential", delay: 5000 }, removeOnComplete: true },
+      ).catch((err) => console.error("Error adding welcome email job:", err));
+
       return { success: true, data: resultData, message: "Lead created successfully" };
     } catch (error) {
-      if (t) await t.rollback();
       return { success: false, message: error.message };
     }
   }
@@ -215,7 +222,6 @@ class LeadsService {
           company_id: companyId || null,
           featur_facade_id: featurFacadeId,
         });
-        
         if (result.success) {
           result.data.featuredFacadeLead = keysToCamelCase(featuredFacadeLead.get({ plain: true }));
         } else {

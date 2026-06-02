@@ -55,11 +55,11 @@ async function validateSupervisorRolesActive(roleIds, builderId, transaction) {
 }
 
 /**
- * Validates that a date string is a valid calendar date (YYYY-MM-DD).
+ * Validates that a value is parseable as a date.
  */
 function isValidDate(dateString) {
   const date = new Date(dateString);
-  return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+  return !isNaN(date.getTime());
 }
 
 // ─── SERVICE: CREATE MAINTENANCE SETTINGS ────────────────────────────────────

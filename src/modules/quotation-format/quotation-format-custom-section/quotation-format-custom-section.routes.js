@@ -2,7 +2,6 @@ import express from "express";
 import {
   createQuotationFormatCustomSection,
   getQuotationFormatCustomSections,
-  getQuotationFormatCustomSectionById,
   updateQuotationFormatCustomSection,
   deleteQuotationFormatCustomSection,
 } from "./quotation-format-custom-section.controller.js";
@@ -38,15 +37,10 @@ router.post(
 );
 
 router.get(
-  "/",
+  "/:quotation_format_id",
+  validateRequest(paramsQuotationFormatIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(getCustomSectionSchema, REQUEST_SOURCE.QUERY),
   getQuotationFormatCustomSections
-);
-
-router.get(
-  "/:custom_section_id",
-  validateRequest(paramsCustomSectionIdSchema, REQUEST_SOURCE.PARAMS),
-  getQuotationFormatCustomSectionById
 );
 
 router.put(

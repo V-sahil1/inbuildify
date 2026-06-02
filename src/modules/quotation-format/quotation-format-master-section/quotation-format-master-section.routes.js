@@ -5,10 +5,9 @@ const router = express.Router();
 import {
   createMasterSection,
   getMasterSections,
-  getMasterSectionById,
   updateMasterSection,
   deleteMasterSection,
-
+  copyMasterSection,
 } from "./quotation-format-master-section.controller.js";
 import authMiddleware from "../../../middleware/authMiddleware.js";
 import roleMiddleware from "../../../middleware/roleMiddleware.js";
@@ -37,17 +36,12 @@ router.post(
   validateRequest(createMasterSectionSchema, REQUEST_SOURCE.BODY),
   createMasterSection,
 );
+
 router.get(
-  "/",
+  "/:quotation_format_id",
+  validateRequest(paramsQuotationFormatIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(getMasterSectionSchema, REQUEST_SOURCE.QUERY),
   getMasterSections,
-);
-
-
-router.get(
-  "/:master_section_id",
-  validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
-  getMasterSectionById,
 );
 
 router.put(
@@ -63,7 +57,11 @@ router.delete(
   deleteMasterSection,
 );
 
-// ============================================================
-//        MASTER SECTION ITEM ROUTES
+router.post(
+  "/:master_section_id/copy",
+  validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
+  copyMasterSection,
+);
+
 // ============================================================
 export default router;

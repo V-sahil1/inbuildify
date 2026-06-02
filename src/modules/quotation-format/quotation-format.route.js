@@ -5,7 +5,7 @@ import {
   getQuotationFormatById,
   getAllQuotationFormats,
   deleteQuotationFormat,
-
+  copyQuotationFormat,
 } from "./quotation-format.controller.js";
 import {
   createQuotationFormatSchema,
@@ -59,6 +59,13 @@ router.delete(
   "/:quotation_format_id",
   validateRequest(quotationFormatIdSchema, REQUEST_SOURCE.PARAMS),
   deleteQuotationFormat
+);
+
+// Copy a Quotation Format
+router.post(
+  "/:quotation_format_id/copy",
+  validateRequest(quotationFormatIdSchema, REQUEST_SOURCE.PARAMS),
+  copyQuotationFormat
 );
 
 // Update an existing Quotation Format

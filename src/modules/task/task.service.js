@@ -5,10 +5,10 @@ import db from "../../config/database/models/postgre-models/index.js";
 
 // ─── Shared Helpers ───────────────────────────────────────────────────────────
 
-/** Validates a YYYY-MM-DD date string. Returns false if invalid. */
+/** Validates that a value is parseable as a date. */
 function isValidDate(dateString) {
   const date = new Date(dateString);
-  return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+  return !isNaN(date.getTime());
 }
 
 /**

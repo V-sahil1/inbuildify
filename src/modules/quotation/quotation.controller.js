@@ -511,6 +511,64 @@ export async function sendQuotationEmail(req, res) {
   }
 }
 
+export async function getEngineerMailPreview(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getEngineerMailPreview(
+      quotation_version_id,
+      builderId,
+      companyId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
+export async function generateEngineeringRequirement(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.users_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.generateEngineeringRequirement(
+      quotation_version_id,
+      builderId,
+      companyId,
+      userId
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
 export async function sendEngineerEmail(req, res) {
   try {
     const { quotation_version_id } = req.params;
@@ -521,10 +579,13 @@ export async function sendEngineerEmail(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing");
     }
 
+    const { subject, email_body, template_email_id } = req.body;
+
     const result = await quotationService.sendEngineerEmail(
       quotation_version_id,
       builderId,
-      companyId
+      companyId,
+      { subject, email_body, template_email_id }
     );
 
     if (result.success) {
@@ -635,6 +696,8 @@ export default {
   removePackageFromVersion,
   previewPDF,
   sendQuotationEmail,
+  getEngineerMailPreview,
+  generateEngineeringRequirement,
   sendEngineerEmail,
   viewQuotationByHash,
   uploadStructureEngineerReport,

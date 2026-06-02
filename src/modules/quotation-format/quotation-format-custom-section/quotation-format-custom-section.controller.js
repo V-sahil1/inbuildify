@@ -29,7 +29,11 @@ export async function createQuotationFormatCustomSection(req, res) {
 export async function getQuotationFormatCustomSections(req, res) {
   try {
     const currentUser = req.user;
-    const filters = req.query;
+    const { quotation_format_id } = req.params;
+    const filters = { ...req.query };
+    if (quotation_format_id) {
+      filters.quotation_format_id = quotation_format_id;
+    }
     const result = await customSectionService.getCustomSections(currentUser, filters);
     res.status(200).json({
       success: true,

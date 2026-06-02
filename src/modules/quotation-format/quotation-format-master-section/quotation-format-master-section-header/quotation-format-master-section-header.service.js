@@ -30,7 +30,7 @@ async function createMasterSectionHeader(currentUser, master_section_id, payload
     if (!masterSection) {
       throw {
         status: 404,
-        message: "Master section not found or inative",
+        message: "Master section not found or inactive  ",
       };
     }
 
@@ -115,10 +115,14 @@ export async function getMasterSectionHeaders(currentUser, filters = {}) {
   const { MasterSection, MasterSectionHeader, Company, Builder } = db;
   const userCompanyId = currentUser.company_id;
   const userBuilderId = currentUser.builder_id;
-  const { page = 1, limit = 25, search, status } = filters;
+  const { page = 1, limit = 25, search, status, master_section_id } = filters;
   const offset = (page - 1) * limit;
 
   const where = {};
+
+  if (master_section_id) {
+    where.master_section_id = master_section_id;
+  }
 
   if (search) {
     where.heading_name = { [Op.iLike]: `%${search}%` };
@@ -385,6 +389,106 @@ export async function deleteMasterSectionHeader(currentUser, headerId) {
   }
 }
 
+export async function copyMasterSectionHeader(currentUser, headerId, payload) {
+  const { MasterSection, MasterSectionHeader, MasterSectionItem, sequelize } = db;
+  const transaction = await sequelize.transaction();
+
+  try {
+    const userCompanyId = currentUser.company_id;
+    const userBuilderId = currentUser.builder_id;
+
+    // Find the source MasterSectionHeader
+    const sourceHeader = await MasterSectionHeader.findOne({
+      where: { master_section_header_id: headerId },
+      include: [
+        {
+          model: MasterSection,
+          as: "masterSection",
+          required: true,
+          where: {
+            [Op.or]: [{ company_id: userCompanyId }, { builder_id: userBuilderId }],
+          },
+        },
+      ],
+      transaction,
+    });
+
+    if (!sourceHeader) {
+      throw {
+        status: 404,
+        message: "Master section header not found or does not belong to your organization",
+      };
+    }
+
+    const masterSectionId = sourceHeader.master_section_id;
+
+    // Determine target name (default: "Name - Copy")
+    const targetName = `${sourceHeader.heading_name} - Copy`;
+
+    // Check for duplicate in the same master section scope
+    const duplicateCheck = await MasterSectionHeader.findOne({
+      where: {
+        master_section_id: masterSectionId,
+        heading_name: targetName,
+      },
+      transaction,
+    });
+
+    if (duplicateCheck) {
+      throw {
+        status: 409,
+        message: "Master section header with this name already exists in the specified scope",
+      };
+    }
+
+    // Determine sort order
+    const maxSortOrder = await MasterSectionHeader.max("sort_order", {
+      where: { master_section_id: masterSectionId },
+      transaction,
+    });
+    const finalSortOrder = (maxSortOrder || 0) + 1;
+
+    // Create the new MasterSectionHeader
+    const newHeader = await MasterSectionHeader.create(
+      {
+        master_section_id: masterSectionId,
+        heading_name: targetName,
+        effective_start_date: sourceHeader.effective_start_date,
+        effective_end_date: sourceHeader.effective_end_date,
+        sort_order: finalSortOrder,
+        status: sourceHeader.status,
+      },
+      { transaction }
+    );
+
+    // Fetch items belonging to the source header
+    const items = await MasterSectionItem.findAll({
+      where: { master_section_header_id: headerId },
+      transaction,
+    });
+
+    if (items.length > 0) {
+      // Bulk create items linked to the new header ID
+      const itemsToCreate = items.map((item) => ({
+        master_section_header_id: newHeader.master_section_header_id,
+        item_name: item.item_name,
+        effective_start_date: item.effective_start_date,
+        effective_end_date: item.effective_end_date,
+        sort_order: item.sort_order,
+        status: item.status,
+      }));
+
+      await MasterSectionItem.bulkCreate(itemsToCreate, { transaction });
+    }
+
+    await transaction.commit();
+    return keysToCamelCase(newHeader.get({ plain: true }));
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
 export default {
   // Master Section Header
   createMasterSectionHeader,
@@ -392,4 +496,5 @@ export default {
   getMasterSectionHeaderById,
   updateMasterSectionHeader,
   deleteMasterSectionHeader,
+  copyMasterSectionHeader,
 };

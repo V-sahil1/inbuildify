@@ -6,9 +6,9 @@ import {
 
   createMasterSectionHeader,
   getMasterSectionHeaders,
-  getMasterSectionHeaderById,
   updateMasterSectionHeader,
   deleteMasterSectionHeader,
+  copyMasterSectionHeader,
 } from "./quotation-format-master-section-header.controller.js";
 import roleMiddleware from "../../../../middleware/roleMiddleware.js";
 import authMiddleware from "../../../../middleware/authMiddleware.js";
@@ -34,13 +34,8 @@ router.use(camelToSnakeMiddleware);
 //        MASTER SECTION HEADER ROUTES
 // ============================================================
 router.get(
-  "/:header_id",
-  validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
-  getMasterSectionHeaderById,
-);
-
-router.get(
-  "/",
+  "/:master_section_id",
+  validateRequest(paramsMasterSectionIdSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(getMasterSectionHeaderSchema, REQUEST_SOURCE.QUERY),
   getMasterSectionHeaders,
 );
@@ -63,6 +58,12 @@ router.delete(
   "/:header_id",
   validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
   deleteMasterSectionHeader,
+);
+
+router.post(
+  "/:header_id/copy",
+  validateRequest(paramsHeaderIdSchema, REQUEST_SOURCE.PARAMS),
+  copyMasterSectionHeader,
 );
 
 export default router;

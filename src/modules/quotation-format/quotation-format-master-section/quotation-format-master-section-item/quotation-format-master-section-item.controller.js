@@ -27,7 +27,11 @@ export async function createMasterSectionItem(req, res) {
 export async function getMasterSectionItems(req, res) {
   try {
     const currentUser = req.user;
-    const filters = req.query;
+    const { master_section_header_id } = req.params;
+    const filters = { ...req.query };
+    if (master_section_header_id) {
+      filters.master_section_header_id = master_section_header_id;
+    }
     const result = await quotationFormatMasterSectionItemService.getMasterSectionItems(currentUser, filters);
     res.status(200).json({
       success: true,
@@ -104,6 +108,26 @@ export async function deleteMasterSectionItem(req, res) {
   }
 }
 
+export async function copyMasterSectionItem(req, res) {
+  try {
+    const currentUser = req.user;
+    const { item_id } = req.params;
+    const result = await quotationFormatMasterSectionItemService.copyMasterSectionItem(currentUser, item_id);
+    res.status(201).json({
+      success: true,
+      message: "Master section item copied successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error copying master section item:", error);
+    const statusCode = error.status || 500;
+    res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to copy master section item",
+    });
+  }
+}
+
 
 export default {
   
@@ -114,4 +138,5 @@ export default {
   getMasterSectionItemById,
   updateMasterSectionItem,
   deleteMasterSectionItem,
+  copyMasterSectionItem,
 };

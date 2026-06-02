@@ -3,6 +3,9 @@ import { Op } from "sequelize";
 import { keysToCamelCase } from "../../utils/common.js";
 import { logActivity, compareAndLogUpdates } from "../../utils/activityLogger.js";
 import { checkLeadLockStatus } from "../../helper/leadLock.helper.js";
+import appointmentEmailQueue from "../../workers/appointmentEmailWorker.js";
+
+
 
 /**
  * APPOINTMENT SERVICE
@@ -41,7 +44,7 @@ function isValidDate(dateString) {
 }
 
 export async function createAppointment(currentUser, body) {
-  const { Appointment, Leads, Users, sequelize } = db;
+  const { Appointment, Leads, Users, Builder, NotificationTemplate, sequelize } = db;
   const transaction = await sequelize.transaction();
   try {
     const builderId = currentUser?.builder_id;
@@ -65,14 +68,15 @@ export async function createAppointment(currentUser, body) {
       throw { status: 400, message: "start_time must be earlier than end_time." };
     }
 
+    let lead = null;
     if (lead_id) {
-      const lead = await Leads.findOne({
+      lead = await Leads.findOne({
         where: {
           leads_id: lead_id,
           [Op.or]: [{ company_id: companyId }, { builder_id: builderId }],
         },
+        transaction,
       });
-
       if (!lead) {
         throw {
           status: 400,
@@ -145,6 +149,38 @@ export async function createAppointment(currentUser, body) {
         action: "CREATE",
         description: `Appointment created: ${title}`,
       });
+    }
+
+    if (send_appointment_customer && lead_id && lead && lead.email) {
+      let isExpired = false;
+      if (appointment.date && appointment.start_time) {
+        const dateStr = typeof appointment.date === "string" ? appointment.date : new Date(appointment.date).toISOString().slice(0, 10);
+        const timeStr = typeof appointment.start_time === "string" ? appointment.start_time : String(appointment.start_time);
+        const apptDateTime = new Date(`${dateStr}T${timeStr}`);
+        if (!isNaN(apptDateTime.getTime())) {
+          isExpired = apptDateTime < new Date();
+        }
+      }
+
+      if (!isExpired) {
+        appointmentEmailQueue.add(
+          "appointmentEmail",
+          {
+            appointmentId: appointment.appointment_id,
+            leadId: lead_id,
+            builderId,
+            companyId,
+            userId,
+          },
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+            removeOnComplete: true,
+          }
+        ).catch(err => console.error("Error adding appointment email job:", err));
+      } else {
+        console.log(`[createAppointment] Skipping appointment email queueing because appointment ${appointment.appointment_id} is in the past/expired.`);
+      }
     }
 
     const result = keysToCamelCase(appointment.get({ plain: true }));
@@ -377,7 +413,7 @@ export async function deleteAppointment(currentUser, appointmentId) {
     [Op.or]: [{ builder_id: builderId }, { company_id: companyId }],
   };
 
-  const appointment = await Appointment.findOne({
+  const appointment = await Appointment.findOne({ 
     where,
     include: [{ model: Leads, as: "lead", attributes: ["leads_id"] }]
   });
@@ -447,7 +483,7 @@ export async function deleteAppointment(currentUser, appointmentId) {
 }
 
 export async function updateAppointment(currentUser, appointmentId, body) {
-  const { Appointment, Users, sequelize } = db;
+  const { Appointment, Users, Leads, Builder, NotificationTemplate, sequelize } = db;
   const transaction = await sequelize.transaction();
   try {
     const builderId = currentUser?.builder_id;
@@ -479,6 +515,17 @@ export async function updateAppointment(currentUser, appointmentId, body) {
 
     if (existing.lead_id) {
       await checkLeadLockStatus(existing.lead_id);
+    }
+
+    let lead = null;
+    if (existing.lead_id) {
+      lead = await Leads.findOne({
+        where: {
+          leads_id: existing.lead_id,
+          [Op.or]: [{ company_id: companyId }, { builder_id: builderId }],
+        },
+        transaction,
+      });
     }
 
     const {
@@ -599,6 +646,38 @@ export async function updateAppointment(currentUser, appointmentId, body) {
         oldData: keysToCamelCase(existing.get({ plain: true })),
         newData: keysToCamelCase(updatedPlain),
       });
+    }
+
+    if (send_appointment_customer && existing.lead_id && lead && lead.email) {
+      let isExpired = false;
+      if (updatedPlain.date && updatedPlain.start_time) {
+        const dateStr = typeof updatedPlain.date === "string" ? updatedPlain.date : new Date(updatedPlain.date).toISOString().slice(0, 10);
+        const timeStr = typeof updatedPlain.start_time === "string" ? updatedPlain.start_time : String(updatedPlain.start_time);
+        const apptDateTime = new Date(`${dateStr}T${timeStr}`);
+        if (!isNaN(apptDateTime.getTime())) {
+          isExpired = apptDateTime < new Date();
+        }
+      }
+
+      if (!isExpired) {
+        appointmentEmailQueue.add(
+          "appointmentEmail",
+          {
+            appointmentId: updatedPlain.appointment_id,
+            leadId: existing.lead_id,
+            builderId,
+            companyId,
+            userId,
+          },
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+            removeOnComplete: true,
+          }
+        ).catch(err => console.error("Error adding appointment email job:", err));
+      } else {
+        console.log(`[updateAppointment] Skipping appointment email queueing because appointment ${appointmentId} is in the past/expired.`);
+      }
     }
 
     const result = keysToCamelCase(updatedPlain);

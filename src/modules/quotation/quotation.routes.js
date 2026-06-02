@@ -18,6 +18,7 @@ import {
   compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema,
   getQuotationVersionsQuerySchema,
+  sendEngineerEmailBodySchema,
 } from "./quotation.validation.js";
 import quotationController from "./quotation.controller.js";
 import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
@@ -148,9 +149,24 @@ router.post(
   quotationController.sendQuotationEmail,
 );
 
+// Slide-over panel preview data (engineer, PDF existence/links, templates).
+router.get(
+  "/version/:quotation_version_id/engineer-mail-preview",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.getEngineerMailPreview,
+);
+
+// Generate the Engineering Requirement PDF on demand and return a presigned URL.
+router.post(
+  "/version/:quotation_version_id/generate-engineering-requirement",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.generateEngineeringRequirement,
+);
+
 router.post(
   "/version/:quotation_version_id/send-engineer-email",
   validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  validateRequest(sendEngineerEmailBodySchema, REQUEST_SOURCE.BODY),
   quotationController.sendEngineerEmail,
 );
 

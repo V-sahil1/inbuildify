@@ -158,6 +158,8 @@ import quotationFormatmasterSectionHeaderRoutes from "../modules/quotation-forma
 import quotationFormatmasterSectionItemRoutes from "../modules/quotation-format/quotation-format-master-section/quotation-format-master-section-item/quotation-format-master-section-item.route.js"
 import featurFacadeRoutes from "../modules/featur-facade/featur-facade.routes.js"
 import adminFacadeRoutes from "../modules/admin-facade/admin-facade.route.js";
+import companySignUpRoutes from "../modules/company-onboarding/company-signup.routes.js";
+import companyOnboardingRoutes from "../modules/company-onboarding/company-onboarding.routes.js";
 
 export default function (app) {
   app.use("/country", countryRoutes);
@@ -202,7 +204,6 @@ export default function (app) {
   app.use("/screen", screenRoutes);
   app.use("/address", addressRoutes);
   app.use("/company", companyRoutes);
-  app.use("/company-onboarding", companyRoutes);
   app.use("/functionality", functionalityRoutes);
   app.use("/checklist", checklistRoutes);
   app.use("/checklist-item", checklistItemRoutes);
@@ -315,7 +316,7 @@ export default function (app) {
   app.use("/contract-section", contractSectionRoutes);
   app.use("/contact", contactRoutes);
   app.use("/lot", lotRoutes);
-  app.use("/featur-facade",featurFacadeRoutes);
+  app.use("/featur-facade", featurFacadeRoutes);
   app.use("/lot-package-group", lotPackageGroupRoutes);
   app.use("/lot-package", lotPackageRoutes);
   app.use("/house-feature", houseFeatureRoutes);
@@ -338,4 +339,6 @@ export default function (app) {
   app.use("/quotation-format-master-section-item", quotationFormatmasterSectionItemRoutes);
   app.use("/quotation-format", quotationFormat);
   app.use("/admin/facade", adminFacadeRoutes);
+  app.use("/company-signup", companySignUpRoutes);
+  app.use("/company-onboarding", companyOnboardingRoutes);
 }

@@ -25,33 +25,33 @@ export async function getAllPackagesService({ builder_id, query }) {
   const limitValue = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 25;
   const offset = (pageValue - 1) * limitValue;
 
-  const where = { "$Package.builder_id$": builder_id };
+  const where = { builder_id: builder_id };
 
   if (search && search.trim() !== "") {
     const searchVal = `%${search.trim().toLowerCase()}%`;
     where[Op.or] = [
-      db.sequelize.where(db.sequelize.fn("LOWER", db.sequelize.col("Package.name")), { [Op.like]: searchVal }),
-      db.sequelize.where(db.sequelize.cast(db.sequelize.col("Package.cost"), "text"), { [Op.like]: searchVal }),
+      db.sequelize.where(db.sequelize.fn("LOWER", db.sequelize.col("name")), { [Op.like]: searchVal }),
+      db.sequelize.where(db.sequelize.cast(db.sequelize.col("cost"), "text"), { [Op.like]: searchVal }),
     ];
   }
 
   if (status !== undefined && status !== "") {
-    where["$Package.status$"] = status === "true";
+    where["$Package.status$"] = status === "true" || status === true;
   }
 
   if (package_group_id) {
     const pgIds = Array.isArray(package_group_id) ? package_group_id : [package_group_id];
-    where["$Package.package_group_id$"] = { [Op.contains]: db.sequelize.literal(`ARRAY['${pgIds.join("','")}']::uuid[]`) };
+    where.package_group_id = { [Op.contains]: db.sequelize.literal(`ARRAY['${pgIds.join("','")}']::uuid[]`) };
   }
 
   if (range_id) {
     const rIds = Array.isArray(range_id) ? range_id : [range_id];
-    where["$Package.range_id$"] = { [Op.contains]: db.sequelize.literal(`ARRAY['${rIds.join("','")}']::uuid[]`) };
+    where.range_id = { [Op.contains]: db.sequelize.literal(`ARRAY['${rIds.join("','")}']::uuid[]`) };
   }
 
   if (dwelling_type_id) {
     const dtIds = Array.isArray(dwelling_type_id) ? dwelling_type_id : [dwelling_type_id];
-    where["$Package.dwelling_type_id$"] = { [Op.contains]: db.sequelize.literal(`ARRAY['${dtIds.join("','")}']::uuid[]`) };
+    where.dwelling_type_id = { [Op.contains]: db.sequelize.literal(`ARRAY['${dtIds.join("','")}']::uuid[]`) };
   }
 
   if (range_name && range_name.trim() !== "") {
@@ -78,13 +78,13 @@ export async function getAllPackagesService({ builder_id, query }) {
     );
   }
 
-  let order = [[db.sequelize.col("Package.sort_order"), "ASC"]];
+  let order = [["sort_order", "ASC"]];
   if (sort_name) {
-    order = [[db.sequelize.fn("LOWER", db.sequelize.col("Package.name")), sort_name.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
+    order = [[db.sequelize.fn("LOWER", db.sequelize.col("name")), sort_name.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
   } else if (sort_cost) {
-    order = [[db.sequelize.col("Package.cost"), sort_cost.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
+    order = [["cost", sort_cost.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
   } else if (sort_builder_cost) {
-    order = [[db.sequelize.col("Package.builder_cost"), sort_builder_cost.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
+    order = [["builder_cost", sort_builder_cost.toUpperCase() === "DESC" ? "DESC" : "ASC"]];
   }
 
   const { count, rows: packages } = await db.Package.findAndCountAll({
@@ -131,6 +131,9 @@ export async function getAllPackagesService({ builder_id, query }) {
       status: pkg.status,
       allowAddItemFromPricelist: pkg.allow_add_item_from_pricelist,
       allowRemovePackageItems: pkg.allow_remove_package_items,
+      packageGroupId: pkg.package_group_id || [],
+      rangeId: pkg.range_id || [],
+      dwellingTypeId: pkg.dwelling_type_id || [],
       packageGroup: (pkg.package_group_id || []).map((id) => ({ id, name: pgMap[id] })).filter((x) => x.name),
       range: (pkg.range_id || []).map((id) => ({ id, name: rangeMap[id] })).filter((x) => x.name),
       dwellingType: (pkg.dwelling_type_id || []).map((id) => ({ id, name: dtMap[id] })).filter((x) => x.name),
@@ -307,6 +310,9 @@ export async function createPackageService({ builder_id, company_id, user_id, pa
       status: newPackage.status,
       allowAddItemFromPricelist: newPackage.allow_add_item_from_pricelist,
       allowRemovePackageItems: newPackage.allow_remove_package_items,
+      packageGroupId: newPackage.package_group_id || [],
+      rangeId: newPackage.range_id || [],
+      dwellingTypeId: newPackage.dwelling_type_id || [],
       range: (newPackage.range_id || []).map((id) => ({ id, name: rangeMap[id] })).filter((x) => x.name),
       dwellingType: (newPackage.dwelling_type_id || []).map((id) => ({ id, name: dtMap[id] })).filter((x) => x.name),
       packageGroup: (newPackage.package_group_id || []).map((id) => ({ id, name: pgMap[id] })).filter((x) => x.name),
@@ -410,21 +416,23 @@ export async function updatePackageService({ package_id, builder_id, company_id,
     }
 
     // 4. Sort Order Shifting
-    if (sort_order !== undefined && sort_order !== packageInstance.sort_order) {
+    if (sort_order !== undefined && sort_order !== null && sort_order !== "") {
       const newSortOrder = Number(sort_order);
       const oldSortOrder = packageInstance.sort_order;
 
-      // Duplicate check for new position
-      const duplicateSort = await db.Package.findOne({
-        where: {
-          builder_id,
-          sort_order: newSortOrder,
-          package_id: { [Op.ne]: package_id },
-        },
-        transaction: t,
-      });
+      if (newSortOrder !== oldSortOrder) {
+        const maxSortOrder = await db.Package.max("sort_order", {
+          where: { builder_id },
+          transaction: t,
+        });
+        const max = (maxSortOrder == null || isNaN(maxSortOrder)) ? 0 : Number(maxSortOrder);
 
-      if (duplicateSort) {
+        if (isNaN(newSortOrder) || newSortOrder < 1 || newSortOrder > max) {
+          const error = new Error(`Invalid sort_order. Allowed range is 1 to ${max}.`);
+          error.status = 400;
+          throw error;
+        }
+
         // Shift existing to make room
         if (newSortOrder > oldSortOrder) {
           await db.Package.decrement("sort_order", {
@@ -454,7 +462,7 @@ export async function updatePackageService({ package_id, builder_id, company_id,
         name: name !== undefined ? name.trim() : packageInstance.name,
         cost: cost !== undefined ? cost : packageInstance.cost,
         builder_cost: builder_cost !== undefined ? builder_cost : packageInstance.builder_cost,
-        sort_order: sort_order !== undefined ? Number(sort_order) : packageInstance.sort_order,
+        sort_order: finalSortOrder,
         status: status !== undefined ? (typeof status === "string" ? status === "true" : status) : packageInstance.status,
         allow_add_item_from_pricelist: allow_add_item_from_pricelist !== undefined ? allow_add_item_from_pricelist : packageInstance.allow_add_item_from_pricelist,
         allow_remove_package_items: allow_remove_package_items !== undefined ? allow_remove_package_items : packageInstance.allow_remove_package_items,
@@ -493,6 +501,9 @@ export async function updatePackageService({ package_id, builder_id, company_id,
       status: packageInstance.status,
       allowAddItemFromPricelist: packageInstance.allow_add_item_from_pricelist,
       allowRemovePackageItems: packageInstance.allow_remove_package_items,
+      packageGroupId: packageInstance.package_group_id || [],
+      rangeId: packageInstance.range_id || [],
+      dwellingTypeId: packageInstance.dwelling_type_id || [],
       range: (packageInstance.range_id || []).map((id) => ({ id, name: rangeMap[id] })).filter((x) => x.name),
       dwellingType: (packageInstance.dwelling_type_id || []).map((id) => ({ id, name: dtMap[id] })).filter((x) => x.name),
       packageGroup: (packageInstance.package_group_id || []).map((id) => ({ id, name: pgMap[id] })).filter((x) => x.name),

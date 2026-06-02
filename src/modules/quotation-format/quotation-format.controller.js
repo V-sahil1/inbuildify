@@ -189,11 +189,41 @@ export async function deleteQuotationFormat(req, res) {
 
 }
 
+export async function copyQuotationFormat(req, res) {
+  try {
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+    const { quotation_format_id } = req.params;
+
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
+    }
+
+    const result = await quotationFormatService.copyQuotationFormatService({
+      quotationFormatId: quotation_format_id,
+      builderId,
+      companyId,
+      userId,
+    });
+
+    return successResponse(res, result, "Quotation Format copied successfully.");
+  } catch (error) {
+    console.error("Error copying Quotation Format:", error);
+    return errorResponse(
+      res,
+      error.status || 500,
+      error.message || "Failed to copy Quotation Format."
+    );
+  }
+}
+
 export default {
   createQuotationFormat,
   updateQuotationFormat,
   getQuotationFormatById,
   getAllQuotationFormats,
-  deleteQuotationFormat
+  deleteQuotationFormat,
+  copyQuotationFormat
   // upsertQuotationFormat,
 };

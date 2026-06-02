@@ -1,6 +1,15 @@
 import db from "../../config/database/models/postgre-models/index.js";
 import { Op } from "sequelize";
 
+const DEFAULT_LEAD_LOST_REASONS = [
+  { lost_reason: "Budget Constraints", sort_order: 1 },
+  { lost_reason: "Went with Competitor", sort_order: 2 },
+  { lost_reason: "Project Cancelled", sort_order: 3 },
+  { lost_reason: "Unresponsive", sort_order: 4 },
+  { lost_reason: "Timing", sort_order: 5 },
+  { lost_reason: "Other", sort_order: 6 },
+];
+
 // ✅ CREATE
 export const createLeadLostReasonService = async (payload, user) => {
   const { LeadLostReason, sequelize } = db;
@@ -77,11 +86,32 @@ export const getAllLeadLostReasonService = async (user, page, limit) => {
 
   const offset = (page - 1) * limit;
 
+  // ── Auto-seed defaults if no rows exist ───────────────────────────────
+  const existing = await LeadLostReason.findOne({
+    where: { builder_id: user.builder_id },
+    attributes: ["lead_lost_reason_id"],
+  });
+
+  if (!existing) {
+    await LeadLostReason.bulkCreate(
+      DEFAULT_LEAD_LOST_REASONS.map((row) => ({
+        ...row,
+        company_id: user.company_id,
+        builder_id: user.builder_id,
+        created_by: user.user_id,
+        updated_by: user.user_id,
+      })),
+    );
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
+  const where = { builder_id: user.builder_id };
+  if (user.company_id) {
+    where[Op.and] = [{ [Op.or]: [{ company_id: user.company_id }, { company_id: null }] }];
+  }
+
   const { count, rows } = await LeadLostReason.findAndCountAll({
-    where: {
-      company_id: user.company_id,
-      builder_id: user.builder_id,
-    },
+    where,
     order: [["sort_order", "ASC"]],
     limit,
     offset,
@@ -228,12 +258,17 @@ export const updateLeadLostReasonService = async (id, payload, user) => {
 export const updateLeadLostReasonActiveService = async (id, is_active, user) => {
   const { LeadLostReason } = db;
 
+  const where = { lead_lost_reason_id: id, builder_id: user.builder_id };
+  if (user.company_id) {
+    where.company_id = user.company_id;
+  }
+
   const existing = await LeadLostReason.findOne({
-    where: { lead_lost_reason_id: id, builder_id: user.builder_id },
+    where,
   });
 
   if (!existing) {
-    throw new Error("Lead lost reason not found");
+    throw new Error("Lead lost reason not found or you do not have permission to modify it");
   }
 
   await existing.update({

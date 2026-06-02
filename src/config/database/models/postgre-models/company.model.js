@@ -28,6 +28,8 @@ export default (sequelize) => {
       email_signature_logo: { type: DataTypes.STRING(500), allowNull: true },
       company_logo: { type: DataTypes.STRING(500), allowNull: true },
       address_id: { type: DataTypes.UUID, allowNull: true },
+      is_onboarding_finished: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      website: { type: DataTypes.STRING(255), allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },

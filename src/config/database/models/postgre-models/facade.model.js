@@ -1,8 +1,5 @@
 import { Model, DataTypes } from "sequelize";
-import { env } from "../../../env.config.js";
-
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (val) => typeof val === "string" && uuidRegex.test(val);
+import { resolveImageUrls } from "../../../../helper/imageDriveFile.helper.js";
 
 export class Facade extends Model {
   static associate(models) {
@@ -42,45 +39,10 @@ export default (sequelize) => {
     { sequelize, tableName: "facade", modelName: "Facade", underscored: true },
   );
 
-  // Hook to resolve image UUIDs to absolute S3 URLs on-the-fly
-  Facade.addHook("afterFind", async (results, options) => {
-    if (!results) {
-      return;
-    }
-
-    const { DriveFile } = sequelize.models;
-    const s3BaseUrl = `https://${env.AWS.S3_BUCKET_NAME}.s3.amazonaws.com`;
-    const instances = Array.isArray(results) ? results : [results];
-
-    // Collect UUIDs to run a single batch query for optimal performance
-    const fileIds = [];
-    instances.forEach((inst) => {
-      if (inst && isUuid(inst.image)) {
-        fileIds.push(inst.image);
-      }
-    });
-
-    if (fileIds.length > 0 && DriveFile) {
-      const driveFiles = await DriveFile.findAll({
-        transaction: options?.transaction,
-        where: { file_id: fileIds },
-        attributes: ["file_id", "s3_key"],
-      });
-
-      const fileMap = new Map(driveFiles.map(f => [f.file_id, f.s3_key]));
-
-      instances.forEach((inst) => {
-        if (inst && isUuid(inst.image)) {
-          const s3Key = fileMap.get(inst.image);
-          if (s3Key) {
-            inst.image = `${s3BaseUrl}/${s3Key}`;
-          } else {
-            inst.image = null;
-          }
-        }
-      });
-    }
-  });
+  // Resolve the image UUID FK → absolute S3 URL on read (one batched query).
+  Facade.addHook("afterFind", (results, options) =>
+    resolveImageUrls(results, ["image"], sequelize, options?.transaction),
+  );
 
   return Facade;
 };

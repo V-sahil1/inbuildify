@@ -9,7 +9,7 @@ import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
 import { env } from "../../config/env.config.js";
 
 class QuotationRepository {
-  constructor() {}
+  constructor() { }
 
   async getQuotationByLeadId(leadsId) {
     const { Quotation } = db.sequelize.models;
@@ -310,7 +310,7 @@ class QuotationRepository {
     }
   }
 
-  async getVersionsByQuotationId(quotationId, versionId = null) {
+  async   getVersionsByQuotationId(quotationId, versionId = null) {
     try {
       const replacements = { quotationId };
       let query = `
@@ -343,7 +343,7 @@ class QuotationRepository {
           (SELECT COALESCE(json_agg(json_build_object('quotation_version_item_id', qvi.quotation_version_item_id, 'price_list_item_id', qvi.price_list_item_id, 'price_list_item_description', qvi.price_list_item_description, 'price_list_item_cost', qvi.price_list_item_cost, 'quantity', qvi.quantity, 'total_price', qvi.total_price, 'package_id', qvi.package_id, 'is_price_list_item_cost_mismatch', CASE WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true ELSE false END, 'is_package_cost_mismatch', CASE WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL AND qvi.package_cost::numeric != p.cost::numeric THEN true ELSE false END, 'is_system_data', qvi.price_list_item_is_system_data, 'is_automatically_mapped', CASE WHEN fppim_items.price_list_item_id IS NOT NULL THEN true ELSE false END)), '[]'::json) FROM quotation_version_items qvi LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id LEFT JOIN package p ON qvi.package_id = p.package_id LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id AND qvi.price_list_item_id = fppim_items.price_list_item_id WHERE qvi.quotation_version_id = qv.quotation_version_id) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
-          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', pd.compaction_report_url, 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
+          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = pd.property_detail_id AND df.reference_type = 'PropertyDetail' AND df.sub_reference_type = 'CompactionReport' AND df.deleted_at IS NULL LIMIT 1), 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
           (SELECT COALESCE(json_agg(json_build_object('id', lcm.id, 'users_id', u.users_id, 'name', u.name, 'address', jsonb_build_object('address_line1', a.address_line1, 'address_line2', a.address_line2, 'city', a.city, 'zip_code', a.zip_code, 'country_id', a.country_id, 'state_id', a.state_id), 'phone', u.phone, 'email', u.email)), '[]'::json) FROM leads_contact_map lcm JOIN users u ON lcm.contact_id = u.users_id LEFT JOIN address a ON u.address_id = a.address_id WHERE lcm.leads_id = leads.leads_id) as lead_contacts,
           qv.created_at, qv.updated_at
         FROM quotation_version qv
@@ -449,7 +449,7 @@ class QuotationRepository {
           (SELECT COALESCE(json_agg(json_build_object('quotation_version_item_id', qvi.quotation_version_item_id, 'price_list_item_id', qvi.price_list_item_id, 'price_list_item_description', qvi.price_list_item_description, 'price_list_item_cost', qvi.price_list_item_cost, 'quantity', qvi.quantity, 'total_price', qvi.total_price, 'package_id', qvi.package_id, 'is_price_list_item_cost_mismatch', CASE WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true ELSE false END, 'is_package_cost_mismatch', CASE WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL AND qvi.package_cost::numeric != p.cost::numeric THEN true ELSE false END, 'is_system_data', qvi.price_list_item_is_system_data, 'is_automatically_mapped', CASE WHEN fppim_items.price_list_item_id IS NOT NULL THEN true ELSE false END)), '[]'::json) FROM quotation_version_items qvi LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id LEFT JOIN package p ON qvi.package_id = p.package_id LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id AND qvi.price_list_item_id = fppim_items.price_list_item_id WHERE qvi.quotation_version_id = qv.quotation_version_id) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
-          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', pd.compaction_report_url, 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
+          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = pd.property_detail_id AND df.reference_type = 'PropertyDetail' AND df.sub_reference_type = 'CompactionReport' AND df.deleted_at IS NULL LIMIT 1), 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
           (SELECT COALESCE(json_agg(json_build_object('id', lcm.id, 'users_id', u.users_id, 'name', u.name, 'address', jsonb_build_object('address_line1', a.address_line1, 'address_line2', a.address_line2, 'city', a.city, 'zip_code', a.zip_code, 'country_id', a.country_id, 'state_id', a.state_id), 'phone', u.phone, 'email', u.email)), '[]'::json) FROM leads_contact_map lcm JOIN users u ON lcm.contact_id = u.users_id LEFT JOIN address a ON u.address_id = a.address_id WHERE lcm.leads_id = leads.leads_id) as lead_contacts,
           qv.created_at, qv.updated_at
         FROM quotation_version qv
@@ -856,7 +856,7 @@ class QuotationRepository {
         WHERE quotation_version_id = :versionId AND package_id IS NULL
           AND price_list_item_id IN (SELECT price_list_item_id FROM floor_plan_pricelist_item_map WHERE floor_plan_id = :floorPlanId)
       `;
-      await db.sequelize.query(query, { 
+      await db.sequelize.query(query, {
         replacements: { versionId, floorPlanId },
         transaction
       });
@@ -903,7 +903,7 @@ class QuotationRepository {
             WHERE quotation_version_id = :versionId AND price_list_item_id IS NOT NULL
           )
       `;
-      await db.sequelize.query(query, { 
+      await db.sequelize.query(query, {
         replacements: { versionId, floorPlanId },
         transaction
       });

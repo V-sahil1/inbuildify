@@ -3,8 +3,7 @@ import { getAllRoleService } from "./role.service.js";
 
 export async function getAllRole(req, res) {
   try {
-    const { page, limit } = req.query;
-    const result = await getAllRoleService(page, limit);
+    const result = await getAllRoleService();
 
     return successResponse(
       res,

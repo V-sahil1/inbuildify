@@ -204,35 +204,25 @@ export async function createPriceListItemService({
           error: { status: 400, message: "cost_type_text is required when cost_type = 'Included'." },
         };
       }
-      if (cost_option !== undefined || cost !== undefined || builder_cost !== undefined) {
-        await transaction.rollback();
-        return {
-          error: {
-            status: 400,
-            message: "cost_option, cost, builder_cost are not allowed when cost_type = 'Included'.",
-          },
-        };
-      }
-    }
-
-    if (cost_type === "Fixed" || cost_type === "Variable") {
-      if (cost_type_text) {
-        await transaction.rollback();
-        return {
-          error: {
-            status: 400,
-            message: "cost_type_text is not allowed for cost_type = 'Fixed' or 'Variable'.",
-          },
-        };
-      }
-      if (cost === undefined || builder_cost === undefined) {
-        await transaction.rollback();
-        return {
-          error: {
-            status: 400,
-            message: "cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'.",
-          },
-        };
+      // Ignore irrelevant fields instead of throwing error
+      cost_option = "none";
+      cost = null;
+      builder_cost = null;
+    } else if (cost_type === "Fixed" || cost_type === "Variable") {
+      cost_type_text = null;
+      if (cost_option === "tba" || cost_option === "tbc") {
+        cost = null;
+        builder_cost = null;
+      } else {
+        if (cost === undefined || cost === null || builder_cost === undefined || builder_cost === null) {
+          await transaction.rollback();
+          return {
+            error: {
+              status: 400,
+              message: "cost, builder_cost are required for cost_type = 'Fixed' or 'Variable' when cost_option is 'none'.",
+            },
+          };
+        }
       }
     }
 
@@ -504,41 +494,33 @@ export async function updatePriceListItemService({
     let finalCostTypeText, finalCostOption, finalCost, finalBuilderCost;
     const finalCostType = cost_type ?? old.cost_type;
 
-    if (cost_type === "Included") {
-      if (requestBody.cost_option !== undefined || requestBody.cost !== undefined || requestBody.builder_cost !== undefined) {
-        await transaction.rollback();
-        return {
-          error: {
-            status: 400,
-            message: "You cannot send cost_option, cost, or builder_cost when cost_type = 'Included'.",
-          },
-        };
-      }
-      if (!cost_type_text) {
+    if (finalCostType === "Included") {
+      const updatedCostTypeText = cost_type_text !== undefined ? cost_type_text : old.cost_type_text;
+      if (!updatedCostTypeText) {
         await transaction.rollback();
         return { error: { status: 400, message: "cost_type_text is required." } };
       }
-      finalCostTypeText = cost_type_text;
-      finalCostOption = null;
+      finalCostTypeText = updatedCostTypeText;
+      finalCostOption = "none";
       finalCost = null;
       finalBuilderCost = null;
-    } else if (cost_type === "Fixed" || cost_type === "Variable") {
-      if (cost_type_text) {
-        await transaction.rollback();
-        return {
-          error: { status: 400, message: "cost_type_text is not allowed when cost_type is Fixed or Variable." },
-        };
-      }
+    } else if (finalCostType === "Fixed" || finalCostType === "Variable") {
       finalCostTypeText = null;
       finalCostOption = cost_option ?? old.cost_option;
-      finalCost = cost ?? old.cost;
-      finalBuilderCost = builder_cost ?? old.builder_cost;
 
-      if (finalCostOption === null || finalCost === null || finalBuilderCost === null) {
-        await transaction.rollback();
-        return {
-          error: { status: 400, message: "cost_option, cost and builder_cost are required." },
-        };
+      if (finalCostOption === "tba" || finalCostOption === "tbc") {
+        finalCost = null;
+        finalBuilderCost = null;
+      } else {
+        finalCost = cost ?? old.cost;
+        finalBuilderCost = builder_cost ?? old.builder_cost;
+
+        if (finalCostOption === null || finalCost === null || finalBuilderCost === null) {
+          await transaction.rollback();
+          return {
+            error: { status: 400, message: "cost_option, cost and builder_cost are required when cost_option is 'none'." },
+          };
+        }
       }
     } else {
       finalCostTypeText = old.cost_type_text;
