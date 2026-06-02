@@ -7,14 +7,13 @@ import {
   updateTemplatePdf,
   getTemplatePdfById,
   getTemplatePdfList,
-  deleteTemplatePdf,
 } from "./template-pdf.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
-import { createTemplatePdfSchema } from "./template-pdf.validation.js";
+import { createTemplatePdfSchema, updateTemplatePdfSchema } from "./template-pdf.validation.js";
 import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
 import parseFormDataJson from "../../middleware/parseFormDataJson.js";
 
@@ -53,10 +52,8 @@ router.put(
   handleMulterError,
   parseFormDataJson,
   camelToSnakeMiddleware,
+  validateRequest(updateTemplatePdfSchema, REQUEST_SOURCE.FORM_DATA),
   updateTemplatePdf,
 );
-
-/** DELETE */
-router.delete("/:template_pdf_id", deleteTemplatePdf);
 
 export default router;

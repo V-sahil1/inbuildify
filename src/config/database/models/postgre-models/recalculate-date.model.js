@@ -25,7 +25,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "recalculate_date", modelName: "RecalculateDate", underscored: true }
+    { sequelize, tableName: "recalculate_date", modelName: "RecalculateDate", underscored: true },
   );
   return RecalculateDate;
 };

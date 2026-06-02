@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "inclusion_package", modelName: "InclusionPackage", underscored: true }
+    { sequelize, tableName: "inclusion_package", modelName: "InclusionPackage", underscored: true },
   );
   return InclusionPackage;
 };

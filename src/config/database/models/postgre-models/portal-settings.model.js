@@ -33,7 +33,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "portal_settings", modelName: "PortalSettings", underscored: true }
+    { sequelize, tableName: "portal_settings", modelName: "PortalSettings", underscored: true },
   );
   return PortalSettings;
 };

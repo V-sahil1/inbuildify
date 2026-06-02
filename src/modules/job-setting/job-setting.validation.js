@@ -17,7 +17,7 @@ export const createJobSettingsSchema = Joi.object({
     .default("all")
     .optional(),
   report_include_date: Joi.boolean().optional(),
-});
+}).unknown(true);
 
 export const updateJobSettingSchema = Joi.object({
   auto_move_to_maintenance: Joi.boolean().optional(),
@@ -36,7 +36,7 @@ export const updateJobSettingSchema = Joi.object({
     .default("all")
     .optional(),
   report_include_date: Joi.boolean().optional(),
-});
+}).unknown(true);
 
 export default {
   createJobSettingsSchema,

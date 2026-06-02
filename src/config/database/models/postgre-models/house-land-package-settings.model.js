@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "house_land_package_settings", modelName: "HouseLandPackageSettings", underscored: true }
+    { sequelize, tableName: "house_land_package_settings", modelName: "HouseLandPackageSettings", underscored: true },
   );
   return HouseLandPackageSettings;
 };

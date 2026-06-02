@@ -26,7 +26,7 @@ export default (sequelize) => {
       tableName: "contract_section",
       modelName: "ContractSection",
       underscored: true,
-    }
+    },
   );
   return ContractSection;
 };

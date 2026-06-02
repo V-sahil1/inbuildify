@@ -1,6 +1,7 @@
 import express from "express";
 
-const router = express.Router();
+const
+  router = express.Router();
 import { createPackage, getAllPackages, updatePackage, deletePackage } from "./package.controller.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import {
@@ -31,13 +32,13 @@ router.get(
   validateRequest(getAllPackagesSchema, REQUEST_SOURCE.QUERY),
   getAllPackages,
 );
-
+// not use
 router.delete(
   "/:package_id",
   validateRequest(deletePackageSchema, REQUEST_SOURCE.PARAMS),
   deletePackage,
 );
-
+//not use
 router.put(
   "/:package_id",
   validateRequest(updatePackageParamsSchema, REQUEST_SOURCE.PARAMS),

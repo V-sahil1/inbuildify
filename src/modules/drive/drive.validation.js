@@ -1,43 +1,65 @@
 import Joi from "joi";
 
-export const createDriveSchema = Joi.object({
-  name: Joi.string().required().messages({
-    "string.empty": "Name is required",
-    "any.required": "Name is required",
+export const createFolderSchema = Joi.object({
+  name: Joi.string().trim().max(255).required().messages({
+    "string.empty": "Folder name is required",
+    "any.required": "Folder name is required",
+    "string.max": "Folder name cannot exceed 255 characters",
+  }),
+  parent_id: Joi.string().uuid().allow(null, "").optional().messages({
+    "string.guid": "Invalid parent folder ID",
   }),
 });
 
-export const getAllDriveSchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    "number.base": "Page must be a number",
-    "number.integer": "Page must be an integer",
-    "number.min": "Page must be greater than 0",
-  }),
-
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
-    "number.base": "Limit must be a number",
-    "number.integer": "Limit must be an integer",
-    "number.min": "Limit must be at least 1",
-    "number.max": "Limit must not exceed 100",
+export const renameFolderSchema = Joi.object({
+  name: Joi.string().trim().max(255).required().messages({
+    "string.empty": "Folder name is required",
+    "any.required": "Folder name is required",
+    "string.max": "Folder name cannot exceed 255 characters",
   }),
 });
 
-export const updateIdParamsSchema = Joi.object({
-  drive_id: Joi.string().uuid().required().messages({
-    "string.guid": "drive id must be a valid UUID",
-    "any.required": "drive id is required",
-  }),
-});
-export const updateDriveSchema = Joi.object({
-  name: Joi.string().required().messages({
-    "string.empty": "Name is required",
-    "any.required": "Name is required",
+export const renameFileSchema = Joi.object({
+  original_name: Joi.string().trim().max(255).required().messages({
+    "string.empty": "File name is required",
+    "any.required": "File name is required",
+    "string.max": "File name cannot exceed 255 characters",
   }),
 });
 
-export default {
-  createDriveSchema,
-  updateDriveSchema,
-  updateIdParamsSchema,
-  getAllDriveSchema,
-};
+export const uploadFileSchema = Joi.object({
+  folder_id: Joi.string().allow(null, "", "root").optional().custom((value, helpers) => {
+    if (value && value !== "root" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return helpers.message("Invalid folder ID format");
+    }
+    return value;
+  }),
+  file: Joi.any().optional(), // Allow the file field injected by camelToSnakeMiddleware
+}).unknown(true); // Allow other fields to prevent strict blocking during multi-part uploads
+
+export const moveFileSchema = Joi.object({
+  new_folder_id: Joi.string().allow(null, "", "root").optional().custom((value, helpers) => {
+    if (value && value !== "root" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return helpers.message("Invalid new folder ID format");
+    }
+    return value;
+  }),
+});
+
+export const moveFolderSchema = Joi.object({
+  new_parent_id: Joi.string().allow(null, "", "root").optional().custom((value, helpers) => {
+    if (value && value !== "root" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return helpers.message("Invalid new parent ID format");
+    }
+    return value;
+  }),
+});
+
+export const getFilesSchema = Joi.object({
+  folder_id: Joi.string().allow(null, "", "root").optional().custom((value, helpers) => {
+    if (value && value !== "root" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return helpers.message("Invalid folder ID format");
+    }
+    return value;
+  }),
+});

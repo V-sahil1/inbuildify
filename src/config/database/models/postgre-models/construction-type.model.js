@@ -36,7 +36,7 @@ export default (sequelize) => {
       tableName: "construction_type",
       modelName: "ConstructionType",
       underscored: true,
-    }
+    },
   );
   return ConstructionType;
 };

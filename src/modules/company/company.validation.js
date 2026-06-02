@@ -108,6 +108,7 @@ export const upsertCompanySchema = Joi.object({
   }),
   email_signature_logo: Joi.string().max(500).allow(null, "").optional(),
   company_logo: Joi.string().max(500).allow(null, "").optional(),
-});
+  website: Joi.string().allow(null, "").optional(),
+}).rename("company_name", "name", { override: true });
 
 export default { upsertCompanySchema };

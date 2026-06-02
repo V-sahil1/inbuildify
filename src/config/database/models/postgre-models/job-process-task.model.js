@@ -6,6 +6,7 @@ export class JobProcessTask extends Model {
     JobProcessTask.belongsTo(models.DocumentCommonFolder, { foreignKey: "folder_id", as: "folder", onDelete: "SET NULL" });
     JobProcessTask.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee", onDelete: "SET NULL" });
     JobProcessTask.hasMany(models.JobProcessSubtask, { foreignKey: "job_process_task_id", as: "subtasks" });
+    JobProcessTask.hasMany(models.JobProcessTaskDependency, { foreignKey: "task_id", as: "taskDependencies" });
   }
 }
 
@@ -26,7 +27,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_process_task", modelName: "JobProcessTask", underscored: true }
+    { sequelize, tableName: "job_process_task", modelName: "JobProcessTask", underscored: true },
   );
   return JobProcessTask;
 };

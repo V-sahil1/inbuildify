@@ -16,7 +16,7 @@ export default (sequelize) => {
     description: { type: DataTypes.STRING(500), allowNull: false },
     notes: { type: DataTypes.BOOLEAN, defaultValue: false },
     is_required: { type: DataTypes.BOOLEAN, defaultValue: false },
-    type: { type: DataTypes.ENUM("checkbox","dropdown"), allowNull: false },
+    type: { type: DataTypes.ENUM("checkbox", "dropdown"), allowNull: false },
     sort: { type: DataTypes.INTEGER, allowNull: false },
     createdAt: { type: DataTypes.DATE },
     updatedAt: { type: DataTypes.DATE },

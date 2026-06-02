@@ -1,16 +1,13 @@
 import { env } from "../config/env.config.js";
+import db from "../config/database/models/postgre-models/index.js";
 
-export async function isValidRole(client, role_id) {
-  const result = await client.query(
-    `
-    SELECT 1
-    FROM role
-    WHERE role_id = $1
-    `,
-    [role_id],
-  );
+export async function isValidRole(role_id) {
+  const { Role } = db;
+  const count = await Role.count({
+    where: { role_id },
+  });
 
-  return result.rowCount > 0;
+  return count > 0;
 }
 
 export const VALID_SORT_COLUMNS = ["created_at", "updated_at", "name"];

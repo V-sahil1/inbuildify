@@ -25,13 +25,6 @@ export const getAllTemplateNotesSchema = Joi.object({
   }),
 });
 
-export const deleteTemplateNoteSchema = Joi.object({
-  template_note_id: Joi.string().uuid().required().messages({
-    "string.guid": "ID must be a valid UUID",
-    "any.required": "ID is required",
-  }),
-});
-
 export const updateTemplateNoteParamsSchema = Joi.object({
   template_note_id: Joi.string().uuid().required().messages({
     "string.guid": "ID must be a valid UUID",
@@ -52,7 +45,6 @@ export const updateTemplateNoteIsActiveSchema = Joi.object({
 export default {
   createTemplateNoteSchema,
   getAllTemplateNotesSchema,
-  deleteTemplateNoteSchema,
   updateTemplateNoteParamsSchema,
   updateTemplateNoteSchema,
   updateTemplateNoteIsActiveSchema,

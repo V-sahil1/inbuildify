@@ -8,7 +8,7 @@ import { env } from "../../../env.config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+console.log(__dirname);
 const DB_NAME = env.DB.DB_NAME;
 const DB_PORT = parseInt(env.DB.DB_PORT);
 const DB_USER = env.DB.DB_USER;
@@ -22,7 +22,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   logging: false,
   timezone: "+05:30",
   pool: {
-    max: 5,
+    max: 20,
     min: 0,
     acquire: 30000,
     idle: 10000,
@@ -66,7 +66,9 @@ export const initModels = async () => {
 
   // STEP 2: Run associations AFTER all models are loaded
   Object.keys(db).forEach((modelName) => {
-    if (modelName === "sequelize" || modelName === "Sequelize") return;
+    if (modelName === "sequelize" || modelName === "Sequelize") {
+      return;
+    }
     const model = db[modelName];
     if (typeof model.associate === "function") {
       try {
@@ -78,6 +80,7 @@ export const initModels = async () => {
   });
 
   console.log(`\n Total models registered: ${Object.keys(db).length - 2}`);
+
 };
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;

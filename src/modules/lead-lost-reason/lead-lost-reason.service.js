@@ -12,7 +12,7 @@ export const createLeadLostReasonService = async (payload, user) => {
         builder_id: user.builder_id,
         lost_reason: sequelize.where(
           sequelize.fn("LOWER", sequelize.col("lost_reason")),
-          lost_reason.toLowerCase()
+          lost_reason.toLowerCase(),
         ),
       },
       transaction: t,
@@ -64,7 +64,7 @@ export const createLeadLostReasonService = async (payload, user) => {
         created_by: user.user_id,
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return created.toJSON();
@@ -141,8 +141,12 @@ export const updateLeadLostReasonService = async (id, payload, user) => {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Lead lost reason not found");
-    if (!existing.is_active) throw new Error("Inactive lead lost reason");
+    if (!existing) {
+      throw new Error("Lead lost reason not found");
+    }
+    if (!existing.is_active) {
+      throw new Error("Inactive lead lost reason");
+    }
 
     if (lost_reason) {
       const duplicate = await LeadLostReason.findOne({
@@ -152,16 +156,34 @@ export const updateLeadLostReasonService = async (id, payload, user) => {
           lead_lost_reason_id: { [Op.ne]: id },
           lost_reason: sequelize.where(
             sequelize.fn("LOWER", sequelize.col("lost_reason")),
-            lost_reason.toLowerCase()
+            lost_reason.toLowerCase(),
           ),
         },
         transaction: t,
       });
 
-      if (duplicate) throw new Error("Lost reason already exists");
+      if (duplicate) {
+        throw new Error("Lost reason already exists");
+      }
     }
-
     if (sort_order !== undefined) {
+      const maxSort =
+        (await LeadLostReason.max("sort_order", {
+          where: {
+            [Op.or]: [
+              { company_id: user.company_id },
+              { builder_id: user.builder_id },
+            ],
+          },
+          transaction: t,
+        })) || 0;
+
+      if (sort_order < 1 || sort_order > maxSort) {
+        const err = new Error(`sort_order must be between 1 and ${maxSort}`);
+        err.statusCode = 400;
+        throw err;
+      }
+
       const existingSort = existing.sort_order;
 
       if (sort_order !== existingSort) {
@@ -195,7 +217,7 @@ export const updateLeadLostReasonService = async (id, payload, user) => {
         ...(sort_order !== undefined && { sort_order }),
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return existing.toJSON();
@@ -210,7 +232,9 @@ export const updateLeadLostReasonActiveService = async (id, is_active, user) => 
     where: { lead_lost_reason_id: id, builder_id: user.builder_id },
   });
 
-  if (!existing) throw new Error("Lead lost reason not found");
+  if (!existing) {
+    throw new Error("Lead lost reason not found");
+  }
 
   await existing.update({
     is_active,

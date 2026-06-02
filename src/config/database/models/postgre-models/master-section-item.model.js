@@ -19,7 +19,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "master_section_item", modelName: "MasterSectionItem", underscored: true }
+    { sequelize, tableName: "master_section_item", modelName: "MasterSectionItem", underscored: true },
   );
   return MasterSectionItem;
 };

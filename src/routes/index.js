@@ -27,7 +27,6 @@ import dashboardRoutes from "../modules/dashboard/dashboard.routes.js";
 import quotationRoutes from "../modules/quotation/quotation.routes.js";
 import jobRoutes from "../modules/job/job.routes.js";
 import actionsRoutes from "../modules/actions/actions.routes.js";
-import tagsRoutes from "../modules/tags/tags.routes.js";
 import workflowProcessRoutes from "../modules/workflow-process/workflow-process.routes.js";
 import colorRoutes from "../modules/color/color.routes.js";
 import colorCategoryRoutes from "../modules/color-category/color-category.routes.js";
@@ -129,12 +128,10 @@ import timezoneRoutes from "../modules/timezone/timezone.routes.js";
 import roleTypeRoutes from "../modules/role-type/role-type.routes.js";
 import costCenterRoutes from "../modules/cost-center/cost-center.routes.js";
 import complianceTypeRoutes from "../modules/compliance-type/compliance-type.routes.js";
-import driveRoutes from "../modules/drive/drive.routes.js";
 import colorGrouprouts from "../modules/color-group/color-group.routes.js";
 import colorGroupItemMapRoutes from "../modules/color-group-item-map/color-group-item-map.routes.js";
 import contractFormatRoutes from "../modules/contract-format/contract-format.routes.js";
 import contractSectionRoutes from "../modules/contract-section/contract-section.routes.js";
-import quotationFormatMasterSectionRoutes from "../modules/quotation-format-master-section/quotation-format-master-section.routes.js";
 import contactRoutes from "../modules/contact/contact.routes.js";
 import lotRoutes from "../modules/lot/lot.routes.js";
 import lotPackageGroupRoutes from "../modules/lot-package-group/lot-package-group.routes.js";
@@ -146,13 +143,21 @@ import jobFormRoutes from "../modules/job-form/job-form.routes.js";
 import businessContactRoutes from "../modules/business-contact/business-contact.routes.js";
 import hlPackageLotPackageMapRoutes from "../modules/hl-package-lot-package-map/hl-package-lot-package-map.routes.js";
 import quotationVersionCustomSectionRoutes from "../modules/quotation-version-custom-section/quotation-version-custom-section.routes.js";
-import quotationVersionPackageMapRoutes from "../modules/quotation-version-package-map/quotation-version-package-map.routes.js";
 import quotationVersionPricelistItemMapRoutes from "../modules/quotation-version-price-list/quotation-version-pricelist-item-map.routes.js";
 import smsRoutes from "../modules/sms/sms.routes.js";
 import notesRoutes from "../modules/notes/notes.routes.js";
 import structureEngineerRoutes from "../modules/structure-engineer/structure-engineer.routes.js";
 import quotationVersionItemRoutes from "../modules/quotation-version-item/quotation-version-item.routes.js";
 import docusignRoutes from "../modules/docusign/docusign.routes.js";
+import quotationFormat from "../modules/quotation-format/quotation-format.route.js";
+// import quotationFormatCustomSectionRoutes from "../modules/quotation-format-custom-section/quotation-format-custom-section.routes.js";
+import driveRoutes from "../modules/drive/drive.routes.js";
+import quotationFormatCustomSectionRoutes from "../modules/quotation-format/quotation-format-custom-section/quotation-format-custom-section.routes.js";
+import quotationFormatmasterSectionRoutes from "../modules/quotation-format/quotation-format-master-section/quotation-format-master-section.routes.js"
+import quotationFormatmasterSectionHeaderRoutes from "../modules/quotation-format/quotation-format-master-section/quotation-format-master-section-header/quotation-format-master-section-header.route.js"
+import quotationFormatmasterSectionItemRoutes from "../modules/quotation-format/quotation-format-master-section/quotation-format-master-section-item/quotation-format-master-section-item.route.js"
+import featurFacadeRoutes from "../modules/featur-facade/featur-facade.routes.js"
+import adminFacadeRoutes from "../modules/admin-facade/admin-facade.route.js";
 
 export default function (app) {
   app.use("/country", countryRoutes);
@@ -184,7 +189,6 @@ export default function (app) {
   app.use("/quotation", quotationRoutes);
   app.use("/job", jobRoutes);
   app.use("/actions", actionsRoutes);
-  app.use("/tags", tagsRoutes);
   app.use("/workflow-process", workflowProcessRoutes);
   app.use("/color", colorRoutes);
   app.use("/color-category", colorCategoryRoutes);
@@ -198,6 +202,7 @@ export default function (app) {
   app.use("/screen", screenRoutes);
   app.use("/address", addressRoutes);
   app.use("/company", companyRoutes);
+  app.use("/company-onboarding", companyRoutes);
   app.use("/functionality", functionalityRoutes);
   app.use("/checklist", checklistRoutes);
   app.use("/checklist-item", checklistItemRoutes);
@@ -305,13 +310,12 @@ export default function (app) {
   app.use("/role-type", roleTypeRoutes);
   app.use("/cost-center", costCenterRoutes);
   app.use("/compliance-type", complianceTypeRoutes);
-  app.use("/drive", driveRoutes);
   app.use("/color-group", colorGrouprouts);
   app.use("/contract-format", contractFormatRoutes);
   app.use("/contract-section", contractSectionRoutes);
-  app.use("/quotation-format", quotationFormatMasterSectionRoutes);
   app.use("/contact", contactRoutes);
   app.use("/lot", lotRoutes);
+  app.use("/featur-facade",featurFacadeRoutes);
   app.use("/lot-package-group", lotPackageGroupRoutes);
   app.use("/lot-package", lotPackageRoutes);
   app.use("/house-feature", houseFeatureRoutes);
@@ -327,4 +331,11 @@ export default function (app) {
   app.use("/structure-engineer", structureEngineerRoutes);
   app.use("/quotation-version-items", quotationVersionItemRoutes);
   app.use("/docusign", docusignRoutes);
+  app.use("/quotation-format-custom-section", quotationFormatCustomSectionRoutes);
+  app.use("/drive", driveRoutes);
+  app.use("/quotation-format-master-section", quotationFormatmasterSectionRoutes);
+  app.use("/quotation-format-master-section-header", quotationFormatmasterSectionHeaderRoutes);
+  app.use("/quotation-format-master-section-item", quotationFormatmasterSectionItemRoutes);
+  app.use("/quotation-format", quotationFormat);
+  app.use("/admin/facade", adminFacadeRoutes);
 }

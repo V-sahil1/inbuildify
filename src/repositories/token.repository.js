@@ -1,21 +1,27 @@
-import getPool from "../config/database.js";
+import db from "../config/database/models/postgre-models/index.js";
 
-// Insert token pair
+/**
+ * Insert token pair
+ * @param {string} userId
+ * @param {string} accessToken
+ * @param {string} refreshToken
+ */
 export async function saveTokens(userId, accessToken, refreshToken) {
-  const pool = getPool();
-  await pool.query(
-    `
-      INSERT INTO users_token (user_id, access_token, refresh_token)
-      VALUES ($1, $2, $3)
-      `,
-    [userId, accessToken, refreshToken],
-  );
+  await db.UsersToken.create({
+    user_id: userId,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
 }
 
-// Invalidate all tokens for a user (on lock)
+/**
+ * Invalidate all tokens for a user (on lock)
+ * @param {string} userId
+ */
 export async function invalidateUserSessions(userId) {
-  const pool = getPool();
-  await pool.query("DELETE FROM users_token WHERE user_id = $1", [userId]);
+  await db.UsersToken.destroy({
+    where: { user_id: userId },
+  });
 }
 
 export default {

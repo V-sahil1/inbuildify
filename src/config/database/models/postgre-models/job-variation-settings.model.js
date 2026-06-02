@@ -37,7 +37,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_variation_settings", modelName: "JobVariationSettings", underscored: true }
+    { sequelize, tableName: "job_variation_settings", modelName: "JobVariationSettings", underscored: true },
   );
   return JobVariationSettings;
 };

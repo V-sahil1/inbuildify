@@ -12,7 +12,9 @@ export const createTaskSchema = Joi.object({
   due_date: Joi.date()
     .allow(null)
     .custom((value, helpers) => {
-      if (!value) return value;
+      if (!value) {
+        return value;
+      }
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
       if (value < today) {
@@ -37,8 +39,8 @@ export const createTaskSchema = Joi.object({
     .try(
       Joi.string().uuid(),
       Joi.string().pattern(
-        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/
-      )
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/,
+      ),
     )
     .allow(null)
     .optional(),
@@ -72,7 +74,9 @@ export const getAllTaskSchema = Joi.object({
   due_date: Joi.date()
     .allow(null)
     .custom((value, helpers) => {
-      if (!value) return value;
+      if (!value) {
+        return value;
+      }
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
       if (value < today) {
@@ -89,9 +93,9 @@ export const getAllTaskSchema = Joi.object({
     .try(
       Joi.string().uuid(),
       Joi.string().pattern(
-        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})*$/,
       ),
-      Joi.array().items(Joi.string().uuid())
+      Joi.array().items(Joi.string().uuid()),
     )
     .allow(null)
     .optional(),
@@ -166,7 +170,9 @@ export const updateTaskSchema = Joi.object({
   due_date: Joi.date()
     .allow(null)
     .custom((value, helpers) => {
-      if (!value) return value;
+      if (!value) {
+        return value;
+      }
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
       if (value < today) {

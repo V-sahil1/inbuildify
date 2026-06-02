@@ -54,7 +54,7 @@ export default (sequelize) => {
       tableName: "address",
       modelName: "Address",
       underscored: true,
-    }
+    },
   );
 
   return Address;

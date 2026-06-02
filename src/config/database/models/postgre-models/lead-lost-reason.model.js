@@ -23,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "lead_lost_reason", modelName: "LeadLostReason", underscored: true }
+    { sequelize, tableName: "lead_lost_reason", modelName: "LeadLostReason", underscored: true },
   );
   return LeadLostReason;
 };

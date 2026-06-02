@@ -1,4 +1,5 @@
 import pkg from "lodash";
+
 const { replace } = pkg;
 
 export default (validationMessageArray) => {

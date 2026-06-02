@@ -1,32 +1,23 @@
-import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
-import { keysToCamelCase } from "../../utils/common.js";
+import { getSalesProcessStageFunctionalitiesService } from "./sales-process-stage-functionality.service.js";
 
+/**
+ * Controller to fetch all sales process stage functionalities
+ */
 export async function getSalesProcessStageFunctionalities(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const query = `
-      SELECT 
-        functionality_id,
-        name
-      FROM sales_process_stage_functionality
-      ORDER BY name ASC
-    `;
-
-    const result = await client.query(query);
+    const result = await getSalesProcessStageFunctionalitiesService();
 
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      result,
       "Sales process stage functionalities retrieved successfully.",
     );
-
   } catch (error) {
     console.error("Error fetching sales process stage functionalities:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
+    const statusCode = error.statusCode || 500;
+    return errorResponse(res, statusCode, error.message || "Internal Server Error");
   }
 }
+
+

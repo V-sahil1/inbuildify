@@ -1,15 +1,12 @@
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { env } from "../config/env.config.js";
-import getPool from "../config/database.js";
-import { errorResponse } from "../helper/response.js";
+import authService from "../modules/auth/auth.service.js";
+import { errorResponse } from "../helper/response.js"; // Added here
 
 const JWT_SECRET = env.JWT.JWT_SECRET;
 
 const handleTokenAuthorization = async (requestId, token, req, res, next) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     console.info({ requestId, message: "🔄 Validating JWT token" });
 
@@ -23,17 +20,9 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       );
     }
 
-    const query = `
-      SELECT *
-      FROM users u
-      INNER JOIN users_token ut ON u.users_id = ut.user_id
-      WHERE ut.access_token = $1 
-        AND u.users_id = $2 
-        AND u.is_verified = $3;
-    `;
-    const result = await client.query(query, [token, payload?.userId, true]);
+    const userRecord = await authService.validateTokenAndUser(token, payload?.userId);
 
-    if (result?.rows?.length === 0) {
+    if (!userRecord) {
       console.warn({ requestId, message: "❌ Unauthorized: Invalid token" });
       return errorResponse(
         res,
@@ -42,7 +31,11 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       );
     }
 
-    req.user = result.rows[0];
+    req.user = userRecord;
+    // Add aliases for consistency across controllers
+    req.user.user_id = userRecord.users_id;
+    req.user.id = userRecord.users_id;
+    req.user.access_token = token;
 
     if (!req.user || !req.user.builder_id) {
       return errorResponse(
@@ -55,17 +48,9 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     const builderId = req.user.builder_id;
 
     // ✅ Fetch company_id from DB if not already attached
-    const companyQuery = `
-  SELECT company_id
-  FROM company
-  WHERE builder_id = $1
-  LIMIT 1;
-`;
+    const company = await authService.getCompanyByBuilderId(builderId);
 
-    const results = await client.query(companyQuery, [builderId]);
-
-    // 🚨 IMPORTANT: use results (not result)
-    const isCompanyExists = results.rowCount > 0;
+    const isCompanyExists = !!company;
 
     // ✅ Detect create-company API
     // adjust path/method if needed
@@ -91,7 +76,7 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
     }
 
     // ✅ Company exists → attach company_id
-    req.user.company_id = results.rows[0].company_id;
+    req.user.company_id = company.company_id;
 
     next();
   } catch (error) {
@@ -104,8 +89,6 @@ const handleTokenAuthorization = async (requestId, token, req, res, next) => {
       return errorResponse(res, 401, "Unauthorized: Your token has expired");
     }
     return errorResponse(res, 401, `Unauthorized: ${error.message}`);
-  } finally {
-    client.release();
   }
 };
 

@@ -15,7 +15,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "custom_field_module", modelName: "CustomFieldModule", underscored: true }
+    { sequelize, tableName: "custom_field_module", modelName: "CustomFieldModule", underscored: true },
   );
   return CustomFieldModule;
 };

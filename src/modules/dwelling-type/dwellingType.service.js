@@ -45,7 +45,9 @@ export async function createDwellingTypeService(data, user) {
       transaction: t,
     });
 
-    if (dupCheck) throw new Error("Dwelling type already exists.");
+    if (dupCheck) {
+      throw new Error("Dwelling type already exists.");
+    }
 
     const newDwellingType = await DwellingType.create(
       {
@@ -56,7 +58,7 @@ export async function createDwellingTypeService(data, user) {
         created_by: userId,
         updated_by: userId,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     await t.commit();
@@ -83,9 +85,15 @@ export async function updateDwellingTypeService(id, data, user) {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Dwelling type not found.");
-    if (!existing.is_active) throw new Error("Inactive dwelling type.");
-    if (!name) throw new Error("Name is required.");
+    if (!existing) {
+      throw new Error("Dwelling type not found.");
+    }
+    if (!existing.is_active) {
+      throw new Error("Inactive dwelling type.");
+    }
+    if (!name) {
+      throw new Error("Name is required.");
+    }
 
     const dup = await DwellingType.findOne({
       where: {
@@ -96,7 +104,9 @@ export async function updateDwellingTypeService(id, data, user) {
       transaction: t,
     });
 
-    if (dup) throw new Error("Dwelling type already exists.");
+    if (dup) {
+      throw new Error("Dwelling type already exists.");
+    }
 
     await existing.update(
       {
@@ -104,7 +114,7 @@ export async function updateDwellingTypeService(id, data, user) {
         updated_by: userId,
         updatedAt: new Date(),
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     await t.commit();
@@ -127,30 +137,32 @@ export async function deleteDwellingTypeService(id, builderId) {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Dwelling type not found.");
+    if (!existing) {
+      throw new Error("Dwelling type not found.");
+    }
 
     await PriceListItem.update(
       {
         dwelling_type_id: literal(
-          `array_remove(dwelling_type_id, '${id}'::uuid)`
+          `array_remove(dwelling_type_id, '${id}'::uuid)`,
         ),
       },
       {
         where: literal(`'${id}'::uuid = ANY(dwelling_type_id)`),
         transaction: t,
-      }
+      },
     );
 
     await Package.update(
       {
         dwelling_type_id: literal(
-          `array_remove(dwelling_type_id, '${id}'::uuid)`
+          `array_remove(dwelling_type_id, '${id}'::uuid)`,
         ),
       },
       {
         where: literal(`'${id}'::uuid = ANY(dwelling_type_id)`),
         transaction: t,
-      }
+      },
     );
 
     await existing.destroy({ transaction: t });
@@ -171,7 +183,9 @@ export async function updateDwellingTypeActiveService(id, is_active, user) {
   const builderId = user?.builder_id;
   const userId = user?.user_id;
 
-  if (!id) throw new Error("dwelling type id is required");
+  if (!id) {
+    throw new Error("dwelling type id is required");
+  }
   if (typeof is_active !== "boolean") {
     throw new Error("is_active must be boolean");
   }
@@ -180,7 +194,9 @@ export async function updateDwellingTypeActiveService(id, is_active, user) {
     where: { dwelling_type_id: id, builder_id: builderId },
   });
 
-  if (!existing) throw new Error("dwelling type not found");
+  if (!existing) {
+    throw new Error("dwelling type not found");
+  }
 
   await existing.update({
     is_active,

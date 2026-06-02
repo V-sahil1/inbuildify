@@ -60,7 +60,7 @@ export default (sequelize) => {
       tableName: "builder_insurer",
       modelName: "BuilderInsurer",
       underscored: true,
-    }
+    },
   );
 
   return BuilderInsurer;

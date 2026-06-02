@@ -113,17 +113,3 @@ export async function getTemplatePdfList(req, res) {
     return errorResponse(res, 500, "Failed to fetch templates");
   }
 }
-
-export async function deleteTemplatePdf(req, res) {
-  try {
-    const user = req.user;
-    const { templatePdfId } = req.params;
-
-    await templatePdfService.deleteTemplatePdf(user, templatePdfId);
-
-    return successResponse(res, null, "PDF template deleted successfully");
-  } catch (err) {
-    console.error(err);
-    return errorResponse(res, 400, err.message);
-  }
-}

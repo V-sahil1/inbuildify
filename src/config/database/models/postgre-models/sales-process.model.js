@@ -23,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "sales_process", modelName: "SalesProcess", underscored: true }
+    { sequelize, tableName: "sales_process", modelName: "SalesProcess", underscored: true },
   );
   return SalesProcess;
 };

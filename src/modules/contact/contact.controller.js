@@ -38,11 +38,11 @@ export async function createContact(req, res) {
 
     const { address_line1, city, country_id, state_id, zip_code } = address;
     const requiredAddressFields = {
-      address_line1: address_line1,
-      city: city,
-      country_id: country_id,
-      state_id: state_id,
-      zip_code: zip_code
+      address_line1,
+      city,
+      country_id,
+      state_id,
+      zip_code,
     };
 
     for (const [key, value] of Object.entries(requiredAddressFields)) {

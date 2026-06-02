@@ -36,6 +36,10 @@ export default (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
+      color_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
       item_name: {
         type: DataTypes.STRING(255),
         allowNull: false,
@@ -114,7 +118,7 @@ export default (sequelize) => {
       tableName: "color_item",
       modelName: "ColorItem",
       underscored: true,
-    }
+    },
   );
 
   return ColorItem;

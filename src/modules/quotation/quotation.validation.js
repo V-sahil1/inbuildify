@@ -87,7 +87,7 @@ export const compareQuotationVersionsBodySchema = Joi.object({
           "string.guid": "Version ID must be a valid UUID",
           "any.required": "Version ID is required",
         }),
-      })
+      }),
     )
     .length(2)
     .required()
@@ -117,5 +117,5 @@ export default {
   compareQuotationVersionsParamsSchema,
   compareQuotationVersionsBodySchema,
   removePackageFromVersionSchema,
-  getQuotationVersionsQuerySchema
+  getQuotationVersionsQuerySchema,
 };

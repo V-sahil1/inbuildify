@@ -4,16 +4,16 @@ import { Op } from "sequelize";
 
 export async function getAllNoteTagService({ builderId, page, limit }) {
   const offset = (page - 1) * limit;
- 
+
   const { rows: noteTags, count: totalRecords } = await db.NotesTag.findAndCountAll({
     where: { builder_id: builderId },
     order: [["created_at", "DESC"]],
     limit,
     offset,
   });
- 
+
   const totalPages = Math.ceil(totalRecords / limit);
- 
+
   return {
     noteTag: keysToCamelCase(noteTags.map((tag) => tag.toJSON())),
     pagination: {
@@ -24,11 +24,10 @@ export async function getAllNoteTagService({ builderId, page, limit }) {
     },
   };
 }
- 
 
 export async function createNotesTagService({ builderId, companyId, userId, payload }) {
   const { name, background_color, font_color, is_active } = payload;
- 
+
   // ── Duplicate name check ────────────────────────────────────────────────────
   const duplicate = await db.NotesTag.findOne({
     where: {
@@ -41,13 +40,13 @@ export async function createNotesTagService({ builderId, companyId, userId, payl
     },
     attributes: ["notes_tag_id"],
   });
- 
+
   if (duplicate) {
     const error = new Error("Tag name already exists.");
     error.status = 400;
     throw error;
   }
- 
+
   // ── Insert notes tag ────────────────────────────────────────────────────────
   const newTag = await db.NotesTag.create({
     company_id: companyId,
@@ -59,31 +58,31 @@ export async function createNotesTagService({ builderId, companyId, userId, payl
     created_by: userId,
     updated_by: userId,
   });
- 
+
   return keysToCamelCase(newTag.toJSON());
 }
 
 export async function updateNoteTagService({ id, builderId, companyId, userId, payload }) {
   const { name, background_color, font_color } = payload;
- 
+
   // ── Check note tag exists for this builder ──────────────────────────────────
   const existing = await db.NotesTag.findOne({
     where: { notes_tag_id: id, builder_id: builderId },
   });
- 
+
   if (!existing) {
     const error = new Error("Note tag not found for this builder.");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Check note tag is active ────────────────────────────────────────────────
   if (!existing.is_active) {
     const error = new Error("Inactive note tag.");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Duplicate name check ────────────────────────────────────────────────────
   if (name) {
     const duplicate = await db.NotesTag.findOne({
@@ -97,14 +96,14 @@ export async function updateNoteTagService({ id, builderId, companyId, userId, p
       },
       attributes: ["notes_tag_id"],
     });
- 
+
     if (duplicate) {
       const error = new Error("Name already exists, please choose another name");
       error.status = 400;
       throw error;
     }
   }
- 
+
   // ── Update note tag (COALESCE — only provided fields) ───────────────────────
   const [, [updated]] = await db.NotesTag.update(
     {
@@ -115,7 +114,7 @@ export async function updateNoteTagService({ id, builderId, companyId, userId, p
     },
     { where: { notes_tag_id: id }, returning: true },
   );
- 
+
   return keysToCamelCase(updated.toJSON());
 }
 
@@ -125,19 +124,19 @@ export async function updateNoteTagIsActiveService({ id, builderId, userId, is_a
     where: { notes_tag_id: id, builder_id: builderId },
     attributes: ["notes_tag_id"],
   });
- 
+
   if (!existing) {
     const error = new Error("note tag not found for this builder");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Update is_active ────────────────────────────────────────────────────────
   const [, [updated]] = await db.NotesTag.update(
     { is_active, updated_by: userId },
     { where: { notes_tag_id: id }, returning: true },
   );
- 
+
   return keysToCamelCase(updated.toJSON());
 }
 
@@ -147,16 +146,15 @@ export async function deleteNoteTagService({ id, builderId }) {
     where: { notes_tag_id: id, builder_id: builderId },
     attributes: ["notes_tag_id"],
   });
- 
+
   if (!existing) {
     const error = new Error("Note tag not found for this builder.");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Delete note tag ─────────────────────────────────────────────────────────
   await db.NotesTag.destroy({
     where: { notes_tag_id: id },
   });
 }
- 

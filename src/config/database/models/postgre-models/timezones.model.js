@@ -18,7 +18,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "timezones", modelName: "Timezones", underscored: true }
+    { sequelize, tableName: "timezones", modelName: "Timezones", underscored: true },
   );
   return Timezones;
 };

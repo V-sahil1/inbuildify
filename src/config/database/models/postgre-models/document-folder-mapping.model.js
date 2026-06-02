@@ -29,7 +29,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "document_folder_mapping", modelName: "DocumentFolderMapping", underscored: true }
+    { sequelize, tableName: "document_folder_mapping", modelName: "DocumentFolderMapping", underscored: true },
   );
   return DocumentFolderMapping;
 };

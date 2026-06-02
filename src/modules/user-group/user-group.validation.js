@@ -6,7 +6,7 @@ export const createUserGroupSchema = Joi.object({
     .default([])
     .optional()
     .messages({
-      "string.guid": "user type ID must be a valid UUID",
+      "string.guid": "user ID must be a valid UUID",
     }),
   name: Joi.string().trim().max(100).required().messages({
     "string.empty": "Group name is required.",
@@ -37,9 +37,9 @@ export const getAllUserGroupSchema = Joi.object({
 });
 
 export const updateUserGroupParamsSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    "string.guid": " ID must be a valid UUID",
-    "any.required": " ID is required",
+  user_group_id: Joi.string().uuid().required().messages({
+    "string.guid": "user group ID must be a valid UUID",
+    "any.required": "user group ID is required",
   }),
 });
 
@@ -52,7 +52,7 @@ export const updateUserGroupSchema = Joi.object({
     .default([])
     .optional()
     .messages({
-      "string.guid": "dwelling type ID must be a valid UUID",
+      "string.guid": "user ID must be a valid UUID",
     }),
   is_active: Joi.boolean().optional(),
 });

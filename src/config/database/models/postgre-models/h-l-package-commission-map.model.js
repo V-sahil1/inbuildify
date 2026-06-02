@@ -17,7 +17,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "h_l_package_commission_map", modelName: "HLPackageCommissionMap", underscored: true }
+    { sequelize, tableName: "h_l_package_commission_map", modelName: "HLPackageCommissionMap", underscored: true },
   );
   return HLPackageCommissionMap;
 };

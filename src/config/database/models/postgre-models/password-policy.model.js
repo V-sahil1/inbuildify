@@ -27,7 +27,7 @@ export default (sequelize) => {
       updatedAt: { type: DataTypes.DATE },
     },
     { sequelize, tableName: "password_policy", modelName: "PasswordPolicy", underscored: true,
-      indexes: [{ unique: true, fields: ["company_id", "builder_id"] }] }
+      indexes: [{ unique: true, fields: ["company_id", "builder_id"] }] },
   );
   return PasswordPolicy;
 };

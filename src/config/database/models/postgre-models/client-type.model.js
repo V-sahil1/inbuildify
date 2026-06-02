@@ -57,7 +57,7 @@ export default (sequelize) => {
       tableName: "client_type",
       modelName: "ClientType",
       underscored: true,
-    }
+    },
   );
 
   return ClientType;

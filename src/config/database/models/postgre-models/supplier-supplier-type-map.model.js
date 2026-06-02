@@ -18,7 +18,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "supplier_supplier_type_map", modelName: "SupplierSupplierTypeMap", underscored: true }
+    { sequelize, tableName: "supplier_supplier_type_map", modelName: "SupplierSupplierTypeMap", underscored: true },
   );
   return SupplierSupplierTypeMap;
 };

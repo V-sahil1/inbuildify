@@ -5,25 +5,23 @@ const router = express.Router();
 import {
   createHouseLandPackage,
   getAllHouseLandPackages,
-  getHouseLandPackageById,
   updateHouseLandPackage,
   deleteHouseLandPackage,
-  getHouseLandPackageDetailedInfo,
+  getHouseLandPackageById,
 } from "./house-land-package.controller.js";
 import {
   createHouseLandPackageSchema,
   updateHouseLandPackageSchema,
-  getHouseLandPackageByIdSchema,
   deleteHouseLandPackageSchema,
   getAllHouseLandPackagesSchema,
-  getHouseLandPackageDetailedInfoSchema,
+  getHouseLandPackageByIdSchema,
 } from "./house-land-package.validation.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
-import { createImageOrPdfUpload, handleMulterError, createPdfUpload } from "../../utils/s3Upload.js";
+import { handleMulterError, createPdfUpload } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -44,12 +42,6 @@ router.get(
 );
 
 router.get(
-  "/details/:house_land_package_id",
-  validateRequest(getHouseLandPackageDetailedInfoSchema, REQUEST_SOURCE.PARAMS),
-  getHouseLandPackageDetailedInfo,
-);
-
-router.get(
   "/:house_land_package_id",
   validateRequest(getHouseLandPackageByIdSchema, REQUEST_SOURCE.PARAMS),
   getHouseLandPackageById,
@@ -57,9 +49,7 @@ router.get(
 
 router.put(
   "/:house_land_package_id",
-  upload.fields([
-    { name: "attachFiles", maxCount: 10 },
-  ]),
+  upload.any(),
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(getHouseLandPackageByIdSchema, REQUEST_SOURCE.PARAMS),

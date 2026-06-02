@@ -15,7 +15,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "estate_features", modelName: "EstateFeatures", underscored: true }
+    { sequelize, tableName: "estate_features", modelName: "EstateFeatures", underscored: true },
   );
   return EstateFeatures;
 };

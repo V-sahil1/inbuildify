@@ -27,7 +27,7 @@ export default (sequelize) => {
       tableName: "construction_sub_checklist",
       modelName: "ConstructionSubChecklist",
       underscored: true,
-    }
+    },
   );
   return ConstructionSubChecklist;
 };

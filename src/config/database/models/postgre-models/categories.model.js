@@ -51,7 +51,7 @@ export default (sequelize) => {
       tableName: "categories",
       modelName: "Categories",
       underscored: true,
-    }
+    },
   );
 
   return Categories;

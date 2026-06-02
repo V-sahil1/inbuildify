@@ -26,7 +26,7 @@ export default (sequelize) => {
       updatedAt: { type: DataTypes.DATE },
     },
     { sequelize, tableName: "lead_source", modelName: "LeadSource", underscored: true,
-      indexes: [{ unique: true, fields: ["company_id", "builder_id", "name"] }] }
+      indexes: [{ unique: true, fields: ["company_id", "builder_id", "name"] }] },
   );
   return LeadSource;
 };

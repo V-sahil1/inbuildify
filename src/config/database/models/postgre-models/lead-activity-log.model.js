@@ -83,19 +83,19 @@ export default (sequelize) => {
           name: "idx_activity_log_lead_created",
           fields: [
             "leads_id",
-            { name: "created_at", order: "DESC" }
-          ]
+            { name: "created_at", order: "DESC" },
+          ],
         },
         {
           name: "idx_activity_log_module_id",
-          fields: ["module_id"]
+          fields: ["module_id"],
         },
         {
           name: "idx_activity_log_module",
-          fields: ["module"]
-        }
-      ]
-    }
+          fields: ["module"],
+        },
+      ],
+    },
   );
   return LeadActivityLog;
 };

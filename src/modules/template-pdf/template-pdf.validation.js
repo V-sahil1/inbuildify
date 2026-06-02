@@ -33,6 +33,7 @@ const showDetailsBaseSchema = {
   account: Joi.string().optional(),
   address: Joi.string().valid("header", "footer", "none").optional(),
   contact: Joi.string().valid("header", "footer", "none").optional(),
+  bank_information: Joi.string().optional(),
 };
 
 /* =========================
@@ -173,13 +174,8 @@ export const createTemplatePdfSchema = Joi.object({
 
 export const updateTemplatePdfSchema = Joi.object({
   // name: Joi.string().max(200).optional(),
-
-  invoice_format: makePartial(invoiceFormatSchema).optional(),
-  receipt_format: makePartial(receiptFormatSchema).optional(),
-  variation_format: makePartial(variationFormatSchema).optional(),
-  color_format: makePartial(colorFormatSchema).optional(),
-  maintenance_format: makePartial(maintenanceFormatSchema).optional(),
-}).min(1);
+  format_type: Joi.string().required(),
+}).unknown(true);
 
 const formatSchemas = {
   invoice_format: makePartial(invoiceFormatSchema),

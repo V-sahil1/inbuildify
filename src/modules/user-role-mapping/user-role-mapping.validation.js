@@ -37,13 +37,6 @@ export const getAllUserRoleMappingSchema = Joi.object({
   }),
 });
 
-export const deleteUserRoleMppingSchema = Joi.object({
-  user_role_mapping_id: Joi.string().uuid().required().messages({
-    "string.guid": "user role mapping ID must be a valid UUID",
-    "any.required": "user role mapping ID is required",
-  }),
-});
-
 export const updateUserRoleMppingParamsSchema = Joi.object({
   user_role_mapping_id: Joi.string().uuid().required().messages({
     "string.guid": "user role mapping ID must be a valid UUID",
@@ -72,7 +65,6 @@ export const updateUserRoleMappingSchema = Joi.object({
 export default {
   createUserRoleMappingSchema,
   getAllUserRoleMappingSchema,
-  deleteUserRoleMppingSchema,
   updateUserRoleMppingParamsSchema,
   updateUserRoleMappingSchema,
 };

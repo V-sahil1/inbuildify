@@ -1,6 +1,5 @@
 import Bull from "bull";
 import { env } from "../config/env.config.js";
-import getPool from "../config/database.js";
 import db from "../config/database/models/postgre-models/index.js";
 import quotationRepository from "../modules/quotation/quotation.repository.js";
 import { generatePDF } from "../modules/quotation/pdf.service.js";
@@ -10,41 +9,44 @@ import docusignService from "../service/docusign.service.js";
 import { encodeQuotationHash, encodeSignToken } from "../utils/hashEncoder.js";
 import { renderTemplate } from "../utils/templateRenderer.js";
 import sendEmail from "../service/sendMail.service.js";
+import { Op } from "sequelize";
 
-const redisConfig = {
-  host: env.REDIS.REDIS_HOST,
-  port: env.REDIS.REDIS_PORT,
-  ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
-};
+import { createSharedBullClient } from "../config/redisBull.config.js";
 
-const quotationEmailQueue = new Bull("quotationEmailQueue", { redis: redisConfig });
+const quotationEmailQueue = new Bull("quotationEmailQueue", { createClient: createSharedBullClient });
 
 quotationEmailQueue.process(async (job) => {
   const { versionId, userId, builderId, companyId } = job.data;
-  const client = getPool();
-  const { NotificationTemplate, Notifications } = db;
+  const { QuotationVersion, Quotation, Leads, NotificationTemplate, Notifications } = db;
 
   // 1. Re-fetch ownership + builder context
-  const checkResult = await client.query(
-    `SELECT qv.quotation_version_id, qv.esign_envelope_id,
-            q.quotation_id, q.reference_number,
-            l.leads_id, l.email AS lead_email, l.name AS lead_name,
-            l.builder_id
-     FROM quotation_version qv
-     JOIN quotation q ON qv.quotation_id = q.quotation_id
-     JOIN leads l ON q.leads_id = l.leads_id
-     WHERE qv.quotation_version_id = $1
-       AND (l.builder_id = $2 OR (l.company_id = $3 AND $3 IS NOT NULL))`,
-    [versionId, builderId, companyId]
-  );
+  const quotation = await QuotationVersion.findOne({
+    where: { quotation_version_id: versionId },
+    include: [
+      {
+        model: Quotation,
+        as: "quotation",
+        include: [{ 
+          model: Leads, 
+          as: "lead",
+          where: {
+            [Op.or]: [
+              { builder_id: builderId },
+              ...(companyId ? [{ company_id: companyId }] : [])
+            ]
+          }
+        }]
+      }
+    ]
+  });
 
-  if (checkResult.rowCount === 0) throw new Error("Quotation version not found or unauthorized");
+  if (!quotation) throw new Error("Quotation version not found or unauthorized");
+  const qData = quotation.get({ plain: true });
+  const lead = qData.quotation.lead;
 
-  const row = checkResult.rows[0];
-  // if (row.esign_envelope_id) throw new Error("Quotation email already sent");
-  if (!row.lead_email) throw new Error("Customer email not available");
+  if (!lead.email) throw new Error("Customer email not available");
 
-  const builderIdForTemplate = row.builder_id || builderId;
+  const builderIdForTemplate = lead.builder_id || builderId;
 
   // 2. Load QUOTATION_SEND notification template from DB
   const notifTemplate = await NotificationTemplate.findOne({
@@ -67,60 +69,65 @@ quotationEmailQueue.process(async (job) => {
   const s3Key = `quotations/${versionId}/Quotation_v${versionDetails.quotationVersionNo}.pdf`;
   const uploadResult = await uploadFile(s3Key, pdfBuffer, "application/pdf");
   if (!uploadResult.success) throw new Error("Failed to upload PDF to S3");
-  await quotationRepository.updatePdfUrl(versionId, uploadResult.location);
+  await quotationRepository.updatePdfUrl(versionId, uploadResult.key, {
+    size: pdfBuffer.length,
+    originalName: `Quotation_v${versionDetails.quotationVersionNo}.pdf`,
+    builderId,
+    companyId,
+  });
 
   // 5. Build URLs
   const frontendBaseUrl = env.EMAIL.FRONTEND_BASE_URL || "http://localhost:3000";
   const backendBaseUrl = env.EMAIL.BACKEND_BASE_URL;
-  const secureHash = encodeQuotationHash(row.quotation_id, row.leads_id);
+  const secureHash = encodeQuotationHash(qData.quotation_id, lead.leads_id);
   const viewUrl = `${frontendBaseUrl}/quotation/view?token=${secureHash}`;
 
   // 6. Signers + CC
-  const signerName = row.lead_name || "Customer";
+  const signerName = lead.name || "Customer";
   const primarySigner = {
-    email: row.lead_email,
+    email: lead.email,
     name: signerName,
     routingOrder: "1",
-    clientUserId: row.lead_email,
+    clientUserId: lead.email,
   };
 
   const ccRecipients = (versionDetails.leadContacts || [])
-    .filter((c) => c.email && c.email !== row.lead_email)
+    .filter((c) => c.email && c.email !== lead.email)
     .map((c) => ({ email: c.email, name: c.name || c.email, routingOrder: "2" }));
 
-  // 7. Create DocuSign envelope — pass pdfBuffer directly to avoid S3 presigned URL round-trip
+  // 7. Create DocuSign envelope
   const docusignResult = await docusignService.createQuotationEnvelope(
     versionId,
     {
       signers: [primarySigner],
       ccRecipients,
-      emailSubject: `Your Quotation – ${row.reference_number}`,
-      emailBlurb: `Please review your quotation (${row.reference_number}) and sign it. View: ${viewUrl}`,
+      emailSubject: `Your Quotation – ${qData.quotation.reference_number}`,
+      emailBlurb: `Please review your quotation (${qData.quotation.reference_number}) and sign it. View: ${viewUrl}`,
       useEmbeddedSigning: true,
       pdfBuffer,
     },
     userId,
-    row.leads_id
+    lead.leads_id
   );
 
   const { envelopeId } = docusignResult;
 
-  await client.query(
-    "UPDATE quotation_version SET esign_status = $1, esign_envelope_id = $2 WHERE quotation_version_id = $3",
-    ["sent", envelopeId, versionId]
+  await QuotationVersion.update(
+    { esign_status: "sent", esign_envelope_id: envelopeId },
+    { where: { quotation_version_id: versionId } }
   );
 
-  // 8. Build sign token → URL that decodes + creates 5-min DocuSign signing URL
-  const signToken = encodeSignToken(envelopeId, row.lead_email, signerName);
+  // 8. Build sign token
+  const signToken = encodeSignToken(envelopeId, lead.email, signerName);
   const signUrl = `${backendBaseUrl}/docusign/public/sign?token=${signToken}`;
 
   const presignedResult = await generatePresignedDownloadUrl(s3Key, 604800);
   const downloadUrl = presignedResult.success ? presignedResult.url : uploadResult.location;
 
-  // 9. Render template — {{variable}} replaced, literal $ signs untouched
+  // 9. Render template
   const templateContext = {
     customerName: signerName,
-    referenceNumber: row.reference_number,
+    referenceNumber: qData.quotation.reference_number,
     versionNo: versionDetails.quotationVersionNo,
     signUrl,
     viewUrl,
@@ -130,12 +137,12 @@ quotationEmailQueue.process(async (job) => {
   const renderedTitle = renderTemplate(notifTemplate.title, templateContext);
   const renderedBody = renderTemplate(notifTemplate.body, templateContext);
 
-  // 10. Send one email with proper CC
+  // 10. Send email
   const ccEmailList = ccRecipients.map((c) => c.email);
-  const plainText = `Dear ${signerName}, your quotation ${row.reference_number} is ready. Sign here: ${signUrl}`;
+  const plainText = `Dear ${signerName}, your quotation ${qData.quotation.reference_number} is ready. Sign here: ${signUrl}`;
 
   await sendEmail(
-    row.lead_email,
+    lead.email,
     renderedTitle,
     plainText,
     renderedBody,
@@ -143,23 +150,23 @@ quotationEmailQueue.process(async (job) => {
     ccEmailList.length > 0 ? ccEmailList : null
   );
 
-  // 11. Log sent notification to notifications table
+  // 11. Log notification
   await Notifications.create({
     sender_id: userId || null,
     receiver_info: JSON.stringify({
-      to: row.lead_email,
+      to: lead.email,
       cc: ccEmailList,
       name: signerName,
     }),
     template_id: notifTemplate.notification_template_id,
     notification_type: "EMAIL",
     title: renderedTitle,
-    body: `Quotation ${row.reference_number} sent for signing. EnvelopeId: ${envelopeId}`,
+    body: `Quotation ${qData.quotation.reference_number} sent for signing. EnvelopeId: ${envelopeId}`,
     metadata_json: JSON.stringify({
       quotationVersionId: versionId,
-      quotationId: row.quotation_id,
+      quotationId: qData.quotation_id,
       envelopeId,
-      referenceNumber: row.reference_number,
+      referenceNumber: qData.quotation.reference_number,
     }),
     delivery_status: "SENT",
   });

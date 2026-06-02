@@ -22,7 +22,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "lot_package_group", modelName: "LotPackageGroup", underscored: true }
+    { sequelize, tableName: "lot_package_group", modelName: "LotPackageGroup", underscored: true },
   );
   return LotPackageGroup;
 };

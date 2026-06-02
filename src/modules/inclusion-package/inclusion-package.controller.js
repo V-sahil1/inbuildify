@@ -1,15 +1,21 @@
-import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import {
+  createInclusionPackageService,
+  getAllInclusionPackagesService,
+  getInclusionPackageByIdService,
+  updateInclusionPackageService,
+  deleteInclusionPackageService,
+} from "./inclusion-package.service.js";
 
+/**
+ * Creates a new inclusion package.
+ */
 export async function createInclusionPackage(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
-    const userId = req.user?.user_id;
+    const userId = req.user?.users_id || req.user?.user_id; // Added users_id for flexibility
 
     if (!builderId && !companyId) {
       return errorResponse(res, 401, "Unauthorized: Organization ID missing.");
@@ -17,34 +23,30 @@ export async function createInclusionPackage(req, res) {
 
     const { name } = req.body;
 
-    const duplicateCheck = await client.query(
-      "SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3)",
-      [name.toLowerCase().trim(), companyId, builderId],
+    const result = await createInclusionPackageService({
+      companyId,
+      builderId,
+      userId,
+      name,
+    });
+
+    return successResponse(
+      res,
+      keysToCamelCase(result.get({ plain: true })),
+      "Inclusion package created successfully.",
     );
-
-    if (duplicateCheck.rowCount > 0) {
-      return errorResponse(res, 409, "Inclusion package name already exists in your organization.");
-    }
-
-    const result = await client.query(
-      `INSERT INTO inclusion_package (company_id, builder_id, name, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [companyId, builderId, name.trim(), userId, userId],
-    );
-
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Inclusion package created successfully.");
   } catch (error) {
     console.error("Error creating inclusion package:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+    const statusCode = error.status || 500;
+    const message = error.message || "Internal Server Error.";
+    return errorResponse(res, statusCode, message);
   }
 }
 
+/**
+ * Retrieves all inclusion packages for an organization.
+ */
 export async function getAllInclusionPackages(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
@@ -53,144 +55,97 @@ export async function getAllInclusionPackages(req, res) {
       return errorResponse(res, 401, "Unauthorized.");
     }
 
-    const { name } = req.query;
+    const result = await getAllInclusionPackagesService(req.query, {
+      builderId,
+      companyId,
+    });
 
-    const conditions = [];
-    const values = [];
-    let i = 1;
-
-    if (builderId) {
-      conditions.push(`builder_id = $${i++}`);
-      values.push(builderId);
-    } else {
-      conditions.push(`company_id = $${i++}`);
-      values.push(companyId);
-    }
-
-    if (name) {
-      conditions.push(`LOWER(name) LIKE LOWER($${i++})`);
-      values.push(`%${name.trim()}%`);
-    }
-
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-    const result = await client.query(
-      `SELECT * FROM inclusion_package ${whereClause} ORDER BY created_at DESC`,
-      values,
+    return successResponse(
+      res,
+      result.map((item) => keysToCamelCase(item.get({ plain: true }))),
+      "Inclusion packages fetched successfully.",
     );
-
-    return successResponse(res, result.rows.map(keysToCamelCase), "Inclusion packages fetched successfully.");
   } catch (error) {
     console.error("Error fetching inclusion packages:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+    const statusCode = error.status || 500;
+    const message = error.message || "Internal Server Error.";
+    return errorResponse(res, statusCode, message);
   }
 }
 
+/**
+ * Retrieves a single inclusion package by ID.
+ */
 export async function getInclusionPackageById(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const { id } = req.params;
 
-    const result = await client.query(
-      "SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3)",
-      [id, companyId, builderId],
-    );
+    const result = await getInclusionPackageByIdService(id, {
+      builderId,
+      companyId,
+    });
 
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Inclusion package not found or access denied.");
-    }
-
-    return successResponse(res, keysToCamelCase(result.rows[0]));
+    return successResponse(res, keysToCamelCase(result.get({ plain: true })));
   } catch (error) {
     console.error("Error fetching inclusion package:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+    const statusCode = error.status || 500;
+    const message = error.message || "Internal Server Error.";
+    return errorResponse(res, statusCode, message);
   }
 }
 
+/**
+ * Updates an inclusion package.
+ */
 export async function updateInclusionPackage(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
-    const userId = req.user?.user_id;
+    const userId = req.user?.users_id || req.user?.user_id;
     const { id } = req.params;
     const { name } = req.body;
 
-    if (!name) {
-      return errorResponse(res, 400, "Name is required to update.");
-    }
-
-    await client.query("BEGIN");
-
-    const checkRes = await client.query(
-      "SELECT * FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) FOR UPDATE",
-      [id, companyId, builderId],
+    const result = await updateInclusionPackageService(
+      id,
+      name,
+      { builderId, companyId },
+      userId,
     );
 
-    if (checkRes.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Inclusion package not found or access denied.");
-    }
-
-    const duplicateCheck = await client.query(
-      "SELECT inclusion_package_id FROM inclusion_package WHERE LOWER(name) = $1 AND (company_id = $2 OR builder_id = $3) AND inclusion_package_id != $4",
-      [name.toLowerCase().trim(), companyId, builderId, id],
+    return successResponse(
+      res,
+      keysToCamelCase(result.get({ plain: true })),
+      "Inclusion package updated successfully.",
     );
-
-    if (duplicateCheck.rowCount > 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 409, "Inclusion package name already exists in your organization.");
-    }
-
-    const result = await client.query(
-      "UPDATE inclusion_package SET name = $1, updated_by = $2, updated_at = NOW() WHERE inclusion_package_id = $3 RETURNING *",
-      [name.trim(), userId, id],
-    );
-
-    await client.query("COMMIT");
-    return successResponse(res, keysToCamelCase(result.rows[0]), "Inclusion package updated successfully.");
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error updating inclusion package:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+    const statusCode = error.status || 500;
+    const message = error.message || "Internal Server Error.";
+    return errorResponse(res, statusCode, message);
   }
 }
 
+/**
+ * Deletes an inclusion package.
+ */
 export async function deleteInclusionPackage(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
     const { id } = req.params;
 
-    const result = await client.query(
-      "DELETE FROM inclusion_package WHERE inclusion_package_id = $1 AND (company_id = $2 OR builder_id = $3) RETURNING inclusion_package_id",
-      [id, companyId, builderId],
-    );
-
-    if (result.rowCount === 0) {
-      return errorResponse(res, 404, "Inclusion package not found or access denied.");
-    }
+    await deleteInclusionPackageService(id, {
+      builderId,
+      companyId,
+    });
 
     return successResponse(res, null, "Inclusion package deleted successfully.");
   } catch (error) {
     console.error("Error deleting inclusion package:", error);
-    return errorResponse(res, 500, "Internal Server Error.");
-  } finally {
-    client.release();
+    const statusCode = error.status || 500;
+    const message = error.message || "Internal Server Error.";
+    return errorResponse(res, statusCode, message);
   }
 }

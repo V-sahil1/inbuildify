@@ -28,7 +28,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "integration_custom_field_item", modelName: "IntegrationCustomFieldItem", underscored: true }
+    { sequelize, tableName: "integration_custom_field_item", modelName: "IntegrationCustomFieldItem", underscored: true },
   );
   return IntegrationCustomFieldItem;
 };

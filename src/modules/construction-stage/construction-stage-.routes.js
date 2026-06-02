@@ -37,17 +37,17 @@ router.get(
   getAllConstructionStages,
 );
 
-router.delete(
-  "/:construction_stage",
-  validateRequest(deleteConstructionStageSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionStage,
-);
-
 router.put(
   "/:construction_stage",
   validateRequest(updateConstructionStageParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionStageSchema, REQUEST_SOURCE.BODY),
   updateConstructionStage,
+);
+
+router.delete(
+  "/:construction_stage",
+  validateRequest(deleteConstructionStageSchema, REQUEST_SOURCE.PARAMS),
+  deleteConstructionStage,
 );
 
 export default router;

@@ -9,19 +9,23 @@ export const generateQuotationHTML = (data) => {
     locationName,
     rangeName,
     dwellingTypeName,
-    floorPlan = {},
-    facade = {},
-    package: pkg = {},
+    floorPlan: rawFloorPlan,
+    facade: rawFacade,
+    package: rawPkg,
     structuralEngineer,
     quotationVersionItems = [],
     totalPackageCost = 0,
     totalPricelistCost = 0,
     grandTotalCost = 0,
     leadContacts = [],
-    propertyDetail = {},
+    propertyDetail: rawPropertyDetail,
     createdAt,
   } = data;
 
+  const floorPlan = rawFloorPlan || {};
+  const facade = rawFacade || {};
+  const pkg = rawPkg || {};
+  const propertyDetail = rawPropertyDetail || {};
   const contact = leadContacts[0] || {};
   const date = new Date(createdAt).toLocaleDateString();
 
@@ -34,7 +38,7 @@ export const generateQuotationHTML = (data) => {
       <td style="text-align: right;">$${parseFloat(item.priceListItemCost || item.packageCost || 0).toLocaleString()}</td>
       <td style="text-align: right;">$${parseFloat(item.totalPrice || item.packageCost || 0).toLocaleString()}</td>
     </tr>
-  `
+  `,
     )
     .join("");
 
@@ -91,19 +95,19 @@ export const generateQuotationHTML = (data) => {
             <div>
                 <div class="section-title">Customer Information</div>
                 <ul class="data-list">
-                    <li><strong>Customer Name:</strong> ${contact.name || 'N/A'}</li>
-                    <li><strong>Email Address:</strong> ${contact.email || 'N/A'}</li>
-                    <li><strong>Phone Number:</strong> ${contact.phone || 'N/A'}</li>
+                    <li><strong>Customer Name:</strong> ${contact.name || "N/A"}</li>
+                    <li><strong>Email Address:</strong> ${contact.email || "N/A"}</li>
+                    <li><strong>Phone Number:</strong> ${contact.phone || "N/A"}</li>
                 </ul>
             </div>
             <div>
                 <div class="section-title">Property Information</div>
                 <ul class="data-list">
-                    <li><strong>Lot Number:</strong> ${propertyDetail.lotNumber || 'N/A'}</li>
-                    <li><strong>Street:</strong> ${propertyDetail.street || 'N/A'}</li>
-                    <li><strong>City / Suburb:</strong> ${propertyDetail.city || 'N/A'}</li>
-                    <li><strong>Postal Code:</strong> ${propertyDetail.zipCode || 'N/A'}</li>
-                    <li><strong>Estate Name:</strong> ${propertyDetail.estateName || 'N/A'}</li>
+                    <li><strong>Lot Number:</strong> ${propertyDetail.lotNumber || "N/A"}</li>
+                    <li><strong>Street:</strong> ${propertyDetail.street || "N/A"}</li>
+                    <li><strong>City / Suburb:</strong> ${propertyDetail.city || "N/A"}</li>
+                    <li><strong>Postal Code:</strong> ${propertyDetail.zipCode || "N/A"}</li>
+                    <li><strong>Estate Name:</strong> ${propertyDetail.estateName || "N/A"}</li>
                 </ul>
             </div>
         </div>
@@ -113,20 +117,20 @@ export const generateQuotationHTML = (data) => {
         <div class="section-title">Design & Facade Options</div>
         <div class="image-section">
             <div class="image-box">
-                ${floorPlan.detailedImage || floorPlan.simpleImage ? 
-                    `<img src="${floorPlan.detailedImage || floorPlan.simpleImage}" alt="Floor Plan">` : 
-                    `<div style="height: 150px; display: flex; align-items: center; justify-content: center; color: #ccc;">No Floor Plan Image Available</div>`
-                }
-                <div class="image-label">FLOOR PLAN: ${floorPlan.name || 'N/A'}</div>
-                <div style="font-size: 11px; color: #888;">Area: ${floorPlan.totalArea || 'N/A'} sqm</div>
+                ${floorPlan.detailedImage || floorPlan.simpleImage ?
+    `<img src="${floorPlan.detailedImage || floorPlan.simpleImage}" alt="Floor Plan">` :
+    "<div style=\"height: 150px; display: flex; align-items: center; justify-content: center; color: #ccc;\">No Floor Plan Image Available</div>"
+}
+                <div class="image-label">FLOOR PLAN: ${floorPlan.name || "N/A"}</div>
+                <div style="font-size: 11px; color: #888;">Area: ${floorPlan.totalArea || "N/A"} sqm</div>
             </div>
             <div class="image-box">
-                ${facade.image ? 
-                    `<img src="${facade.image}" alt="Facade">` : 
-                    `<div style="height: 150px; display: flex; align-items: center; justify-content: center; color: #ccc;">No Facade Image Available</div>`
-                }
-                <div class="image-label">FACADE: ${facade.name || 'N/A'}</div>
-                <div style="font-size: 11px; color: #888;">Style: ${dwellingTypeName || 'N/A'}</div>
+                ${facade.image ?
+    `<img src="${facade.image}" alt="Facade">` :
+    "<div style=\"height: 150px; display: flex; align-items: center; justify-content: center; color: #ccc;\">No Facade Image Available</div>"
+}
+                <div class="image-label">FACADE: ${facade.name || "N/A"}</div>
+                <div style="font-size: 11px; color: #888;">Style: ${dwellingTypeName || "N/A"}</div>
             </div>
         </div>
     </div>
@@ -141,7 +145,7 @@ export const generateQuotationHTML = (data) => {
             </div>
         </div>
     </div>
-    ` : ''}
+    ` : ""}
 
     ${structuralEngineer ? `
     <div class="section">
@@ -151,7 +155,7 @@ export const generateQuotationHTML = (data) => {
             <span><strong>Service Price:</strong> $${parseFloat(structuralEngineer?.price || 0).toLocaleString()}</span>
         </div>
     </div>
-    ` : ''}
+    ` : ""}
 
 
 
@@ -183,13 +187,13 @@ export const generateQuotationHTML = (data) => {
                 <span>Value of Package:</span>
                 <span>$${parseFloat(totalPackageCost).toLocaleString()}</span>
             </div>
-            ` : ''}
+            ` : ""}
             ${structuralEngineer ? `
             <div class="total-row">
                 <span>Structural Engineer Charges:</span>
                 <span>$${parseFloat(structuralEngineer.price || 0).toLocaleString()}</span>
             </div>
-            ` : ''}
+            ` : ""}
             <div class="grand-total total-row">
                 <span>Grand Total:</span>
                 <span>$${parseFloat(grandTotalCost).toLocaleString()}</span>
@@ -205,4 +209,3 @@ export const generateQuotationHTML = (data) => {
 </html>
   `;
 };
-

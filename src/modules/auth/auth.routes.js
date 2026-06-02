@@ -1,4 +1,6 @@
 import express from "express";
+import passport from "passport";
+import { env } from "../../config/env.config.js";
 
 const router = express.Router();
 
@@ -11,6 +13,7 @@ import {
   resetPassword,
   refreshToken,
   logout,
+  googleCallback,
 } from "./auth.controller.js";
 import {
   registerRootSchema,
@@ -71,5 +74,20 @@ router.post(
 );
 
 router.post("/logout", authMiddleware, roleMiddleware, logout);
+
+// Google OAuth routes
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"], prompt: "select_account", session: false })
+);
+
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: `${env.EMAIL.FRONTEND_BASE_URL}/auth/google-failure?error=Authentication%20failed`,
+  }),
+  googleCallback
+);
 
 export default router;

@@ -1,24 +1,20 @@
-import getPool from "../config/database.js";
+import db from "../config/database/models/postgre-models/index.js";
 
 const getMailTemplate = async (templateKey) => {
-  const pool = getPool();
-  const client = await pool.connect();
   try {
-    let query = "SELECT * FROM email_templates";
-    let params = [];
+    const { EmailTemplates } = db;
+    const options = { raw: true };
 
     if (templateKey) {
-      query += " WHERE template_key = $1 LIMIT 1;";
-      params = [templateKey];
+      options.where = { template_key: templateKey };
+      options.limit = 1;
     }
 
-    const result = await client.query(query, params);
-    return result.rows;
+    const result = await EmailTemplates.findAll(options);
+    return result;
   } catch (error) {
     console.error("Get email templates error:", error);
     throw error;
-  } finally {
-    client.release();
   }
 };
 

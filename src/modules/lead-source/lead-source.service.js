@@ -12,7 +12,7 @@ export const createLeadSourceService = async (payload, user) => {
         builder_id: user.builder_id,
         name: sequelize.where(
           sequelize.fn("LOWER", sequelize.col("name")),
-          name.toLowerCase()
+          name.toLowerCase(),
         ),
       },
       transaction: t,
@@ -57,7 +57,7 @@ export const createLeadSourceService = async (payload, user) => {
         created_by: user.users_id,
         updated_by: user.users_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return created.toJSON();
@@ -120,9 +120,13 @@ export const updateLeadSourceService = async (id, payload, user) => {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Lead source not found");
+    if (!existing) {
+      throw new Error("Lead source not found");
+    }
 
-    if (!existing.is_active) throw new Error("Inactive lead source");
+    if (!existing.is_active) {
+      throw new Error("Inactive lead source");
+    }
 
     // duplicate name
     if (name) {
@@ -131,17 +135,35 @@ export const updateLeadSourceService = async (id, payload, user) => {
           lead_source_id: { [Op.ne]: id },
           name: sequelize.where(
             sequelize.fn("LOWER", sequelize.col("name")),
-            name.toLowerCase()
+            name.toLowerCase(),
           ),
         },
         transaction: t,
       });
 
-      if (duplicate) throw new Error("Name already exists");
+      if (duplicate) {
+        throw new Error("Name already exists");
+      }
     }
 
     // sort reorder
     if (sort_order !== undefined) {
+      const maxSort =
+        (await LeadSource.max("sort_order", {
+          where: {
+            [Op.or]: [
+              { company_id: user.company_id },
+              { builder_id: user.builder_id },
+            ],
+          },
+          transaction: t,
+        })) || 0;
+
+      if (sort_order < 1 || sort_order > maxSort) {
+        const err = new Error(`sort_order must be between 1 and ${maxSort}`);
+        err.statusCode = 400;
+        throw err;
+      }
       const existingSort = existing.sort_order;
 
       if (sort_order !== existingSort) {
@@ -172,7 +194,7 @@ export const updateLeadSourceService = async (id, payload, user) => {
         ...(allow_change !== undefined && { allow_change }),
         updated_by: user.users_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return existing.toJSON();
@@ -189,7 +211,9 @@ export const deleteLeadSourceService = async (id, builderId) => {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Lead source not found");
+    if (!existing) {
+      throw new Error("Lead source not found");
+    }
 
     const deletedSort = existing.sort_order;
 
@@ -216,7 +240,9 @@ export const updateLeadSourceActiveService = async (id, is_active, user) => {
     where: { lead_source_id: id, builder_id: user.builder_id },
   });
 
-  if (!existing) throw new Error("Lead source not found");
+  if (!existing) {
+    throw new Error("Lead source not found");
+  }
 
   await existing.update({
     is_active,

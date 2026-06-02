@@ -12,7 +12,7 @@ export const createClientTypeService = async (payload, user) => {
         builder_id: user.builder_id,
         client_type: sequelize.where(
           sequelize.fn("LOWER", sequelize.col("client_type")),
-          client_type.toLowerCase()
+          client_type.toLowerCase(),
         ),
       },
       transaction: t,
@@ -64,7 +64,7 @@ export const createClientTypeService = async (payload, user) => {
         created_by: user.user_id,
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return created.toJSON();
@@ -141,8 +141,12 @@ export const updateClientTypeService = async (id, payload, user) => {
       transaction: t,
     });
 
-    if (!existing) throw new Error("Client type not found");
-    if (!existing.is_active) throw new Error("Inactive client type");
+    if (!existing) {
+      throw new Error("Client type not found");
+    }
+    if (!existing.is_active) {
+      throw new Error("Inactive client type");
+    }
 
     if (client_type) {
       const duplicate = await ClientType.findOne({
@@ -152,16 +156,35 @@ export const updateClientTypeService = async (id, payload, user) => {
           client_type_id: { [Op.ne]: id },
           client_type: sequelize.where(
             sequelize.fn("LOWER", sequelize.col("client_type")),
-            client_type.toLowerCase()
+            client_type.toLowerCase(),
           ),
         },
         transaction: t,
       });
 
-      if (duplicate) throw new Error("Client type already exists");
+      if (duplicate) {
+        throw new Error("Client type already exists");
+      }
     }
 
     if (sort_order !== undefined) {
+      const maxSort =
+        (await ClientType.max("sort_order", {
+          where: {
+            [Op.or]: [
+              { company_id: user.company_id },
+              { builder_id: user.builder_id },
+            ],
+          },
+          transaction: t,
+        })) || 0;
+
+      if (sort_order < 1 || sort_order > maxSort) {
+        const err = new Error(`sort_order must be between 1 and ${maxSort}`);
+        err.statusCode = 400;
+        throw err;
+      }
+
       const existingSort = existing.sort_order;
 
       if (sort_order !== existingSort) {
@@ -195,7 +218,7 @@ export const updateClientTypeService = async (id, payload, user) => {
         ...(sort_order !== undefined && { sort_order }),
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return existing.toJSON();
@@ -210,7 +233,9 @@ export const updateClientTypeActiveService = async (id, is_active, user) => {
     where: { client_type_id: id, builder_id: user.builder_id },
   });
 
-  if (!existing) throw new Error("Client type not found");
+  if (!existing) {
+    throw new Error("Client type not found");
+  }
 
   await existing.update({
     is_active,

@@ -1,4 +1,3 @@
-
 import { Model, DataTypes } from "sequelize";
 
 export class ConstructionEtsRecharge extends Model {
@@ -41,7 +40,7 @@ export default (sequelize) => {
           name: "uq_construction_ets_recharge_scope",
         },
       ],
-    }
+    },
   );
   return ConstructionEtsRecharge;
 };

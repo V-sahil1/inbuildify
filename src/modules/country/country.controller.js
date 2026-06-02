@@ -1,18 +1,15 @@
-import getPool from "../../config/database.js";
+import countryService from "./country.service.js";
 import { errorResponse, successResponse } from "../../helper/response.js";
-import { keysToCamelCase } from "../../utils/common.js";
 
+/**
+ * GET /country - Fetch countries (filtered by 'australia')
+ */
 export async function getCountries(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const query = "SELECT * FROM country WHERE name = $1;";
-    const result = await client.query(query, ["australia"]);
-    successResponse(res, keysToCamelCase(result.rows), "Countries fetched successfully.");
+    const data = await countryService.getCountries();
+    return successResponse(res, data, "Countries fetched successfully.");
   } catch (error) {
-    errorResponse(res, error?.status || 400, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
+    console.error("CountryController.getCountries error:", error);
+    return errorResponse(res, error?.status || 500, error?.message || "Internal Server Error");
   }
 }

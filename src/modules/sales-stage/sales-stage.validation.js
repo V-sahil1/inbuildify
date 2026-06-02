@@ -11,10 +11,10 @@ export const createSalesStageSchema = Joi.object({
   }),
 
   functionality_id: Joi.array()
-    .items(Joi.string().guid({ version: "uuidv4" }))
+    .items(Joi.string().guid())
     .optional()
     .messages({
-      "string.guid": "functionality id  must be a valid UUID",
+      "string.guid": "functionality id must be a valid UUID",
     }),
 
   category: Joi.string()
@@ -48,10 +48,10 @@ export const updateSalesStageSchema = Joi.object({
   stage_name: Joi.string().max(150).optional().messages({}),
 
   functionality_id: Joi.array()
-    .items(Joi.string().guid({ version: "uuidv4" }))
+    .items(Joi.string().guid())
     .optional()
     .messages({
-      "string.guid": "functionality id  must be a valid UUID",
+      "string.guid": "functionality id must be a valid UUID",
     }),
 
   category: Joi.string()

@@ -16,7 +16,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "quotation_version_custom_section", modelName: "QuotationVersionCustomSection", underscored: true }
+    { sequelize, tableName: "quotation_version_custom_section", modelName: "QuotationVersionCustomSection", underscored: true },
   );
   return QuotationVersionCustomSection;
 };

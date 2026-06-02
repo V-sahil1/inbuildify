@@ -47,10 +47,30 @@ const pdfFileFilter = (req, file, cb) => {
   if (mimetype && extname) {
     return cb(null, true);
   }
-  const message = "Invalid file type. Only PDF files are allowed.";
-  cb(new Error(message));
-
 };
+
+const imageFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+
+  const extname = allowedExtensions.includes(
+    path.extname(file.originalname).toLowerCase(),
+  );
+  const mimetype = allowedMimeTypes.includes(file.mimetype.toLowerCase());
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  }
+  const message = "Invalid file type. Only image files are allowed.";
+  cb(new Error(message));
+};
+
 
 // Helper to attach file field metadata to Multer middleware for Swagger gen
 const wrapMulter = (upload) => {
@@ -94,11 +114,13 @@ export const createUpload = (folderName = "uploads") =>
       metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
-          originalName: file.originalname,
+          originalName: encodeURIComponent(file.originalname),
           uploadedBy: req.user?.users_id || "unknown",
         });
       },
-      contentType: multerS3.AUTO_CONTENT_TYPE,
+      contentType: function (req, file, cb) {
+        cb(null, file.mimetype);
+      },
     }),
     fileFilter,
     limits: {
@@ -163,15 +185,45 @@ export const createPdfUpload = (folderName = "pdfs") =>
       metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
-          originalName: file.originalname,
+          originalName: encodeURIComponent(file.originalname),
           uploadedBy: req.user?.users_id || "unknown",
         });
       },
-      contentType: multerS3.AUTO_CONTENT_TYPE,
+      contentType: function (req, file, cb) {
+        cb(null, file.mimetype);
+      },
     }),
     fileFilter: pdfFileFilter,
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB limit for PDFs
+    },
+  }));
+
+export const createImageUpload = (folderName = "uploads") =>
+  wrapMulter(multer({
+    storage: multerS3({
+      s3: s3Client,
+      bucket: env.AWS.S3_BUCKET_NAME,
+      key: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        const originalName = file.originalname.replace(/\s+/g, "_");
+        const filename = `${folderName}/${uniqueSuffix}-${originalName}`;
+        cb(null, filename);
+      },
+      metadata(req, file, cb) {
+        cb(null, {
+          fieldName: file.fieldname,
+          originalName: encodeURIComponent(file.originalname),
+          uploadedBy: req.user?.users_id || "unknown",
+        });
+      },
+      contentType: function (req, file, cb) {
+        cb(null, file.mimetype);
+      },
+    }),
+    fileFilter: imageFileFilter,
+    limits: {
+      fileSize: fileData.size * 1024 * 1024,
     },
   }));
 
@@ -189,11 +241,13 @@ export const createImageOrPdfUpload = (folderName = "uploads") =>
       metadata(req, file, cb) {
         cb(null, {
           fieldName: file.fieldname,
-          originalName: file.originalname,
+          originalName: encodeURIComponent(file.originalname),
           uploadedBy: req.user?.users_id || "unknown",
         });
       },
-      contentType: multerS3.AUTO_CONTENT_TYPE,
+      contentType: function (req, file, cb) {
+        cb(null, file.mimetype);
+      },
     }),
     fileFilter: (req, file, cb) => {
       // Allowed image types
@@ -280,6 +334,7 @@ export const handleMulterError = (error, req, res, next) => {
 export default {
   createUpload,
   createPdfUpload,
+  createImageUpload,
   createImageOrPdfUpload,
   deleteFromS3,
   handleMulterError,

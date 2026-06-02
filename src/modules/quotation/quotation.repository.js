@@ -1,26 +1,39 @@
-import getPool from "../../config/database.js";
 import { keysToCamelCase } from "../../utils/common.js";
-
+import db from "../../config/database/models/postgre-models/index.js";
+import {
+  upsertQuotationDriveFile,
+  getQuotationDriveFile,
+  deleteQuotationDriveFile,
+} from "../../helper/quotationDriveFile.helper.js";
+import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
+import { env } from "../../config/env.config.js";
 
 class QuotationRepository {
-  constructor() {
-    this.pool = getPool();
-  }
+  constructor() {}
 
   async getQuotationByLeadId(leadsId) {
-    const client = await this.pool.connect();
-    try {
-      const query = "SELECT * FROM quotation WHERE leads_id = $1 LIMIT 1";
-      const result = await client.query(query, [leadsId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
-    }
+    const { Quotation } = db.sequelize.models;
+    const result = await Quotation.findOne({ where: { leads_id: leadsId } });
+    return result ? keysToCamelCase(result.get({ plain: true })) : null;
   }
 
   async getAllQuotationsByLeadId(leadsId) {
-    const client = await this.pool.connect();
+    return this.getQuotationsByFilter({ leads_id: leadsId });
+  }
+
+  async getQuotationById(quotationId) {
+    const results = await this.getQuotationsByFilter({ quotation_id: quotationId });
+    return results.length > 0 ? results[0] : null;
+  }
+
+  async getQuotationsByFilter(filters) {
     try {
+      const filterKeys = Object.keys(filters);
+      const replacements = { ...filters };
+      const whereClause = filterKeys
+        .map((key) => `q.${key} = :${key}`)
+        .join(" AND ");
+
       const query = `
         SELECT 
           q.*,
@@ -31,6 +44,7 @@ class QuotationRepository {
                 'quotation_version_id', qv.quotation_version_id,
                 'quotation_version_no', qv.quotation_version_no,
                 'is_approve', qv.is_approve,
+                'send_to_engineer', qv.send_to_engineer,
                 'sketch_number', qv.sketch_number,
                 'created_at', qv.created_at,
                 'updated_at', qv.updated_at,
@@ -44,7 +58,7 @@ class QuotationRepository {
                 'floor_plan_name', fp.name,
                 'facade_id', qv.facade_id,
                 'facade_name', f.name,
-                'upload_report', qv.upload_report,
+                'upload_report', (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = qv.quotation_version_id AND df.reference_type = 'QuotationVersion' AND df.sub_reference_type = 'StructureEngineerUpload' AND df.deleted_at IS NULL LIMIT 1),
                 'structure_engineer_id', qv.structure_engineer_id,
                 'structure_engineer_name', se.name,
                 'structural_engineer', CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
@@ -142,209 +156,169 @@ class QuotationRepository {
         LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
-        WHERE q.leads_id = $1
+        WHERE ${whereClause}
         GROUP BY q.quotation_id
         ORDER BY q.created_at DESC
       `;
-      const result = await client.query(query, [leadsId]);
-      return result.rows.map(row => ({
-        ...keysToCamelCase(row),
-        versions: row.versions.map(v => keysToCamelCase(v)),
-      }));
-    } finally {
-      client.release();
+      const rows = await db.sequelize.query(query, {
+        replacements,
+        type: db.Sequelize.QueryTypes.SELECT
+      });
+      const s3Prefix = `https://${env.AWS.S3_BUCKET_NAME}.s3.${env.AWS.AWS_REGION}.amazonaws.com/`;
+      return rows.map(row => {
+        const mapped = keysToCamelCase(row);
+        if (mapped.versions) {
+          mapped.versions = mapped.versions.map(v => {
+            const keysV = keysToCamelCase(v);
+            if (keysV.uploadReport && !keysV.uploadReport.startsWith("http")) {
+              keysV.uploadReport = `${s3Prefix}${keysV.uploadReport}`;
+            }
+            return keysV;
+          });
+        }
+        return mapped;
+      });
+    } catch (error) {
+      console.error("Error in getQuotationsByFilter:", error);
+      throw error;
     }
   }
 
+
   async getLatestQuotationVersionNo(quotationId) {
-    const client = await this.pool.connect();
-    try {
-      const query = "SELECT MAX(quotation_version_no) as max_version FROM quotation_version WHERE quotation_id = $1";
-      const result = await client.query(query, [quotationId]);
-      return parseInt(result.rows[0].max_version || 0, 10);
-    } finally {
-      client.release();
-    }
+    const { QuotationVersion } = db.sequelize.models;
+    const maxVersion = await QuotationVersion.max("quotation_version_no", {
+      where: { quotation_id: quotationId },
+    });
+    return maxVersion || 0;
   }
 
   async getLatestQuotationVersionByLeadId(leadsId) {
-    const client = await this.pool.connect();
     try {
-      const query = `
-        SELECT qv.* 
-        FROM quotation_version qv
-        JOIN quotation q ON qv.quotation_id = q.quotation_id
-        WHERE q.leads_id = $1
-        ORDER BY q.created_at DESC, qv.quotation_version_no DESC
-        LIMIT 1
-      `;
-      const result = await client.query(query, [leadsId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
+      const { QuotationVersion, Quotation } = db.sequelize.models;
+      const result = await QuotationVersion.findOne({
+        include: [{
+          model: Quotation,
+          as: "quotation",
+          where: { leads_id: leadsId },
+          attributes: []
+        }],
+        order: [
+          [{ model: Quotation, as: "quotation" }, "created_at", "DESC"],
+          ["quotation_version_no", "DESC"]
+        ]
+      });
+      return result ? keysToCamelCase(result.get({ plain: true })) : null;
+    } catch (error) {
+      console.error("Error in getLatestQuotationVersionByLeadId:", error);
+      throw error;
     }
   }
 
   async createQuotation(quotationData) {
-    const client = await this.pool.connect();
     try {
+      const { Quotation } = db.sequelize.models;
       const { leads_id, reference_number, created_by } = quotationData;
-
-      const query = `
-        INSERT INTO quotation (
-          leads_id, reference_number, created_by, updated_by
-        ) VALUES (
-          $1, $2, $3, $4
-        ) RETURNING *
-      `;
-
-      const values = [leads_id, reference_number, created_by, created_by];
-
-      const result = await client.query(query, values);
-      return keysToCamelCase(result.rows[0]);
-    } finally {
-      client.release();
+      const result = await Quotation.create({
+        leads_id, reference_number, created_by, updated_by: created_by
+      });
+      return keysToCamelCase(result.get({ plain: true }));
+    } catch (error) {
+      console.error("Error in createQuotation:", error);
+      throw error;
     }
   }
 
   async createQuotationVersion(versionData) {
-    const client = await this.pool.connect();
     try {
-      const {
-        quotation_id,
-        quotation_version_no,
-      } = versionData;
-
-      const query = `
-        INSERT INTO quotation_version (
-          quotation_id, quotation_version_no
-        ) VALUES (
-          $1, $2
-        ) RETURNING *
-      `;
-
-      const values = [
-        quotation_id,
-        quotation_version_no,
-      ];
-
-      const result = await client.query(query, values);
-      return keysToCamelCase(result.rows[0]);
-    } finally {
-      client.release();
+      const { QuotationVersion } = db.sequelize.models;
+      const { quotation_id, quotation_version_no } = versionData;
+      const result = await QuotationVersion.create({
+        quotation_id, quotation_version_no
+      });
+      return keysToCamelCase(result.get({ plain: true }));
+    } catch (error) {
+      console.error("Error in createQuotationVersion:", error);
+      throw error;
     }
   }
 
   async duplicateVersion(sourceVersionId, newVersionNo) {
-    const client = await this.pool.connect();
+    const t = await db.sequelize.transaction();
     try {
-      await client.query("BEGIN");
+      const { QuotationVersion, QuotationVersionCustomSection, QuotationVersionItem } = db.sequelize.models;
 
-      // 1. Get original version data
-      const getVersionQuery = "SELECT * FROM quotation_version WHERE quotation_version_id = $1";
-      const versionResult = await client.query(getVersionQuery, [
-        sourceVersionId,
-      ]);
-
-      if (versionResult.rowCount === 0) {
-        throw new Error("Source quotation version not found");
-      }
-
-      const sourceVersion = versionResult.rows[0];
+      // 1. Get original version
+      const sourceVersion = await QuotationVersion.findByPk(sourceVersionId, { transaction: t });
+      if (!sourceVersion) throw new Error("Source quotation version not found");
 
       // 2. Insert new version
-      const insertVersionQuery = `
-          INSERT INTO quotation_version (
-              quotation_id, 
-              quotation_version_no,
-              location_id,
-              range_id,
-              dwelling_type_id,
-              floor_plan_id,
-              facade_id,
-              is_approve,
-              package_id,
-              structure_engineer_id,
-              structure_engineer_price,
-              facade_price,
-              sketch_number
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8, $9, $10, $11, $12)
-          RETURNING *
-      `;
-
-      const newVersionValues = [
-        sourceVersion.quotation_id,
-        newVersionNo,
-        sourceVersion.location_id,
-        sourceVersion.range_id,
-        sourceVersion.dwelling_type_id,
-        sourceVersion.floor_plan_id,
-        sourceVersion.facade_id,
-        sourceVersion.package_id,
-        sourceVersion.structure_engineer_id || null,
-        sourceVersion.structure_engineer_price || 0,
-        sourceVersion.facade_price || 0,
-        sourceVersion.sketch_number || null,
-      ];
-
-      const newVersionResult = await client.query(
-        insertVersionQuery,
-        newVersionValues,
-      );
-      const newVersion = newVersionResult.rows[0];
+      const newVersion = await QuotationVersion.create({
+        quotation_id: sourceVersion.quotation_id,
+        quotation_version_no: newVersionNo,
+        location_id: sourceVersion.location_id,
+        range_id: sourceVersion.range_id,
+        dwelling_type_id: sourceVersion.dwelling_type_id,
+        floor_plan_id: sourceVersion.floor_plan_id,
+        facade_id: sourceVersion.facade_id,
+        is_approve: false,
+        package_id: sourceVersion.package_id,
+        structure_engineer_id: sourceVersion.structure_engineer_id || null,
+        structure_engineer_price: sourceVersion.structure_engineer_price || 0,
+        facade_price: sourceVersion.facade_price || 0,
+        sketch_number: sourceVersion.sketch_number || null,
+      }, { transaction: t });
 
       // 3. Copy Custom Sections
-      const copyCustomSectionsQuery = `
-          INSERT INTO quotation_version_custom_section (
-              quotation_version_id, file_url, sort_order
-          )
-          SELECT $1, file_url, sort_order
-          FROM quotation_version_custom_section
-          WHERE quotation_version_id = $2
-      `;
-      await client.query(copyCustomSectionsQuery, [
-        newVersion.quotation_version_id,
-        sourceVersionId,
-      ]);
+      const customSections = await QuotationVersionCustomSection.findAll({
+        where: { quotation_version_id: sourceVersionId },
+        transaction: t
+      });
+      if (customSections.length > 0) {
+        await QuotationVersionCustomSection.bulkCreate(customSections.map(cs => ({
+          quotation_version_id: newVersion.quotation_version_id,
+          file_url: cs.file_url,
+          sort_order: cs.sort_order
+        })), { transaction: t });
+      }
 
       // 4. Copy Snapshot Items
-      const copyItemsQuery = `
-          INSERT INTO quotation_version_items (
-              quotation_version_id, price_list_item_id, price_list_item_description,
-              price_list_item_cost, quantity, total_price,
-              package_id, package_name, package_cost, package_builder_cost,
-              created_at, updated_at
-          )
-          SELECT $1, price_list_item_id, price_list_item_description,
-                 price_list_item_cost, quantity, total_price,
-                 package_id, package_name, package_cost, package_builder_cost,
-                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-          FROM quotation_version_items
-          WHERE quotation_version_id = $2
-      `;
-      await client.query(copyItemsQuery, [
-        newVersion.quotation_version_id,
-        sourceVersionId,
-      ]);
+      const items = await QuotationVersionItem.findAll({
+        where: { quotation_version_id: sourceVersionId },
+        transaction: t
+      });
+      if (items.length > 0) {
+        await QuotationVersionItem.bulkCreate(items.map(item => ({
+          quotation_version_id: newVersion.quotation_version_id,
+          price_list_item_id: item.price_list_item_id,
+          price_list_item_description: item.price_list_item_description,
+          price_list_item_cost: item.price_list_item_cost,
+          quantity: item.quantity,
+          total_price: item.total_price,
+          package_id: item.package_id,
+          package_name: item.package_name,
+          package_cost: item.package_cost,
+          package_builder_cost: item.package_builder_cost,
+        })), { transaction: t });
+      }
 
-      await client.query("COMMIT");
-      return keysToCamelCase(newVersion);
+      await t.commit();
+      return keysToCamelCase(newVersion.get({ plain: true }));
     } catch (error) {
-      await client.query("ROLLBACK");
+      await t.rollback();
       throw error;
-    } finally {
-      client.release();
     }
   }
 
   async getVersionsByQuotationId(quotationId, versionId = null) {
-    const client = await this.pool.connect();
     try {
-      const values = [quotationId];
+      const replacements = { quotationId };
       let query = `
-        SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
+        SELECT qv.quotation_version_id, qv.quotation_id, q.reference_number, qv.quotation_version_no,
           qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, qv.facade_price, qv.upload_report, l.name as location_name,
+          qv.location_id, qv.facade_price,
+          (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = qv.quotation_version_id AND df.reference_type = 'QuotationVersion' AND df.sub_reference_type = 'StructureEngineerUpload' AND df.deleted_at IS NULL LIMIT 1) as upload_report,
+          l.name as location_name,
           qv.range_id, r.name as range_name,
           qv.dwelling_type_id, dt.name as dwelling_type_name,
           qv.structure_engineer_id, se.name as structure_engineer_name,
@@ -360,175 +334,17 @@ class QuotationRepository {
               END
             )
           ELSE NULL END as structural_engineer,
-          (
-            SELECT json_build_object(
-              'name', fp.name,
-              'floor_plan_id', fp.floor_plan_id,
-              'min_land_width', fp.min_land_width,
-              'min_land_depth', fp.min_land_depth,
-              'dwelling_area', fp.dwelling_area,
-              'dwelling_type_id', fp.dwelling_type_id,
-              'beds', fp.beds,
-              'baths', fp.baths,
-              'carpark', fp.carpark,
-              'living', fp.living,
-              'range_id', fp.range_id,
-              'location_id', fp.location_id,
-              'garage_area', fp.garage_area,
-              'porch_area', fp.porch_area,
-              'alfresco_area', fp.alfresco_area,
-              'total_area', fp.total_area,
-              'detailed_image', fp.detailed_image,
-              'simple_image', fp.simple_image,
-              'description', fp.description
-            )
-            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
-          ) as floor_plan,
-          (
-            SELECT json_build_object(
-              'name', f.name,
-              'facade_id', f.facade_id,
-              'location_id', f.location_id,
-              'dwelling_type_id', f.dwelling_type_id,
-              'range_id', f.range_id,
-              'cost_type', f.cost_type,
-              'cost', f.cost,
-              'builder_cost', f.builder_cost,
-              'image', f.image
-            )
-            FROM facade f WHERE f.facade_id = qv.facade_id
-          ) as facade,
-          (
-            SELECT json_build_object(
-              'package_id', qvi.package_id,
-              'name', qvi.package_name,
-              'cost', qvi.package_cost
-            )
-            FROM quotation_version_items qvi
-            WHERE qvi.quotation_version_id = qv.quotation_version_id 
-            AND qvi.package_id IS NOT NULL 
-            LIMIT 1
-          ) as package,
-          COALESCE(
-            (SELECT DISTINCT package_cost 
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id 
-             AND qvi.package_id IS NOT NULL 
-             LIMIT 1), 0
-          ) as total_package_cost,
-          COALESCE(
-            (SELECT SUM(total_price)
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id
-             AND package_id IS NULL), 0
-          ) as total_pricelist_cost,
-          (
-            COALESCE(
-               (SELECT DISTINCT package_cost 
-                FROM quotation_version_items qvi
-                WHERE qvi.quotation_version_id = qv.quotation_version_id 
-                AND qvi.package_id IS NOT NULL 
-                LIMIT 1), 0
-            ) + COALESCE(
-              (SELECT SUM(total_price)
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
-          ) as grand_total_cost,
-          (
-            SELECT COALESCE(json_agg(json_build_object(
-              'quotation_version_item_id', qvi.quotation_version_item_id,
-              'price_list_item_id', qvi.price_list_item_id,
-              'price_list_item_description', qvi.price_list_item_description,
-              'price_list_item_cost', qvi.price_list_item_cost,
-              'quantity', qvi.quantity,
-              'total_price', qvi.total_price,
-              'package_id', qvi.package_id,
-              'is_price_list_item_cost_mismatch', CASE 
-                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
-                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_package_cost_mismatch', CASE 
-                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
-                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_system_data', qvi.price_list_item_is_system_data,
-              'is_automatically_mapped', CASE 
-                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
-                ELSE false 
-              END
-            )), '[]'::json)
-            FROM quotation_version_items qvi
-            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
-            LEFT JOIN package p ON qvi.package_id = p.package_id
-            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
-                                                                AND qvi.price_list_item_id = fppim_items.price_list_item_id
-            WHERE qvi.quotation_version_id = qv.quotation_version_id
-          ) as quotation_version_items,
+          (SELECT json_build_object('name', fp.name, 'floor_plan_id', fp.floor_plan_id, 'min_land_width', fp.min_land_width, 'min_land_depth', fp.min_land_depth, 'dwelling_area', fp.dwelling_area, 'dwelling_type_id', fp.dwelling_type_id, 'beds', fp.beds, 'baths', fp.baths, 'carpark', fp.carpark, 'living', fp.living, 'range_id', fp.range_id, 'location_id', fp.location_id, 'garage_area', fp.garage_area, 'porch_area', fp.porch_area, 'alfresco_area', fp.alfresco_area, 'total_area', fp.total_area, 'detailed_image', fp.detailed_image, 'simple_image', fp.simple_image, 'description', fp.description) FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id) as floor_plan,
+          (SELECT json_build_object('name', f.name, 'facade_id', f.facade_id, 'location_id', f.location_id, 'dwelling_type_id', f.dwelling_type_id, 'range_id', f.range_id, 'cost_type', f.cost_type, 'cost', f.cost, 'builder_cost', f.builder_cost, 'image', f.image) FROM facade f WHERE f.facade_id = qv.facade_id) as facade,
+          (SELECT json_build_object('package_id', qvi.package_id, 'name', qvi.package_name, 'cost', qvi.package_cost) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1) as package,
+          COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) as total_package_cost,
+          COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) as total_pricelist_cost,
+          (COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) + COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)) as grand_total_cost,
+          (SELECT COALESCE(json_agg(json_build_object('quotation_version_item_id', qvi.quotation_version_item_id, 'price_list_item_id', qvi.price_list_item_id, 'price_list_item_description', qvi.price_list_item_description, 'price_list_item_cost', qvi.price_list_item_cost, 'quantity', qvi.quantity, 'total_price', qvi.total_price, 'package_id', qvi.package_id, 'is_price_list_item_cost_mismatch', CASE WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true ELSE false END, 'is_package_cost_mismatch', CASE WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL AND qvi.package_cost::numeric != p.cost::numeric THEN true ELSE false END, 'is_system_data', qvi.price_list_item_is_system_data, 'is_automatically_mapped', CASE WHEN fppim_items.price_list_item_id IS NOT NULL THEN true ELSE false END)), '[]'::json) FROM quotation_version_items qvi LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id LEFT JOIN package p ON qvi.package_id = p.package_id LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id AND qvi.price_list_item_id = fppim_items.price_list_item_id WHERE qvi.quotation_version_id = qv.quotation_version_id) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
-          (
-            SELECT json_build_object(
-              'property_detail_id', pd.property_detail_id,
-              'lot_id', pd.lot_id,
-              'lot_number', pd.lot_number,
-              'street', pd.street,
-              'address_line1', pd.address_line1,
-              'address_line2', pd.address_line2,
-              'city', pd.city,
-              'state_id', pd.state_id,
-              'state_name', s.name,
-              'country_id', pd.country_id,
-              'zip_code', pd.zip_code,
-              'estate_id', pd.estate_id,
-              'estate_stage_id', pd.estate_stage_id,
-              'estate_name', pd.estate_name,
-              'title_status', pd.title_status,
-              'title_date', pd.title_date,
-              'clearing_date', pd.clearing_date,
-              'compaction_report', pd.compaction_report,
-              'compaction_report_url', pd.compaction_report_url,
-              'compaction_report_content', pd.compaction_report_content,
-              'land_type', pd.land_type,
-              'width_m', pd.width_m,
-              'depth_m', pd.depth_m,
-              'total_size_m2', pd.total_size_m2,
-              'site_fall_mm', pd.site_fall_mm,
-              'land_fill_mm', pd.land_fill_mm,
-              'price', pd.price,
-              'bush_fire', pd.bush_fire,
-              'corner_block', pd.corner_block,
-              'is_hl_package_lot', pd.is_hl_package_lot,
-              'compaction_report_provider', pd.compaction_report_provider
-            )
-            FROM property_detail pd 
-            LEFT JOIN state s ON pd.state_id = s.state_id
-            WHERE pd.property_detail_id = leads.property_detail_id
-          ) as property,
-          (
-        SELECT COALESCE(json_agg(json_build_object(
-              'id', lcm.id,
-              'users_id', u.users_id,
-              'name', u.name,
-              'address', jsonb_build_object(
-                'address_line1', a.address_line1,
-                'address_line2', a.address_line2,
-                'city', a.city,
-                'zip_code', a.zip_code,
-                'country_id', a.country_id,
-                'state_id', a.state_id
-              ),
-              'phone', u.phone,
-              'email', u.email
-            )), '[]'::json)
-            FROM leads_contact_map lcm
-            JOIN users u ON lcm.contact_id = u.users_id
-            LEFT JOIN address a ON u.address_id = a.address_id
-            WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts,
+          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', pd.compaction_report_url, 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
+          (SELECT COALESCE(json_agg(json_build_object('id', lcm.id, 'users_id', u.users_id, 'name', u.name, 'address', jsonb_build_object('address_line1', a.address_line1, 'address_line2', a.address_line2, 'city', a.city, 'zip_code', a.zip_code, 'country_id', a.country_id, 'state_id', a.state_id), 'phone', u.phone, 'email', u.email)), '[]'::json) FROM leads_contact_map lcm JOIN users u ON lcm.contact_id = u.users_id LEFT JOIN address a ON u.address_id = a.address_id WHERE lcm.leads_id = leads.leads_id) as lead_contacts,
           qv.created_at, qv.updated_at
         FROM quotation_version qv
         LEFT JOIN location l ON qv.location_id = l.location_id
@@ -539,233 +355,75 @@ class QuotationRepository {
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         JOIN quotation q ON qv.quotation_id = q.quotation_id
         LEFT JOIN leads ON q.leads_id = leads.leads_id
-        WHERE qv.quotation_id = $1
+        WHERE qv.quotation_id = :quotationId
       `;
 
       if (versionId) {
-        query += ` AND qv.quotation_version_id = $2`;
-        values.push(versionId);
+        query += " AND qv.quotation_version_id = :versionId";
+        replacements.versionId = versionId;
       }
+      query += " ORDER BY qv.quotation_version_no DESC";
 
-      query += ` ORDER BY qv.quotation_version_no DESC`;
-
-      const result = await client.query(query, values);
-      return result.rows.map(row => keysToCamelCase(row));
-    } finally {
-      client.release();
+      const rows = await db.sequelize.query(query, {
+        replacements,
+        type: db.Sequelize.QueryTypes.SELECT,
+      });
+      const s3Prefix = `https://${env.AWS.S3_BUCKET_NAME}.s3.${env.AWS.AWS_REGION}.amazonaws.com/`;
+      return rows.map(row => {
+        const mapped = keysToCamelCase(row);
+        if (mapped.uploadReport && !mapped.uploadReport.startsWith("http")) {
+          mapped.uploadReport = `${s3Prefix}${mapped.uploadReport}`;
+        }
+        return mapped;
+      });
+    } catch (error) {
+      console.error("Error in getVersionsByQuotationId:", error);
+      throw error;
     }
   }
 
-  async updateQuotationVersion(versionId, updateData) {
-    const client = await this.pool.connect();
+  async updateQuotationVersion(versionId, updateData, transaction = null) {
     try {
+      const { QuotationVersion } = db.sequelize.models;
+      // upload_report is intentionally not in this list — that file is now
+      // stored as a DriveFile (sub_reference_type=StructureEngineerUpload)
+      // and the controller upserts it before this service is called.
       const allowedFields = [
         "location_id", "range_id", "dwelling_type_id",
         "floor_plan_id", "facade_id", "is_approve", "sketch_number",
-        "structure_engineer_id", "structure_engineer_price", "facade_price", "upload_report",
+        "structure_engineer_id", "structure_engineer_price", "facade_price",
       ];
 
-      const updateFields = [];
-      const values = [];
-      let paramIndex = 1;
-
+      const dataToUpdate = {};
       for (const field of allowedFields) {
         if (updateData[field] !== undefined) {
-          updateFields.push(`${field} = $${paramIndex++}`);
-          values.push(updateData[field]);
+          dataToUpdate[field] = updateData[field];
         }
       }
 
-      if (updateFields.length === 0) {
-        return null;
-      }
+      if (Object.keys(dataToUpdate).length === 0) return null;
 
-      updateFields.push("updated_at = CURRENT_TIMESTAMP");
-      values.push(versionId);
+      await QuotationVersion.update(dataToUpdate, {
+        where: { quotation_version_id: versionId },
+        transaction,
+        individualHooks: true,
+      });
 
-      const query = `
-        UPDATE quotation_version
-        SET ${updateFields.join(", ")}
-        WHERE quotation_version_id = $${paramIndex}
-        RETURNING *
-      `;
-
-      const result = await client.query(query, values);
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      // Fetch the updated version with lead lot_id and contacts
-      const enrichQuery = `
-        SELECT qv.quotation_version_id, qv.quotation_id, qv.quotation_version_no,
-          qv.is_approve, qv.sketch_number, qv.created_at, qv.updated_at,
-          qv.location_id, qv.facade_price, qv.upload_report, l.name as location_name,
-          qv.range_id, r.name as range_name,
-          qv.dwelling_type_id, dt.name as dwelling_type_name,
-          qv.structure_engineer_id, se.name as structure_engineer_name,
-          CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
-            json_build_object(
-              'id', qv.structure_engineer_id,
-              'name', se.name,
-              'price', qv.structure_engineer_price
-            )
-          ELSE NULL END as structural_engineer,
-          (
-            SELECT json_build_object(
-              'name', fp.name,
-              'floor_plan_id', fp.floor_plan_id,
-              'min_land_width', fp.min_land_width,
-              'min_land_depth', fp.min_land_depth,
-              'dwelling_area', fp.dwelling_area,
-              'dwelling_type_id', fp.dwelling_type_id,
-              'beds', fp.beds,
-              'baths', fp.baths,
-              'carpark', fp.carpark,
-              'living', fp.living,
-              'range_id', fp.range_id,
-              'location_id', fp.location_id,
-              'garage_area', fp.garage_area,
-              'porch_area', fp.porch_area,
-              'alfresco_area', fp.alfresco_area,
-              'total_area', fp.total_area,
-              'detailed_image', fp.detailed_image,
-              'simple_image', fp.simple_image,
-              'description', fp.description
-            )
-            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
-          ) as floor_plan,
-          (
-            SELECT json_build_object(
-              'name', f.name,
-              'facade_id', f.facade_id,
-              'location_id', f.location_id,
-              'dwelling_type_id', f.dwelling_type_id,
-              'range_id', f.range_id,
-              'cost_type', f.cost_type,
-              'cost', f.cost,
-              'builder_cost', f.builder_cost,
-              'image', f.image
-            )
-            FROM facade f WHERE f.facade_id = qv.facade_id
-          ) as facade,
-          (
-            SELECT json_build_object(
-              'package_id', qvi.package_id,
-              'name', qvi.package_name,
-              'cost', qvi.package_cost
-            )
-            FROM quotation_version_items qvi
-            WHERE qvi.quotation_version_id = qv.quotation_version_id 
-            AND qvi.package_id IS NOT NULL 
-            LIMIT 1
-          ) as package,
-          COALESCE(
-            (SELECT DISTINCT package_cost 
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id 
-             AND qvi.package_id IS NOT NULL 
-             LIMIT 1), 0
-          ) as total_package_cost,
-          COALESCE(
-            (SELECT SUM(total_price)
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id
-             AND package_id IS NULL), 0
-          ) as total_pricelist_cost,
-          (
-            COALESCE(
-              (SELECT DISTINCT package_cost 
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id 
-               AND qvi.package_id IS NOT NULL 
-               LIMIT 1), 0
-            ) + COALESCE(
-              (SELECT SUM(total_price)
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
-          ) as grand_total_cost,
-          (
-            SELECT COALESCE(json_agg(json_build_object(
-              'quotation_version_item_id', qvi.quotation_version_item_id,
-              'price_list_item_id', qvi.price_list_item_id,
-              'price_list_item_description', qvi.price_list_item_description,
-              'price_list_item_cost', qvi.price_list_item_cost,
-              'quantity', qvi.quantity,
-              'total_price', qvi.total_price,
-              'package_id', qvi.package_id,
-              'is_price_list_item_cost_mismatch', CASE 
-                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
-                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_package_cost_mismatch', CASE 
-                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
-                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_system_data', qvi.price_list_item_is_system_data,
-              'is_automatically_mapped', CASE 
-                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
-                ELSE false 
-              END
-            )), '[]'::json)
-            FROM quotation_version_items qvi
-            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
-            LEFT JOIN package p ON qvi.package_id = p.package_id
-            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
-                                                            AND qvi.price_list_item_id = fppim_items.price_list_item_id
-            WHERE qvi.quotation_version_id = qv.quotation_version_id
-          ) as quotation_version_items,
-          leads.leads_id as lead_id,
-          leads.property_detail_id as lead_property_detail_id,
-          (
-           SELECT COALESCE(json_agg(json_build_object(
-              'id', lcm.id,
-              'users_id', u.users_id,
-              'address', jsonb_build_object(
-                'address_line1', a.address_line1,
-                'address_line2', a.address_line2,
-                'city', a.city,
-                'zip_code', a.zip_code,
-                'country_id', a.country_id,
-                'state_id', a.state_id
-              ),
-              'phone', u.phone,
-              'email', u.email
-            )), '[]'::json)
-            FROM leads_contact_map lcm
-            JOIN users u ON lcm.contact_id = u.users_id
-            LEFT JOIN address a ON u.address_id = a.address_id
-            WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts,
-          qv.created_at, qv.updated_at
-        FROM quotation_version qv
-        JOIN quotation q ON qv.quotation_id = q.quotation_id
-        LEFT JOIN leads ON q.leads_id = leads.leads_id
-        LEFT JOIN location l ON qv.location_id = l.location_id
-        LEFT JOIN range r ON qv.range_id = r.range_id
-        LEFT JOIN dwelling_type dt ON qv.dwelling_type_id = dt.dwelling_type_id
-        LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
-        LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
-        LEFT JOIN facade f ON qv.facade_id = f.facade_id
-        WHERE qv.quotation_version_id = $1
-      `;
-      const enrichResult = await client.query(enrichQuery, [versionId]);
-      return enrichResult.rows.length > 0 ? keysToCamelCase(enrichResult.rows[0]) : keysToCamelCase(result.rows[0]);
-    } finally {
-      client.release();
+      return this.getQuotationVersionDetailsById(versionId, transaction);
+    } catch (error) {
+      console.error("Error in updateQuotationVersion:", error);
+      throw error;
     }
   }
 
-  async getQuotationVersionDetailsById(versionId) {
-    const client = await this.pool.connect();
+  async getQuotationVersionDetailsById(versionId, transaction = null) {
     try {
-      const enrichQuery = `
-        SELECT qv.quotation_version_id, qv.quotation_id,q.reference_number, qv.quotation_version_no,
-          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve,
-          qv.facade_price, qv.sketch_number, qv.upload_report, qv.created_at, qv.updated_at,
+      const query = `
+        SELECT qv.quotation_version_id, qv.quotation_id, q.reference_number, qv.quotation_version_no,
+          qv.location_id, qv.range_id, qv.dwelling_type_id, qv.is_approve, qv.send_to_engineer,
+          qv.facade_price::numeric(12,2)::text as facade_price, qv.sketch_number,
+          (SELECT df.s3_key FROM drive_files df WHERE df.reference_id = qv.quotation_version_id AND df.reference_type = 'QuotationVersion' AND df.sub_reference_type = 'StructureEngineerUpload' AND df.deleted_at IS NULL LIMIT 1) as upload_report,
+          qv.created_at, qv.updated_at,
           qv.structure_engineer_id, se.name as structure_engineer_name,
           CASE WHEN qv.structure_engineer_id IS NOT NULL THEN
             json_build_object(
@@ -782,175 +440,17 @@ class QuotationRepository {
           l.name as location_name,
           r.name as range_name,
           dt.name as dwelling_type_name,
-          (
-            SELECT json_build_object(
-              'name', fp.name,
-              'floor_plan_id', fp.floor_plan_id,
-              'min_land_width', fp.min_land_width,
-              'min_land_depth', fp.min_land_depth,
-              'dwelling_area', fp.dwelling_area,
-              'dwelling_type_id', fp.dwelling_type_id,
-              'beds', fp.beds,
-              'baths', fp.baths,
-              'carpark', fp.carpark,
-              'living', fp.living,
-              'range_id', fp.range_id,
-              'location_id', fp.location_id,
-              'garage_area', fp.garage_area,
-              'porch_area', fp.porch_area,
-              'alfresco_area', fp.alfresco_area,
-              'total_area', fp.total_area,
-              'detailed_image', fp.detailed_image,
-              'simple_image', fp.simple_image,
-              'description', fp.description
-            )
-            FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id
-          ) as floor_plan,
-          (
-            SELECT json_build_object(
-              'name', f.name,
-              'facade_id', f.facade_id,
-              'location_id', f.location_id,
-              'dwelling_type_id', f.dwelling_type_id,
-              'range_id', f.range_id,
-              'cost_type', f.cost_type,
-              'cost', f.cost,
-              'builder_cost', f.builder_cost,
-              'image', f.image
-            )
-            FROM facade f WHERE f.facade_id = qv.facade_id
-          ) as facade,
-          (
-            SELECT json_build_object(
-              'package_id', qvi.package_id,
-              'name', qvi.package_name,
-              'cost', qvi.package_cost
-            )
-            FROM quotation_version_items qvi
-            WHERE qvi.quotation_version_id = qv.quotation_version_id 
-            AND qvi.package_id IS NOT NULL 
-            LIMIT 1
-          ) as package,
-          COALESCE(
-            (SELECT DISTINCT package_cost 
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id 
-             AND qvi.package_id IS NOT NULL 
-             LIMIT 1), 0
-          ) as total_package_cost,
-          COALESCE(
-            (SELECT SUM(total_price)
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id
-             AND package_id IS NULL), 0
-          ) as total_pricelist_cost,
-          (
-            COALESCE(
-              (SELECT DISTINCT package_cost 
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id 
-               AND qvi.package_id IS NOT NULL 
-               LIMIT 1), 0
-            ) + COALESCE(
-              (SELECT SUM(total_price)
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
-          ) as grand_total_cost,
-          (
-            SELECT COALESCE(json_agg(json_build_object(
-              'quotation_version_item_id', qvi.quotation_version_item_id,
-              'price_list_item_id', qvi.price_list_item_id,
-              'price_list_item_description', qvi.price_list_item_description,
-              'price_list_item_cost', qvi.price_list_item_cost,
-              'quantity', qvi.quantity,
-              'total_price', qvi.total_price,
-              'package_id', qvi.package_id,
-              'is_price_list_item_cost_mismatch', CASE 
-                WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL 
-                     AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_package_cost_mismatch', CASE 
-                WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL 
-                     AND qvi.package_cost::numeric != p.cost::numeric THEN true 
-                ELSE false 
-              END,
-              'is_system_data', qvi.price_list_item_is_system_data,
-              'is_automatically_mapped', CASE 
-                WHEN fppim_items.price_list_item_id IS NOT NULL THEN true 
-                ELSE false 
-              END
-            )), '[]'::json)
-            FROM quotation_version_items qvi
-            LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id
-            LEFT JOIN package p ON qvi.package_id = p.package_id
-            LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id 
-                                                                AND qvi.price_list_item_id = fppim_items.price_list_item_id
-            WHERE qvi.quotation_version_id = qv.quotation_version_id
-          ) as quotation_version_items,
+          (SELECT json_build_object('name', fp.name, 'floor_plan_id', fp.floor_plan_id, 'min_land_width', fp.min_land_width, 'min_land_depth', fp.min_land_depth, 'dwelling_area', fp.dwelling_area, 'dwelling_type_id', fp.dwelling_type_id, 'beds', fp.beds, 'baths', fp.baths, 'carpark', fp.carpark, 'living', fp.living, 'range_id', fp.range_id, 'location_id', fp.location_id, 'garage_area', fp.garage_area, 'porch_area', fp.porch_area, 'alfresco_area', fp.alfresco_area, 'total_area', fp.total_area, 'detailed_image', fp.detailed_image, 'simple_image', fp.simple_image, 'description', fp.description) FROM floor_plan fp WHERE fp.floor_plan_id = qv.floor_plan_id) as floor_plan,
+          (SELECT json_build_object('name', f.name, 'facade_id', f.facade_id, 'location_id', f.location_id, 'dwelling_type_id', f.dwelling_type_id, 'range_id', f.range_id, 'cost_type', f.cost_type, 'cost', f.cost, 'builder_cost', f.builder_cost, 'image', f.image) FROM facade f WHERE f.facade_id = qv.facade_id) as facade,
+          (SELECT json_build_object('package_id', qvi.package_id, 'name', qvi.package_name, 'cost', qvi.package_cost) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1) as package,
+          COALESCE((SELECT DISTINCT package_cost::numeric(12,2)::text FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), '0.00') as total_package_cost,
+          COALESCE((SELECT SUM(total_price)::numeric(12,2)::text FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), '0.00') as total_pricelist_cost,
+          ((COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) + COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0))::numeric(12,2)::text) as grand_total_cost,
+          (SELECT COALESCE(json_agg(json_build_object('quotation_version_item_id', qvi.quotation_version_item_id, 'price_list_item_id', qvi.price_list_item_id, 'price_list_item_description', qvi.price_list_item_description, 'price_list_item_cost', qvi.price_list_item_cost, 'quantity', qvi.quantity, 'total_price', qvi.total_price, 'package_id', qvi.package_id, 'is_price_list_item_cost_mismatch', CASE WHEN qvi.price_list_item_id IS NOT NULL AND pli.cost IS NOT NULL AND qvi.price_list_item_cost::numeric != pli.cost::numeric THEN true ELSE false END, 'is_package_cost_mismatch', CASE WHEN qvi.package_id IS NOT NULL AND p.cost IS NOT NULL AND qvi.package_cost::numeric != p.cost::numeric THEN true ELSE false END, 'is_system_data', qvi.price_list_item_is_system_data, 'is_automatically_mapped', CASE WHEN fppim_items.price_list_item_id IS NOT NULL THEN true ELSE false END)), '[]'::json) FROM quotation_version_items qvi LEFT JOIN price_list_item pli ON qvi.price_list_item_id = pli.price_list_item_id LEFT JOIN package p ON qvi.package_id = p.package_id LEFT JOIN floor_plan_pricelist_item_map fppim_items ON qv.floor_plan_id = fppim_items.floor_plan_id AND qvi.price_list_item_id = fppim_items.price_list_item_id WHERE qvi.quotation_version_id = qv.quotation_version_id) as quotation_version_items,
           leads.leads_id as lead_id,
           leads.property_detail_id as lead_property_detail_id,
-          (
-            SELECT json_build_object(
-              'property_detail_id', pd.property_detail_id,
-              'lot_id', pd.lot_id,
-              'lot_number', pd.lot_number,
-              'street', pd.street,
-              'address_line1', pd.address_line1,
-              'address_line2', pd.address_line2,
-              'city', pd.city,
-              'state_id', pd.state_id,
-              'state_name', s.name,
-              'country_id', pd.country_id,
-              'zip_code', pd.zip_code,
-              'estate_id', pd.estate_id,
-              'estate_stage_id', pd.estate_stage_id,
-              'estate_name', pd.estate_name,
-              'title_status', pd.title_status,
-              'title_date', pd.title_date,
-              'clearing_date', pd.clearing_date,
-              'compaction_report', pd.compaction_report,
-              'compaction_report_url', pd.compaction_report_url,
-              'compaction_report_content', pd.compaction_report_content,
-              'land_type', pd.land_type,
-              'width_m', pd.width_m,
-              'depth_m', pd.depth_m,
-              'total_size_m2', pd.total_size_m2,
-              'site_fall_mm', pd.site_fall_mm,
-              'land_fill_mm', pd.land_fill_mm,
-              'price', pd.price,
-              'bush_fire', pd.bush_fire,
-              'corner_block', pd.corner_block,
-              'is_hl_package_lot', pd.is_hl_package_lot,
-              'compaction_report_provider', pd.compaction_report_provider
-            )
-            FROM property_detail pd 
-            LEFT JOIN state s ON pd.state_id = s.state_id
-            WHERE pd.property_detail_id = leads.property_detail_id
-          ) as property,
-          (
-            SELECT COALESCE(json_agg(json_build_object(
-              'id', lcm.id,
-              'users_id', u.users_id,
-              'name', u.name,
-              'address', jsonb_build_object(
-                'address_line1', a.address_line1,
-                'address_line2', a.address_line2,
-                'city', a.city,
-                'zip_code', a.zip_code,
-                'country_id', a.country_id,
-                'state_id', a.state_id
-              ),
-              'phone', u.phone,
-              'email', u.email
-            )), '[]'::json)
-            FROM leads_contact_map lcm
-            JOIN users u ON lcm.contact_id = u.users_id
-            LEFT JOIN address a ON u.address_id = a.address_id
-            WHERE lcm.leads_id = leads.leads_id
-          ) as lead_contacts,
+          (SELECT json_build_object('property_detail_id', pd.property_detail_id, 'lot_id', pd.lot_id, 'lot_number', pd.lot_number, 'street', pd.street, 'address_line1', pd.address_line1, 'address_line2', pd.address_line2, 'city', pd.city, 'state_id', pd.state_id, 'state_name', s.name, 'country_id', pd.country_id, 'zip_code', pd.zip_code, 'estate_id', pd.estate_id, 'estate_stage_id', pd.estate_stage_id, 'estate_name', pd.estate_name, 'title_status', pd.title_status, 'title_date', pd.title_date, 'clearing_date', pd.clearing_date, 'compaction_report', pd.compaction_report, 'compaction_report_url', pd.compaction_report_url, 'compaction_report_content', pd.compaction_report_content, 'land_type', pd.land_type, 'width_m', pd.width_m, 'depth_m', pd.depth_m, 'total_size_m2', pd.total_size_m2, 'site_fall_mm', pd.site_fall_mm, 'land_fill_mm', pd.land_fill_mm, 'price', pd.price, 'bush_fire', pd.bush_fire, 'corner_block', pd.corner_block, 'is_hl_package_lot', pd.is_hl_package_lot, 'compaction_report_provider', pd.compaction_report_provider) FROM property_detail pd LEFT JOIN state s ON pd.state_id = s.state_id WHERE pd.property_detail_id = leads.property_detail_id) as property,
+          (SELECT COALESCE(json_agg(json_build_object('id', lcm.id, 'users_id', u.users_id, 'name', u.name, 'address', jsonb_build_object('address_line1', a.address_line1, 'address_line2', a.address_line2, 'city', a.city, 'zip_code', a.zip_code, 'country_id', a.country_id, 'state_id', a.state_id), 'phone', u.phone, 'email', u.email)), '[]'::json) FROM leads_contact_map lcm JOIN users u ON lcm.contact_id = u.users_id LEFT JOIN address a ON u.address_id = a.address_id WHERE lcm.leads_id = leads.leads_id) as lead_contacts,
           qv.created_at, qv.updated_at
         FROM quotation_version qv
         JOIN quotation q ON qv.quotation_id = q.quotation_id
@@ -961,390 +461,263 @@ class QuotationRepository {
         LEFT JOIN structure_engineer se ON qv.structure_engineer_id = se.structure_engineer_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
-        WHERE qv.quotation_version_id = $1
+        WHERE qv.quotation_version_id = :versionId
       `;
-      const result = await client.query(enrichQuery, [versionId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
+      const rows = await db.sequelize.query(query, {
+        replacements: { versionId },
+        type: db.Sequelize.QueryTypes.SELECT,
+        transaction
+      });
+      if (rows.length > 0) {
+        const mapped = keysToCamelCase(rows[0]);
+        const s3Prefix = `https://${env.AWS.S3_BUCKET_NAME}.s3.${env.AWS.AWS_REGION}.amazonaws.com/`;
+        if (mapped.uploadReport && !mapped.uploadReport.startsWith("http")) {
+          mapped.uploadReport = `${s3Prefix}${mapped.uploadReport}`;
+        }
+        return mapped;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error in getQuotationVersionDetailsById:", error);
+      throw error;
     }
   }
 
   async getVersionComparisonData(versionId) {
-    const client = await this.pool.connect();
     try {
       // 1. Version header with grand total
       const versionQuery = `
         SELECT qv.quotation_version_id, qv.quotation_version_no, qv.facade_id, qv.floor_plan_id,
           qv.facade_price, f.name as facade_name, fp.name as floor_plan_name,
-          COALESCE(
-            (SELECT DISTINCT package_cost 
-             FROM quotation_version_items qvi 
-             WHERE qvi.quotation_version_id = qv.quotation_version_id 
-             AND qvi.package_id IS NOT NULL 
-             LIMIT 1), 0
-          ) as total_package_cost,
-          COALESCE(
-            (SELECT SUM(total_price)
-             FROM quotation_version_items qvi
-             WHERE qvi.quotation_version_id = qv.quotation_version_id
-             AND package_id IS NULL), 0
-          ) as total_pricelist_cost,
-          (
-            COALESCE(
-              (SELECT DISTINCT package_cost 
-               FROM quotation_version_items qvi 
-               WHERE qvi.quotation_version_id = qv.quotation_version_id 
-               AND qvi.package_id IS NOT NULL 
-               LIMIT 1), 0
-            ) + COALESCE(
-              (SELECT SUM(total_price)
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND package_id IS NULL), 0
-            ) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)
-          ) as grand_total_cost
+          COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) as total_package_cost,
+          COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) as total_pricelist_cost,
+          (COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) + COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)) as grand_total_cost
         FROM quotation_version qv
         LEFT JOIN facade f ON qv.facade_id = f.facade_id
         LEFT JOIN floor_plan fp ON qv.floor_plan_id = fp.floor_plan_id
-        WHERE qv.quotation_version_id = $1
+        WHERE qv.quotation_version_id = :versionId
       `;
-      const versionResult = await client.query(versionQuery, [versionId]);
-      if (versionResult.rowCount === 0) {
-        return null;
-      }
+      const versionRows = await db.sequelize.query(versionQuery, {
+        replacements: { versionId },
+        type: db.Sequelize.QueryTypes.SELECT
+      });
+      if (versionRows.length === 0) return null;
 
-      const version = keysToCamelCase(versionResult.rows[0]);
+      const version = keysToCamelCase(versionRows[0]);
 
-      // 2. Unified items from quotation_version_items table
+      // 2. Unified items
       const itemsQuery = `
-        SELECT 
-          qvi.quotation_version_item_id,
-          qvi.package_id,
-          qvi.package_name,
-          qvi.package_cost,
-          qvi.price_list_item_id,
-          qvi.price_list_item_description,
-          qvi.price_list_item_short_description,
-          qvi.price_list_item_cost,
-          qvi.price_list_item_builder_cost,
-          qvi.price_list_item_sort_order,
-          qvi.price_list_item_uom,
-          qvi.quantity,
-          qvi.note,
-          qvi.total_price,
-          CASE 
-            WHEN qvi.package_id IS NOT NULL THEN 'package'
-            ELSE 'item'
-          END as item_type,
-          qvi.price_list_id,
-          qvi.price_list_name
+        SELECT qvi.*, CASE WHEN qvi.package_id IS NOT NULL THEN 'package' ELSE 'item' END as item_type
         FROM quotation_version_items qvi
-        WHERE qvi.quotation_version_id = $1
-        ORDER BY 
-          CASE 
-            WHEN qvi.package_id IS NOT NULL THEN 0 
-            ELSE 1 
-          END,
-          qvi.price_list_item_sort_order ASC,
-          qvi.package_name ASC,
-          qvi.price_list_item_description ASC
+        WHERE qvi.quotation_version_id = :versionId
+        ORDER BY CASE WHEN qvi.package_id IS NOT NULL THEN 0 ELSE 1 END, qvi.price_list_item_sort_order ASC, qvi.package_name ASC, qvi.price_list_item_description ASC
       `;
-      const itemsResult = await client.query(itemsQuery, [versionId]);
-      const items = itemsResult.rows.map(r => keysToCamelCase(r));
+      const itemsRows = await db.sequelize.query(itemsQuery, {
+        replacements: { versionId },
+        type: db.Sequelize.QueryTypes.SELECT
+      });
+      const items = itemsRows.map(r => keysToCamelCase(r));
 
-      // 3. Extract package data for backward compatibility
+      // 3. Backward compatibility
       const packageItem = items.find(item => item.itemType === 'package');
-      const packageData = packageItem ? {
-        packageId: packageItem.packageId,
-        packageName: packageItem.packageName,
-        packageCost: packageItem.packageCost
-      } : null;
-
-      // 4. Extract pricelist items for backward compatibility
-      const pricelistItems = items
-        .filter(item => item.itemType === 'item')
-        .map(item => ({
-          id: item.quotationVersionItemId,
-          priceListItemId: item.priceListItemId,
-          itemDescription: item.priceListItemDescription,
-          priceListId: item.priceListId,
-          priceListName: item.priceListName,
-          itemCost: item.priceListItemCost,
-          quantity: item.quantity,
-          totalPrice: item.totalPrice,
-          note: item.note
-        }));
+      const pricelistItems = items.filter(item => item.itemType === 'item').map(item => ({
+        id: item.quotationVersionItemId,
+        priceListItemId: item.priceListItemId,
+        itemDescription: item.priceListItemDescription,
+        priceListId: item.priceListId,
+        priceListName: item.priceListName,
+        itemCost: item.priceListItemCost,
+        quantity: item.quantity,
+        totalPrice: item.totalPrice,
+        note: item.note
+      }));
 
       return {
         version,
-        package: packageData,
+        package: packageItem ? { packageId: packageItem.packageId, packageName: packageItem.packageName, packageCost: packageItem.packageCost } : null,
         pricelistItems,
-        items, // New unified items array
+        items
       };
-    } finally {
-      client.release();
+    } catch (error) {
+      console.error("Error in getVersionComparisonData:", error);
+      throw error;
     }
   }
 
   async deleteQuotation(quotationId) {
-    const client = await this.pool.connect();
     try {
-      const query = "DELETE FROM quotation WHERE quotation_id = $1 RETURNING *";
-      const result = await client.query(query, [quotationId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
-    }
-  }
-
-  async removePackageFromVersion(versionId, packageId, builderId, companyId) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const query = `
-        UPDATE quotation_version
-        SET package_id = NULL
-        WHERE quotation_version_id = $1 ${packageId ? "AND package_id = $2" : ""}
-        RETURNING *
-      `;
-      const values = packageId ? [versionId, packageId] : [versionId];
-      const result = await client.query(query, values);
-
-      // Also remove from snapshots
-      await client.query(`
-        DELETE FROM quotation_version_items 
-        WHERE quotation_version_id = $1 AND package_id IS NOT NULL
-      `, [versionId]);
-
-      await client.query("COMMIT");
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
+      const { Quotation } = db.sequelize.models;
+      const quotation = await Quotation.findByPk(quotationId);
+      if (quotation) {
+        await quotation.destroy();
+        return keysToCamelCase(quotation.get({ plain: true }));
+      }
+      return null;
     } catch (error) {
-      await client.query("ROLLBACK");
+      console.error("Error in deleteQuotation:", error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
-  async addPackageSnapshot(versionId, pkg) {
-    const client = await this.pool.connect();
+  async removePackageFromVersion(versionId, packageId, builderId, companyId, transaction = null) {
+    const t = transaction || await db.sequelize.transaction();
     try {
-      const query = `
-        INSERT INTO quotation_version_items (
-          quotation_version_id, package_id, package_name, package_cost, 
-          total_price, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING *
-      `;
-      const result = await client.query(query, [
-        versionId,
-        pkg.package_id,
-        pkg.name,
-        pkg.cost || 0,
-        pkg.cost || 0
-      ]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
+      const { QuotationVersion, QuotationVersionItem } = db.sequelize.models;
+
+      const where = { quotation_version_id: versionId };
+      if (packageId) where.package_id = packageId;
+
+      await QuotationVersion.update({ package_id: null }, { where, transaction: t });
+
+      await QuotationVersionItem.destroy({
+        where: {
+          quotation_version_id: versionId,
+          package_id: { [db.Sequelize.Op.ne]: null }
+        },
+        transaction: t
+      });
+
+      if (!transaction) await t.commit();
+      return { quotation_version_id: versionId };
+    } catch (error) {
+      if (!transaction) await t.rollback();
+      console.error("Error in removePackageFromVersion:", error);
+      throw error;
     }
   }
 
-  async updatePdfUrl(versionId, pdfUrl) {
-    const client = await this.pool.connect();
+  async addPackageSnapshot(versionId, pkg, transaction = null) {
     try {
-      const query = `
-        UPDATE quotation_version
-        SET pdf_url = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE quotation_version_id = $2
-        RETURNING quotation_version_id, pdf_url
-      `;
-      const result = await client.query(query, [pdfUrl, versionId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : null;
-    } finally {
-      client.release();
+      const { QuotationVersionItem } = db.sequelize.models;
+      const snapshot = await QuotationVersionItem.create({
+        quotation_version_id: versionId,
+        package_id: pkg.package_id,
+        package_name: pkg.name,
+        package_cost: pkg.cost || 0,
+        total_price: pkg.cost || 0
+      }, { transaction });
+      return keysToCamelCase(snapshot.get({ plain: true }));
+    } catch (error) {
+      console.error("Error in addPackageSnapshot:", error);
+      throw error;
     }
   }
 
-  async clearPdfUrl(versionId) {
-    const client = await this.pool.connect();
-    try {
-      const query = `
-        UPDATE quotation_version
-        SET pdf_url = NULL
-        WHERE quotation_version_id = $1
-      `;
-      await client.query(query, [versionId]);
-    } finally {
-      client.release();
-    }
+  /**
+   * Persist a generated quotation report. Upserts the DriveFile record under
+   * sub_reference_type=QuotationReport. The legacy `pdf_url` column is no
+   * longer written — readers must use the scoped `quotationReports`
+   * association (or query DriveFile directly).
+   *
+   * @param {string} versionId
+   * @param {string} s3Key — S3 object key (not the full URL)
+   * @param {object} [opts] — { size, originalName, fileName, uploadedBy, transaction, builderId, companyId }
+   */
+  async updatePdfUrl(versionId, s3Key, opts = {}) {
+    const driveFile = await upsertQuotationDriveFile({
+      versionId,
+      subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.QUOTATION_REPORT,
+      s3Key,
+      ...opts,
+    });
+    return keysToCamelCase(driveFile.get({ plain: true }));
+  }
+
+  async clearPdfUrl(versionId, transaction = null) {
+    await deleteQuotationDriveFile(
+      versionId,
+      DRIVE_FILE_MAPPING.SUB_REFERENCES.QUOTATION_REPORT,
+      { transaction },
+    );
   }
 
   async getPdfUrl(versionId) {
-    const client = await this.pool.connect();
-    try {
-      const query = `SELECT pdf_url FROM quotation_version WHERE quotation_version_id = $1`;
-      const result = await client.query(query, [versionId]);
-      return result.rows.length > 0 ? result.rows[0].pdf_url : null;
-    } finally {
-      client.release();
-    }
+    const driveFile = await getQuotationDriveFile(versionId, DRIVE_FILE_MAPPING.SUB_REFERENCES.QUOTATION_REPORT);
+    return driveFile?.s3_key || null;
   }
 
   async getAllQuotations(builderId, companyId, options = {}) {
-    const client = await this.pool.connect();
     try {
       const {
         page = 1,
         limit = 10,
-        search = '',
-        status = '',
+        search = "",
+        status = "",
         statuses = [],
         leadIds = [],
         contactIds = [],
-        startDate = '',
-        endDate = '',
-        sortBy = '',
-        sortOrder = '',
+        startDate = "",
+        endDate = "",
+        sortBy = "",
+        sortOrder = "",
       } = options;
 
       const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-      const params = [builderId];
-      let paramIndex = 2;
+      const replacements = { builderId, limit: parseInt(limit, 10), offset };
 
-      let searchCondition = '';
+      let searchCondition = "";
       if (search && search.trim()) {
         searchCondition = `AND (
-          q.reference_number ILIKE $${paramIndex}
-          OR l.name ILIKE $${paramIndex}
+          q.reference_number ILIKE :search
+          OR l.name ILIKE :search
           OR EXISTS (
-            SELECT 1
-            FROM leads_contact_map lcm_s
-            JOIN users u_s ON lcm_s.contact_id = u_s.users_id
-            WHERE lcm_s.leads_id = l.leads_id
-            AND (
-              u_s.name ILIKE $${paramIndex}
-              OR u_s.phone ILIKE $${paramIndex}
-              OR u_s.email ILIKE $${paramIndex}
-            )
+            SELECT 1 FROM leads_contact_map lcm_s JOIN users u_s ON lcm_s.contact_id = u_s.users_id
+            WHERE lcm_s.leads_id = l.leads_id AND (u_s.name ILIKE :search OR u_s.phone ILIKE :search OR u_s.email ILIKE :search)
           )
           OR EXISTS (
-            SELECT 1
-            FROM property_detail pd_s
-            LEFT JOIN lot lot_s ON pd_s.lot_id = lot_s.lot_id
-            WHERE pd_s.property_detail_id = l.property_detail_id
-            AND (
-              COALESCE(lot_s.street, '') ILIKE $${paramIndex}
-              OR COALESCE(lot_s.city, '') ILIKE $${paramIndex}
-              OR COALESCE(pd_s.address_line1, '') ILIKE $${paramIndex}
-              OR COALESCE(pd_s.address_line2, '') ILIKE $${paramIndex}
-            )
+            SELECT 1 FROM property_detail pd_s WHERE pd_s.property_detail_id = l.property_detail_id
+            AND (COALESCE(pd_s.address_line1, '') ILIKE :search OR COALESCE(pd_s.address_line2, '') ILIKE :search OR COALESCE(pd_s.city, '') ILIKE :search)
           )
-          OR COALESCE(assignee_user.name, '') ILIKE $${paramIndex}
-          OR COALESCE(created_by_user.name, '') ILIKE $${paramIndex}
+          OR COALESCE(assignee_user.name, '') ILIKE :search
+          OR COALESCE(created_by_user.name, '') ILIKE :search
         )`;
-        params.push(`%${search.trim()}%`);
-        paramIndex++;
+        replacements.search = `%${search.trim()}%`;
       }
 
-      const expiredCondition = `(
-        qv.quotation_version_id IS NOT NULL
-        AND qv.is_approve = FALSE
-        AND NOW() > (
-          (CASE
-            WHEN COALESCE(qs.extend_validity_from_updated_date, 0) = 1
-              THEN COALESCE(qv.updated_at, qv.created_at, q.updated_at, q.created_at)
-            ELSE COALESCE(qv.created_at, q.created_at)
-          END)
-          + (COALESCE(qs.quotation_validity_days, 30) || ' days')::interval
-        )
-      )`;
-      const approvedCondition = `(
-        qv.quotation_version_id IS NOT NULL
-        AND qv.is_approve = TRUE
-      )`;
-      const cancelledCondition = `(COALESCE(LOWER(l.status), '') = 'cancelled')`;
-      const activeDraftCondition = `(
-        qv.quotation_version_id IS NOT NULL
-        AND qv.is_approve = FALSE
-        AND NOT ${expiredCondition}
-        AND NOT ${cancelledCondition}
-      )`;
+      const expiredCondition = `(qv.quotation_version_id IS NOT NULL AND qv.is_approve = FALSE AND NOW() > ((CASE WHEN COALESCE(qs.extend_validity_from_updated_date, 0) = 1 THEN COALESCE(qv.updated_at, qv.created_at, q.updated_at, q.created_at) ELSE COALESCE(qv.created_at, q.created_at) END) + (COALESCE(qs.quotation_validity_days, 30) || ' days')::interval))`;
+      const approvedCondition = `(qv.quotation_version_id IS NOT NULL AND qv.is_approve = TRUE)`;
+      const cancelledCondition = "(COALESCE(LOWER(l.status), '') = 'cancelled')";
+      const activeDraftCondition = `(qv.quotation_version_id IS NOT NULL AND qv.is_approve = FALSE AND NOT ${expiredCondition} AND NOT ${cancelledCondition})`;
 
-      let statusCondition = '';
-      const normalizedStatuses = (Array.isArray(statuses) && statuses.length > 0
-        ? statuses
-        : status
-          ? [status]
-          : []
-      ).map(s => String(s).trim()).filter(Boolean);
+      let statusCondition = "";
+      const normalizedStatuses = (Array.isArray(statuses) && statuses.length > 0 ? statuses : status ? [status] : []).map(s => String(s).trim()).filter(Boolean);
       if (normalizedStatuses.length > 0) {
-        const wantsApproved = normalizedStatuses.includes('approved');
-        const wantsExpired = normalizedStatuses.includes('expired');
-        const wantsCancelled = normalizedStatuses.includes('cancelled');
-        const wantsDraftLike = normalizedStatuses.some(s => ['draft', 'pendingApproval', 'modified'].includes(s));
-        const statusOrConditions = [];
-        if (wantsApproved) statusOrConditions.push(approvedCondition);
-        if (wantsExpired) statusOrConditions.push(expiredCondition);
-        if (wantsCancelled) statusOrConditions.push(cancelledCondition);
-        if (wantsDraftLike) statusOrConditions.push(activeDraftCondition);
-        if (statusOrConditions.length > 0) {
-          statusCondition = `AND (${statusOrConditions.join(' OR ')})`;
-        }
+        const conditions = [];
+        if (normalizedStatuses.includes("approved")) conditions.push(approvedCondition);
+        if (normalizedStatuses.includes("expired")) conditions.push(expiredCondition);
+        if (normalizedStatuses.includes("cancelled")) conditions.push(cancelledCondition);
+        if (normalizedStatuses.some(s => ["draft", "pendingApproval", "modified"].includes(s))) conditions.push(activeDraftCondition);
+        if (conditions.length > 0) statusCondition = `AND (${conditions.join(" OR ")})`;
       }
 
-      let leadCondition = '';
+      let leadCondition = "";
       if (Array.isArray(leadIds) && leadIds.length > 0) {
-        const cleanLeadIds = leadIds.map(id => String(id).trim()).filter(Boolean);
-        if (cleanLeadIds.length > 0) {
-          leadCondition = ` AND l.leads_id = ANY($${paramIndex}::uuid[])`;
-          params.push(cleanLeadIds);
-          paramIndex++;
-        }
+        leadCondition = ` AND l.leads_id IN (:leadIds)`;
+        replacements.leadIds = leadIds;
       }
 
-      let contactCondition = '';
+      let contactCondition = "";
       if (Array.isArray(contactIds) && contactIds.length > 0) {
-        const cleanContactIds = contactIds.map(id => String(id).trim()).filter(Boolean);
-        if (cleanContactIds.length > 0) {
-          contactCondition = ` AND EXISTS (
-            SELECT 1
-            FROM leads_contact_map lcm_filter
-            WHERE lcm_filter.leads_id = l.leads_id
-            AND lcm_filter.contact_id = ANY($${paramIndex}::uuid[])
-          )`;
-          params.push(cleanContactIds);
-          paramIndex++;
-        }
+        contactCondition = ` AND EXISTS (SELECT 1 FROM leads_contact_map lcm_filter WHERE lcm_filter.leads_id = l.leads_id AND lcm_filter.contact_id IN (:contactIds))`;
+        replacements.contactIds = contactIds;
       }
 
-      let dateCondition = '';
+      let dateCondition = "";
       if (startDate) {
-        dateCondition += ` AND q.created_at >= $${paramIndex}`;
-        params.push(startDate);
-        paramIndex++;
+        dateCondition += ` AND q.created_at >= :startDate`;
+        replacements.startDate = startDate;
       }
       if (endDate) {
-        dateCondition += ` AND q.created_at <= $${paramIndex}`;
-        params.push(endDate);
-        paramIndex++;
+        dateCondition += ` AND q.created_at <= :endDate`;
+        replacements.endDate = endDate;
       }
 
-      const normalizedSortOrder = String(sortOrder || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-      const sortByKey = String(sortBy || '');
-      const sortFieldMap = {
-        createdAt: 'created_at',
-        quotationTotal: 'quotation_total',
-        referenceNumber: 'q.reference_number',
-        customerName: 'customer_name',
-        status: 'status',
-      };
-      const primarySortField = sortFieldMap[sortByKey] || null;
-      const orderByClause = primarySortField
-        ? `${primarySortField} ${normalizedSortOrder}, q.created_at DESC, qv.quotation_version_no DESC`
-        : `q.created_at DESC, qv.quotation_version_no DESC`;
+      const normalizedSortOrder = String(sortOrder || "").toLowerCase() === "asc" ? "ASC" : "DESC";
+      const sortFieldMap = { createdAt: "created_at", quotationTotal: "quotation_total", referenceNumber: "q.reference_number", customerName: "customer_name", status: "status" };
+      const orderByClause = sortFieldMap[sortBy] ? `${sortFieldMap[sortBy]} ${normalizedSortOrder}, q.created_at DESC` : "q.created_at DESC";
 
-      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+      const companyCondition = companyId ? ` OR l.company_id = :companyId` : "";
+      if (companyId) replacements.companyId = companyId;
 
       const countQuery = `
         SELECT COUNT(DISTINCT qv.quotation_version_id) as total
@@ -1354,97 +727,23 @@ class QuotationRepository {
         LEFT JOIN quotation_settings qs ON qs.builder_id = l.builder_id AND qs.company_id = l.company_id
         LEFT JOIN users assignee_user ON l.assignee_id = assignee_user.users_id
         LEFT JOIN users created_by_user ON q.created_by = created_by_user.users_id
-        WHERE (l.builder_id = $1${companyCondition})
-        ${searchCondition}
-        ${statusCondition}
-        ${leadCondition}
-        ${contactCondition}
-        ${dateCondition}
+        WHERE (l.builder_id = :builderId${companyCondition})
+        ${searchCondition} ${statusCondition} ${leadCondition} ${contactCondition} ${dateCondition}
       `;
-
-      const countResult = await client.query(countQuery, params);
-      const total = parseInt(countResult.rows[0].total, 10);
-
-      // Add pagination params
-      params.push(parseInt(limit, 10), offset);
+      const countResult = await db.sequelize.query(countQuery, { replacements, type: db.Sequelize.QueryTypes.SELECT });
+      const total = parseInt(countResult[0].total, 10);
 
       const dataQuery = `
-        SELECT
-          q.quotation_id,
-          q.reference_number,
-          q.leads_id,
-          COALESCE(qv.created_at, q.created_at) AS created_at,
-          q.updated_at,
+        SELECT q.quotation_id, q.reference_number, q.leads_id, COALESCE(qv.created_at, q.created_at) AS created_at, q.updated_at,
           l.name AS customer_name,
-          COALESCE(
-            NULLIF(TRIM(COALESCE(lot.street, '') || CASE WHEN lot.street IS NOT NULL AND lot.city IS NOT NULL THEN ', ' ELSE '' END || COALESCE(lot.city, '')), ''),
-            'N/A'
-          ) AS property_address,
-          COALESCE(
-            NULLIF(
-              TRIM(
-                CONCAT_WS(
-                  ', ',
-                  NULLIF(TRIM(COALESCE(pd.lot_number, '')), ''),
-                  NULLIF(TRIM(COALESCE(pd.street, '')), ''),
-                  NULLIF(TRIM(COALESCE(pd.address_line1, '')), ''),
-                  NULLIF(TRIM(COALESCE(pd.address_line2, '')), ''),
-                  NULLIF(TRIM(COALESCE(pd.city, '')), ''),
-                  NULLIF(TRIM(COALESCE(st.name, '')), ''),
-                  NULLIF(TRIM(COALESCE(pd.zip_code, '')), '')
-                )
-              ),
-              ''
-            ),
-            'N/A'
-          ) AS property_details,
-          COALESCE(
-            (
-              SELECT u.name
-              FROM leads_contact_map lcm
-              JOIN users u ON lcm.contact_id = u.users_id
-              WHERE lcm.leads_id = l.leads_id
-              ORDER BY lcm.created_at ASC
-              LIMIT 1
-            ),
-            l.name,
-            'N/A'
-          ) AS contact_name,
-          COALESCE(assignee_user.name, '') AS assignee_name,
-          COALESCE(assignee_user.initials, '') AS assignee_initials,
-          COALESCE(created_by_user.name, '') AS approver_name,
-          COALESCE(created_by_user.initials, '') AS approver_initials,
-          CASE
-            WHEN ${cancelledCondition} THEN 'cancelled'
-            WHEN ${approvedCondition} THEN 'approved'
-            WHEN ${expiredCondition} THEN 'expired'
-            ELSE 'draft'
-          END AS status,
-          qv.quotation_version_id AS latest_version_id,
-          qv.quotation_version_no AS latest_version_no,
-          (
-            COALESCE(
-              (SELECT DISTINCT qvi.package_cost
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND qvi.package_id IS NOT NULL
-               LIMIT 1),
-              0
-            ) +
-            COALESCE(
-              (SELECT SUM(qvi.total_price)
-               FROM quotation_version_items qvi
-               WHERE qvi.quotation_version_id = qv.quotation_version_id
-               AND qvi.package_id IS NULL),
-              0
-            ) +
-            COALESCE(qv.structure_engineer_price, 0) +
-            COALESCE(qv.facade_price, 0)
-          ) AS quotation_total,
-          (
-            SELECT COUNT(*) FROM quotation_version qv_cnt
-            WHERE qv_cnt.quotation_id = q.quotation_id
-          ) AS version_count
+          COALESCE(NULLIF(TRIM(CONCAT_WS(', ', NULLIF(TRIM(pd.lot_number, ''), ''), NULLIF(TRIM(pd.street, ''), ''), NULLIF(TRIM(pd.address_line1, ''), ''), NULLIF(TRIM(pd.address_line2, ''), ''), NULLIF(TRIM(pd.city, ''), ''), NULLIF(TRIM(st.name, ''), ''), NULLIF(TRIM(pd.zip_code, ''), ''))), ''), 'N/A') AS property_details,
+          COALESCE((SELECT u.name FROM leads_contact_map lcm JOIN users u ON lcm.contact_id = u.users_id WHERE lcm.leads_id = l.leads_id ORDER BY lcm.created_at ASC LIMIT 1), l.name, 'N/A') AS contact_name,
+          COALESCE(assignee_user.name, '') AS assignee_name, COALESCE(assignee_user.initials, '') AS assignee_initials,
+          COALESCE(created_by_user.name, '') AS approver_name, COALESCE(created_by_user.initials, '') AS approver_initials,
+          CASE WHEN ${cancelledCondition} THEN 'cancelled' WHEN ${approvedCondition} THEN 'approved' WHEN ${expiredCondition} THEN 'expired' ELSE 'draft' END AS status,
+          qv.quotation_version_id AS latest_version_id, qv.quotation_version_no AS latest_version_no,
+          (COALESCE((SELECT DISTINCT package_cost FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND qvi.package_id IS NOT NULL LIMIT 1), 0) + COALESCE((SELECT SUM(total_price) FROM quotation_version_items qvi WHERE qvi.quotation_version_id = qv.quotation_version_id AND package_id IS NULL), 0) + COALESCE(qv.structure_engineer_price, 0) + COALESCE(qv.facade_price, 0)) AS quotation_total,
+          (SELECT COUNT(*) FROM quotation_version qv_cnt WHERE qv_cnt.quotation_id = q.quotation_id) AS version_count
         FROM quotation q
         LEFT JOIN quotation_version qv ON qv.quotation_id = q.quotation_id
         JOIN leads l ON q.leads_id = l.leads_id
@@ -1452,144 +751,79 @@ class QuotationRepository {
         LEFT JOIN users assignee_user ON l.assignee_id = assignee_user.users_id
         LEFT JOIN users created_by_user ON q.created_by = created_by_user.users_id
         LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
-        LEFT JOIN lot ON pd.lot_id = lot.lot_id
         LEFT JOIN state st ON pd.state_id = st.state_id
-        WHERE (l.builder_id = $1${companyCondition})
-        ${searchCondition}
-        ${statusCondition}
-        ${leadCondition}
-        ${contactCondition}
-        ${dateCondition}
-        ORDER BY ${orderByClause}
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        WHERE (l.builder_id = :builderId${companyCondition})
+        ${searchCondition} ${statusCondition} ${leadCondition} ${contactCondition} ${dateCondition}
+        ORDER BY ${orderByClause} LIMIT :limit OFFSET :offset
       `;
-
-      const result = await client.query(dataQuery, params);
+      const rows = await db.sequelize.query(dataQuery, { replacements, type: db.Sequelize.QueryTypes.SELECT });
 
       return {
-        data: result.rows.map(row => keysToCamelCase(row)),
-        pagination: {
-          total,
-          page: parseInt(page, 10),
-          limit: parseInt(limit, 10),
-          totalPages: Math.ceil(total / parseInt(limit, 10)),
-        },
+        data: rows.map(row => keysToCamelCase(row)),
+        pagination: { total, page: parseInt(page, 10), limit: parseInt(limit, 10), totalPages: Math.ceil(total / parseInt(limit, 10)) }
       };
-    } finally {
-      client.release();
+    } catch (error) {
+      console.error("Error in getAllQuotations:", error);
+      throw error;
     }
   }
 
   async getQuotationFilterOptions(builderId, companyId) {
-    const client = await this.pool.connect();
     try {
-      // Base options on leads (and their contacts), not only leads that already have
-      // quotation rows — otherwise the dropdown stays empty until every lead has a quote.
-      const whereClause = companyId
-        ? "(l.builder_id = $1 OR l.company_id = $2)"
-        : "l.builder_id = $1";
-      const params = companyId ? [builderId, companyId] : [builderId];
-        const query = `
-        SELECT DISTINCT
-          opts.option_type,
-          opts.option_id,
-          opts.option_label,
-          opts.leads_id as leads_id,
-          opts.customer_name,
-          opts.contact_name
+      const replacements = { builderId };
+      const companyCondition = companyId ? "OR l.company_id = :companyId" : "";
+      if (companyId) replacements.companyId = companyId;
+
+      const query = `
+        SELECT DISTINCT opts.option_type, opts.option_id, opts.option_label, opts.leads_id, opts.customer_name, opts.contact_name
         FROM leads l
         LEFT JOIN leads_contact_map lcm ON l.leads_id = lcm.leads_id
         LEFT JOIN users u ON lcm.contact_id = u.users_id
         CROSS JOIN LATERAL (
           VALUES
-            (
-              'lead',
-              l.leads_id::text,
-              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
-              l.leads_id,
-              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
-              NULL::text
-            ),
-            (
-              'contact',
-              COALESCE(u.users_id::text, ''),
-              CASE
-                WHEN u.users_id IS NULL THEN NULL
-                ELSE CONCAT(
-                  COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact'),
-                  ' (',
-                  COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
-                  ')'
-                )
-              END,
-              l.leads_id,
-              COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'),
-              COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact')
-            )
+            ('lead', l.leads_id::text, COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'), l.leads_id, COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'), NULL::text),
+            ('contact', COALESCE(u.users_id::text, ''), CASE WHEN u.users_id IS NULL THEN NULL ELSE CONCAT(COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact'), ' (', COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'), ')') END, l.leads_id, COALESCE(NULLIF(TRIM(l.name), ''), 'Unknown'), COALESCE(NULLIF(TRIM(u.name), ''), 'Unknown Contact'))
         ) AS opts(option_type, option_id, option_label, leads_id, customer_name, contact_name)
-        WHERE ${whereClause}
-          AND opts.option_label IS NOT NULL
-          AND opts.option_id <> ''
+        WHERE (l.builder_id = :builderId ${companyCondition}) AND opts.option_label IS NOT NULL AND opts.option_id <> ''
         ORDER BY option_label ASC
       `;
-      const result = await client.query(query, params);
-      return result.rows.map(row => keysToCamelCase(row));
-    } finally {
-      client.release();
+      const rows = await db.sequelize.query(query, { replacements, type: db.Sequelize.QueryTypes.SELECT });
+      return rows.map(row => keysToCamelCase(row));
+    } catch (error) {
+      console.error("Error in getQuotationFilterOptions:", error);
+      throw error;
     }
   }
 
   async getQuotationCountsByStatus(builderId, companyId) {
-    const client = await this.pool.connect();
     try {
-      const companyCondition = companyId ? ` OR l.company_id = '${companyId}'` : '';
+      const replacements = { builderId };
+      const companyCondition = companyId ? ` OR l.company_id = :companyId` : "";
+      if (companyId) replacements.companyId = companyId;
+
       const query = `
         WITH quotation_versions AS (
-          SELECT
-            qv.quotation_version_id,
-            l.builder_id,
-            l.company_id,
-            LOWER(COALESCE(l.status, '')) AS lead_status,
-            qv.is_approve,
-            qv.created_at AS version_created_at,
-            qv.updated_at AS version_updated_at,
-            q.created_at AS quotation_created_at,
-            COALESCE(qs.quotation_validity_days, 30) AS quotation_validity_days,
-            COALESCE(qs.extend_validity_from_updated_date, 0) AS extend_validity_from_updated_date
+          SELECT qv.quotation_version_id, l.builder_id, l.company_id, LOWER(COALESCE(l.status, '')) AS lead_status, qv.is_approve,
+            qv.created_at AS version_created_at, qv.updated_at AS version_updated_at, q.created_at AS quotation_created_at,
+            COALESCE(qs.quotation_validity_days, 30) AS quotation_validity_days, COALESCE(qs.extend_validity_from_updated_date, 0) AS extend_validity_from_updated_date
           FROM quotation q
           LEFT JOIN quotation_version qv ON qv.quotation_id = q.quotation_id
           JOIN leads l ON q.leads_id = l.leads_id
           LEFT JOIN quotation_settings qs ON qs.builder_id = l.builder_id AND qs.company_id = l.company_id
-          WHERE (l.builder_id = $1${companyCondition})
+          WHERE (l.builder_id = :builderId${companyCondition})
         )
-        SELECT
-          COUNT(DISTINCT quotation_version_id) AS total,
+        SELECT COUNT(DISTINCT quotation_version_id) AS total,
           COUNT(DISTINCT CASE WHEN is_approve = TRUE THEN quotation_version_id END) AS approved,
           COUNT(DISTINCT CASE WHEN lead_status = 'cancelled' THEN quotation_version_id END) AS cancelled,
-          COUNT(DISTINCT CASE WHEN is_approve = FALSE AND NOW() > (
-            (CASE
-              WHEN extend_validity_from_updated_date = 1
-                THEN COALESCE(version_updated_at, version_created_at, quotation_created_at)
-              ELSE COALESCE(version_created_at, quotation_created_at)
-            END)
-            + (quotation_validity_days || ' days')::interval
-          ) THEN quotation_version_id END) AS expired,
-          COUNT(DISTINCT CASE WHEN is_approve = FALSE
-            AND lead_status <> 'cancelled'
-            AND NOW() <= (
-            (CASE
-              WHEN extend_validity_from_updated_date = 1
-                THEN COALESCE(version_updated_at, version_created_at, quotation_created_at)
-              ELSE COALESCE(version_created_at, quotation_created_at)
-            END)
-            + (quotation_validity_days || ' days')::interval
-          ) THEN quotation_version_id END) AS draft
+          COUNT(DISTINCT CASE WHEN is_approve = FALSE AND NOW() > ((CASE WHEN extend_validity_from_updated_date = 1 THEN COALESCE(version_updated_at, version_created_at, quotation_created_at) ELSE COALESCE(version_created_at, quotation_created_at) END) + (quotation_validity_days || ' days')::interval) THEN quotation_version_id END) AS expired,
+          COUNT(DISTINCT CASE WHEN is_approve = FALSE AND lead_status <> 'cancelled' AND NOW() <= ((CASE WHEN extend_validity_from_updated_date = 1 THEN COALESCE(version_updated_at, version_created_at, quotation_created_at) ELSE COALESCE(version_created_at, quotation_created_at) END) + (quotation_validity_days || ' days')::interval) THEN quotation_version_id END) AS draft
         FROM quotation_versions
       `;
-      const result = await client.query(query, [builderId]);
-      return result.rows.length > 0 ? keysToCamelCase(result.rows[0]) : { total: 0, approved: 0, draft: 0, expired: 0 };
-    } finally {
-      client.release();
+      const rows = await db.sequelize.query(query, { replacements, type: db.Sequelize.QueryTypes.SELECT });
+      return rows.length > 0 ? keysToCamelCase(rows[0]) : { total: 0, approved: 0, draft: 0, expired: 0 };
+    } catch (error) {
+      console.error("Error in getQuotationCountsByStatus:", error);
+      throw error;
     }
   }
 
@@ -1597,18 +831,17 @@ class QuotationRepository {
    * Returns all facade IDs mapped to the given floor plan.
    * Returns an empty array if the floor plan has no facade mappings.
    */
-  async getFloorPlanFacadeMappings(floorPlanId) {
-    const client = await this.pool.connect();
+  async getFloorPlanFacadeMappings(floorPlanId, transaction = null) {
     try {
-      const query = `
-        SELECT facade_id
-        FROM floor_plan_facade_map
-        WHERE floor_plan_id = $1
-      `;
-      const result = await client.query(query, [floorPlanId]);
-      return result.rows; // array of { facade_id }
-    } finally {
-      client.release();
+      const query = `SELECT facade_id FROM floor_plan_facade_map WHERE floor_plan_id = :floorPlanId`;
+      return await db.sequelize.query(query, {
+        replacements: { floorPlanId },
+        type: db.Sequelize.QueryTypes.SELECT,
+        transaction
+      });
+    } catch (error) {
+      console.error("Error in getFloorPlanFacadeMappings:", error);
+      throw error;
     }
   }
 
@@ -1616,22 +849,20 @@ class QuotationRepository {
    * Removes quotation_version_items rows that were auto-mapped from a given floor plan's
    * price list item mapping. Package items and manually-added items are preserved.
    */
-  async removeFloorPlanPricelistItems(versionId, floorPlanId) {
-    const client = await this.pool.connect();
+  async removeFloorPlanPricelistItems(versionId, floorPlanId, transaction = null) {
     try {
       const query = `
         DELETE FROM quotation_version_items
-        WHERE quotation_version_id = $1
-          AND package_id IS NULL
-          AND price_list_item_id IN (
-            SELECT price_list_item_id
-            FROM floor_plan_pricelist_item_map
-            WHERE floor_plan_id = $2
-          )
+        WHERE quotation_version_id = :versionId AND package_id IS NULL
+          AND price_list_item_id IN (SELECT price_list_item_id FROM floor_plan_pricelist_item_map WHERE floor_plan_id = :floorPlanId)
       `;
-      await client.query(query, [versionId, floorPlanId]);
-    } finally {
-      client.release();
+      await db.sequelize.query(query, { 
+        replacements: { versionId, floorPlanId },
+        transaction
+      });
+    } catch (error) {
+      console.error("Error in removeFloorPlanPricelistItems:", error);
+      throw error;
     }
   }
 
@@ -1640,8 +871,7 @@ class QuotationRepository {
    * Uses a single INSERT...SELECT at the DB level, skipping items already present (by price_list_item_id).
    * Quantity comes from floor_plan_pricelist_item_map; total_price = cost * quantity.
    */
-  async autoMapFloorPlanPricelistItems(versionId, floorPlanId) {
-    const client = await this.pool.connect();
+  async autoMapFloorPlanPricelistItems(versionId, floorPlanId, transaction = null) {
     try {
       const query = `
         INSERT INTO quotation_version_items (
@@ -1655,51 +885,31 @@ class QuotationRepository {
           price_list_item_show_in_hl_package, price_list_item_package_only,
           price_list_item_range_id, price_list_item_dwelling_type_id,
           price_list_item_created_at, price_list_item_updated_at,
-          quantity, total_price,
-          created_at, updated_at
+          quantity, total_price, created_at, updated_at
         )
-        SELECT
-          $1,
-          pli.price_list_id,
-          pl.name,
-          fpim.price_list_item_id,
-          pli.item_description,
-          pli.short_description,
-          pli.cost_type,
-          pli.cost_type_text,
-          pli.cost_option,
-          pli.cost,
-          pli.builder_cost,
-          pli.sort_order,
-          pli.uom,
-          pli.status,
-          pli.include_by_default,
-          pli.allow_remove_from_quotation,
-          pli.show_in_hl_package,
-          pli.show_only_in_package,
-          pli.range_id,
-          pli.dwelling_type_id,
-          pli.created_at,
-          pli.updated_at,
-          COALESCE(fpim.quantity, 1),
-          COALESCE(pli.cost, 0) * COALESCE(fpim.quantity, 1),
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
+        SELECT :versionId, pli.price_list_id, pl.name, fpim.price_list_item_id,
+          pli.item_description, pli.short_description, pli.cost_type, pli.cost_type_text,
+          pli.cost_option, pli.cost, pli.builder_cost, pli.sort_order, pli.uom, pli.status,
+          pli.include_by_default, pli.allow_remove_from_quotation, pli.show_in_hl_package,
+          pli.show_only_in_package, pli.range_id, pli.dwelling_type_id, pli.created_at, pli.updated_at,
+          COALESCE(fpim.quantity, 1), COALESCE(pli.cost, 0) * COALESCE(fpim.quantity, 1),
+          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         FROM floor_plan_pricelist_item_map fpim
         JOIN price_list_item pli ON fpim.price_list_item_id = pli.price_list_item_id
         JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-        WHERE fpim.floor_plan_id = $2
-          AND pli.status = 'active'
+        WHERE fpim.floor_plan_id = :floorPlanId AND pli.status = 'active'
           AND fpim.price_list_item_id NOT IN (
-            SELECT price_list_item_id
-            FROM quotation_version_items
-            WHERE quotation_version_id = $1
-              AND price_list_item_id IS NOT NULL
+            SELECT price_list_item_id FROM quotation_version_items
+            WHERE quotation_version_id = :versionId AND price_list_item_id IS NOT NULL
           )
       `;
-      await client.query(query, [versionId, floorPlanId]);
-    } finally {
-      client.release();
+      await db.sequelize.query(query, { 
+        replacements: { versionId, floorPlanId },
+        transaction
+      });
+    } catch (error) {
+      console.error("Error in autoMapFloorPlanPricelistItems:", error);
+      throw error;
     }
   }
 }

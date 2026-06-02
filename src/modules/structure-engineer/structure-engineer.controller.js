@@ -42,7 +42,7 @@ export async function getStructureEngineerById(req, res) {
     const result = await getStructureEngineerByIdService(
       req.params.structure_engineer_id,
       req.user.builder_id,
-      req.user.company_id
+      req.user.company_id,
     );
 
     return successResponse(res, keysToCamelCase(result), "Fetched successfully");
@@ -68,7 +68,7 @@ export async function updateStructureEngineer(req, res) {
     const result = await updateStructureEngineerService(
       req.params.structure_engineer_id,
       req.body,
-      req.user
+      req.user,
     );
 
     return successResponse(res, keysToCamelCase(result), "Updated successfully");
@@ -83,7 +83,7 @@ export async function deleteStructureEngineer(req, res) {
     await deleteStructureEngineerService(
       req.params.structure_engineer_id,
       req.user.builder_id,
-      req.user.company_id
+      req.user.company_id,
     );
 
     return successResponse(res, null, "Deleted successfully");

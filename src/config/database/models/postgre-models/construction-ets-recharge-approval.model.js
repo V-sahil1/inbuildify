@@ -30,7 +30,7 @@ export default (sequelize) => {
       tableName: "construction_ets_recharge_approval",
       modelName: "ConstructionEtsRechargeApproval",
       underscored: true,
-    }
+    },
   );
   return ConstructionEtsRechargeApproval;
 };

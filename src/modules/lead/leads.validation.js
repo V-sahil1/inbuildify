@@ -22,6 +22,40 @@ export const createLeadSchema = Joi.object({
   lead_source_id: Joi.string().uuid().required().allow(null).messages({
     "string.guid": "Lead source ID must be a valid UUID",
   }),
+  facade_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Facade ID must be a valid UUID",
+  }),
+}).messages({
+  "object.unknown": "Only specified fields are allowed during lead creation",
+});
+
+export const createPublicLeadSchema = Joi.object({
+  builder_id: Joi.string().uuid().required().messages({
+    "string.guid": "Builder ID must be a valid UUID",
+    "any.required": "Builder ID is required",
+  }),
+  company_id: Joi.string().uuid().required().allow(null).messages({
+    "string.guid": "Company ID must be a valid UUID",
+  }),
+  name: Joi.string().min(2).max(255).required().messages({
+    "string.min": "Name must be at least 2 characters long",
+    "string.max": "Name must not exceed 255 characters",
+    "any.required": "Name is required",
+  }),
+  email: Joi.string().email().max(255).required().allow(null, "").messages({
+    "string.email": "Please provide a valid email address",
+    "string.max": "Email must not exceed 255 characters",
+  }),
+  phone: Joi.string().min(10).max(14).optional().allow(null, "").messages({
+    "string.min": "Phone must be at least 10 characters long",
+    "string.max": "Phone must not exceed 14 characters",
+  }),
+  notes: Joi.string().max(1000).optional().allow(null, "").messages({
+    "string.max": "Notes must not exceed 1000 characters",
+  }),
+  featur_facade_id: Joi.string().uuid().required().allow(null).messages({
+    "string.guid": "Facade ID must be a valid UUID",
+  }),
 }).messages({
   "object.unknown": "Only specified fields are allowed during lead creation",
 });
@@ -128,6 +162,9 @@ export const updateLeadSchema = Joi.object({
   assignee_id: Joi.string().uuid().optional().allow(null).messages({
     "string.guid": "Assignee ID must be a valid UUID",
   }),
+  facade_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Facade ID must be a valid UUID",
+  }),
 })
   .min(1)
   .messages({
@@ -173,7 +210,7 @@ export const getAllLeadsQuerySchema = Joi.object({
   rating: Joi.alternatives()
     .try(
       Joi.string().valid("Hot", "Warm", "Cold", "None"),
-      Joi.string().pattern(/^(Hot|Warm|Cold|None)(,(Hot|Warm|Cold|None))*$/)
+      Joi.string().pattern(/^(Hot|Warm|Cold|None)(,(Hot|Warm|Cold|None))*$/),
     )
     .optional(),
   lead_source_id: Joi.alternatives()
@@ -197,7 +234,7 @@ export const getAllLeadsQuerySchema = Joi.object({
       "yesterday",
       "last_7_days",
       "last_15_days",
-      "last_30_days"
+      "last_30_days",
     )
     .optional(),
   sort_by: Joi.string().valid("created_at").optional(),
@@ -239,7 +276,7 @@ export const getLeadActivityLogQuerySchema = Joi.object({
   }),
 });
 
-export default  {
+export default {
   createLeadSchema,
   getLeadByIdSchema,
   updateLeadSchema,
@@ -249,4 +286,5 @@ export default  {
   convertLeadToOpportunitySchema,
   removeHLPackageSchema,
   getLeadActivityLogQuerySchema,
+  createPublicLeadSchema,
 };

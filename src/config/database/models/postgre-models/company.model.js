@@ -36,7 +36,7 @@ export default (sequelize) => {
       tableName: "company",
       modelName: "Company",
       underscored: true,
-    }
+    },
   );
   return Company;
 };

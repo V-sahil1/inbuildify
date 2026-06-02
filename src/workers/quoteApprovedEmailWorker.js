@@ -1,25 +1,19 @@
 import Bull from "bull";
 import { env } from "../config/env.config.js";
-import getPool from "../config/database.js";
 import db from "../config/database/models/postgre-models/index.js";
 import { sendMailNotification } from "../service/mailNotification.service.js";
 
-const redisConfig = {
-  host: env.REDIS.REDIS_HOST,
-  port: env.REDIS.REDIS_PORT,
-  ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
-};
+import { createSharedBullClient } from "../config/redisBull.config.js";
 
-const quoteApprovedEmailQueue = new Bull("quoteApprovedEmailQueue", { redis: redisConfig });
+const quoteApprovedEmailQueue = new Bull("quoteApprovedEmailQueue", { createClient: createSharedBullClient });
 
 quoteApprovedEmailQueue.process(async (job) => {
   const { quotationVersionId, versionId, envelopeId } = job.data;
   const qvId = quotationVersionId || versionId;
-  const client = getPool();
 
   // Fetch quotation + lead + property + structural engineer in one query
-  const result = await client.query(
-    `SELECT
+  const query = `
+    SELECT
         qv.quotation_version_id,
         qv.quotation_version_no,
         q.reference_number        AS quote_reference,
@@ -61,12 +55,15 @@ quoteApprovedEmailQueue.process(async (job) => {
      LEFT JOIN structure_engineer se ON l.structure_engineer_id = se.structure_engineer_id
      LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
      LEFT JOIN state st ON pd.state_id = st.state_id
-     WHERE qv.quotation_version_id = $1`,
-    [qvId]
-  );
+     WHERE qv.quotation_version_id = :qvId
+  `;
+  const results = await db.sequelize.query(query, {
+    replacements: { qvId },
+    type: db.Sequelize.QueryTypes.SELECT
+  });
 
-  if (result.rowCount === 0) throw new Error(`Quotation version ${qvId} not found`);
-  const row = result.rows[0];
+  if (results.length === 0) throw new Error(`Quotation version ${qvId} not found`);
+  const row = results[0];
 
   if (!row.engineer_email) {
     console.log(
@@ -76,17 +73,20 @@ quoteApprovedEmailQueue.process(async (job) => {
   }
 
   // Lead contacts
-  const contactsResult = await client.query(
-    `SELECT u.name, u.email, u.phone
-       FROM leads_contact_map lcm
-       JOIN users u ON lcm.contact_id = u.users_id
-      WHERE lcm.leads_id = $1`,
-    [row.leads_id]
-  );
+  const contactsQuery = `
+    SELECT u.name, u.email, u.phone
+    FROM leads_contact_map lcm
+    JOIN users u ON lcm.contact_id = u.users_id
+    WHERE lcm.leads_id = :leadsId
+  `;
+  const contacts = await db.sequelize.query(contactsQuery, {
+    replacements: { leadsId: row.leads_id },
+    type: db.Sequelize.QueryTypes.SELECT
+  });
 
   const contactsHtml =
-    contactsResult.rows.length > 0
-      ? contactsResult.rows
+    contacts.length > 0
+      ? contacts
         .map(
           (c) =>
             `<tr>

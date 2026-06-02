@@ -1,4 +1,5 @@
 import costCenterService from "./cost-center.service.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 
 /**
  * CREATE COST CENTER
@@ -13,20 +14,19 @@ export async function createCostCenter(req, res) {
       users_id,
     );
 
-    res.status(201).json({
-      success: true,
-      statusCode: 201,
-      message: "Cost center created successfully",
-      data: costCenter,
-    });
+    return successResponse(
+      res,
+      costCenter,
+      "Cost center created successfully",
+      201,
+    );
   } catch (error) {
     console.error("Error creating cost center:", error);
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: error.message || "Internal server error",
-      data: null,
-    });
+    return errorResponse(
+      res,
+      error.status || 500,
+      error.message || "Internal server error",
+    );
   }
 }
 
@@ -42,20 +42,18 @@ export async function getCostCenters(req, res) {
       req.query,
     );
 
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Cost centers retrieved successfully",
-      data: costCenters,
-    });
+    return successResponse(
+      res,
+      costCenters,
+      "Cost centers retrieved successfully",
+    );
   } catch (error) {
     console.error("Error getting cost centers:", error);
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: error.message || "Internal server error",
-      data: null,
-    });
+    return errorResponse(
+      res,
+      500,
+      error.message || "Internal server error",
+    );
   }
 }
 
@@ -114,9 +112,9 @@ export async function updateCostCenter(req, res) {
     });
   } catch (error) {
     console.error("Error updating cost center:", error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      statusCode: 500,
+      statusCode: error.status || 500,
       message: error.message || "Internal server error",
       data: null,
     });
@@ -145,9 +143,9 @@ export async function deleteCostCenter(req, res) {
     });
   } catch (error) {
     console.error("Error deleting cost center:", error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      statusCode: 500,
+      statusCode: error.status || 500,
       message: error.message || "Internal server error",
       data: null,
     });
@@ -193,29 +191,27 @@ export async function toggleCostCenterStatus(req, res) {
  */
 export async function createCostCenterChecklistMap(req, res) {
   try {
-    const { builder_id, company_id, users_id } = req.user;
+    const { builder_id, company_id } = req.user;
 
-    const mapping = await costCenterService.createCostCenterChecklistMap(
+    const mapping = await costCenterService.createCostCenterChecklistMapService(
       req.body,
       builder_id,
       company_id,
-      users_id,
     );
 
-    res.status(201).json({
-      success: true,
-      statusCode: 201,
-      message: "Cost center checklist mapping created successfully",
-      data: mapping,
-    });
+    return successResponse(
+      res,
+      mapping,
+      "Cost center checklist mapping created successfully",
+      201,
+    );
   } catch (error) {
     console.error("Error creating cost center checklist mapping:", error);
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: error.message || "Internal server error",
-      data: null,
-    });
+    return errorResponse(
+      res,
+      error.status || 500,
+      error.message || "Internal server error",
+    );
   }
 }
 
@@ -226,26 +222,24 @@ export async function getCostCenterChecklistMaps(req, res) {
   try {
     const { builder_id, company_id } = req.user;
 
-    const mappings = await costCenterService.getCostCenterChecklistMaps(
+    const mappings = await costCenterService.getCostCenterChecklistMapsService(
       builder_id,
       company_id,
       req.query,
     );
 
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Cost center checklist mappings retrieved successfully",
-      data: mappings,
-    });
+    return successResponse(
+      res,
+      mappings,
+      "Cost center checklist mappings retrieved successfully",
+    );
   } catch (error) {
     console.error("Error getting cost center checklist mappings:", error);
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: error.message || "Internal server error",
-      data: null,
-    });
+    return errorResponse(
+      res,
+      error.status || 500,
+      error.message || "Internal server error",
+    );
   }
 }
 
@@ -257,25 +251,23 @@ export async function deleteCostCenterChecklistMap(req, res) {
     const { builder_id, company_id } = req.user;
     const { id } = req.params;
 
-    await costCenterService.deleteCostCenterChecklistMap(
+    await costCenterService.deleteCostCenterChecklistMapService(
       id,
       builder_id,
       company_id,
     );
 
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Cost center checklist mapping deleted successfully",
-      data: null,
-    });
+    return successResponse(
+      res,
+      null,
+      "Cost center checklist mapping deleted successfully",
+    );
   } catch (error) {
     console.error("Error deleting cost center checklist mapping:", error);
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: error.message || "Internal server error",
-      data: null,
-    });
+    return errorResponse(
+      res,
+      error.status || 500,
+      error.message || "Internal server error",
+    );
   }
 }

@@ -1,5 +1,10 @@
 import quotationService from "./quotation.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
+import {
+  upsertQuotationDriveFile,
+  deleteQuotationDriveFile,
+} from "../../helper/quotationDriveFile.helper.js";
+import { DRIVE_FILE_MAPPING } from "../../constants/driveFile.js";
 
 export async function getAllQuotations(req, res) {
   try {
@@ -13,34 +18,34 @@ export async function getAllQuotations(req, res) {
     const {
       page = 1,
       limit = 10,
-      search = '',
-      status = '',
-      statuses = '',
-      leadIds = '',
-      contactIds = '',
-      startDate = '',
-      endDate = '',
-      sortBy = '',
-      sortOrder = '',
+      search = "",
+      status = "",
+      statuses = "",
+      leadIds = "",
+      contactIds = "",
+      startDate = "",
+      endDate = "",
+      sortBy = "",
+      sortOrder = "",
     } = req.query;
     const statusList = Array.isArray(statuses)
       ? statuses
-      : String(statuses || '')
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
+      : String(statuses || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
     const leadIdList = Array.isArray(leadIds)
       ? leadIds
-      : String(leadIds || '')
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
+      : String(leadIds || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
     const contactIdList = Array.isArray(contactIds)
       ? contactIds
-      : String(contactIds || '')
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
+      : String(contactIds || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
 
     const result = await quotationService.getAllQuotations(builderId, companyId, {
       page,
@@ -52,8 +57,8 @@ export async function getAllQuotations(req, res) {
       contactIds: contactIdList,
       startDate,
       endDate,
-      sortBy: String(sortBy || ''),
-      sortOrder: String(sortOrder || ''),
+      sortBy: String(sortBy || ""),
+      sortOrder: String(sortOrder || ""),
     });
 
     if (result.success) {
@@ -118,6 +123,7 @@ export async function createQuotation(req, res) {
     const { leads_id } = req.params;
     const userId = req.user?.users_id;
     const builderId = req.user?.builder_id;
+    console.log("🚀 ~ createQuotation ~ builderId:", builderId)
     const companyId = req.user?.company_id;
 
     if (!userId || !builderId) {
@@ -136,7 +142,7 @@ export async function createQuotation(req, res) {
     );
 
     if (result.success) {
-      return successResponse(res, result.data, 201, result.message);
+      return successResponse(res, result.data, result.message);
     }
     return errorResponse(res, 400, result.message);
 
@@ -181,6 +187,35 @@ export async function getQuotationsByLeadId(req, res) {
   }
 }
 
+export async function getQuotationById(req, res) {
+  try {
+    const { quotation_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.getQuotationById(
+      quotation_id,
+      builderId,
+      companyId,
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 404, result.message);
+
+  } catch (error) {
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
 export async function getQuotationVersions(req, res) {
   try {
     const { quotation_id } = req.params;
@@ -196,7 +231,7 @@ export async function getQuotationVersions(req, res) {
       quotation_id,
       builderId,
       companyId,
-      version_id
+      version_id,
     );
 
     if (result.success) {
@@ -225,7 +260,7 @@ export async function getQuotationVersionById(req, res) {
     const result = await quotationService.getQuotationVersionById(
       quotation_version_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
@@ -251,12 +286,31 @@ export async function updateQuotationVersion(req, res) {
       return errorResponse(res, 401, "Unauthorized: Builder ID missing");
     }
 
+    // If the multer-s3 middleware uploaded an uploadReport file, persist it
+    // as a DriveFile (sub_reference_type=StructureEngineerUpload). Per the
+    // DriveFile blueprint we no longer write the legacy upload_report column
+    // — strip it out of req.body so nothing trickles through to the service.
+    if (req.file && req.file.fieldname === "uploadReport") {
+      await upsertQuotationDriveFile({
+        versionId: quotation_version_id,
+        subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.STRUCTURE_ENGINEER_UPLOAD,
+        s3Key: req.file.key,
+        size: req.file.size,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        builderId,
+        companyId,
+        uploadedBy: req.user?.users_id || null,
+      });
+    }
+    delete req.body.upload_report;
+
     const result = await quotationService.updateQuotationVersion(
       quotation_version_id,
       req.body,
       builderId,
       companyId,
-      req.user?.users_id
+      req.user?.users_id,
     );
 
     if (result.success) {
@@ -286,7 +340,7 @@ export async function deleteQuotation(req, res) {
       quotation_id,
       builderId,
       companyId,
-      req.user?.users_id
+      req.user?.users_id,
     );
 
     if (result.success) {
@@ -316,7 +370,7 @@ export async function duplicateQuotationVersion(req, res) {
       quotation_version_id,
       builderId,
       companyId,
-      req.user?.users_id
+      req.user?.users_id,
     );
 
     if (result.success) {
@@ -381,14 +435,14 @@ export const removePackageFromVersion = async (req, res) => {
       package_id,
       builderId,
       companyId,
-      req.user?.users_id
+      req.user?.users_id,
     );
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     if (!error.status || error.status >= 500) {
       console.error("Quotation operation error:", error);
@@ -411,7 +465,7 @@ export async function previewPDF(req, res) {
     const result = await quotationService.getQuotationPDF(
       quotation_version_id,
       builderId,
-      companyId
+      companyId,
     );
 
     if (result.success) {
@@ -442,6 +496,34 @@ export async function sendQuotationEmail(req, res) {
       quotation_version_id,
       userId,
       builderId,
+      companyId,
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
+export async function sendEngineerEmail(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    const result = await quotationService.sendEngineerEmail(
+      quotation_version_id,
+      builderId,
       companyId
     );
 
@@ -452,6 +534,57 @@ export async function sendQuotationEmail(req, res) {
   } catch (error) {
     if (!error.status || error.status >= 500) {
       console.error("Quotation operation error:", error);
+    }
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
+export async function uploadStructureEngineerReport(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const isExternal = req.isExternalRequest === true;
+    const builderId = req.user?.builder_id || null;
+    const companyId = req.user?.company_id || null;
+    const userId = req.user?.users_id || null;
+
+    // Internal callers must have a builder context. External callers are
+    // authorized by the time-sensitive token verified upstream.
+    if (!isExternal && !builderId) {
+      return errorResponse(res, 401, "Unauthorized: Builder ID missing");
+    }
+
+    if (!req.file) {
+      return errorResponse(res, 400, "Bad Request: No PDF file provided in request body");
+    }
+
+    const driveFile = await upsertQuotationDriveFile({
+      versionId: quotation_version_id,
+      subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.STRUCTURE_ENGINEER_REPORT,
+      s3Key: req.file.key,
+      size: req.file.size,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      builderId,
+      companyId,
+      uploadedBy: userId,
+    });
+
+    const result = await quotationService.uploadStructureEngineerReport(
+      quotation_version_id,
+      req.file.location,
+      builderId,
+      companyId,
+      userId,
+      { isExternal }
+    );
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 400, result.message);
+  } catch (error) {
+    if (!error.status || error.status >= 500) {
+      console.error("Quotation upload error:", error);
     }
     return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
@@ -472,12 +605,27 @@ export async function viewQuotationByHash(req, res) {
   }
 }
 
+export async function getPublicDetailsByVersionId(req, res) {
+  try {
+    const { quotation_version_id } = req.params;
+    const result = await quotationService.getPublicDetailsByVersionId(quotation_version_id);
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 404, result.message);
+  } catch (error) {
+    console.error("Error in getPublicDetailsByVersionId controller:", error);
+    return errorResponse(res, error.status || 500, error.message || "Internal server error");
+  }
+}
+
 export default {
   getAllQuotations,
   getQuotationFilterOptions,
   getQuotationStatusCounts,
   createQuotation,
   getQuotationsByLeadId,
+  getQuotationById,
   getQuotationVersions,
   getQuotationVersionById,
   updateQuotationVersion,
@@ -487,5 +635,8 @@ export default {
   removePackageFromVersion,
   previewPDF,
   sendQuotationEmail,
-  viewQuotationByHash
+  sendEngineerEmail,
+  viewQuotationByHash,
+  uploadStructureEngineerReport,
+  getPublicDetailsByVersionId,
 };

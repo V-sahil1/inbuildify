@@ -52,9 +52,9 @@ export async function updateStage(req, res) {
 
 export async function deleteStage(req, res) {
   try {
-    const { builder_id: builderId } = req.user;
+    const { company_id: companyId, builder_id: builderId } = req.user;
 
-    await stageService.deleteStage(req.params.stage_id, builderId);
+    await stageService.deleteStage(req.params.stage_id, builderId, companyId);
 
     return successResponse(res, null, "Stage deleted");
   } catch (err) {

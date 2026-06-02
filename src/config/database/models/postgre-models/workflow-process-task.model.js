@@ -19,7 +19,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "workflow_process_task", modelName: "WorkflowProcessTask", underscored: true }
+    { sequelize, tableName: "workflow_process_task", modelName: "WorkflowProcessTask", underscored: true },
   );
   return WorkflowProcessTask;
 };

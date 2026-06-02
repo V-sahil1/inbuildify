@@ -16,7 +16,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "h_l_package_lot_package_map", modelName: "HLPackageLotPackageMap", underscored: true }
+    { sequelize, tableName: "h_l_package_lot_package_map", modelName: "HLPackageLotPackageMap", underscored: true },
   );
   return HLPackageLotPackageMap;
 };

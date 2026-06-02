@@ -5,12 +5,16 @@ import crypto from "crypto";
 import docusignConfig from "../config/docusign.config.js";
 import { generatePresignedDownloadUrl, uploadFile } from "./s3.service.js";
 import { logActivity } from "../utils/activityLogger.js";
-import getPool from "../config/database.js";
+import db from "../config/database/models/postgre-models/index.js";
 import quoteApprovedEmailQueue from "../workers/quoteApprovedEmailWorker.js";
+import {
+  upsertQuotationDriveFile,
+  getQuotationDriveFileS3Key,
+} from "../helper/quotationDriveFile.helper.js";
+import { DRIVE_FILE_MAPPING } from "../constants/driveFile.js";
 
 /**
  * Extracts and logs every available detail from a DocuSign / Axios error.
- * Call this in every catch block so the terminal always shows the full picture.
  */
 function logDocuSignError(label, error) {
   const status = error.response?.status ?? error.statusCode ?? error.status ?? "N/A";
@@ -27,7 +31,6 @@ function logDocuSignError(label, error) {
   console.error("║ Stack       :", error.stack?.split("\n").slice(0, 4).join("\n║              "));
   console.error("╚══════════════════════════════════════════════════\n");
 
-  // Surface the actionable hint for the most common cause
   const errCode = body?.error ?? body?.errorCode ?? "";
   if (errCode === "consent_required" || String(body).includes("consent_required")) {
     console.error(
@@ -71,7 +74,6 @@ class DocuSignService {
       throw new Error(`DocuSign JWT request failed: ${error.message}`);
     }
 
-    // SDK may silently return error body instead of throwing on non-2xx
     const token = results?.body?.access_token;
     if (!token) {
       const body = results?.body ?? results ?? {};
@@ -93,24 +95,23 @@ class DocuSignService {
   }
 
   async createQuotationEnvelope(quotationVersionId, options, userId, leadsId) {
-    const client = await getPool().connect();
+    const transaction = await db.sequelize.transaction();
     try {
-      const quotationQuery = `
-        SELECT qv.*, q.reference_number, l.email, l.name
-        FROM quotation_version qv
-        JOIN quotation q ON qv.quotation_id = q.quotation_id
-        JOIN leads l ON q.leads_id = l.leads_id
-        WHERE qv.quotation_version_id = $1
-      `;
-      const quotationResult = await client.query(quotationQuery, [
-        quotationVersionId,
-      ]);
+      const { QuotationVersion, Quotation, Leads } = db.sequelize.models;
+      const quotation = await QuotationVersion.findOne({
+        where: { quotation_version_id: quotationVersionId },
+        include: [
+          {
+            model: Quotation,
+            as: "quotation",
+            include: [{ model: Leads, as: "lead" }]
+          }
+        ],
+        transaction
+      });
 
-      if (quotationResult.rowCount === 0)
-        throw new Error("Quotation version not found");
-      const quotation = quotationResult.rows[0];
-      if (!quotation.pdf_url)
-        throw new Error("Quotation PDF not generated yet.");
+      if (!quotation) throw new Error("Quotation version not found");
+      const qData = quotation.get({ plain: true });
 
       const accessToken = await this.getJwtToken();
       const userInfo = await this.getUserInfo(accessToken);
@@ -121,10 +122,12 @@ class DocuSignService {
       if (options.pdfBuffer) {
         documentBase64 = options.pdfBuffer.toString("base64");
       } else {
-        // Fallback: extract S3 key from full URL if needed
-        let s3Key = quotation.pdf_url;
-        const s3UrlMatch = quotation.pdf_url?.match(/amazonaws\.com\/(.+)$/);
-        if (s3UrlMatch) s3Key = s3UrlMatch[1];
+        const s3Key = await getQuotationDriveFileS3Key(
+          quotationVersionId,
+          DRIVE_FILE_MAPPING.SUB_REFERENCES.QUOTATION_REPORT,
+          { transaction },
+        );
+        if (!s3Key) throw new Error("Quotation PDF not generated yet.");
 
         try {
           const documentUrlResult = await generatePresignedDownloadUrl(s3Key);
@@ -135,15 +138,13 @@ class DocuSignService {
       }
 
       const envDef = new docusign.EnvelopeDefinition();
-      envDef.emailSubject =
-        options.emailSubject || docusignConfig.defaultEmailSubject.quotation;
-      envDef.emailBlurb =
-        options.emailBlurb || docusignConfig.defaultEmailMessage.quotation;
+      envDef.emailSubject = options.emailSubject || docusignConfig.defaultEmailSubject.quotation;
+      envDef.emailBlurb = options.emailBlurb || docusignConfig.defaultEmailMessage.quotation;
       envDef.status = "sent";
 
       const doc = new docusign.Document();
       doc.documentBase64 = documentBase64;
-      doc.name = `Quotation - ${quotation.reference_number}`;
+      doc.name = `Quotation - ${qData.quotation.reference_number}`;
       doc.fileExtension = "pdf";
       doc.documentId = "1";
       envDef.documents = [doc];
@@ -151,7 +152,6 @@ class DocuSignService {
       envDef.recipients = new docusign.Recipients();
       let recipientIdCounter = 1;
 
-      // 1. Map Signers
       const docSigners = options.signers.map((s, index) => {
         const signer = new docusign.Signer();
         signer.email = s.email;
@@ -168,7 +168,7 @@ class DocuSignService {
         signHere.pageNumber = "1";
         signHere.recipientId = recipientIdCounter.toString();
         signHere.tabLabel = `Signature_${recipientIdCounter}`;
-        signHere.xPosition = (100 + index * 150).toString(); // Spaced horizontally
+        signHere.xPosition = (100 + index * 150).toString();
         signHere.yPosition = "100";
 
         signer.tabs = new docusign.Tabs();
@@ -179,7 +179,6 @@ class DocuSignService {
       });
       envDef.recipients.signers = docSigners;
 
-      // 2. Map Carbon Copies
       if (options.ccRecipients && options.ccRecipients.length > 0) {
         const carbonCopies = options.ccRecipients.map((cc) => {
           const carbonCopy = new docusign.CarbonCopy();
@@ -187,14 +186,12 @@ class DocuSignService {
           carbonCopy.name = cc.name;
           carbonCopy.recipientId = recipientIdCounter.toString();
           carbonCopy.routingOrder = cc.routingOrder || "2";
-
           recipientIdCounter++;
           return carbonCopy;
         });
         envDef.recipients.carbonCopies = carbonCopies;
       }
 
-      // 3. Attach EventNotification so DocuSign POSTs status changes to our webhook
       const webhookUrl = docusignConfig.webhookUrl;
       if (webhookUrl) {
         const eventNotification = new docusign.EventNotification();
@@ -215,16 +212,11 @@ class DocuSignService {
           { envelopeEventStatusCode: "voided" },
         ];
         envDef.eventNotification = eventNotification;
-        console.log(`[DocuSign] EventNotification configured → ${webhookUrl}`);
-      } else {
-        console.warn("[DocuSign] DOCUSIGN_WEBHOOK_URL not set — webhook events will not fire");
       }
 
       let envelope;
       try {
-        envelope = await envelopesApi.createEnvelope(accountId, {
-          envelopeDefinition: envDef,
-        });
+        envelope = await envelopesApi.createEnvelope(accountId, { envelopeDefinition: envDef });
       } catch (error) {
         logDocuSignError("createEnvelope", error);
         throw new Error(`DocuSign createEnvelope failed: ${error.message}`);
@@ -232,7 +224,7 @@ class DocuSignService {
 
       const primarySigner = options.signers[0];
       await this.saveEnvelopeInfo(
-        client,
+        transaction,
         envelope.envelopeId,
         quotationVersionId,
         "quotation",
@@ -242,28 +234,26 @@ class DocuSignService {
         leadsId,
       );
 
-      await logActivity(client, {
+      await logActivity(transaction, {
         userId,
         leadsId,
         module: "DocuSign",
         moduleId: envelope.envelopeId,
-        recordName: quotation.reference_number,
+        recordName: qData.quotation.reference_number,
         action: "CREATE",
-        description: `DocuSign envelope sent for: ${quotation.reference_number}`,
+        description: `DocuSign envelope sent for: ${qData.quotation.reference_number}`,
       });
 
-      return {
-        success: true,
-        envelopeId: envelope.envelopeId,
-        status: envelope.status,
-      };
-    } finally {
-      client.release();
+      await transaction.commit();
+      return { success: true, envelopeId: envelope.envelopeId, status: envelope.status };
+    } catch (error) {
+      if (transaction) await transaction.rollback();
+      throw error;
     }
   }
 
   async cancelEnvelope(envelopeId, voidReason) {
-    const client = await getPool().connect();
+    const transaction = await db.sequelize.transaction();
     try {
       const accessToken = await this.getJwtToken();
       const userInfo = await this.getUserInfo(accessToken);
@@ -275,11 +265,13 @@ class DocuSignService {
       envelope.voidedReason = voidReason || "Canceled by sender.";
 
       await envelopesApi.update(accountId, envelopeId, { envelope });
-      await this.updateEnvelopeStatus(envelopeId, "voided");
+      await this.updateEnvelopeStatus(envelopeId, "voided", transaction);
 
+      await transaction.commit();
       return { success: true };
-    } finally {
-      client.release();
+    } catch (error) {
+      if (transaction) await transaction.rollback();
+      throw error;
     }
   }
 
@@ -287,15 +279,8 @@ class DocuSignService {
     const accessToken = await this.getJwtToken();
     const userInfo = await this.getUserInfo(accessToken);
     const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
-    const envelope = await envelopesApi.getEnvelope(
-      userInfo.accounts[0].accountId,
-      envelopeId,
-    );
-    return {
-      success: true,
-      status: envelope.status,
-      envelopeId: envelope.envelopeId,
-    };
+    const envelope = await envelopesApi.getEnvelope(userInfo.accounts[0].accountId, envelopeId);
+    return { success: true, status: envelope.status, envelopeId: envelope.envelopeId };
   }
 
   async getRecipientViewUrl(envelopeId, returnUrl, signerEmail, signerName) {
@@ -309,14 +294,10 @@ class DocuSignService {
     recipientViewRequest.email = signerEmail;
     recipientViewRequest.userName = signerName;
     recipientViewRequest.recipientId = "1";
-    recipientViewRequest.clientUserId = signerEmail; // must match clientUserId set at envelope creation
+    recipientViewRequest.clientUserId = signerEmail;
 
     try {
-      const viewUrl = await envelopesApi.createRecipientView(
-        userInfo.accounts[0].accountId,
-        envelopeId,
-        { recipientViewRequest },
-      );
+      const viewUrl = await envelopesApi.createRecipientView(userInfo.accounts[0].accountId, envelopeId, { recipientViewRequest });
       return { success: true, url: viewUrl.url };
     } catch (error) {
       logDocuSignError("createRecipientView", error);
@@ -328,55 +309,30 @@ class DocuSignService {
     const accessToken = await this.getJwtToken();
     const userInfo = await this.getUserInfo(accessToken);
     const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
-
-    const combinedDocument = await envelopesApi.getDocument(
-      userInfo.accounts[0].accountId,
-      envelopeId,
-      "combined",
-    );
+    const combinedDocument = await envelopesApi.getDocument(userInfo.accounts[0].accountId, envelopeId, "combined");
     return { success: true, document: combinedDocument };
   }
 
-  async saveEnvelopeInfo(
-    client,
-    envelopeId,
-    referenceId,
-    type,
-    signerEmail,
-    signerName,
-    userId,
-    leadsId,
-  ) {
-    const query = `
-      INSERT INTO docusign_envelopes (
-        envelope_id, reference_id, type, signer_email, signer_name,
-        status, created_by, leads_id, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (envelope_id) 
-      DO UPDATE SET status = EXCLUDED.status, updated_at = CURRENT_TIMESTAMP
-    `;
-    await client.query(query, [
-      envelopeId,
-      referenceId,
+  async saveEnvelopeInfo(transaction, envelopeId, referenceId, type, signerEmail, signerName, userId, leadsId) {
+    const { DocuSignEnvelope } = db.sequelize.models;
+    await DocuSignEnvelope.upsert({
+      envelope_id: envelopeId,
+      reference_id: referenceId,
       type,
-      signerEmail,
-      signerName,
-      "sent",
-      userId,
-      leadsId,
-    ]);
+      signer_email: signerEmail,
+      signer_name: signerName,
+      status: "sent",
+      created_by: userId,
+      leads_id: leadsId,
+    }, { transaction });
   }
 
-  async updateEnvelopeStatus(envelopeId, status) {
-    const client = await getPool().connect();
-    try {
-      await client.query(
-        `UPDATE docusign_envelopes SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE envelope_id = $2`,
-        [status, envelopeId],
-      );
-    } finally {
-      client.release();
-    }
+  async updateEnvelopeStatus(envelopeId, status, transaction = null) {
+    const { DocuSignEnvelope } = db.sequelize.models;
+    await DocuSignEnvelope.update(
+      { status, updated_at: db.sequelize.literal('CURRENT_TIMESTAMP') },
+      { where: { envelope_id: envelopeId }, transaction }
+    );
   }
 
   async getDocumentAsBase64(url) {
@@ -386,54 +342,35 @@ class DocuSignService {
   }
 
   async processWebhook(webhookData) {
-    const client = await getPool().connect();
+    const transaction = await db.sequelize.transaction();
     try {
-      // Normalize both DocuSign Connect JSON and per-envelope EventNotification JSON formats
-      // Connect:             { event: "envelope-completed", data: { envelopeId: "..." } }
-      // EventNotification:  { status: "completed", envelopeId: "..." }
       let envelopeId, rawStatus;
       if (webhookData.event && webhookData.data?.envelopeId) {
-        // DocuSign Connect format
         envelopeId = webhookData.data.envelopeId;
-        rawStatus = webhookData.event.replace("envelope-", ""); // "completed", "voided", etc.
+        rawStatus = webhookData.event.replace("envelope-", "");
       } else if (webhookData.envelopeId && webhookData.status) {
-        // EventNotification format (per-envelope)
         envelopeId = webhookData.envelopeId;
         rawStatus = webhookData.status.toLowerCase();
       } else {
-        console.warn("[DocuSign Webhook] Unrecognised payload format:", JSON.stringify(webhookData).slice(0, 200));
         return { success: false, message: "Invalid payload" };
       }
 
-      // Map raw status to our ENUM values
       let status = "sent";
       if (rawStatus === "completed") status = "completed";
       else if (rawStatus === "voided") status = "voided";
       else if (rawStatus === "declined") status = "declined";
-      else if (rawStatus === "sent" || rawStatus === "resent" || rawStatus === "delivered") status = "sent";
+      else if (["sent", "resent", "delivered"].includes(rawStatus)) status = "sent";
 
-      console.log(
-        `Processing Webhook: Envelope ${envelopeId} status changed to ${status}`,
-      );
+      console.log(`Processing Webhook: Envelope ${envelopeId} status changed to ${status}`);
 
-      // 1. Update the tracking table status
-      await this.updateEnvelopeStatus(envelopeId, status);
+      await this.updateEnvelopeStatus(envelopeId, status, transaction);
 
-      // 2. Get envelope details to update the main quotation_version table
-      const envelopeQuery = `
-        SELECT de.*, qv.quotation_version_id
-        FROM docusign_envelopes de
-        LEFT JOIN quotation_version qv ON de.reference_id = qv.quotation_version_id AND de.type = 'quotation'
-        WHERE de.envelope_id = $1
-      `;
-      const envelopeResult = await client.query(envelopeQuery, [envelopeId]);
+      const { DocuSignEnvelope, QuotationVersion } = db.sequelize.models;
+      const envelope = await DocuSignEnvelope.findOne({ where: { envelope_id: envelopeId }, transaction });
 
-      if (envelopeResult.rowCount > 0) {
-        const envelope = envelopeResult.rows[0];
-
-        // 3. Log webhook activity
-        await logActivity(client, {
-          userId: null, // System action
+      if (envelope) {
+        await logActivity(transaction, {
+          userId: null,
           leadsId: envelope.leads_id,
           module: "DocuSign",
           moduleId: envelopeId,
@@ -442,84 +379,53 @@ class DocuSignService {
           description: `DocuSign webhook received: ${status} for ${envelope.type}`,
         });
 
-        // 4. Handle 'Completed' (Signed) - Upload to S3
-        if (status === "completed" && envelope.quotation_version_id) {
-          console.log(
-            `Downloading signed document for envelope ${envelopeId}...`,
-          );
-
-          // Get the signed document from DocuSign
+        if (status === "completed" && envelope.type === 'quotation') {
           const signedDocResult = await this.downloadSignedDocument(envelopeId);
-
-          // SDK may return a Buffer or a binary string depending on version
           const rawDoc = signedDocResult.document;
-          const fileBuffer = Buffer.isBuffer(rawDoc)
-            ? rawDoc
-            : Buffer.from(rawDoc, "binary");
+          const fileBuffer = Buffer.isBuffer(rawDoc) ? rawDoc : Buffer.from(rawDoc, "binary");
 
-          // Generate a logical S3 Key
           const timestamp = new Date().getTime();
-          const s3Key = `signed_documents/leads_${envelope.leads_id}/quote_${envelope.quotation_version_id}_${timestamp}.pdf`;
+          const s3Key = `signed_documents/leads_${envelope.leads_id}/quote_${envelope.reference_id}_${timestamp}.pdf`;
+          const uploadResult = await uploadFile(s3Key, fileBuffer, "application/pdf");
 
-          // Upload to S3
-          const uploadResult = await uploadFile(
-            s3Key,
-            fileBuffer,
-            "application/pdf",
-          );
-
+          // The signed PDF is stored exclusively as a DriveFile
+          // (sub_reference_type=SignedQuotationReport). The legacy
+          // signed_pdf_url column is no longer written per the DriveFile
+          // migration blueprint.
           if (uploadResult.success) {
-            console.log(
-              `Successfully uploaded signed document to S3: ${uploadResult.location}`,
-            );
-
-            // Update quotation_version and approve the quotation
-            await client.query(
-              `UPDATE quotation_version
-               SET esign_status = $1, signed_pdf_url = $2, is_approve = true
-               WHERE quotation_version_id = $3`,
-              [status, uploadResult.key, envelope.quotation_version_id],
-            );
-          } else {
-            console.error(
-              "Failed to upload signed document to S3:",
-              uploadResult.error,
-            );
-            await client.query(
-              `UPDATE quotation_version SET esign_status = $1, is_approve = true WHERE quotation_version_id = $2`,
-              [status, envelope.quotation_version_id],
-            );
+            await upsertQuotationDriveFile({
+              versionId: envelope.reference_id,
+              subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.SIGNED_QUOTATION_REPORT,
+              s3Key: uploadResult.key,
+              size: fileBuffer.length,
+              originalName: `signed_quote_${envelope.reference_id}.pdf`,
+              leadId: envelope.leads_id,
+              transaction,
+            });
           }
 
-          // Queue email to structural engineer with full quote + lead + property details
+          await QuotationVersion.update({
+            esign_status: status,
+            is_approve: true
+          }, {
+            where: { quotation_version_id: envelope.reference_id },
+            transaction
+          });
+
           await quoteApprovedEmailQueue.add(
-            { quotationVersionId: envelope.quotation_version_id, envelopeId },
+            { quotationVersionId: envelope.reference_id, envelopeId },
             { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
           );
-          console.log(
-            `[DocuSign] Queued quote-approved email for version ${envelope.quotation_version_id}`
-          );
-        }
-        // 5. Handle Cancelled, Expired, or Resent
-        else if (envelope.quotation_version_id) {
-          // Just update the status on the quotation version
-          await client.query(
-            `
-            UPDATE quotation_version 
-            SET esign_status = $1 
-            WHERE quotation_version_id = $2
-          `,
-            [status, envelope.quotation_version_id],
-          );
+        } else if (envelope.type === 'quotation') {
+          await QuotationVersion.update({ esign_status: status }, { where: { quotation_version_id: envelope.reference_id }, transaction });
         }
       }
 
+      await transaction.commit();
       return { success: true };
     } catch (error) {
-      console.error("Error processing DocuSign webhook:", error);
-      throw new Error(`Failed to process webhook: ${error.message}`);
-    } finally {
-      client.release();
+      if (transaction) await transaction.rollback();
+      throw error;
     }
   }
 }

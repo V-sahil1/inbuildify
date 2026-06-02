@@ -29,7 +29,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "integration_settings", modelName: "IntegrationSettings", underscored: true }
+    { sequelize, tableName: "integration_settings", modelName: "IntegrationSettings", underscored: true },
   );
   return IntegrationSettings;
 };

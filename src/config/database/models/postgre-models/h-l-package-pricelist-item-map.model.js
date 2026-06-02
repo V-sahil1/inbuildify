@@ -19,7 +19,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "h_l_package_pricelist_item_map", modelName: "HLPackagePricelistItemMap", underscored: true }
+    { sequelize, tableName: "h_l_package_pricelist_item_map", modelName: "HLPackagePricelistItemMap", underscored: true },
   );
   return HLPackagePricelistItemMap;
 };

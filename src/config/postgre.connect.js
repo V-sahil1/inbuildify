@@ -41,7 +41,6 @@ export const connectPostgre = async () => {
     await runPendingMigrations(db.sequelize);
     console.timeEnd("⏱️  Migrations");
 
-    console.log("Database connected successfully");
 
     // Step 4: Auto-seed essentials if database was just created
     if (created) {

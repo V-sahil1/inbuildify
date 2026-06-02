@@ -6,7 +6,6 @@ import {
   createProperty,
   getPropertyByLeadId,
   updateProperty,
-  getAllProperties,
   deleteProperty,
 } from "./property.controller.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
@@ -15,7 +14,6 @@ import {
   getPropertyByLeadSchema,
   updatePropertySchema,
   updatePropertyParamSchema,
-  getAllPropertiesSchema,
   deletePropertySchema,
   createPropertyParamSchema,
 } from "./property.validation.js";
@@ -28,21 +26,15 @@ import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 const parsePropertyContent = (req, res, next) => {
   const contentKey = "compaction_report_content";
   const camelKey = "compactionReportContent";
-  let key = req.body[contentKey] ? contentKey : (req.body[camelKey] ? camelKey : null);
+  const key = req.body[contentKey] ? contentKey : (req.body[camelKey] ? camelKey : null);
 
   if (key && typeof req.body[key] === "string") {
     try {
-      // Clean common smart quotes/curly quotes
-      let cleanValue = req.body[key]
+      const cleanValue = req.body[key]
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, "\"")
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
-
-      // 🚨 Fix: Always store in camelKey. 
-      // This allows camelToSnakeMiddleware (running next) to fix internal keys.
       req.body[camelKey] = JSON.parse(cleanValue);
 
-      // If the source was already "compaction_report_content", remove it so
-      // camelToSnakeMiddleware doesn't reject it as a snake_case key.
       if (key === contentKey) {
         delete req.body[contentKey];
       }
@@ -68,8 +60,8 @@ router.post(
   validateRequest(createPropertySchema, REQUEST_SOURCE.FORM_DATA),
   createProperty,
 );
-router.get("/", validateRequest(getAllPropertiesSchema, REQUEST_SOURCE.QUERY), getAllProperties);
 router.get("/:leads_id", validateRequest(getPropertyByLeadSchema, REQUEST_SOURCE.PARAMS), getPropertyByLeadId);
+
 router.put(
   "/:property_detail_id",
   upload.single("compactionReportUrl"),

@@ -25,7 +25,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "survey_template", modelName: "SurveyTemplate", underscored: true }
+    { sequelize, tableName: "survey_template", modelName: "SurveyTemplate", underscored: true },
   );
   return SurveyTemplate;
 };

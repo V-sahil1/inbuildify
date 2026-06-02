@@ -65,7 +65,6 @@ export const getColorItemByIdSchema = Joi.object({
     "string.guid": "Color item ID must be a valid UUID",
   }),
 });
-
 export const createColorItemSchema = Joi.object({
   default_image_index: Joi.number().integer().optional(),
   item_name: Joi.string()
@@ -176,13 +175,15 @@ export const createColorItemSchema = Joi.object({
         "Units must be one of: mandatory, non_mandatory, not_required",
     }),
 
-  color_image: Joi.string().uri().optional().allow(null).messages({
-    "string.uri": "Color image must be a valid URL",
-  }),
+  color_image: Joi.alternatives()
+    .try(Joi.string().allow("", null), Joi.array(), Joi.object())
+    .optional()
+    .allow(null),
 
-  specification: Joi.string().trim().max(500).allow("").optional().messages({
-    "string.max": "Specification must not exceed 500 characters",
-  }),
+  specification: Joi.alternatives()
+    .try(Joi.string().allow("", null), Joi.array(), Joi.object())
+    .optional()
+    .allow(null),
 
   status: Joi.boolean().default(true).messages({
     "boolean.base": "Status must be true or false",

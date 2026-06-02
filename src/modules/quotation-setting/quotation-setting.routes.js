@@ -3,13 +3,10 @@ import express from "express";
 const router = express.Router();
 
 import {
-  createQuotationSettings,
-  getQuotationSettings,
   updateQuotationSettings,
   getQuotationSetting,
 } from "./quotation-setting.controller.js";
 import {
-  createQuotationSettingSchems,
   updateQuotationSettingParamsSchema,
   updateQuotationSettingSchema,
 } from "./quotation-setting.validation.js";
@@ -23,15 +20,7 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createQuotationSettingSchems, REQUEST_SOURCE.BODY),
-  createQuotationSettings,
-);
-
 router.get("/fetch", getQuotationSetting);
-
-router.get("/", getQuotationSettings);
 
 router.put(
   "/:quotation_settings_id",

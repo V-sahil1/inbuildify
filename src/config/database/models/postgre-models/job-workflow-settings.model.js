@@ -25,7 +25,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_workflow_settings", modelName: "JobWorkflowSettings", underscored: true }
+    { sequelize, tableName: "job_workflow_settings", modelName: "JobWorkflowSettings", underscored: true },
   );
   return JobWorkflowSettings;
 };

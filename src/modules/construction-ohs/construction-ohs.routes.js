@@ -42,16 +42,16 @@ router.post(
    LIST (Categories / Items)
 -------------------------- */
 
-router.get(
-  "/list",
-  validateRequest(getListItemChema, REQUEST_SOURCE.QUERY),
-  getOhsList,
-);
-
 router.post(
   "/list",
   validateRequest(createListItemSchema, REQUEST_SOURCE.BODY),
   createOhsListItem,
+);
+
+router.get(
+  "/list",
+  validateRequest(getListItemChema, REQUEST_SOURCE.QUERY),
+  getOhsList,
 );
 
 router.put(

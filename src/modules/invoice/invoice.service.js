@@ -1,177 +1,253 @@
-import invoiceRepository from "./invoice.repository.js";
-import leadsRepository from "../lead/leads.repository.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { Op } from "sequelize";
+import { keysToCamelCase } from "../../utils/common.js";
 
-class InvoiceService {
-  async createInvoice(invoiceData, builderId, companyId) {
-    try {
-      const lead = await leadsRepository.getLeadById(invoiceData.leads_id, builderId);
-      if (!lead || (lead.builderId !== builderId && lead.companyId !== companyId)) {
-        return {
-          success: false,
-          message: "Lead not found or does not belong to your organization",
-        };
+/**
+ * Service to handle Invoice and Deposit related business logic.
+ */
+export const createInvoiceService = async (invoiceData, builderId, companyId) => {
+  const { Invoice, Leads, Quotation, Opportunity } = db;
+
+  try {
+    // 1. Verify organization ownership and fetch lead reference
+    const lead = await Leads.findOne({
+      where: {
+        leads_id: invoiceData.leads_id,
+        [Op.or]: [{ builder_id: builderId }, { company_id: companyId }],
+      },
+    });
+
+    if (!lead) {
+      throw { status: 404, message: "Lead not found or does not belong to your organization" };
+    }
+
+    return await db.sequelize.transaction(async (transaction) => {
+      // 2. Lock lead for update and verify existence again (parities FOR UPDATE)
+      const lockedLead = await Leads.findByPk(invoiceData.leads_id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!lockedLead) {
+        throw { status: 404, message: "Lead not found" };
       }
 
-      const count = await invoiceRepository.countInvoicesByLead(invoiceData.leads_id);
-      const invoiceNumber = count + 1;
+      // 3. Enforce that Invoices can only be created if a Quotation exists
+      const quotation = await Quotation.findOne({
+        where: { leads_id: invoiceData.leads_id },
+        transaction,
+      });
 
-      const leadRef = lead.referenceNumber || lead.refrenceNumber || "LD-UNKNOWN";
-      const invoiceReferenceNumber = `${leadRef}-I${invoiceNumber}`;
+      if (!quotation) {
+        throw { status: 400, message: "Cannot create an invoice for a lead that does not have a quotation" };
+      }
 
-      const invoiceDataWithRef = {
-        ...invoiceData,
+      // 4. Calculate invoice reference number
+      const invoiceCount = await Invoice.count({
+        where: { leads_id: invoiceData.leads_id },
+        transaction,
+      });
+
+      const nextInvoiceNumber = invoiceCount + 1;
+      const leadRef = lockedLead.reference_number || "LD-UNKNOWN";
+      const invoiceReferenceNumber = `${leadRef}-I${nextInvoiceNumber}`;
+
+      // 5. Determine status
+      const status = invoiceData.generate_invoice ? "sent" : "paid";
+
+      // 6. Create the Invoice
+      const newInvoice = await Invoice.create({
+        leads_id: invoiceData.leads_id,
         reference_number: invoiceReferenceNumber,
-      };
+        generate_invoice: invoiceData.generate_invoice,
+        invoice_date: invoiceData.invoice_date || null,
+        due_date: invoiceData.due_date || null,
+        invoice_amount: invoiceData.invoice_amount || null,
+        deposite_date: invoiceData.deposite_date || null,
+        deposite_amount: invoiceData.deposite_amount || null,
+        payment_method: invoiceData.payment_method || null,
+        transaction_no: invoiceData.transaction_no || null,
+        description: invoiceData.description || null,
+        status: status,
+      }, { transaction });
 
-      invoiceDataWithRef.status = invoiceData.generate_invoice ? "sent" : "paid";
-
-      const newInvoice = await invoiceRepository.createInvoice(invoiceDataWithRef);
+      // 7. Update Opportunity status to Negotiation
+      await Opportunity.update(
+        { status: "Negotiation", updatedAt: new Date() },
+        {
+          where: {
+            leads_id: invoiceData.leads_id,
+            status: { [Op.ne]: "closed" },
+          },
+          transaction,
+        }
+      );
 
       return {
         success: true,
-        data: newInvoice,
+        data: keysToCamelCase(newInvoice.get({ plain: true })),
         message: invoiceData.generate_invoice
           ? "Invoice generated successfully"
           : "Deposit captured successfully",
       };
-    } catch (error) {
-      console.error("Invoice generation error in service:", error);
-      return {
-        success: false,
-        message: error.message || "Failed to create invoice/deposit",
-      };
-    }
+    });
+  } catch (error) {
+    console.error("Invoice creation error in service:", error);
+    throw error;
   }
+};
 
-  async getInvoicesByLead(leadId, builderId, companyId) {
-    try {
-      const lead = await leadsRepository.getLeadById(leadId, builderId);
-      if (!lead || (lead.builderId !== builderId && lead.companyId !== companyId)) {
-        return {
-          success: false,
-          message: "Lead not found or does not belong to your organization",
-        };
-      }
+/**
+ * Fetches all invoices for a specific lead.
+ */
+export const getInvoicesByLeadService = async (leadId, builderId, companyId) => {
+  const { Invoice, Leads } = db;
+  try {
+    const lead = await Leads.findOne({
+      where: {
+        leads_id: leadId,
+        [Op.or]: [{ builder_id: builderId }, { company_id: companyId }],
+      },
+    });
 
-      const invoices = await invoiceRepository.getInvoicesByLead(leadId);
-      return {
-        success: true,
-        data: invoices,
-        message: "Records fetched successfully",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    if (!lead) {
+      throw { status: 404, message: "Lead not found or does not belong to your organization" };
     }
+
+    const invoices = await Invoice.findAll({
+      where: { leads_id: leadId },
+      include: [
+        {
+          model: Leads,
+          as: "lead",
+          attributes: ["name"],
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    const formattedInvoices = invoices.map((inv) => {
+      const plain = inv.get({ plain: true });
+      return {
+        ...keysToCamelCase(plain),
+        leadName: plain.lead?.name || null,
+      };
+    });
+
+    return {
+      success: true,
+      data: formattedInvoices,
+      message: "Records fetched successfully",
+    };
+  } catch (error) {
+    throw error;
   }
+};
 
-  async getInvoiceById(invoiceId, builderId, companyId) {
-    try {
-      const invoice = await invoiceRepository.getInvoiceById(invoiceId);
-      if (!invoice) {
-        return {
-          success: false,
-          message: "Invoice/Deposit record not found",
-        };
-      }
+/**
+ * Fetches an invoice by its ID.
+ */
+export const getInvoiceByIdService = async (invoiceId, builderId, companyId) => {
+  const { Invoice, Leads } = db;
+  try {
+    const invoice = await Invoice.findByPk(invoiceId, {
+      include: [{ model: Leads, as: "lead" }],
+    });
 
-      const lead = await leadsRepository.getLeadById(invoice.leadsId, builderId);
-      if (!lead || (lead.builderId !== builderId && lead.companyId !== companyId)) {
-        return {
-          success: false,
-          message: "Access denied: Record does not belong to your organization",
-        };
-      }
-
-      return {
-        success: true,
-        data: invoice,
-        message: "Record fetched successfully",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    if (!invoice) {
+      throw { status: 404, message: "Invoice/Deposit record not found" };
     }
-  }
 
-  async updateInvoice(invoiceId, updateData, builderId, companyId) {
-    try {
-      const invoice = await invoiceRepository.getInvoiceById(invoiceId);
-      if (!invoice) {
-        return {
-          success: false,
-          message: "Invoice/Deposit record not found",
-        };
-      }
-
-      const lead = await leadsRepository.getLeadById(invoice.leadsId, builderId);
-      if (!lead || (lead.builderId !== builderId && lead.companyId !== companyId)) {
-        return {
-          success: false,
-          message: "Access denied: Record does not belong to your organization",
-        };
-      }
-
-      const { leads_id, generate_invoice, reference_number, ...allowedUpdates } = updateData;
-
-      if (Object.keys(allowedUpdates).length === 0) {
-        return {
-          success: false,
-          message: "No valid fields provided for update",
-        };
-      }
-
-      const updatedInvoice = await invoiceRepository.updateInvoice(invoiceId, allowedUpdates);
-
-      return {
-        success: true,
-        data: updatedInvoice,
-        message: "Record updated successfully",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    const hasAccess = invoice.lead && (invoice.lead.builder_id === builderId || invoice.lead.company_id === companyId);
+    if (!hasAccess) {
+      throw { status: 403, message: "Access denied: Record does not belong to your organization" };
     }
+
+    const plain = invoice.get({ plain: true });
+    return {
+      success: true,
+      data: {
+        ...keysToCamelCase(plain),
+        leadName: plain.lead?.name || null,
+      },
+      message: "Record fetched successfully",
+    };
+  } catch (error) {
+    throw error;
   }
+};
 
-  async deleteInvoice(invoiceId, builderId, companyId) {
-    try {
-      const invoice = await invoiceRepository.getInvoiceById(invoiceId);
-      if (!invoice) {
-        return {
-          success: false,
-          message: "Record not found",
-        };
-      }
+/**
+ * Updates an invoice record.
+ */
+export const updateInvoiceService = async (invoiceId, updateData, builderId, companyId) => {
+  const { Invoice, Leads } = db;
+  try {
+    const invoice = await Invoice.findByPk(invoiceId, {
+      include: [{ model: Leads, as: "lead" }],
+    });
 
-      const lead = await leadsRepository.getLeadById(invoice.leadsId, builderId);
-      if (!lead || (lead.builderId !== builderId && lead.companyId !== companyId)) {
-        return {
-          success: false,
-          message: "Access denied: Record does not belong to your organization",
-        };
-      }
-
-      await invoiceRepository.deleteInvoice(invoiceId);
-
-      return {
-        success: true,
-        data: null,
-        message: "Record deleted successfully",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    if (!invoice) {
+      throw { status: 404, message: "Invoice/Deposit record not found" };
     }
-  }
-}
 
-export default new InvoiceService();
+    const hasAccess = invoice.lead && (invoice.lead.builder_id === builderId || invoice.lead.company_id === companyId);
+    if (!hasAccess) {
+      throw { status: 403, message: "Access denied: Record does not belong to your organization" };
+    }
+
+    const { leads_id, generate_invoice, reference_number, ...allowedUpdates } = updateData;
+
+    await invoice.update({
+      ...allowedUpdates,
+      updated_at: new Date(),
+    });
+
+    return {
+      success: true,
+      data: keysToCamelCase(invoice.get({ plain: true })),
+      message: "Record updated successfully",
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Deletes an invoice record.
+ */
+export const deleteInvoiceService = async (invoiceId, builderId, companyId) => {
+  const { Invoice, Leads } = db;
+  try {
+    const invoice = await Invoice.findByPk(invoiceId, {
+      include: [{ model: Leads, as: "lead" }],
+    });
+
+    if (!invoice) {
+      throw { status: 404, message: "Record not found" };
+    }
+
+    const hasAccess = invoice.lead && (invoice.lead.builder_id === builderId || invoice.lead.company_id === companyId);
+    if (!hasAccess) {
+      throw { status: 403, message: "Access denied: Record does not belong to your organization" };
+    }
+
+    await invoice.destroy();
+
+    return {
+      success: true,
+      data: null,
+      message: "Record deleted successfully",
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export default {
+  createInvoiceService,
+  getInvoicesByLeadService,
+  getInvoiceByIdService,
+  updateInvoiceService,
+  deleteInvoiceService,
+};

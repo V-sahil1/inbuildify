@@ -10,7 +10,6 @@ import {
 import {
   createJobWorkflowSettingSchema,
   updateJobWorkflowSettingSchema,
-  updateJobWorkflowSettingParamsSchema,
 } from "./job-workflow-setting.validation.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import authMiddleware from "../../middleware/authMiddleware.js";

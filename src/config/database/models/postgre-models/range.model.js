@@ -28,7 +28,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "range", modelName: "Range", underscored: true }
+    { sequelize, tableName: "range", modelName: "Range", underscored: true },
   );
   return Range;
 };

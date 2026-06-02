@@ -27,7 +27,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "sales_module_settings", modelName: "SalesModuleSettings", underscored: true }
+    { sequelize, tableName: "sales_module_settings", modelName: "SalesModuleSettings", underscored: true },
   );
   return SalesModuleSettings;
 };

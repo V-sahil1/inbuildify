@@ -3,6 +3,8 @@ import { Model, DataTypes } from "sequelize";
 export class QuotationVersionItem extends Model {
   static associate(models) {
     QuotationVersionItem.belongsTo(models.QuotationVersion, { foreignKey: "quotation_version_id", as: "quotationVersion", onDelete: "CASCADE" });
+    QuotationVersionItem.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem", onDelete: "SET NULL" });
+    QuotationVersionItem.belongsTo(models.Package, { foreignKey: "package_id", as: "package", onDelete: "SET NULL" });
   }
 }
 
@@ -156,7 +158,7 @@ export default (sequelize) => {
       tableName: "quotation_version_items",
       modelName: "QuotationVersionItem",
       underscored: true,
-    }
+    },
   );
   return QuotationVersionItem;
 };

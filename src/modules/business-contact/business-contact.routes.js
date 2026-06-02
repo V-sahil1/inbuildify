@@ -4,16 +4,12 @@ const router = express.Router();
 
 import {
   createBusinessContact,
-  getAllBusinessContacts,
-  getBusinessContactById,
   getBusinessContactsByLeadsId,
   updateBusinessContact,
   deleteBusinessContact,
 } from "./business-contact.controller.js";
 import {
   createBusinessContactSchema,
-  getAllBusinessContactsSchema,
-  getBusinessContactByIdSchema,
   getBusinessContactsByLeadsIdSchema,
   updateBusinessContactSchema,
   deleteBusinessContactSchema,
@@ -34,17 +30,6 @@ router.post(
   createBusinessContact,
 );
 
-router.get(
-  "/",
-  validateRequest(getAllBusinessContactsSchema, REQUEST_SOURCE.QUERY),
-  getAllBusinessContacts,
-);
-
-router.get(
-  "/:business_contact_id",
-  validateRequest(getBusinessContactByIdSchema, REQUEST_SOURCE.PARAMS),
-  getBusinessContactById,
-);
 
 router.get(
   "/lead/:leads_id",

@@ -1,4 +1,3 @@
-import getPool from "../config/database.js";
 
 import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
@@ -62,7 +61,9 @@ const seedCategories = async () => {
   } catch (error) {
     console.error("❌ Seeding failed:", error);
   } finally {
-    if (db.sequelize) await db.sequelize.close();
+    if (db.sequelize) {
+      await db.sequelize.close();
+    }
     process.exit(0);
   }
 };

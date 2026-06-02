@@ -30,7 +30,7 @@ export function validateRequest(schema, source = REQUEST_SOURCE.BODY) {
       });
     }
 
-    const { error } = schema.validate(dataToValidate, { abortEarly: false });
+    const { error, value } = schema.validate(dataToValidate, { abortEarly: false });
 
     if (error) {
       const validationError = validationMessageFormatterHelper(error.details);
@@ -43,6 +43,16 @@ export function validateRequest(schema, source = REQUEST_SOURCE.BODY) {
         message: validationErrorMessage,
         errors: ERRORS.UNPROCESSABLE_ENTITY.message,
       });
+    }
+
+    if (source === REQUEST_SOURCE.BODY) {
+      req.body = value;
+    } else if (source === REQUEST_SOURCE.QUERY) {
+      req.query = value;
+    } else if (source === REQUEST_SOURCE.PARAMS) {
+      req.params = value;
+    } else if (source === REQUEST_SOURCE.FORM_DATA) {
+      req.body = value;
     }
 
     next();

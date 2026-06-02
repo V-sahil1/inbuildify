@@ -47,7 +47,7 @@ export default (sequelize) => {
       tableName: "category_items_condition",
       modelName: "CategoryItemsCondition",
       underscored: true,
-    }
+    },
   );
 
   return CategoryItemsCondition;

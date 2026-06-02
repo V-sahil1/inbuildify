@@ -1,4 +1,5 @@
-import getPool from "../../config/database.js";
+
+import db from "../../config/database/models/postgre-models/index.js";
 
 function resolveScope(user) {
   return {
@@ -11,148 +12,137 @@ function resolveScope(user) {
    GET OHS Settings
 ------------------------------ */
 export async function getSettingsService(user) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const result = await pool.query(
-    `
-    SELECT *
-    FROM construction_ohs_settings
-    WHERE (company_id = $1 OR builder_id = $2)
-    LIMIT 1
-  `,
-    [company_id, builder_id],
-  );
+  const orConditions = [];
+  if (company_id) {
+    orConditions.push({ company_id });
+  }
+  if (builder_id) {
+    orConditions.push({ builder_id });
+  }
+  const whereClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_settings_id: null };
 
-  if (result.rowCount === 0) {
-    const inserted = await pool.query(
-      `
-      INSERT INTO construction_ohs_settings 
-      (company_id, builder_id, created_by, updated_by)
-      VALUES ($1,$2,$3,$3)
-      RETURNING *
-      `,
-      [company_id, builder_id, user.users_id],
-    );
-    return inserted.rows[0];
+  const existing = await db.ConstructionOhsSettings.findOne({
+    where: whereClause,
+  });
+
+  if (!existing) {
+    const inserted = await db.ConstructionOhsSettings.create({
+      company_id: company_id || null,
+      builder_id: builder_id || null,
+      created_by: user.users_id,
+      updated_by: user.users_id,
+    });
+    return inserted.toJSON();
   }
 
-  return result.rows[0];
+  return existing.toJSON();
 }
 
 /* -----------------------------
    UPSERT Settings
 ------------------------------ */
 export async function upsertSettingsService(user, payload) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const existing = await pool.query(
-    `
-      SELECT * FROM construction_ohs_settings
-      WHERE (company_id = $1 OR builder_id = $2)
-      LIMIT 1
-    `,
-    [company_id, builder_id],
-  );
+  const orConditions = [];
+  if (company_id) {
+    orConditions.push({ company_id });
+  }
+  if (builder_id) {
+    orConditions.push({ builder_id });
+  }
+  const whereClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_settings_id: null };
 
-  if (existing.rowCount === 0) {
-    const inserted = await pool.query(
-      `
-      INSERT INTO construction_ohs_settings 
-      (company_id, builder_id, signature_required, minimum_audits, created_by, updated_by)
-      VALUES ($1,$2,$3,$4,$5,$5)
-      RETURNING *
-      `,
-      [
-        company_id,
-        builder_id,
-        payload.signature_required !== undefined
-          ? payload.signature_required
-          : null,
-        payload.minimum_audits !== undefined ? payload.minimum_audits : null,
-        user.users_id,
-      ],
-    );
-    return inserted.rows[0];
+  const existing = await db.ConstructionOhsSettings.findOne({
+    where: whereClause,
+  });
+
+  if (!existing) {
+    const createPayload = {
+      company_id: company_id || null,
+      builder_id: builder_id || null,
+      created_by: user.users_id,
+      updated_by: user.users_id,
+    };
+    if (payload.signature_required !== undefined) {
+      createPayload.signature_required = payload.signature_required;
+    }
+    if (payload.minimum_audits !== undefined) {
+      createPayload.minimum_audits = payload.minimum_audits;
+    }
+
+    const inserted = await db.ConstructionOhsSettings.create(createPayload);
+    return inserted.toJSON();
   }
 
-  const updateFields = [];
-  const updateValues = [];
-  let paramIndex = 1;
-
+  const updatePayload = {};
   if (payload.signature_required !== undefined) {
-    updateFields.push(`signature_required = $${paramIndex++}`);
-    updateValues.push(payload.signature_required);
+    updatePayload.signature_required = payload.signature_required;
   }
-
   if (payload.minimum_audits !== undefined) {
-    updateFields.push(`minimum_audits = $${paramIndex++}`);
-    updateValues.push(payload.minimum_audits);
+    updatePayload.minimum_audits = payload.minimum_audits;
   }
 
-  if (updateFields.length === 0) {
+  if (Object.keys(updatePayload).length === 0) {
     throw new Error("At least one field is required for update");
   }
 
-  updateFields.push(`updated_by = $${paramIndex++}`);
-  updateValues.push(user.users_id);
-  updateFields.push("updated_at = NOW()");
+  updatePayload.updated_by = user.users_id;
 
-  updateFields.push(`construction_ohs_settings_id = $${paramIndex}`);
-  updateValues.push(existing.rows[0].construction_ohs_settings_id);
+  await existing.update(updatePayload);
 
-  const updated = await pool.query(
-    `
-      UPDATE construction_ohs_settings
-      SET ${updateFields.join(", ")}
-      WHERE construction_ohs_settings_id = $${paramIndex}
-      RETURNING *
-    `,
-    updateValues,
-  );
-
-  return updated.rows[0];
+  return existing.toJSON();
 }
 
 /* -----------------------------
    GET LIST
 ------------------------------ */
 export async function getOhsListService(user, filters = {}) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
   const { field_type, id } = filters;
 
-  const existingRecords = await pool.query(
-    `
-    SELECT COUNT(*) as count
-    FROM construction_ohs_list
-    WHERE (company_id = $1 OR builder_id = $2)
-    `,
-    [company_id, builder_id],
-  );
+  const orConditions = [];
+  if (company_id) {
+    orConditions.push({ company_id });
+  }
+  if (builder_id) {
+    orConditions.push({ builder_id });
+  }
+  const orClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_list_id: null };
 
-  const recordCount = parseInt(existingRecords.rows[0].count);
+  const recordCount = await db.ConstructionOhsList.count({ where: orClause });
 
   if (recordCount === 0) {
     try {
       const settingsResult = await getSettingsService(user);
 
       if (settingsResult && settingsResult.construction_ohs_settings_id) {
-        const settingsId = settingsResult.construction_ohs_settings_id;
-
-        await pool.query(
-          `
-            INSERT INTO construction_ohs_list (
-              company_id, builder_id, construction_ohs_settings_id, 
-              field_type, field_name, description, sort_order, 
-              created_by, updated_by
-            ) VALUES 
-            ($1, $2, $3, 'category', 'Supervisor', null, 1, $4, $4),
-            ($1, $2, $3, 'category', 'Supplier', null, 2, $4, $4)
-          `,
-          [company_id, builder_id, settingsId, user.users_id],
-        );
+        await db.ConstructionOhsList.bulkCreate([
+          {
+            company_id: company_id || null,
+            builder_id: builder_id || null,
+            construction_ohs_settings_id: settingsResult.construction_ohs_settings_id,
+            field_type: "category",
+            field_name: "Supervisor",
+            description: null,
+            sort_order: 1,
+            created_by: user.users_id,
+            updated_by: user.users_id,
+          },
+          {
+            company_id: company_id || null,
+            builder_id: builder_id || null,
+            construction_ohs_settings_id: settingsResult.construction_ohs_settings_id,
+            field_type: "category",
+            field_name: "Supplier",
+            description: null,
+            sort_order: 2,
+            created_by: user.users_id,
+            updated_by: user.users_id,
+          },
+        ]);
       }
     } catch (error) {
       console.error("OHS Service - Error creating default headers:", error);
@@ -160,52 +150,36 @@ export async function getOhsListService(user, filters = {}) {
   }
 
   // Build dynamic query with filters
-  let query = `
-    SELECT *
-    FROM construction_ohs_list
-    WHERE (company_id = $1 OR builder_id = $2)
-  `;
-  const queryParams = [company_id, builder_id];
-  let paramIndex = 3;
+  const whereClause = { ...orClause };
 
   if (id) {
     if (field_type === "category") {
-      query += ` AND field_type = 'category' AND construction_ohs_list_id = $${paramIndex}`;
-      queryParams.push(id);
-      paramIndex++;
+      whereClause.field_type = "category";
+      whereClause.construction_ohs_list_id = id;
     } else if (field_type === "item") {
-      query += ` AND parent_id = $${paramIndex}`;
-      queryParams.push(id);
-      paramIndex++;
+      whereClause.parent_id = id;
     } else {
-      query += ` AND created_by = $${paramIndex}`;
-      queryParams.push(id);
-      paramIndex++;
+      whereClause.created_by = id;
     }
   } else if (field_type) {
-    query += ` AND field_type = $${paramIndex} AND created_by = $${
-      paramIndex + 1
-    }`;
-    queryParams.push(field_type, user.users_id);
-    paramIndex += 2;
+    whereClause.field_type = field_type;
+    whereClause.created_by = user.users_id;
   } else {
-    query += ` AND created_by = $${paramIndex}`;
-    queryParams.push(user.users_id);
-    paramIndex++;
+    whereClause.created_by = user.users_id;
   }
 
-  query += " ORDER BY sort_order ASC";
+  const records = await db.ConstructionOhsList.findAll({
+    where: whereClause,
+    order: [["sort_order", "ASC"]],
+  });
 
-  const rows = await pool.query(query, queryParams);
-
-  return rows.rows;
+  return records.map((r) => r.toJSON());
 }
 
 /* -----------------------------
    CREATE list item
 ------------------------------ */
 export async function createOhsListItemService(user, payload) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
   const settings = await getSettingsService(user);
@@ -218,398 +192,328 @@ export async function createOhsListItemService(user, payload) {
     throw new Error("Item field type must have parent_id");
   }
 
-  if (payload.field_type === "item" && payload.parent_id) {
-    const parentCheck = await pool.query(
-      `
-        SELECT construction_ohs_list_id, field_type, created_by
-        FROM construction_ohs_list
-        WHERE construction_ohs_list_id = $1
-          AND (company_id = $2 OR builder_id = $3)
-          AND created_by = $4
-          AND field_type = 'category'
-      `,
-      [payload.parent_id, company_id, builder_id, user.users_id],
-    );
+  const transaction = await db.sequelize.transaction();
 
-    if (parentCheck.rowCount === 0) {
-      throw new Error("Parent category not found or access denied");
+  try {
+    const orConditions = [];
+    if (company_id) {
+      orConditions.push({ company_id });
     }
-  }
-
-  if (
-    payload.field_type === "item" &&
-    payload.description &&
-    payload.parent_id
-  ) {
-    const duplicateCheck = await pool.query(
-      `
-        SELECT construction_ohs_list_id
-        FROM construction_ohs_list
-        WHERE description = $1
-          AND parent_id = $2
-          AND (company_id = $3 OR builder_id = $4)
-          AND created_by = $5
-          AND field_type = 'item'
-      `,
-      [
-        payload.description,
-        payload.parent_id,
-        company_id,
-        builder_id,
-        user.users_id,
-      ],
-    );
-
-    if (duplicateCheck.rowCount > 0) {
-      throw new Error(
-        "Item description must be unique within the same category",
-      );
+    if (builder_id) {
+      orConditions.push({ builder_id });
     }
+    const orClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_list_id: null };
+
+    if (payload.field_type === "item" && payload.parent_id) {
+      const parentCheck = await db.ConstructionOhsList.findOne({
+        where: {
+          construction_ohs_list_id: payload.parent_id,
+          ...orClause,
+          created_by: user.users_id,
+          field_type: "category",
+        },
+        attributes: ["construction_ohs_list_id", "field_type", "created_by"],
+        transaction,
+      });
+
+      if (!parentCheck) {
+        throw new Error("Parent category not found or access denied");
+      }
+    }
+
+    if (payload.field_type === "item" && payload.description && payload.parent_id) {
+      const duplicateCheck = await db.ConstructionOhsList.findOne({
+        where: {
+          description: payload.description,
+          parent_id: payload.parent_id,
+          ...orClause,
+          created_by: user.users_id,
+          field_type: "item",
+        },
+        attributes: ["construction_ohs_list_id"],
+        transaction,
+      });
+
+      if (duplicateCheck) {
+        throw new Error("Item description must be unique within the same category");
+      }
+    }
+
+    let finalSortOrder = payload.sort_order;
+
+    if (finalSortOrder === undefined || finalSortOrder === null) {
+      finalSortOrder = 1;
+    }
+
+    const maxSortWhere = {
+      ...orClause,
+      created_by: user.users_id,
+      field_type: "item",
+      parent_id: payload.parent_id || null,
+    };
+
+    const maxSortOrderRaw = await db.ConstructionOhsList.max("sort_order", {
+      where: maxSortWhere,
+      transaction,
+    });
+
+    const maxSortOrder = (maxSortOrderRaw === null || isNaN(maxSortOrderRaw)) ? 0 : Number(maxSortOrderRaw);
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+    }
+
+    if (finalSortOrder <= maxSortOrder) {
+      await db.ConstructionOhsList.increment("sort_order", {
+        by: 1,
+        where: {
+          ...maxSortWhere,
+          sort_order: { [db.Sequelize.Op.gte]: finalSortOrder },
+        },
+        transaction,
+      });
+    }
+
+    const inserted = await db.ConstructionOhsList.create({
+      company_id: company_id || null,
+      builder_id: builder_id || null,
+      construction_ohs_settings_id: settings.construction_ohs_settings_id,
+      field_type: payload.field_type,
+      field_name: payload.field_name || null,
+      description: payload.description,
+      sort_order: finalSortOrder,
+      parent_id: payload.parent_id || null,
+      add_defaults: payload.add_defaults || false,
+      created_by: user.users_id,
+      updated_by: user.users_id,
+    }, { transaction });
+
+    await transaction.commit();
+    return inserted.toJSON();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-
-  let finalSortOrder = payload.sort_order;
-
-  if (finalSortOrder === undefined || finalSortOrder === null) {
-    finalSortOrder = 1;
-  }
-
-  const maxSortOrderQuery = `
-    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-    FROM construction_ohs_list
-    WHERE (company_id = $1 OR builder_id = $2)
-      AND created_by = $3
-      AND field_type = 'item'
-      ${payload.parent_id ? "AND parent_id = $4" : "AND parent_id IS NULL"}
-  `;
-
-  const maxSortOrderParams = payload.parent_id
-    ? [company_id, builder_id, user.users_id, payload.parent_id]
-    : [company_id, builder_id, user.users_id];
-
-  const maxSortOrderResult = await pool.query(
-    maxSortOrderQuery,
-    maxSortOrderParams,
-  );
-  const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
-
-  if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-    throw new Error(
-      `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-    );
-  }
-
-  const shiftSortOrderQuery = `
-    UPDATE construction_ohs_list
-    SET sort_order = sort_order + 1
-    WHERE sort_order >= $1
-      AND (company_id = $2 OR builder_id = $3)
-      AND created_by = $4
-      AND field_type = 'item'
-      ${payload.parent_id ? "AND parent_id = $5" : "AND parent_id IS NULL"}
-  `;
-
-  const shiftParams = payload.parent_id
-    ? [finalSortOrder, company_id, builder_id, user.users_id, payload.parent_id]
-    : [finalSortOrder, company_id, builder_id, user.users_id];
-
-  await pool.query(shiftSortOrderQuery, shiftParams);
-
-  const result = await pool.query(
-    `
-      INSERT INTO construction_ohs_list
-      (company_id, builder_id, construction_ohs_settings_id, field_type, 
-       field_name, description, sort_order, parent_id, add_defaults, created_by, updated_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
-      RETURNING *
-    `,
-    [
-      company_id,
-      builder_id,
-      settings.construction_ohs_settings_id,
-      payload.field_type,
-      payload.field_name || null,
-      payload.description,
-      finalSortOrder,
-      payload.parent_id || null,
-      payload.add_defaults || false,
-      user.users_id,
-    ],
-  );
-
-  return result.rows[0];
 }
 
 /* -----------------------------
    UPDATE list item
 ------------------------------ */
 export async function updateOhsListItemService(user, id, payload) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const existing = await pool.query(
-    `
-      SELECT *
-      FROM construction_ohs_list
-      WHERE construction_ohs_list_id = $1
-        AND (company_id = $2 OR builder_id = $3)
-        AND created_by = $4
-    `,
-    [id, company_id, builder_id, user.users_id],
-  );
+  const transaction = await db.sequelize.transaction();
 
-  if (existing.rowCount === 0) {
-    throw new Error("OHS list item not found");
-  }
+  try {
+    const orConditions = [];
+    if (company_id) {
+      orConditions.push({ company_id });
+    }
+    if (builder_id) {
+      orConditions.push({ builder_id });
+    }
+    const orClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_list_id: null };
 
-  if (payload.field_type) {
-    throw new Error("Cannot update field_type");
-  }
+    const existingRecord = await db.ConstructionOhsList.findOne({
+      where: {
+        construction_ohs_list_id: id,
+        ...orClause,
+        created_by: user.users_id,
+      },
+      transaction,
+    });
 
-  const existingRecord = existing.rows[0];
-
-  if (
-    existingRecord.field_type === "category" &&
-    payload.sort_order !== undefined
-  ) {
-    throw new Error("Cannot update sort_order for category");
-  }
-
-  if (
-    payload.sort_order !== undefined &&
-    payload.sort_order !== null &&
-    existingRecord.field_type === "item"
-  ) {
-    const existingSortOrder = existingRecord.sort_order;
-
-    const maxSortQuery = `
-      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-      FROM construction_ohs_list
-      WHERE (company_id = $1 OR builder_id = $2)
-        AND created_by = $3
-        AND field_type = 'item'
-        AND construction_ohs_list_id != $4
-        ${existingRecord.parent_id ? "AND parent_id = $5" : "AND parent_id IS NULL"}
-    `;
-
-    const maxSortParams = existingRecord.parent_id
-      ? [company_id, builder_id, user.users_id, id, existingRecord.parent_id]
-      : [company_id, builder_id, user.users_id, id];
-
-    const maxSortResult = await pool.query(maxSortQuery, maxSortParams);
-    const maxSortOrder = maxSortResult.rows[0].max_sort_order;
-
-    if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
-      throw new Error(
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-      );
+    if (!existingRecord) {
+      throw new Error("OHS list item not found");
     }
 
-    if (payload.sort_order !== existingSortOrder) {
-      if (payload.sort_order > existingSortOrder) {
-        const shiftDownQuery = `
-          UPDATE construction_ohs_list
-          SET sort_order = sort_order - 1
-          WHERE sort_order > $1
-            AND sort_order <= $2
-            AND construction_ohs_list_id != $3
-            AND (company_id = $4 OR builder_id = $5)
-            AND created_by = $6
-            AND field_type = 'item'
-            ${existingRecord.parent_id ? "AND parent_id = $7" : "AND parent_id IS NULL"}
-        `;
-
-        const shiftDownParams = existingRecord.parent_id
-          ? [
-            existingSortOrder,
-            payload.sort_order,
-            id,
-            company_id,
-            builder_id,
-            user.users_id,
-            existingRecord.parent_id,
-          ]
-          : [
-            existingSortOrder,
-            payload.sort_order,
-            id,
-            company_id,
-            builder_id,
-            user.users_id,
-          ];
-
-        await pool.query(shiftDownQuery, shiftDownParams);
-      } else {
-        const shiftUpQuery = `
-          UPDATE construction_ohs_list
-          SET sort_order = sort_order + 1
-          WHERE sort_order >= $1
-            AND sort_order < $2
-            AND construction_ohs_list_id != $3
-            AND (company_id = $4 OR builder_id = $5)
-            AND created_by = $6
-            AND field_type = 'item'
-            ${existingRecord.parent_id ? "AND parent_id = $7" : "AND parent_id IS NULL"}
-        `;
-
-        const shiftUpParams = existingRecord.parent_id
-          ? [
-            payload.sort_order,
-            existingSortOrder,
-            id,
-            company_id,
-            builder_id,
-            user.users_id,
-            existingRecord.parent_id,
-          ]
-          : [
-            payload.sort_order,
-            existingSortOrder,
-            id,
-            company_id,
-            builder_id,
-            user.users_id,
-          ];
-
-        await pool.query(shiftUpQuery, shiftUpParams);
-      }
+    if (payload.field_type) {
+      throw new Error("Cannot update field_type");
     }
-  }
 
-  if (existingRecord.field_type === "category") {
-    if (payload.sort_order) {
+    if (existingRecord.field_type === "category" && payload.sort_order !== undefined) {
       throw new Error("Cannot update sort_order for category");
-    }
-    if (payload.parent_id) {
-      throw new Error("Category field type cannot have parent_id");
-    }
-  }
-
-  if (existingRecord.field_type === "item") {
-    if (payload.add_defaults !== undefined) {
-      throw new Error("Cannot update add_defaults for item");
     }
 
     if (
-      payload.description &&
-      payload.description !== existingRecord.description
+      payload.sort_order !== undefined &&
+      payload.sort_order !== null &&
+      existingRecord.field_type === "item"
     ) {
-      const duplicateCheck = await pool.query(
-        `
-          SELECT construction_ohs_list_id
-          FROM construction_ohs_list
-          WHERE description = $1
-            AND parent_id = $2
-            AND (company_id = $3 OR builder_id = $4)
-            AND created_by = $5
-            AND field_type = 'item'
-            AND construction_ohs_list_id != $6
-        `,
-        [
-          payload.description,
-          existingRecord.parent_id,
-          company_id,
-          builder_id,
-          user.users_id,
-          id,
-        ],
-      );
+      const existingSortOrder = existingRecord.sort_order;
+      const parsedSortOrder = Number(payload.sort_order);
 
-      if (duplicateCheck.rowCount > 0) {
-        throw new Error(
-          "Item description must be unique within the same category",
-        );
+      const maxSortWhere = {
+        ...orClause,
+        created_by: user.users_id,
+        field_type: "item",
+        construction_ohs_list_id: { [db.Sequelize.Op.ne]: id },
+        parent_id: existingRecord.parent_id || null,
+      };
+
+      const maxSortOrderRaw = await db.ConstructionOhsList.max("sort_order", {
+        where: maxSortWhere,
+        transaction,
+      });
+
+      const maxSortOrder = (maxSortOrderRaw === null || isNaN(maxSortOrderRaw)) ? 0 : Number(maxSortOrderRaw);
+
+      if (isNaN(parsedSortOrder) || parsedSortOrder < 1 || parsedSortOrder > maxSortOrder + 1) {
+        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+      }
+
+      if (parsedSortOrder !== existingSortOrder) {
+        if (parsedSortOrder > existingSortOrder) {
+          // shift down
+          await db.ConstructionOhsList.increment("sort_order", {
+            by: -1,
+            where: {
+              ...orClause,
+              created_by: user.users_id,
+              field_type: "item",
+              parent_id: existingRecord.parent_id || null,
+              sort_order: {
+                [db.Sequelize.Op.gt]: existingSortOrder,
+                [db.Sequelize.Op.lte]: parsedSortOrder,
+              },
+              construction_ohs_list_id: { [db.Sequelize.Op.ne]: id },
+            },
+            transaction,
+          });
+        } else {
+          // shift up
+          await db.ConstructionOhsList.increment("sort_order", {
+            by: 1,
+            where: {
+              ...orClause,
+              created_by: user.users_id,
+              field_type: "item",
+              parent_id: existingRecord.parent_id || null,
+              sort_order: {
+                [db.Sequelize.Op.gte]: parsedSortOrder,
+                [db.Sequelize.Op.lt]: existingSortOrder,
+              },
+              construction_ohs_list_id: { [db.Sequelize.Op.ne]: id },
+            },
+            transaction,
+          });
+        }
+      }
+      payload.sort_order = parsedSortOrder;
+    }
+
+    if (existingRecord.field_type === "category") {
+      if (payload.sort_order) {
+        throw new Error("Cannot update sort_order for category");
+      }
+      if (payload.parent_id) {
+        throw new Error("Category field type cannot have parent_id");
       }
     }
+
+    if (existingRecord.field_type === "item") {
+      if (payload.add_defaults !== undefined) {
+        throw new Error("Cannot update add_defaults for item");
+      }
+
+      if (payload.description && payload.description !== existingRecord.description) {
+        const duplicateCheck = await db.ConstructionOhsList.findOne({
+          where: {
+            description: payload.description,
+            parent_id: existingRecord.parent_id || null,
+            ...orClause,
+            created_by: user.users_id,
+            field_type: "item",
+            construction_ohs_list_id: { [db.Sequelize.Op.ne]: id },
+          },
+          attributes: ["construction_ohs_list_id"],
+          transaction,
+        });
+
+        if (duplicateCheck) {
+          throw new Error("Item description must be unique within the same category");
+        }
+      }
+    }
+
+    const updatePayload = {
+      updated_by: user.users_id,
+    };
+
+    if (payload.description !== undefined) {
+      updatePayload.description = payload.description || null;
+    }
+    if (payload.sort_order !== undefined) {
+      updatePayload.sort_order = payload.sort_order || null;
+    }
+    if (payload.add_defaults !== undefined) {
+      updatePayload.add_defaults = payload.add_defaults ?? null;
+    }
+
+    await existingRecord.update(updatePayload, { transaction });
+
+    await transaction.commit();
+    return existingRecord.toJSON();
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-
-  const updated = await pool.query(
-    `
-      UPDATE construction_ohs_list
-      SET
-        description = COALESCE($1, description),
-        sort_order = COALESCE($2, sort_order),
-        add_defaults = COALESCE($3, add_defaults),
-        updated_by = $4,
-        updated_at = NOW()
-      WHERE construction_ohs_list_id = $5
-      RETURNING *
-    `,
-    [
-      payload.description || null,
-      payload.sort_order || null,
-      payload.add_defaults ?? null,
-      user.users_id,
-      id,
-    ],
-  );
-
-  return updated.rows[0];
 }
 
 /* -----------------------------
    DELETE list item
 ------------------------------ */
 export async function deleteOhsListItemService(user, id) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const itemToDelete = await pool.query(
-    `
-      SELECT sort_order, parent_id, created_by
-      FROM construction_ohs_list
-      WHERE construction_ohs_list_id = $1
-        AND field_type = 'item'
-        AND (company_id = $2 OR builder_id = $3)
-        AND created_by = $4
-    `,
-    [id, company_id, builder_id, user.users_id],
-  );
+  const transaction = await db.sequelize.transaction();
 
-  if (itemToDelete.rowCount === 0) {
-    throw new Error(
-      "Item not found, access denied, or category deletion is not allowed",
-    );
+  try {
+    const orConditions = [];
+    if (company_id) {
+      orConditions.push({ company_id });
+    }
+    if (builder_id) {
+      orConditions.push({ builder_id });
+    }
+    const orClause = orConditions.length > 0 ? { [db.Sequelize.Op.or]: orConditions } : { construction_ohs_list_id: null };
+
+    const itemToDelete = await db.ConstructionOhsList.findOne({
+      where: {
+        construction_ohs_list_id: id,
+        field_type: "item",
+        ...orClause,
+        created_by: user.users_id,
+      },
+      attributes: ["construction_ohs_list_id", "sort_order", "parent_id"],
+      transaction,
+    });
+
+    if (!itemToDelete) {
+      throw new Error("Item not found, access denied, or category deletion is not allowed");
+    }
+
+    const deletedItemSortOrder = itemToDelete.sort_order;
+    const deletedItemParentId = itemToDelete.parent_id;
+
+    await itemToDelete.destroy({ transaction });
+
+    await db.ConstructionOhsList.increment("sort_order", {
+      by: -1,
+      where: {
+        ...orClause,
+        created_by: user.users_id,
+        field_type: "item",
+        parent_id: deletedItemParentId || null,
+        sort_order: { [db.Sequelize.Op.gt]: deletedItemSortOrder },
+      },
+      transaction,
+    });
+
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-
-  const deletedItemSortOrder = itemToDelete.rows[0].sort_order;
-  const deletedItemParentId = itemToDelete.rows[0].parent_id;
-
-  const result = await pool.query(
-    `
-      DELETE FROM construction_ohs_list
-      WHERE construction_ohs_list_id = $1
-        AND field_type = 'item'
-        AND (company_id = $2 OR builder_id = $3)
-        AND created_by = $4
-    `,
-    [id, company_id, builder_id, user.users_id],
-  );
-
-  if (result.rowCount === 0) {
-    throw new Error(
-      "Item not found, access denied, or category deletion is not allowed",
-    );
-  }
-
-  const shiftDownQuery = `
-    UPDATE construction_ohs_list
-    SET sort_order = sort_order - 1
-    WHERE sort_order > $1
-      AND (company_id = $2 OR builder_id = $3)
-      AND created_by = $4
-      AND field_type = 'item'
-      ${deletedItemParentId ? "AND parent_id = $5" : "AND parent_id IS NULL"}
-  `;
-
-  const shiftDownParams = deletedItemParentId
-    ? [
-      deletedItemSortOrder,
-      company_id,
-      builder_id,
-      user.users_id,
-      deletedItemParentId,
-    ]
-    : [deletedItemSortOrder, company_id, builder_id, user.users_id];
-
-  await pool.query(shiftDownQuery, shiftDownParams);
 }

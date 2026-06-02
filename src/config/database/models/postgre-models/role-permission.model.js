@@ -29,7 +29,7 @@ export default (sequelize) => {
       updatedAt: { type: DataTypes.DATE },
     },
     { sequelize, tableName: "role_permission", modelName: "RolePermission", underscored: true,
-      indexes: [{ unique: true, fields: ["role_id", "module_name", "company_id", "builder_id"] }] }
+      indexes: [{ unique: true, fields: ["role_id", "module_name", "company_id", "builder_id"] }] },
   );
   return RolePermission;
 };

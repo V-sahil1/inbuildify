@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "quotation", modelName: "Quotation", underscored: true }
+    { sequelize, tableName: "quotation", modelName: "Quotation", underscored: true },
   );
   return Quotation;
 };

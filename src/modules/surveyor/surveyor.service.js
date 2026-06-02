@@ -107,16 +107,36 @@ export async function updateSurveyorService({ surveyorId, builderId, companyId, 
   // ── Build update payload (only provided fields) ─────────────────────────────
   const updatePayload = {};
 
-  if (name) updatePayload.name = name;
-  if (email) updatePayload.email = email;
-  if (phone) updatePayload.phone = phone;
-  if (abn_number) updatePayload.abn_number = abn_number;
-  if (registration_number) updatePayload.registration_number = registration_number;
-  if (address1) updatePayload.address1 = address1;
-  if (address2) updatePayload.address2 = address2;
-  if (city) updatePayload.city = city;
-  if (state_id) updatePayload.state_id = state_id;
-  if (zip_postal_code) updatePayload.zip_postal_code = zip_postal_code;
+  if (name) {
+    updatePayload.name = name;
+  }
+  if (email) {
+    updatePayload.email = email;
+  }
+  if (phone) {
+    updatePayload.phone = phone;
+  }
+  if (abn_number) {
+    updatePayload.abn_number = abn_number;
+  }
+  if (registration_number) {
+    updatePayload.registration_number = registration_number;
+  }
+  if (address1) {
+    updatePayload.address1 = address1;
+  }
+  if (address2) {
+    updatePayload.address2 = address2;
+  }
+  if (city) {
+    updatePayload.city = city;
+  }
+  if (state_id) {
+    updatePayload.state_id = state_id;
+  }
+  if (zip_postal_code) {
+    updatePayload.zip_postal_code = zip_postal_code;
+  }
 
   updatePayload.company_id = companyId;
 
@@ -141,14 +161,14 @@ export async function createSurveyorService({ builderId, companyId, payload }) {
     state_id,
     zip_postal_code,
   } = payload;
- 
+
   // ── Required fields check ───────────────────────────────────────────────────
   if (!name || !address1 || !city || !zip_postal_code) {
     const error = new Error("Name, address1, city, and zip/postal code are required.");
     error.status = 400;
     throw error;
   }
- 
+
   // ── Duplicate email check ───────────────────────────────────────────────────
   if (email) {
     const duplicate = await db.Surveyor.findOne({
@@ -161,28 +181,28 @@ export async function createSurveyorService({ builderId, companyId, payload }) {
       },
       attributes: ["surveyor_id"],
     });
- 
+
     if (duplicate) {
       const error = new Error("Surveyor with this email already exists.");
       error.status = 400;
       throw error;
     }
   }
- 
+
   // ── Validate state_id ───────────────────────────────────────────────────────
   if (state_id) {
     const validState = await db.State.findOne({
       where: { state_id },
       attributes: ["state_id"],
     });
- 
+
     if (!validState) {
       const error = new Error("Invalid state id.");
       error.status = 400;
       throw error;
     }
   }
- 
+
   // ── Insert surveyor ─────────────────────────────────────────────────────────
   const newSurveyor = await db.Surveyor.create({
     company_id: companyId,
@@ -198,7 +218,7 @@ export async function createSurveyorService({ builderId, companyId, payload }) {
     state_id: state_id || null,
     zip_postal_code,
   });
- 
+
   return keysToCamelCase(newSurveyor.toJSON());
 }
 
@@ -208,16 +228,15 @@ export async function deleteSurveyorService({ surveyorId, builderId }) {
     where: { surveyor_id: surveyorId, builder_id: builderId },
     attributes: ["surveyor_id"],
   });
- 
+
   if (!existing) {
     const error = new Error("Surveyor not found for this builder.");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Delete surveyor ─────────────────────────────────────────────────────────
   await db.Surveyor.destroy({
     where: { surveyor_id: surveyorId },
   });
 }
- 

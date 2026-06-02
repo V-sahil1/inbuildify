@@ -5,13 +5,11 @@ const router = express.Router();
 import {
   createUserRoleMapping,
   getAllUserRoleMapping,
-  deleteUserRoleMapping,
   updateUserRoleMapping,
 } from "./user-role-mapping.controller.js";
 import {
   createUserRoleMappingSchema,
   getAllUserRoleMappingSchema,
-  deleteUserRoleMppingSchema,
   updateUserRoleMppingParamsSchema,
   updateUserRoleMappingSchema,
 } from "./user-role-mapping.validation.js";
@@ -35,12 +33,6 @@ router.get(
   "/",
   validateRequest(getAllUserRoleMappingSchema, REQUEST_SOURCE.QUERY),
   getAllUserRoleMapping,
-);
-
-router.delete(
-  "/:user_role_mapping_id",
-  validateRequest(deleteUserRoleMppingSchema, REQUEST_SOURCE.PARAMS),
-  deleteUserRoleMapping,
 );
 
 router.put(

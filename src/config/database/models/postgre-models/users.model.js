@@ -5,9 +5,11 @@ export class Users extends Model {
     Users.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
     Users.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
     Users.belongsTo(models.Users, { foreignKey: "reporting_to", as: "reportingToUser" });
+    Users.belongsTo(models.Address, { foreignKey: "address_id", as: "address" });
     Users.hasMany(models.UsersToken, { foreignKey: "user_id", as: "tokens" });
     Users.hasMany(models.UserPasswordHistory, { foreignKey: "user_id", as: "passwordHistory" });
     Users.hasMany(models.UserRoleMapping, { foreignKey: "user_id", as: "roleMappings" });
+    Users.hasMany(models.UserSocialAccount, { foreignKey: "user_id", as: "socialAccounts" });
   }
 }
 export default (sequelize) => {
@@ -17,6 +19,7 @@ export default (sequelize) => {
     name: { type: DataTypes.STRING(100), allowNull: false },
     email: { type: DataTypes.STRING(100), allowNull: false },
     password: { type: DataTypes.STRING(255), allowNull: true },
+    auth_provider: { type: DataTypes.ENUM("local", "google", "apple"), defaultValue: "local", allowNull: false },
     is_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
     role_id: { type: DataTypes.UUID, allowNull: true },
     root_user: { type: DataTypes.BOOLEAN, defaultValue: false },

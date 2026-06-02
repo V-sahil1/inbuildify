@@ -27,7 +27,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_color_settings", modelName: "JobColorSettings", underscored: true }
+    { sequelize, tableName: "job_color_settings", modelName: "JobColorSettings", underscored: true },
   );
   return JobColorSettings;
 };

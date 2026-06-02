@@ -100,7 +100,7 @@ export async function createChecklistService({
         created_by: createdBy,
         updated_by: createdBy,
       },
-      { transaction }
+      { transaction },
     );
 
     // ── Fetch with associations (FIXED alias issue) ──────
@@ -216,9 +216,15 @@ export async function updateChecklistService({ checklistId, builderId, userId, p
   // ── Build update payload ────────────────────────────────────────────────────
   const updatePayload = { updated_by: userId };
 
-  if (name !== undefined) updatePayload.name = name;
-  if (functionality_id !== undefined) updatePayload.functionality_id = functionality_id;
-  if (screen_id !== undefined) updatePayload.screen_id = screen_id;
+  if (name !== undefined) {
+    updatePayload.name = name;
+  }
+  if (functionality_id !== undefined) {
+    updatePayload.functionality_id = functionality_id;
+  }
+  if (screen_id !== undefined) {
+    updatePayload.screen_id = screen_id;
+  }
 
   await db.Checklist.update(updatePayload, {
     where: { checklist_id: checklistId, builder_id: builderId },

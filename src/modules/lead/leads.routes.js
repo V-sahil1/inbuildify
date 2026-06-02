@@ -16,7 +16,9 @@ import {
   convertLeadToOpportunity,
   removeHLPackage,
   getAllLeadActions,
-  getLeadActivityLog
+  getLeadActivityLog,
+  createPublicLead,
+  getLeadDocuments,
 } from "./leads.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
@@ -31,9 +33,20 @@ import {
   getAllLeadsQuerySchema,
   convertLeadToOpportunitySchema,
   removeHLPackageSchema,
-  getLeadActivityLogQuerySchema
+  getLeadActivityLogQuerySchema,
+  createPublicLeadSchema,
 } from "./leads.validation.js";
+import { validateExternalToken } from "../../middleware/externalAuthMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
+
+// Public route - Protected by Landing Page auth token validation
+router.post(
+  "/public/create",
+  validateExternalToken("landing"),
+  camelToSnakeMiddleware,
+  validateRequest(createPublicLeadSchema, REQUEST_SOURCE.BODY),
+  createPublicLead,
+);
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -139,6 +152,13 @@ router.get(
   "/:leads_id/actions",
   validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
   getAllLeadActions,
+);
+
+// Get all documents for a lead, grouped into a folder hierarchy
+router.get(
+  "/:leads_id/documents",
+  validateRequest(getLeadByIdSchema, REQUEST_SOURCE.PARAMS),
+  getLeadDocuments,
 );
 
 export default router;

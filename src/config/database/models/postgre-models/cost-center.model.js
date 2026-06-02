@@ -35,7 +35,7 @@ export default (sequelize) => {
       tableName: "cost_center",
       modelName: "CostCenter",
       underscored: true,
-    }
+    },
   );
   return CostCenter;
 };

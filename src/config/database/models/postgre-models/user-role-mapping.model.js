@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 
 export class UserRoleMapping extends Model {
   static associate(models) {
-    UserRoleMapping.belongsTo(models.Users, { foreignKey: "users_id", as: "user" });
+    UserRoleMapping.belongsTo(models.Users, { foreignKey: "user_id", as: "user" });
     UserRoleMapping.belongsTo(models.Role, { foreignKey: "role_id", as: "role", onDelete: "CASCADE" });
     UserRoleMapping.belongsTo(models.RoleType, { foreignKey: "role_type_id", as: "roleType", onDelete: "CASCADE" });
     UserRoleMapping.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
@@ -19,7 +19,9 @@ export default (sequelize) => {
     role_type_id: { type: DataTypes.UUID, allowNull: true },
     assigned_by: { type: DataTypes.UUID, allowNull: true },
     assigned_at: { type: DataTypes.DATE, allowNull: true },
-  }, { sequelize, tableName: "user_role_mapping", modelName: "UserRoleMapping", underscored: true, timestamps: false,
-    indexes: [{ unique: true, fields: ["user_id", "role_id"] }] });
+  }, {
+    sequelize, tableName: "user_role_mapping", modelName: "UserRoleMapping", underscored: true, timestamps: false,
+    indexes: [{ unique: true, fields: ["user_id", "role_id"] }],
+  });
   return UserRoleMapping;
 };

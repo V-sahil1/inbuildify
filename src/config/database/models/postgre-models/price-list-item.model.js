@@ -44,7 +44,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "price_list_item", modelName: "PriceListItem", underscored: true }
+    { sequelize, tableName: "price_list_item", modelName: "PriceListItem", underscored: true },
   );
   return PriceListItem;
 };

@@ -57,10 +57,8 @@ const booleanFilterRule = Joi.string().valid("true", "false").messages({
 });
 
 export const createMasterFacadeSchema = Joi.object({
-  location_id: Joi.string().uuid().optional().messages({
-    "string.guid": "Invalid location_id.",
-  }),
   name: nameRule.required(),
+  location_id: Joi.string().uuid().optional().allow(null),
   image: imageRule.optional(),
   range_id: rangeTypeRule.optional(),
   dwelling_type_id: dwellingTypeRule.optional(),

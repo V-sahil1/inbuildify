@@ -1,22 +1,29 @@
-import getPool from "../../config/database.js";
-import { errorResponse, successResponse } from "../../helper/response.js";
+import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import conditionService from "./condition.service.js";
 
+/**
+ * Controller to fetch all conditions.
+ */
 export async function getConditions(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
   try {
-    const query = "SELECT * FROM conditions ORDER BY name ASC";
-    const result = await client.query(query);
+    const conditions = await conditionService.getConditionsService();
+    
     return successResponse(
       res,
-      keysToCamelCase(result.rows),
+      keysToCamelCase(conditions),
       "Conditions fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching conditions:", err);
-    return errorResponse(res, err?.statusCode || 400, err.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(
+      res, 
+      err?.statusCode || 400, 
+      err.message || "Internal Server Error"
+    );
   }
 }
+
+export default {
+  getConditions,
+};

@@ -34,7 +34,7 @@ export default (sequelize) => {
       tableName: "contract_format",
       modelName: "ContractFormat",
       underscored: true,
-    }
+    },
   );
   return ContractFormat;
 };

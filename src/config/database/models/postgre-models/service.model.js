@@ -28,7 +28,7 @@ export default (sequelize) => {
           name: "uq_service_builder",
         },
       ],
-    }
+    },
   );
   return Service;
 };

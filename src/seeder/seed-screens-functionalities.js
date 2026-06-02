@@ -60,11 +60,13 @@ export const seedScreensAndFunctionalities = async () => {
 };
 
 // Check if run directly
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith('seed-screens-functionalities.js')) {
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")) || process.argv[1].endsWith("seed-screens-functionalities.js"))) {
   seedScreensAndFunctionalities()
     .catch((err) => console.error(err))
     .finally(async () => {
-      if (db.sequelize) await db.sequelize.close();
+      if (db.sequelize) {
+        await db.sequelize.close();
+      }
       process.exit(0);
     });
 }

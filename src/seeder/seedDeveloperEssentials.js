@@ -8,7 +8,6 @@ import { seedComplianceTypes } from "./seed-compliance-type.js";
 import { seedRoleTypes } from "./seed-role-type.js";
 import { seedJobProcessStageFunctionalities } from "./seed-job-process-stage-functionality.js";
 
-
 /**
  * Core seeding logic — can be called from connectPostgre or run standalone.
  * Does NOT call initModels() or process.exit() — caller is responsible for that.
@@ -21,7 +20,6 @@ export const runDeveloperEssentialSeeds = async () => {
 
   // 1.1 Seed Role Types
   await seedRoleTypes();
-
 
   // 2. Seed Countries and States
   await seedCountriesAndStates();
@@ -66,6 +64,6 @@ const seedDeveloperEssentials = async () => {
 };
 
 // Only run standalone when invoked directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")))) {
   seedDeveloperEssentials();
 }

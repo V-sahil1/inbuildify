@@ -1,4 +1,5 @@
-import getPool from "../../config/database.js";
+import db from "../../config/database/models/postgre-models/index.js";
+import { Op } from "sequelize";
 import { seedInitialPdfTemplates } from "../../seeder/template-pdf.seed.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
 import { getFormatValidationSchema } from "./template-pdf.validation.js";
@@ -25,33 +26,18 @@ function resolveScope(user) {
 }
 
 export async function createTemplatePdf(user, payload) {
-  const pool = getPool();
-
   const templateJson = mergeTemplateImages({}, payload);
 
-  const result = await pool.query(
-    `
-    INSERT INTO template_pdf (
-      company_id,
-      builder_id,
-      name,
-      template_json,
-      created_by,
-      updated_by
-    )
-    VALUES ($1,$2,$3,$4,$5,$5)
-    RETURNING *
-    `,
-    [
-      user.company_id,
-      user.builder_id,
-      payload.name,
-      templateJson,
-      user.users_id,
-    ],
-  );
+  const template = await db.TemplatePdf.create({
+    company_id: user.company_id || null,
+    builder_id: user.builder_id || null,
+    name: payload.name,
+    template_json: templateJson,
+    created_by: user.users_id,
+    updated_by: user.users_id,
+  });
 
-  return result.rows[0];
+  return template.toJSON();
 }
 
 const formatTypeMap = {
@@ -87,7 +73,6 @@ export function normalizeFormatType(type) {
 }
 
 export async function updateTemplatePdf(user, templatePdfId, formatType, payload) {
-  const pool = getPool();
   const existing = await getTemplatePdfById(user, templatePdfId);
   if (!existing) {
     throw new Error("Template not found");
@@ -106,108 +91,91 @@ export async function updateTemplatePdf(user, templatePdfId, formatType, payload
   const updatedJson = deepMergeFormatSection(existingJson, payload, formatType);
 
   // Delete old images if replaced
-  if (payload.logo_image && existingJson?.logo_settings?.logo_image) {
-    deleteFromS3(existingJson.logo_settings.logo_image);
+  if (
+    payload.logo_image &&
+    existingJson?.logo_settings?.logo_image &&
+    payload.logo_image !== existingJson.logo_settings.logo_image
+  ) {
+    await deleteFromS3(existingJson.logo_settings.logo_image);
   }
-  if (payload.watermark_image && existingJson?.logo_settings?.watermark_image) {
-    deleteFromS3(existingJson.logo_settings.watermark_image);
+  if (
+    payload.watermark_image &&
+    existingJson?.logo_settings?.watermark_image &&
+    payload.watermark_image !== existingJson.logo_settings.watermark_image
+  ) {
+    await deleteFromS3(existingJson.logo_settings.watermark_image);
   }
 
-  const result = await pool.query(
-    `
-    UPDATE template_pdf
-    SET 
-      name = COALESCE($1, name),
-      template_json = $2,
-      updated_by = $3,
-      updated_at = NOW()
-    WHERE template_pdf_id = $4
-    RETURNING *
-    `,
-    [payload.name ?? null, updatedJson, user.users_id, templatePdfId],
+  const [updatedCount, updatedRows] = await db.TemplatePdf.update(
+    {
+      name: payload.name ?? existing.name,
+      template_json: updatedJson,
+      updated_by: user.users_id,
+    },
+    {
+      where: { template_pdf_id: templatePdfId },
+      returning: true,
+    },
   );
 
-  return result.rows[0];
+  const updatedRecord = updatedRows[0];
+  return updatedRecord.get ? updatedRecord.get({ plain: true }) : updatedRecord;
 }
 
 export async function getTemplatePdfById(user, templatePdfId) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  const result = await pool.query(
-    `
-    SELECT *
-    FROM template_pdf
-    WHERE template_pdf_id = $1
-      AND (
-        (company_id = $2 AND $2 IS NOT NULL)
-        OR (builder_id = $3 AND $3 IS NOT NULL)
-      )
-    `,
-    [templatePdfId, company_id, builder_id],
-  );
+  const template = await db.TemplatePdf.findOne({
+    where: {
+      template_pdf_id: templatePdfId,
+      [Op.or]: [
+        builder_id ? { builder_id } : null,
+        company_id ? { company_id } : null,
+      ].filter(Boolean),
+    },
+  });
 
-  return result.rows[0] || null;
+  return template ? template.toJSON() : null;
 }
 
 export async function getTemplatePdfList(user) {
-  const pool = getPool();
   const { company_id, builder_id } = resolveScope(user);
 
-  let result = await pool.query(
-    `
-    SELECT *
-    FROM template_pdf
-    WHERE
-      (company_id = $1 AND $1 IS NOT NULL)
-      OR (builder_id = $2 AND $2 IS NOT NULL)
-    ORDER BY created_at DESC
-    `,
-    [company_id, builder_id],
-  );
+  const orConditions = [];
+  if (company_id) {
+    orConditions.push({ company_id });
+  }
+  if (builder_id) {
+    orConditions.push({ builder_id });
+  }
 
-  if (result.rowCount === 0) {
+  if (orConditions.length === 0) {
+    return [];
+  }
+
+  let records = await db.TemplatePdf.findAll({
+    where: {
+      [Op.or]: orConditions,
+    },
+    order: [["createdAt", "DESC"]],
+  });
+
+  if (records.length === 0) {
     await seedInitialPdfTemplates({
       company_id,
       builder_id,
       created_by: user.users_id,
     });
 
-    result = await pool.query(
-      `
-      SELECT *
-      FROM template_pdf
-      WHERE
-        (company_id = $1 AND $1 IS NOT NULL)
-        OR (builder_id = $2 AND $2 IS NOT NULL)
-      ORDER BY created_at DESC
-      `,
-      [company_id, builder_id],
-    );
+    records = await db.TemplatePdf.findAll({
+      where: {
+        [Op.or]: orConditions,
+      },
+      order: [["createdAt", "DESC"]],
+    });
   }
 
-  return result.rows;
-}
-
-export async function deleteTemplatePdf(user, templatePdfId) {
-  const pool = getPool();
-  const { company_id, builder_id } = resolveScope(user);
-
-  const result = await pool.query(
-    `
-    DELETE FROM template_pdf
-    WHERE template_pdf_id = $1
-      AND (
-        (company_id = $2 AND $2 IS NOT NULL)
-        OR (builder_id = $3 AND $3 IS NOT NULL)
-      )
-    `,
-    [templatePdfId, company_id, builder_id],
-  );
-
-  if (result.rowCount === 0) {
-    throw new Error("Template not found or access denied");
-  }
+  return records.map(r => r.toJSON());
 }
 
 /* -------------------------------------------
@@ -272,6 +240,5 @@ export default {
   updateTemplatePdf,
   getTemplatePdfById,
   getTemplatePdfList,
-  deleteTemplatePdf,
   normalizeFormatType,
 };

@@ -1,5 +1,3 @@
-
-
 /**
  * Seed default template_email records for a new builder.
  * Inserts standard email templates (password reset, invite, quote, message, payment).

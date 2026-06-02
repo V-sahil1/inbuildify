@@ -35,7 +35,7 @@ export default (sequelize) => {
       tableName: "admin_category",
       modelName: "AdminCategory",
       underscored: true,
-    }
+    },
   );
 
   return AdminCategory;

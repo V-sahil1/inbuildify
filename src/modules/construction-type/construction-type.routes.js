@@ -37,17 +37,17 @@ router.get(
   getAllConstructionTypes,
 );
 
-router.delete(
-  "/:construction_type_id",
-  validateRequest(deleteConstructionTypeSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionType,
-);
-
 router.put(
   "/:construction_type_id",
   validateRequest(updateConstructionTypeParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionTypeSchema, REQUEST_SOURCE.BODY),
   updateConstructionType,
+);
+
+router.delete(
+  "/:construction_type_id",
+  validateRequest(deleteConstructionTypeSchema, REQUEST_SOURCE.PARAMS),
+  deleteConstructionType,
 );
 
 export default router;

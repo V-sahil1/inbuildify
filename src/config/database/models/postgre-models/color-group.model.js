@@ -56,7 +56,7 @@ export default (sequelize) => {
       tableName: "color_group",
       modelName: "ColorGroup",
       underscored: true,
-    }
+    },
   );
 
   return ColorGroup;

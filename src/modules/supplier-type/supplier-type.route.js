@@ -7,7 +7,6 @@ import {
   getAllSupplierType,
   deleteSupplierType,
   updateSupplierType,
-  toggleActiveStatus,
 } from "./supplier-type.controller.js";
 import {
   createSuppllierTypeSchema,
@@ -51,9 +50,4 @@ router.put(
   updateSupplierType,
 );
 
-router.put(
-  "/is-active/:supplier_type_id",
-  validateRequest(updateSupplierTypeParamsSchema, REQUEST_SOURCE.PARAMS),
-  toggleActiveStatus,
-);
 export default router;

@@ -1,8 +1,8 @@
-import getPool from "../config/database.js";
+import db from "../config/database/models/postgre-models/index.js";
 
 const toLogString = (val) => {
   if (val === null || val === undefined) return null;
-  if (typeof val === 'object') {
+  if (typeof val === "object") {
     return val.name || val.label || val.title || JSON.stringify(val);
   }
   return String(val);
@@ -10,11 +10,12 @@ const toLogString = (val) => {
 
 /**
  * Logs an activity for a lead into the lead_activity_log table.
- * 
- * @param {object} client - The database client to use for the insert (optional if no transaction).
+ * Supports both Sequelize transaction and raw calls via the ORM.
+ *
+ * @param {object} clientOrTransaction - Optional Sequelize transaction object.
  * @param {object} params - The activity log parameters.
  */
-export const logActivity = async (client, {
+export const logActivity = async (clientOrTransaction, {
   userId,
   leadsId,
   module,
@@ -25,40 +26,38 @@ export const logActivity = async (client, {
   oldValue = null,
   newValue = null,
   description = null,
-  metadata = {}
+  metadata = {},
 }) => {
-  const pool = client || getPool();
   try {
-    const query = `
-      INSERT INTO lead_activity_log (
-        leads_id, user_id, module, module_id, record_name, action, 
-        field_name, old_value, new_value, description, metadata, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-    `;
+    const { LeadActivityLog } = db.sequelize?.models || db;
 
-    const values = [
-      leadsId,
-      userId,
+    // Detect if clientOrTransaction is a Sequelize Transaction
+    const isTransaction = clientOrTransaction && typeof clientOrTransaction.commit === "function";
+
+    await LeadActivityLog.create({
+      leads_id: leadsId,
+      user_id: userId,
       module,
-      moduleId,
-      recordName,
+      module_id: moduleId,
+      record_name: recordName,
       action,
-      fieldName,
-      toLogString(oldValue),
-      toLogString(newValue),
+      field_name: fieldName,
+      old_value: toLogString(oldValue),
+      new_value: toLogString(newValue),
       description,
-      metadata ? JSON.stringify(metadata) : null,
-    ];
-    await pool.query(query, values);
+      metadata: metadata || null,
+    }, {
+      transaction: isTransaction ? clientOrTransaction : null
+    });
   } catch (error) {
-    console.error(`[ActivityLogger] Error logging activity:`, error);
+    console.error("[ActivityLogger] Error logging activity:", error);
   }
 };
 
 /**
  * Compares old and new data and logs an entry for each changed field.
  */
-export const compareAndLogUpdates = async (client, {
+export const compareAndLogUpdates = async (clientOrTransaction, {
   userId,
   leadsId,
   module,
@@ -67,23 +66,23 @@ export const compareAndLogUpdates = async (client, {
   oldData,
   newData,
   metadata = {},
-  ignoreFields = []
+  ignoreFields = [],
 }) => {
   const baseIgnore = [
-    'updated_at', 'created_at', 'created_by', 'updated_by', 
-    'updatedAt', 'createdAt', 'createdBy', 'updatedBy',
-    'is_deleted', 'deleted_at', 'isDeleted', 'deletedAt',
-    'id', 'leadName', 'createdbyname', 'recipientName', 'lead_name',
-    'parentNoteContent', 'contactName', 'assigneeName'
+    "updated_at", "created_at", "created_by", "updated_by",
+    "updatedAt", "createdAt", "createdBy", "updatedBy",
+    "is_deleted", "deleted_at", "isDeleted", "deletedAt",
+    "id", "leadName", "createdbyname", "recipientName", "lead_name",
+    "parentNoteContent", "contactName", "assigneeName",
   ];
-  
+
   const allIgnore = [...baseIgnore, ...ignoreFields];
 
   for (const field in newData) {
     if (allIgnore.includes(field)) continue;
-    
+
     // User Perspective: Avoid showing internal IDs
-    if (field.toLowerCase().endsWith('id') || field.toLowerCase().endsWith('_id')) continue;
+    if (field.toLowerCase().endsWith("id") || field.toLowerCase().endsWith("_id")) continue;
 
     const oldValue = oldData[field];
     const newValue = newData[field];
@@ -93,18 +92,18 @@ export const compareAndLogUpdates = async (client, {
 
     // Check for changes (handling nulls and type differences)
     if (oldStr !== newStr && !(oldValue === null && newValue === undefined) && !(oldValue === undefined && newValue === null)) {
-      await logActivity(client, {
+      await logActivity(clientOrTransaction, {
         userId,
         leadsId,
         module,
         moduleId,
         recordName,
-        action: 'UPDATE',
+        action: "UPDATE",
         fieldName: field,
         oldValue,
         newValue,
         description: `Updated ${field} for ${module}`,
-        metadata
+        metadata,
       });
     }
   }

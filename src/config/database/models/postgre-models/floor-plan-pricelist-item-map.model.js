@@ -3,6 +3,7 @@ import { Model, DataTypes } from "sequelize";
 export class FloorPlanPricelistItemMap extends Model {
   static associate(models) {
     FloorPlanPricelistItemMap.belongsTo(models.FloorPlan, { foreignKey: "floor_plan_id", as: "floorPlan", onDelete: "CASCADE" });
+    FloorPlanPricelistItemMap.belongsTo(models.PriceListItem, { foreignKey: "price_list_item_id", as: "priceListItem", onDelete: "SET NULL" });
   }
 }
 
@@ -18,7 +19,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "floor_plan_pricelist_item_map", modelName: "FloorPlanPricelistItemMap", underscored: true }
+    { sequelize, tableName: "floor_plan_pricelist_item_map", modelName: "FloorPlanPricelistItemMap", underscored: true },
   );
   return FloorPlanPricelistItemMap;
 };

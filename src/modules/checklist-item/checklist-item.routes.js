@@ -4,14 +4,12 @@ const router = express.Router();
 
 import {
   createChecklistItem,
-  getAllChecklistItem,
   getChecklistItemsByChecklistId,
   deleteChecklistItem,
   updateChecklistItem,
 } from "./checklist-item.controller.js";
 import {
   createChecklistItemSchema,
-  getAllChecklistItemSchema,
   getChecklistItemsByChecklistIdSchema,
   deleteChecklistItemSchema,
   updateChecklistItemParamsSchema,
@@ -31,12 +29,6 @@ router.post(
   "/",
   validateRequest(createChecklistItemSchema, REQUEST_SOURCE.BODY),
   createChecklistItem,
-);
-
-router.get(
-  "/",
-  validateRequest(getAllChecklistItemSchema, REQUEST_SOURCE.QUERY),
-  getAllChecklistItem,
 );
 
 router.get(

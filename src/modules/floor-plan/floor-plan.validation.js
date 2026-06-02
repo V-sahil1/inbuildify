@@ -184,7 +184,7 @@ export const updateFloorPlanSchema = Joi.object({
 
   description: Joi.string().allow(null, "").max(500).optional(),
   status: Joi.boolean(),
-  
+
 });
 
 export const updateFloorPlanParamsSchema = Joi.object({

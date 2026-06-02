@@ -35,7 +35,9 @@ const seedServices = async () => {
   } catch (error) {
     console.error("❌ Service seeding failed:", error);
   } finally {
-    if (db.sequelize) await db.sequelize.close();
+    if (db.sequelize) {
+      await db.sequelize.close();
+    }
     process.exit(0);
   }
 };

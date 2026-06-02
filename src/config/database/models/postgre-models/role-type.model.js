@@ -20,7 +20,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "role_type", modelName: "RoleType", underscored: true }
+    { sequelize, tableName: "role_type", modelName: "RoleType", underscored: true },
   );
   return RoleType;
 };

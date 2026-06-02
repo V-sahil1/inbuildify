@@ -1,4 +1,4 @@
-import pg from "pg";
+import { Sequelize } from "sequelize";
 import { env } from "./env.config.js";
 
 /**
@@ -10,29 +10,30 @@ import { env } from "./env.config.js";
 export async function ensureDatabase() {
   const dbName = env.DB.DB_NAME;
 
-  // Connect to the default "postgres" database
-  const client = new pg.Client({
+  // Connect to the default "postgres" database to check/create the application database
+  const sequelize = new Sequelize("postgres", env.DB.DB_USER, env.DB.DB_PASSWORD, {
     host: env.DB.DB_HOST,
     port: parseInt(env.DB.DB_PORT),
-    user: env.DB.DB_USER,
-    password: env.DB.DB_PASSWORD,
-    database: "postgres",
+    dialect: "postgres",
+    logging: false,
   });
 
   try {
-    await client.connect();
+    await sequelize.authenticate();
 
     // Check if database exists
-    const result = await client.query(
-      "SELECT 1 FROM pg_database WHERE datname = $1",
-      [dbName]
+    const [results] = await sequelize.query(
+      "SELECT 1 FROM pg_database WHERE datname = :dbName",
+      {
+        replacements: { dbName },
+        type: Sequelize.QueryTypes.SELECT,
+      },
     );
 
-    if (result.rowCount === 0) {
+    if (!results) {
       // Database doesn't exist — create it
-      // Note: CREATE DATABASE cannot run inside a transaction,
-      // and pg.Client doesn't wrap in one by default, so this is fine.
-      await client.query(`CREATE DATABASE "${dbName}"`);
+      // Note: CREATE DATABASE cannot run inside a transaction.
+      await sequelize.query(`CREATE DATABASE "${dbName}"`);
       console.log(`✅ Database "${dbName}" created successfully.`);
       return { created: true };
     }
@@ -43,6 +44,6 @@ export async function ensureDatabase() {
     console.error(`❌ Error ensuring database "${dbName}":`, error.message);
     throw error;
   } finally {
-    await client.end();
+    await sequelize.close();
   }
 }

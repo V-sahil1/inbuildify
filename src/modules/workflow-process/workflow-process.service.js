@@ -18,7 +18,9 @@ const formatUserObject = (userId, usersMap) => {
 const getUsersDetails = async (userIds) => {
   const { WorkflowProcess, WorkflowProcessTask, Users } = db;
   const validUserIds = userIds.filter(Boolean);
-  if (validUserIds.length === 0) return {};
+  if (validUserIds.length === 0) {
+    return {};
+  }
 
   const users = await Users.findAll({
     attributes: ["users_id", "name"],
@@ -425,9 +427,15 @@ export async function updateWorkflowProcessTaskService({
     // Step 3: Build update payload — only include fields that are provided
     // Note: WorkflowProcessTask model has no updated_by_id column
     const updatePayload = {};
-    if (name !== undefined) updatePayload.name = name;
-    if (description !== undefined) updatePayload.description = description;
-    if (timespent !== undefined) updatePayload.timespent = timespent;
+    if (name !== undefined) {
+      updatePayload.name = name;
+    }
+    if (description !== undefined) {
+      updatePayload.description = description;
+    }
+    if (timespent !== undefined) {
+      updatePayload.timespent = timespent;
+    }
     // Always update attachment: use new imageUrl if uploaded, otherwise keep existing
     updatePayload.attachment = imageUrl ?? task.attachment;
 

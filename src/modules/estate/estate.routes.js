@@ -2,7 +2,7 @@ import express from "express";
 
 const router = express.Router();
 
-import { createEstate, getAllEstate, deleteEstate, updateEstate } from "./estate.controller.js";
+import { createEstate, getAllEstates, deleteEstate, updateEstate } from "./estate.controller.js";
 import {
   createEstateSchema,
   getAllEstateSchema,
@@ -35,7 +35,7 @@ router.get(
   "/",
   camelToSnakeMiddleware,
   validateRequest(getAllEstateSchema, REQUEST_SOURCE.QUERY),
-  getAllEstate,
+  getAllEstates,
 );
 
 router.delete(

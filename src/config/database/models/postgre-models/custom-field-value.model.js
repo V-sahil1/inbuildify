@@ -24,7 +24,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "custom_field_value", modelName: "CustomFieldValue", underscored: true }
+    { sequelize, tableName: "custom_field_value", modelName: "CustomFieldValue", underscored: true },
   );
   return CustomFieldValue;
 };

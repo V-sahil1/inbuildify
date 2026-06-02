@@ -10,7 +10,7 @@ export default (sequelize) => {
   JobProcessTaskDependency.init({
     task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true,
       defaultValue: sequelize.literal("gen_random_uuid()"),
-     },
+    },
     predecessor_task_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
   }, { sequelize, tableName: "job_process_task_dependency", modelName: "JobProcessTaskDependency", underscored: true, timestamps: false });
   return JobProcessTaskDependency;

@@ -23,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "template_note", modelName: "TemplateNote", underscored: true }
+    { sequelize, tableName: "template_note", modelName: "TemplateNote", underscored: true },
   );
   return TemplateNote;
 };

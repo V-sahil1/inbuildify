@@ -17,7 +17,7 @@ export default (sequelize) => {
       updatedAt: { type: DataTypes.DATE },
     },
     { sequelize, tableName: "state", modelName: "State", underscored: true,
-      indexes: [{ unique: true, fields: ["country_id", "name"] }] }
+      indexes: [{ unique: true, fields: ["country_id", "name"] }] },
   );
   return State;
 };

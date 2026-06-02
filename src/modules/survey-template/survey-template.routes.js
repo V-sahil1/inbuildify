@@ -5,13 +5,11 @@ const router = express.Router();
 import {
   createSurveyTemplate,
   getAllSurveyTemplate,
-  deleteSurveyTemplate,
   updateSurveyTemplate,
 } from "./survey-template.controller.js";
 import {
   createSurveyTemplateSchema,
   getAllSurveyTemplateSchema,
-  deleteSurveyTemplateSchema,
   updateSurveyTemplateParamsSchema,
   updateSurveyTemplateSchema,
 } from "./survey-template.validation.js";
@@ -35,12 +33,6 @@ router.get(
   "/",
   validateRequest(getAllSurveyTemplateSchema, REQUEST_SOURCE.QUERY),
   getAllSurveyTemplate,
-);
-
-router.delete(
-  "/:survey_template_id",
-  validateRequest(deleteSurveyTemplateSchema, REQUEST_SOURCE.PARAMS),
-  deleteSurveyTemplate,
 );
 
 router.put(

@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "document_common_subfolder", modelName: "DocumentCommonSubfolder", underscored: true }
+    { sequelize, tableName: "document_common_subfolder", modelName: "DocumentCommonSubfolder", underscored: true },
   );
   return DocumentCommonSubfolder;
 };

@@ -37,16 +37,16 @@ router.get(
 );
 
 router.put(
-  "/:id",
+  "/is-active/:user_group_id",
   validateRequest(updateUserGroupParamsSchema, REQUEST_SOURCE.PARAMS),
-  validateRequest(updateUserGroupSchema, REQUEST_SOURCE.BODY),
-  updateUserGroup,
+  updateUserGroupIsActive,
 );
 
 router.put(
-  "/is-active/:id",
+  "/:user_group_id",
   validateRequest(updateUserGroupParamsSchema, REQUEST_SOURCE.PARAMS),
-  updateUserGroupIsActive,
+  validateRequest(updateUserGroupSchema, REQUEST_SOURCE.BODY),
+  updateUserGroup,
 );
 
 export default router;

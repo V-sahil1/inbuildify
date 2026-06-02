@@ -1,37 +1,54 @@
-import getPool from "../../config/database.js";
+import db from "../../config/database/models/postgre-models/index.js";
 
+/**
+ * Ensures the stage associated with the given stageId is a workflow stage.
+ */
 export async function ensureWorkflowStageByStageId(stageId) {
-  const pool = getPool();
-  const { rows } = await pool.query(
-    `
-    SELECT f.is_workflow
-    FROM job_process_stage s
-    JOIN job_process_stage_functionality f
-      ON f.functionality_id = s.functionality_id
-    WHERE s.stage_id = $1
-    `,
-    [stageId],
-  );
+  const { JobProcessStage, JobProcessStageFunctionality } = db;
 
-  if (!rows[0]?.is_workflow) {
+  const stage = await JobProcessStage.findOne({
+    where: { stage_id: stageId },
+    include: [
+      {
+        model: JobProcessStageFunctionality,
+        as: "functionality",
+        attributes: ["is_workflow"],
+        required: true,
+      },
+    ],
+  });
+
+  if (!stage?.functionality?.is_workflow) {
     throw new Error("Operation allowed only for workflow stages");
   }
 }
 
+/**
+ * Ensures the stage associated with the given subStageId is a workflow stage.
+ */
 export async function ensureWorkflowStageBySubStageId(subStageId) {
-  const pool = getPool();
-  const { rows } = await pool.query(
-    `
-    SELECT f.is_workflow
-    FROM job_process_sub_stage ss
-    JOIN job_process_stage s ON s.stage_id = ss.stage_id
-    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-    WHERE ss.sub_stage_id = $1
-    `,
-    [subStageId],
-  );
+  const { JobProcessSubStage, JobProcessStage, JobProcessStageFunctionality } = db;
 
-  // if (!rows[0]?.is_workflow) {
+  const subStage = await JobProcessSubStage.findOne({
+    where: { sub_stage_id: subStageId },
+    include: [
+      {
+        model: JobProcessStage,
+        as: "stage",
+        required: true,
+        include: [
+          {
+            model: JobProcessStageFunctionality,
+            as: "functionality",
+            attributes: ["is_workflow"],
+            required: true,
+          },
+        ],
+      },
+    ],
+  });
+
+  // if (!subStage?.stage?.functionality?.is_workflow) {
   //   throw new Error("Tasks allowed only under workflow stages");
   // }
 }

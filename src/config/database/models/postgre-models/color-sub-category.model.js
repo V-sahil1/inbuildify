@@ -3,6 +3,8 @@ import { Model, DataTypes } from "sequelize";
 export class ColorSubCategory extends Model {
   static associate(models) {
     ColorSubCategory.belongsTo(models.ColorCategory, { foreignKey: "color_category_id", as: "colorCategory" });
+    ColorSubCategory.belongsTo(models.Users, { foreignKey: "created_by_id", as: "createdByUser" });
+    ColorSubCategory.belongsTo(models.Users, { foreignKey: "updated_by_id", as: "updatedByUser" });
   }
 }
 
@@ -26,6 +28,14 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      created_by_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      updated_by_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
       is_deleted: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -39,7 +49,7 @@ export default (sequelize) => {
       tableName: "color_sub_category",
       modelName: "ColorSubCategory",
       underscored: true,
-    }
+    },
   );
   return ColorSubCategory;
 };

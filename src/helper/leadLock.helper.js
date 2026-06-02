@@ -7,7 +7,7 @@ import db from "../config/database/models/postgre-models/index.js";
  * 
  * @param {string} leadId - The UUID of the lead to check.
  */
-export const checkLeadLockStatus = async (leadId) => {
+export const checkLeadLockStatus = async (leadId, transaction = null) => {
   if (!leadId) return;
 
   const { Opportunity } = db;
@@ -20,7 +20,8 @@ export const checkLeadLockStatus = async (leadId) => {
       }
     },
     attributes: ['out_come'],
-    raw: true
+    raw: true,
+    transaction
   });
 
   if (opportunity) {

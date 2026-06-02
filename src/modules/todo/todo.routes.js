@@ -30,20 +30,20 @@ router.post("/", validateRequest(createTodoSchema, REQUEST_SOURCE.BODY), createT
 router.get(
   "/:todo_id",
   validateRequest(todoIdParamSchema, REQUEST_SOURCE.PARAMS),
-  getTodoById
+  getTodoById,
 );
 
 router.put(
   "/:todo_id",
   validateRequest(todoIdParamSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateTodoSchema, REQUEST_SOURCE.BODY),
-  updateTodo
+  updateTodo,
 );
 
 router.delete(
   "/:todo_id",
   validateRequest(todoIdParamSchema, REQUEST_SOURCE.PARAMS),
-  deleteTodo
+  deleteTodo,
 );
 
 export default router;

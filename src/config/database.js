@@ -14,7 +14,7 @@ const getPool = () => {
         if (err) {
           console.error("Database connection error:", err);
         } else {
-          console.log("Database connected successfully");
+          console.log("Database connected successfully pg ");
         }
       });
 
@@ -36,8 +36,7 @@ const getPool = () => {
           const poolStatus = poolClient.totalCount;
           const idleCount = poolClient.idleCount;
           console.log(
-            `Pool Status - Total: ${poolStatus}, Idle: ${idleCount}, Active: ${
-              poolStatus - idleCount
+            `Pool Status - Total: ${poolStatus}, Idle: ${idleCount}, Active: ${poolStatus - idleCount
             }`,
           );
 

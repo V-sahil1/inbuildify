@@ -17,6 +17,8 @@ function getRedisConfig() {
   };
 }
 
+let connectPromise = null;
+
 async function getClient() {
   if (isConnected && redisClient) {
     return redisClient;
@@ -26,13 +28,21 @@ async function getClient() {
     redisClient = createClient(getRedisConfig());
     redisClient.on("error", (error) => {
       isConnected = false;
+      connectPromise = null;
       console.error("Redis cache error:", error.message);
     });
   }
 
   if (!isConnected) {
-    await redisClient.connect();
-    isConnected = true;
+    if (!connectPromise) {
+      connectPromise = redisClient.connect().then(() => {
+        isConnected = true;
+      }).catch(error => {
+        connectPromise = null;
+        throw error;
+      });
+    }
+    await connectPromise;
   }
 
   return redisClient;

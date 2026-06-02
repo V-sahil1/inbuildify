@@ -104,7 +104,7 @@ export default (sequelize) => {
       modelName: "Actions",
       underscored: true,
       timestamps: true,
-    }
+    },
   );
   return Actions;
 };

@@ -3,16 +3,11 @@ import express from "express";
 const router = express.Router();
 
 import {
-  createPasswordPolicy,
   updatePasswordPolicy,
-  updatePasswordPolicyIsActive,
   getPasswordPolicy,
 } from "./password-policy.controller.js";
 import {
-  cretePasswordPolicySchema,
-  updatePasswordPolicyIdParamsSchema,
   updatePasswordPolicySchema,
-  updatePasswordPolicyIsActiveSchema,
 } from "./password-policy.validation.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
@@ -24,24 +19,12 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(cretePasswordPolicySchema, REQUEST_SOURCE.BODY),
-  createPasswordPolicy,
-);
+router.get("/", getPasswordPolicy);
 
 router.put(
   "/",
   validateRequest(updatePasswordPolicySchema, REQUEST_SOURCE.BODY),
   updatePasswordPolicy,
 );
-
-router.put(
-  "/is-active",
-  validateRequest(updatePasswordPolicyIsActiveSchema, REQUEST_SOURCE.BODY),
-  updatePasswordPolicyIsActive,
-);
-
-router.get("/", getPasswordPolicy);
 
 export default router;

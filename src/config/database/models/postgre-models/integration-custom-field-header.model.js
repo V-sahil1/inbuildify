@@ -23,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "integration_custom_field_header", modelName: "IntegrationCustomFieldHeader", underscored: true }
+    { sequelize, tableName: "integration_custom_field_header", modelName: "IntegrationCustomFieldHeader", underscored: true },
   );
   return IntegrationCustomFieldHeader;
 };

@@ -10,12 +10,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+import { createSharedBullClient } from "../config/redisBull.config.js";
+
 const notificationQueue = new Bull("notificationQueue", {
-  redis: {
-    host: env.REDIS.REDIS_HOST,
-    port: env.REDIS.REDIS_PORT,
-    password: env.REDIS.REDIS_PASSWORD
-  },
+  createClient: createSharedBullClient
 });
 
 notificationQueue.process(async (job) => {

@@ -25,25 +25,20 @@ const compactionReportContentSchema = Joi.object({
 export const createPropertySchema = Joi.object({
   lot_number: Joi.string().allow("", null).max(255).optional(),
   street: Joi.string().allow("", null).max(255).optional(),
-  address_line1: Joi.string().max(255).required().messages({
-    "any.required": "Address Line 1 is required",
+  address_line1: Joi.string().allow("", null).max(255).optional().messages({
     "string.empty": "Address Line 1 cannot be empty",
   }),
   address_line2: Joi.string().allow("", null).max(255).optional(),
-  city: Joi.string().max(255).required().messages({
-    "any.required": "City is required",
+  city: Joi.string().allow("", null).max(255).optional().messages({
     "string.empty": "City cannot be empty",
   }),
-  state_id: Joi.string().uuid().required().messages({
+  state_id: Joi.string().uuid().allow(null).optional().messages({
     "string.guid": "State ID must be a valid UUID",
-    "any.required": "State ID is required",
   }),
-  country_id: Joi.string().uuid().required().messages({
+  country_id: Joi.string().uuid().allow(null).optional().messages({
     "string.guid": "Country ID must be a valid UUID",
-    "any.required": "Country ID is required",
   }),
-  zip_code: Joi.string().max(10).required().messages({
-    "any.required": "Zip Code is required",
+  zip_code: Joi.string().allow("", null).max(10).optional().messages({
     "string.empty": "Zip Code cannot be empty",
   }),
   estate_name: Joi.string().allow("", null).max(255).optional(),
@@ -69,7 +64,7 @@ export const createPropertySchema = Joi.object({
     then: Joi.optional(),
     otherwise: Joi.forbidden(),
   }),
-  land_type: Joi.string().valid("regular", "irregular").default("regular"), 
+  land_type: Joi.string().valid("regular", "irregular").default("regular"),
   width_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   depth_m: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
   total_size_m2: Joi.number().precision(2).allow(null).optional().min(0).max(99999999),
@@ -149,10 +144,6 @@ export const updatePropertyParamSchema = Joi.object({
   }),
 });
 
-export const getAllPropertiesSchema = Joi.object({
-  search: Joi.string().allow("", null).optional(),
-});
-
 export const deletePropertySchema = Joi.object({
   property_detail_id: Joi.string().uuid().required().messages({
     "string.guid": "Property Detail ID must be a valid UUID",
@@ -165,6 +156,5 @@ export default {
   getPropertyByLeadSchema,
   updatePropertySchema,
   updatePropertyParamSchema,
-  getAllPropertiesSchema,
   deletePropertySchema,
 };

@@ -80,7 +80,7 @@ export default (sequelize) => {
       tableName: "agent_referral_partner",
       modelName: "AgentReferralPartner",
       underscored: true,
-    }
+    },
   );
 
   return AgentReferralPartner;

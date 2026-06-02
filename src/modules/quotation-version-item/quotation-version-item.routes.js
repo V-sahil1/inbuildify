@@ -93,7 +93,7 @@ router.delete(
 router.delete(
   "/package/:quotation_version_id/:package_id",
   validateRequest(deletePackageParamsSchema, REQUEST_SOURCE.PARAMS),
-  quotationVersionItemController.deletePackageFromVersion,
+  quotationVersionItemController.removePackageFromVersion,
 );
 
 export default router;

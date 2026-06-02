@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "supplier_documents", modelName: "SupplierDocuments", underscored: true }
+    { sequelize, tableName: "supplier_documents", modelName: "SupplierDocuments", underscored: true },
   );
   return SupplierDocuments;
 };

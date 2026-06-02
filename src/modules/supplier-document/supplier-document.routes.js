@@ -14,12 +14,12 @@ import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
-import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { createUpload, createPdfUpload,handleMulterError } from "../../utils/s3Upload.js";
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
 
-const upload = createUpload("supplier-document");
+const upload = createPdfUpload("supplier-document");
 
 router.post(
   "/",

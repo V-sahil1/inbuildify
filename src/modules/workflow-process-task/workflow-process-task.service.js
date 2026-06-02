@@ -4,7 +4,9 @@ import db from "../../config/database/models/postgre-models/index.js";
 const { Actions, Task, Users } = db;
 
 const formatUserObject = (userRecord) => {
-  if (!userRecord) return null;
+  if (!userRecord) {
+    return null;
+  }
   return {
     id: userRecord.users_id,
     name: userRecord.name || null,

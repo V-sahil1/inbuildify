@@ -88,8 +88,8 @@ export const updateHouseLandPackageSchema = Joi.object({
   house_feature_id: optionalUuidRule,
   disclaimer_type: stringRule.max(255).optional().valid("validity", "standard").allow(null),
   disclaimer_description: stringRule.max(3000).optional().allow(""),
-  attach_files: stringRule.max(500).optional().allow(""),
-});
+  attach_files: Joi.any().optional(),
+}).unknown(true);
 
 export const getHouseLandPackageByIdSchema = Joi.object({
   house_land_package_id: uuidRule,

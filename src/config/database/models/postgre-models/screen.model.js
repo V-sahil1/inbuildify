@@ -18,7 +18,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "screen", modelName: "Screen", underscored: true }
+    { sequelize, tableName: "screen", modelName: "Screen", underscored: true },
   );
   return Screen;
 };

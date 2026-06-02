@@ -6,6 +6,7 @@ import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { validateRequest } from "../../middleware/validateRequestMiddleware.js";
+import { validateExternalToken } from "../../middleware/externalAuthMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
 import {
   createQuotationSchema,
@@ -23,6 +24,27 @@ import { createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 
 // Public route — no auth required; must be registered before auth middleware
 router.get("/view/:hash", quotationController.viewQuotationByHash);
+
+// External Structural Engineer Upload Routes
+// External engineers do not have an active session/JWT — these routes are
+// secured by validateExternalToken (encrypted, 5-minute time-sensitive token).
+router.post(
+  "/version/:quotation_version_id/structure-engineer-report",
+  validateExternalToken,
+  createPdfUpload("quotation-structure-engineer-reports", 10 * 1024 * 1024).single("pdf"),
+  handleMulterError,
+  camelToSnakeMiddleware,
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.uploadStructureEngineerReport,
+);
+
+// External read endpoint used by the public upload page to render builder
+// name and property details before the engineer submits their report.
+router.get(
+  "/version/:quotation_version_id/public-details",
+  validateExternalToken,
+  quotationController.getPublicDetailsByVersionId,
+);
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -53,19 +75,6 @@ router.post(
   quotationController.compareQuotationVersions,
 );
 
-router.post(
-  "/:leads_id",
-  validateRequest(createQuotationSchema, REQUEST_SOURCE.PARAMS),
-  camelToSnakeMiddleware,
-  quotationController.createQuotation,
-);
-
-router.get(
-  "/:leads_id",
-  validateRequest(createQuotationSchema, REQUEST_SOURCE.PARAMS),
-  quotationController.getQuotationsByLeadId,
-);
-
 router.get(
   "/version/:quotation_id",
   validateRequest(deleteQuotationSchema, REQUEST_SOURCE.PARAMS),
@@ -74,9 +83,27 @@ router.get(
 );
 
 router.get(
+  "/lead/:leads_id",
+  validateRequest(compareQuotationVersionsParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.getQuotationsByLeadId,
+);
+
+router.post(
+  "/:leads_id",
+  validateRequest(createQuotationSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.createQuotation,
+);
+
+router.get(
   "/version-details/:quotation_version_id",
   validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
   quotationController.getQuotationVersionById,
+);
+
+router.get(
+  "/:quotation_id",
+  validateRequest(deleteQuotationSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.getQuotationById,
 );
 
 router.delete(
@@ -106,19 +133,25 @@ router.delete(
   "/version/:quotation_version_id/packages/:package_id",
   validateRequest(removePackageFromVersionSchema, REQUEST_SOURCE.PARAMS),
   camelToSnakeMiddleware,
-  quotationController.removePackageFromVersion
+  quotationController.removePackageFromVersion,
 );
 
 router.get(
   "/version/:quotation_version_id/pdf",
   validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
-  quotationController.previewPDF
+  quotationController.previewPDF,
 );
 
 router.post(
   "/version/:quotation_version_id/send",
   validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
-  quotationController.sendQuotationEmail
+  quotationController.sendQuotationEmail,
+);
+
+router.post(
+  "/version/:quotation_version_id/send-engineer-email",
+  validateRequest(updateQuotationVersionParamsSchema, REQUEST_SOURCE.PARAMS),
+  quotationController.sendEngineerEmail,
 );
 
 export default router;

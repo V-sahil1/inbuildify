@@ -24,7 +24,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
       updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     },
-    { sequelize, tableName: "color", modelName: "Color", underscored: true }
+    { sequelize, tableName: "color", modelName: "Color", underscored: true },
   );
   return Color;
 };

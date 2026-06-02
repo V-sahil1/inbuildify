@@ -3,13 +3,10 @@ import express from "express";
 const router = express.Router();
 
 import {
-  createHouseLandPackageSetting,
-  getHouseLandPackagesetting,
   updateHouseLandPackageSetting,
   getHouseLandPackageSettings,
 } from "./house-land-package-setting.controller.js";
 import {
-  createHouseLandPackageSettingSchema,
   updateHouseLandPackageSettingParamsSchema,
   updateHouseLandPackageSettingSchems,
 } from "./house-land-package-setting.validation.js";
@@ -23,15 +20,10 @@ router.use(authMiddleware);
 router.use(roleMiddleware);
 router.use(camelToSnakeMiddleware);
 
-router.post(
-  "/",
-  validateRequest(createHouseLandPackageSettingSchema, REQUEST_SOURCE.BODY),
-  createHouseLandPackageSetting,
-);
 
 router.get("/fetch", getHouseLandPackageSettings);
 
-router.get("/", getHouseLandPackagesetting);
+
 
 router.put(
   "/:id",

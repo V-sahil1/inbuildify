@@ -16,7 +16,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
       updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     },
-    { sequelize, tableName: "color_group_item_map", modelName: "ColorGroupItemMap", underscored: true }
+    { sequelize, tableName: "color_group_item_map", modelName: "ColorGroupItemMap", underscored: true },
   );
   return ColorGroupItemMap;
 };

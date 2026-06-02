@@ -5,7 +5,7 @@ export class Checklist extends Model {
     // ✅ existing correct ones
     Checklist.belongsTo(models.Builder, {
       foreignKey: "builder_id",
-      as: "builder"
+      as: "builder",
     });
 
     Checklist.belongsTo(models.Users, {
@@ -20,7 +20,7 @@ export class Checklist extends Model {
 
     Checklist.hasMany(models.ChecklistItem, {
       foreignKey: "checklist_id",
-      as: "checklistItems"
+      as: "checklistItems",
     });
 
     // ✅ MISSING ones — add these
@@ -95,7 +95,7 @@ export default (sequelize) => {
       tableName: "checklist",
       modelName: "Checklist",
       underscored: true,
-    }
+    },
   );
 
   return Checklist;

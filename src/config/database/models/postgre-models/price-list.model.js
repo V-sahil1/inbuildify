@@ -28,7 +28,7 @@ export default (sequelize) => {
       updatedAt: { type: DataTypes.DATE },
 
     },
-    { sequelize, tableName: "price_list", modelName: "PriceList", underscored: true }
+    { sequelize, tableName: "price_list", modelName: "PriceList", underscored: true },
   );
   return PriceList;
 };

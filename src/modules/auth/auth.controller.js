@@ -1,5 +1,6 @@
 import AuthService from "./auth.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
+import { env } from "../../config/env.config.js";
 
 export async function registerRoot(req, res) {
   try {
@@ -73,6 +74,29 @@ export async function logout(req, res) {
   }
 }
 
+export async function googleCallback(req, res) {
+  try {
+    if (!req.user) {
+      return res.redirect(
+        `${env.EMAIL.FRONTEND_BASE_URL}/auth/google-failure?error=Authentication%20failed`,
+      );
+    }
+
+    const tokens = await AuthService.handleGoogleCallback(req.user);
+
+    const params = new URLSearchParams({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+
+    return res.redirect(`${env.EMAIL.FRONTEND_BASE_URL}/auth/sign-in?${params.toString()}`);
+  } catch (err) {
+    return res.redirect(
+      `${env.EMAIL.FRONTEND_BASE_URL}/auth/google-failure?error=${encodeURIComponent(err.message || "Internal server error")}`,
+    );
+  }
+}
+
 export default {
   registerRoot,
   verifyEmail,
@@ -82,4 +106,5 @@ export default {
   resetPassword,
   refreshToken,
   logout,
+  googleCallback,
 };

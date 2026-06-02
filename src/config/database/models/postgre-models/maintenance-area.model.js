@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "maintenance_area", modelName: "MaintenanceArea", underscored: true }
+    { sequelize, tableName: "maintenance_area", modelName: "MaintenanceArea", underscored: true },
   );
   return MaintenanceArea;
 };

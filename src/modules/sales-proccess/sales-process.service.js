@@ -32,7 +32,7 @@ export const createSalesProcessService = async (payload, user) => {
             company_id: user.company_id,
           },
           transaction: t,
-        }
+        },
       );
     }
 
@@ -45,7 +45,7 @@ export const createSalesProcessService = async (payload, user) => {
         created_by: user.user_id,
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return created.toJSON();
@@ -111,7 +111,7 @@ export const updateSalesProcessService = async (id, payload, user) => {
           sales_process_id: { [Op.ne]: id },
           name: sequelize.where(
             sequelize.fn("LOWER", sequelize.col("name")),
-            name.trim().toLowerCase()
+            name.trim().toLowerCase(),
           ),
         },
         transaction: t,
@@ -135,7 +135,7 @@ export const updateSalesProcessService = async (id, payload, user) => {
             sales_process_id: { [Op.ne]: id },
           },
           transaction: t,
-        }
+        },
       );
     }
 
@@ -145,7 +145,7 @@ export const updateSalesProcessService = async (id, payload, user) => {
         ...(is_default !== undefined && { is_default }),
         updated_by: user.user_id,
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     return existing.toJSON();

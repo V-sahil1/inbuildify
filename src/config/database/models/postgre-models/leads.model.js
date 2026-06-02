@@ -6,7 +6,7 @@ export class Leads extends Model {
     Leads.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
     Leads.belongsTo(models.LeadSource, { foreignKey: "lead_source_id", as: "leadSource", onDelete: "SET NULL" });
     Leads.belongsTo(models.ClientType, { foreignKey: "client_type_id", as: "clientType", onDelete: "SET NULL" });
-    Leads.belongsTo(models.State, { foreignKey: "state_id", as: "state" });
+    Leads.belongsTo(models.State, { foreignKey: "region_id", as: "state", onDelete: "SET NULL" });
     Leads.belongsTo(models.HouseLandPackage, { foreignKey: "house_land_package_id", as: "houseLandPackage", onDelete: "SET NULL" });
     Leads.belongsTo(models.PropertyDetail, { foreignKey: "property_detail_id", as: "propertyDetail", onDelete: "SET NULL" });
     Leads.belongsTo(models.Users, { foreignKey: "assignee_id", as: "assignee" });
@@ -19,7 +19,8 @@ export class Leads extends Model {
     Leads.hasMany(models.LeadsContactMap, { foreignKey: "leads_id", as: "contactMaps" });
     Leads.hasMany(models.Appointment, { foreignKey: "lead_id", as: "appointments" });
     Leads.hasMany(models.Task, { foreignKey: "lead_id", as: "tasks" });
-
+    Leads.hasMany(models.BusinessContact, { foreignKey: "leads_id", as: "businessContacts" });
+    Leads.hasMany(models.FeaturedFacadeLead, { foreignKey: "leads_id", as: "featuredFacadeLeads" });
   }
 }
 
@@ -60,7 +61,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: sequelize.literal("CURRENT_TIMESTAMP") },
       updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: sequelize.literal("CURRENT_TIMESTAMP") },
     },
-    { sequelize, tableName: "leads", modelName: "Leads", underscored: true }
+    { sequelize, tableName: "leads", modelName: "Leads", underscored: true },
   );
   return Leads;
 };

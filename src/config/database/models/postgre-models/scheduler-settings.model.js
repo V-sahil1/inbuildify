@@ -21,7 +21,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "scheduler_settings", modelName: "SchedulerSettings", underscored: true }
+    { sequelize, tableName: "scheduler_settings", modelName: "SchedulerSettings", underscored: true },
   );
   return SchedulerSettings;
 };

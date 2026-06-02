@@ -1,15 +1,33 @@
-import getPool from "../../config/database.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import {
+  createPriceListItemService,
+  getAllPriceListItemsService,
+  deletePriceListItemService,
+  updatePriceListItemService,
+  copyPriceListItemService,
+  formatItemResponse,
+} from "./price-list-item.service.js";
+
+// ─── Shared guard ─────────────────────────────────────────────────────────────
+
+/** Returns true when both builder_id and company_id are absent from user context. */
+function missingUserContext(builderId, companyId) {
+  return !builderId && !companyId;
+}
+
+// ─── CREATE PRICE LIST ITEM ────────────────────────────────────────────
+// ───────
 
 export async function createPriceListItem(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id;
-    const userId = req.user.user_id;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
+
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
+    }
 
     const {
       price_list_id,
@@ -30,376 +48,59 @@ export async function createPriceListItem(req, res) {
       range_id,
       dwelling_type_id,
       additional_item,
-      is_system_data,
+      conditions,
     } = req.body;
 
-    if (range_id) {
-      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
-
-      for (const id of rangeIdsArray) {
-        if (id) {
-          const rangeCheck = await client.query(
-            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true",
-            [id],
-          );
-
-          if (rangeCheck.rowCount === 0) {
-            return errorResponse(
-              res,
-              400,
-              `Invalid range ID: ${id}. Range does not exist or is not active.`,
-            );
-          }
-        }
-      }
-    }
-
-    if (dwelling_type_id) {
-      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
-        ? dwelling_type_id
-        : [dwelling_type_id];
-
-      for (const id of dwellingTypeIdsArray) {
-        if (id) {
-          const dwellingTypeCheck = await client.query(
-            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true",
-            [id],
-          );
-
-          if (dwellingTypeCheck.rowCount === 0) {
-            return errorResponse(
-              res,
-              400,
-              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
-            );
-          }
-        }
-      }
-    }
-
-    await client.query("BEGIN");
-
-    const checkPriceList = await client.query(
-      `SELECT price_list_id 
-       FROM price_list 
-       WHERE price_list_id = $1 AND builder_id = $2 
-       LIMIT 1`,
-      [price_list_id, builderId],
-    );
-
-    if (checkPriceList.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        403,
-        "You cannot add items in another builder's price list.",
-      );
-    }
-
-    const checkPriceListActive = await client.query(
-      `SELECT price_list_id 
-       FROM price_list 
-       WHERE price_list_id = $1 AND builder_id = $2 AND is_active = true
-       LIMIT 1`,
-      [price_list_id, builderId],
-    );
-
-    if (checkPriceListActive.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        403,
-        "You cannot add items in inactive price list.",
-      );
-    }
-
-    if (cost_type === "Included") {
-      if (!cost_type_text) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "cost_type_text is required when cost_type = 'Included'.",
-        );
-      }
-
-      if (
-        cost_option !== undefined ||
-        cost !== undefined ||
-        builder_cost !== undefined
-      ) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "cost_option, cost, builder_cost are not allowed when cost_type = 'Included'.",
-        );
-      }
-    }
-
-    if (cost_type === "Fixed" || cost_type === "Variable") {
-      if (cost_type_text) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "cost_type_text is not allowed for cost_type = 'Fixed' or 'Variable'.",
-        );
-      }
-
-      if (
-        // cost_option === undefined ||
-        cost === undefined ||
-        builder_cost === undefined
-      ) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          " cost, builder_cost are required for cost_type = 'Fixed' or 'Variable'.",
-        );
-      }
-    }
-
-    let finalSortOrder = sort_order;
-
-    if (finalSortOrder === undefined) {
-      const maxSortQuery = `
-        SELECT COALESCE(MAX(sort_order), 0) as max_sort
-        FROM price_list_item
-        WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3
-      `;
-
-      const maxSortResult = await client.query(maxSortQuery, [
-        companyId,
-        builderId,
-        price_list_id,
-      ]);
-
-      finalSortOrder = (maxSortResult.rows[0].max_sort || 0) + 1;
-    } else {
-      await client.query(
-        `UPDATE price_list_item
-         SET sort_order = sort_order + 1
-         WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 AND sort_order >= $4`,
-        [companyId, builderId, price_list_id, finalSortOrder],
-      );
-    }
-
-    const insertQuery = `
-      INSERT INTO price_list_item (
-        price_list_id,
-        company_id,
-        builder_id,
-        item_description,
-        short_description,
-        cost_type,
-        cost_type_text,
-        cost_option,
-        cost,
-        builder_cost,
-        sort_order,
-        uom,
-        status,
-        include_by_default,
-        allow_remove_from_quotation,
-        show_in_hl_package,
-        show_only_in_package,
-        range_id,
-        dwelling_type_id,
-        additional_item,
-        is_system_data,
-        created_by,
-        updated_by
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22, $23
-      )
-      RETURNING *;
-    `;
-
-    const values = [
-      price_list_id,
-      companyId,
+    const result = await createPriceListItemService({
       builderId,
+      companyId,
+      userId,
+      price_list_id,
       item_description,
-      short_description || null,
+      short_description,
       cost_type,
-      cost_type_text || null,
-      cost_option || "none",
-      cost || null,
-      builder_cost || null,
-      finalSortOrder,
-      uom || null,
-      status || "active",
-      include_by_default || false,
-      allow_remove_from_quotation || false,
-      show_in_hl_package || false,
-      show_only_in_package || false,
-      range_id || null,
-      dwelling_type_id || null,
-      additional_item || false,
-      is_system_data || false,
-      userId || null,
-      userId || null,
-    ];
+      cost_type_text,
+      cost_option,
+      cost,
+      builder_cost,
+      sort_order,
+      uom,
+      status,
+      include_by_default,
+      allow_remove_from_quotation,
+      show_in_hl_package,
+      show_only_in_package,
+      range_id,
+      dwelling_type_id,
+      additional_item,
+      conditions,
+    });
 
-    const result = await client.query(insertQuery, values);
-    const newItemId = result.rows[0].price_list_item_id;
-
-    // Process conditions after the item is created
-    const conditionValues = [];
-    const placeholders = [];
-
-    if (req.body.conditions && Array.isArray(req.body.conditions)) {
-      req.body.conditions.forEach((c, index) => {
-        const baseIndex = index * 5;
-
-        placeholders.push(
-          `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`,
-        );
-
-        conditionValues.push(
-          newItemId,
-          c.condition_name,
-          c.condition_name === "corner_block" ? c.status : null,
-          c.condition_name === "corner_block" ? null : c.range_start,
-          c.condition_name === "corner_block" ? null : c.range_end,
-        );
-      });
+    if (result.error) {
+      return errorResponse(res, result.error.status, result.error.message);
     }
 
-    if (placeholders.length > 0) {
-      await client.query(
-        `
-  INSERT INTO price_list_item_condition
-  (price_list_item_id, condition_name, status, range_start, range_end)
-  VALUES ${placeholders.join(",")}
-  `,
-        conditionValues,
-      );
-    }
-
-    await client.query("COMMIT");
-
-    const getCreatedItemQuery = `
-      SELECT 
-        pli.*,
-        pl.name as price_list_name,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', r.range_id,
-              'name', r.name
-            )
-          )
-          FROM range r
-          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
-        ) as range_data,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', dt.dwelling_type_id,
-              'name', dt.name
-            )
-          )
-          FROM dwelling_type dt
-          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'priceListItemConditionId', plic.price_list_item_condition_id,
-              'conditionName', plic.condition_name,
-              'status', plic.status,
-              'rangeStart', plic.range_start,
-              'rangeEnd', plic.range_end
-            ) ORDER BY plic.price_list_item_condition_id
-          )
-          FROM price_list_item_condition plic
-          WHERE plic.price_list_item_id = pli.price_list_item_id
-        ) as conditions_data
-      FROM price_list_item pli
-      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-      WHERE pli.price_list_item_id = $1
-    `;
-
-    const createdItemResult = await client.query(getCreatedItemQuery, [
-      result.rows[0].price_list_item_id,
-    ]);
-    const createdItem = keysToCamelCase(createdItemResult.rows[0]);
-
-    let conditionsData = createdItem.conditionsData || [];
-    if (conditionsData.length > 0) {
-      conditionsData = conditionsData.map((condition) => ({
-        priceListItemConditionId: condition.priceListItemConditionId,
-        conditionName: condition.conditionName,
-        status: condition.status,
-        rangeStart: condition.rangeStart,
-        rangeEnd: condition.rangeEnd,
-      }));
-    }
-
-    const formattedItem = {
-      priceListItemId: createdItem.priceListItemId,
-      priceList: {
-        id: createdItem.priceListId,
-        name: createdItem.priceListName,
-      },
-      companyId: createdItem.companyId,
-      builderId: createdItem.builderId,
-      itemDescription: createdItem.itemDescription,
-      shortDescription: createdItem.shortDescription,
-      costType: createdItem.costType,
-      costTypeText: createdItem.costTypeText,
-      costOption: createdItem.costOption,
-      cost: createdItem.cost ? createdItem.cost.toString() : null,
-      builderCost: createdItem.builderCost
-        ? createdItem.builderCost.toString()
-        : null,
-      sortOrder: createdItem.sortOrder,
-      uom: createdItem.uom,
-      status: createdItem.status,
-      includeByDefault: createdItem.includeByDefault,
-      allowRemoveFromQuotation: createdItem.allowRemoveFromQuotation,
-      showInHlPackage: createdItem.showInHlPackage,
-      showOnlyInPackage: createdItem.showOnlyInPackage,
-      range: createdItem.rangeData || [],
-      dwellingType: createdItem.dwellingTypeData || [],
-      conditions: conditionsData,
-      additionalItem: createdItem.additionalItem,
-      createdBy: createdItem.createdBy,
-      updatedBy: createdItem.updatedBy,
-      createdAt: createdItem.createdAt,
-      updatedAt: createdItem.updatedAt,
-    };
-
-    return successResponse(
-      res,
-      formattedItem,
-      "Price list item created successfully.",
-    );
+    return successResponse(res, result.data, "Price list item created successfully.");
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error creating price list item:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, 500, error.message || "Internal Server Error.");
   }
 }
 
+// ─── GET ALL PRICE LIST ITEMS ─────────────────────────────────────────────────
+
 export async function getAllPriceListItems(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
 
-    let {
-      page = 1,
-      limit = 25,
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
+    }
+
+    const {
+      page,
+      limit,
       status,
       cost_option,
       cost_type,
@@ -416,297 +117,92 @@ export async function getAllPriceListItems(req, res) {
       package_id,
     } = req.query;
 
-    page = parseInt(page, 10);
-    limit = parseInt(limit, 10);
-    const offset = (page - 1) * limit;
+    const { priceListItems, pagination } = await getAllPriceListItemsService({
+      builder_id: builderId,
+      company_id: companyId,
+      page,
+      limit,
+      status,
+      cost_option,
+      cost_type,
+      uom,
+      price,
+      item_description,
+      price_list_id,
+      dwelling_type_id,
+      range_id,
+      location_id,
+      sort_order,
+      search,
+      package_id,
+      is_system_data,
+    });
 
-    const mandatoryConditions = [];
-    const narrowingConditions = [];
-    const values = [];
-    let index = 1;
-
-    // Mandatory Ownership Checks
-    mandatoryConditions.push(`pli.builder_id = $${index++}`);
-    values.push(builderId);
-
-    mandatoryConditions.push(`pli.company_id = $${index++}`);
-    values.push(companyId);
-
-    if (search) {
-      const searchVal = `%${search}%`;
-      narrowingConditions.push(`(
-        pli.item_description ILIKE $${index} OR 
-        pli.short_description ILIKE $${index} OR 
-        pli.cost_type ILIKE $${index} OR 
-        pli.cost_option ILIKE $${index} OR
-        EXISTS (SELECT 1 FROM range r WHERE r.range_id = ANY(pli.range_id) AND r.name ILIKE $${index}) OR
-        EXISTS (SELECT 1 FROM dwelling_type dt WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.name ILIKE $${index})
-      )`);
-      values.push(searchVal);
-      index++;
-    }
-
-    if (status) {
-      mandatoryConditions.push(`pli.status = $${index++}`);
-      values.push(status);
-    }
-
-    if (cost_option) {
-      narrowingConditions.push(`pli.cost_option = $${index++}`);
-      values.push(cost_option);
-    }
-
-    if (cost_type) {
-      narrowingConditions.push(`pli.cost_type = $${index++}`);
-      values.push(cost_type);
-    }
-
-    if (uom) {
-      narrowingConditions.push(`pli.uom = $${index++}`);
-      values.push(uom);
-    }
-
-    if (price) {
-      narrowingConditions.push(`pli.cost = $${index++}`);
-      values.push(price);
-    }
-
-    if (item_description) {
-      narrowingConditions.push(`pli.item_description ILIKE $${index++}`);
-      values.push(`%${item_description}%`);
-    }
-
-    if (price_list_id) {
-      mandatoryConditions.push(`pli.price_list_id = $${index++}`);
-      values.push(price_list_id);
-    }
-
-    if (dwelling_type_id) {
-      narrowingConditions.push(`$${index++} = ANY(pli.dwelling_type_id)`);
-      values.push(dwelling_type_id);
-    }
-
-    if (range_id) {
-      narrowingConditions.push(`$${index++} = ANY(pli.range_id)`);
-      values.push(range_id);
-    }
-
-    if (location_id) {
-      narrowingConditions.push(`pl.location = $${index++}`);
-      values.push(location_id);
-    }
-
-    if (sort_order !== undefined && sort_order !== "") {
-      const sortValue = Number(sort_order);
-      if (isNaN(sortValue)) {
-        return errorResponse(res, 400, "sort_order must be a valid number");
-      }
-      narrowingConditions.push(`pli.sort_order = $${index++}`);
-      values.push(sortValue);
-    }
-
-    if (package_id) {
-      narrowingConditions.push(`NOT EXISTS (
-        SELECT 1 FROM package_pricelist_item_map ppim 
-        WHERE ppim.price_list_item_id = pli.price_list_item_id 
-        AND ppim.package_id = $${index++}
-      )`);
-      values.push(package_id);
-    }
-
-    // Build the final WHERE clause with special OR logic for system data
-    let whereClause = "";
-    const mandatoryJoined = mandatoryConditions.join(" AND ");
-    
-    // Narrowing part: if is_system_data=true is passed, it acts as an OR filter
-    const isSystemDataActive = String(is_system_data).toLowerCase() === "true";
-
-    if (isSystemDataActive) {
-      if (narrowingConditions.length > 0) {
-        whereClause = `WHERE ${mandatoryJoined} AND (pli.is_system_data = true OR (${narrowingConditions.join(" AND ")}))`;
-      } else {
-        whereClause = `WHERE ${mandatoryJoined} AND pli.is_system_data = true`;
-      }
-    } else {
-      // Standard strict filtering
-      let allConditions = [...mandatoryConditions];
-      if (narrowingConditions.length > 0) {
-        allConditions = [...allConditions, ...narrowingConditions];
-      }
-      // If user specifically passed is_system_data=false, add that too
-      if (is_system_data !== undefined && is_system_data !== null && is_system_data !== "") {
-          allConditions.push(`pli.is_system_data = $${index++}`);
-          values.push(false);
-      }
-      whereClause = `WHERE ${allConditions.join(" AND ")}`;
-    }
-
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM price_list_item pli
-      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-      ${whereClause}
-    `;
-
-    const countResult = await client.query(countQuery, values);
-    const total = parseInt(countResult.rows[0].total, 10);
-
-    const mainQuery = `
-      SELECT 
-        pli.*,
-        pl.name AS price_list_name,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', r.range_id,
-              'name', r.name
-            )
-          )
-          FROM range r
-          WHERE r.range_id = ANY(pli.range_id)
-            AND r.is_active = true
-        ) AS range_data,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', dt.dwelling_type_id,
-              'name', dt.name
-            )
-          )
-          FROM dwelling_type dt
-          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id)
-            AND dt.is_active = true
-        ) AS dwelling_type_data
-      FROM price_list_item pli
-      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-      ${whereClause}
-      ORDER BY pli.sort_order ASC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const result = await client.query(mainQuery, values);
-
-    const formattedItems = result.rows.map((row) => {
-      const item = keysToCamelCase(row);
-
-      return {
-        priceListItemId: item.priceListItemId,
-        priceList: {
-          id: item.priceListId,
-          name: item.priceListName,
-        },
-        companyId: item.companyId,
-        builderId: item.builderId,
-        itemDescription: item.itemDescription,
-        shortDescription: item.shortDescription,
-        costType: item.costType,
-        costTypeText: item.costTypeText,
-        costOption: item.costOption,
-        cost: item.cost ? item.cost.toString() : null,
-        builderCost: item.builderCost ? item.builderCost.toString() : null,
-        sortOrder: item.sortOrder,
-        uom: item.uom,
-        status: item.status,
-        includeByDefault: item.includeByDefault,
-        allowRemoveFromQuotation: item.allowRemoveFromQuotation,
-        showInHlPackage: item.showInHlPackage,
-        showOnlyInPackage: item.showOnlyInPackage,
-        range: item.rangeData || [],
-        dwellingType: item.dwellingTypeData || [],
-        additionalItem: item.additionalItem,
-        isSystemData: item.isSystemData,
-        createdBy: item.createdBy,
-        updatedBy: item.updatedBy,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      };
+    const formattedItems = priceListItems.map((item) => {
+      const camelItem = keysToCamelCase(item);
+      return formatItemResponse(camelItem);
     });
 
     return successResponse(
       res,
-      {
-        priceListItem: formattedItems,
-        pagination: {
-          totalRecords: total,
-          currentPage: page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
+      { priceListItem: formattedItems, pagination },
       "Price list items fetched successfully.",
     );
   } catch (error) {
     console.error("Error fetching price list items:", error);
-    return errorResponse(res, 500, error?.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, 500, error?.message || "Internal Server Error.");
   }
 }
 
-export async function deletePriceListItem(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+// ─── DELETE PRICE LIST ITEM ───────────────────────────────────────────────────
 
+export async function deletePriceListItem(req, res) {
   try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
     const { priceListItemId } = req.params;
 
-    const checkQuery = `
-      SELECT price_list_item_id, builder_id, company_id, price_list_id, sort_order
-      FROM price_list_item
-      WHERE price_list_item_id = $1
-    `;
-    const checkResult = await client.query(checkQuery, [priceListItemId]);
-
-    if (checkResult.rowCount === 0) {
-      return errorResponse(res, 404, "Price list item not found.");
+    if (!priceListItemId) {
+      return errorResponse(res, 400, "priceListItemId is required.");
     }
 
-    const item = checkResult.rows[0];
-
-    if (item.builder_id !== builderId) {
-      return errorResponse(
-        res,
-        403,
-        "Permission denied. You can delete only your own record.",
-      );
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
     }
 
-    const deletedSortOrder = item.sort_order;
-    const priceListId = item.price_list_id;
+    const result = await deletePriceListItemService({
+      builderId,
+      companyId,
+      priceListItemId,
+    });
 
-    const deleteQuery = `
-      DELETE FROM price_list_item
-      WHERE price_list_item_id = $1
-    `;
-    await client.query(deleteQuery, [priceListItemId]);
+    if (result.error) {
+      return errorResponse(res, result.error.status, result.error.message);
+    }
 
-    await client.query(
-      `UPDATE price_list_item 
-       SET sort_order = sort_order - 1 
-       WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 AND sort_order > $4`,
-      [companyId, builderId, priceListId, deletedSortOrder],
-    );
-
-    return successResponse(res, 200, "Price list item deleted successfully.");
+    return successResponse(res, null, "Price list item deleted successfully.");
   } catch (error) {
     console.error("Error deleting price list item:", error);
     return errorResponse(res, 500, "Error deleting price list item.");
-  } finally {
-    client.release();
   }
 }
 
-export async function updatePriceListItem(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
+// ─── UPDATE PRICE LIST ITEM ───────────────────────────────────────────────────
 
+export async function updatePriceListItem(req, res) {
   try {
-    const builderId = req.user.builder_id;
-    const companyId = req.user.company_id;
-    const userId = req.user.user_id;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+    const userId = req.user?.user_id;
     const { price_list_item_id } = req.params;
+
+    if (!price_list_item_id) {
+      return errorResponse(res, 400, "price_list_item_id is required.");
+    }
+
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
+    }
 
     const {
       item_description,
@@ -725,686 +221,78 @@ export async function updatePriceListItem(req, res) {
       show_only_in_package,
       range_id,
       dwelling_type_id,
-      is_system_data,
       conditions,
     } = req.body;
 
-    if (range_id) {
-      const rangeIdsArray = Array.isArray(range_id) ? range_id : [range_id];
-
-      for (const id of rangeIdsArray) {
-        if (id) {
-          const rangeCheck = await client.query(
-            "SELECT 1 FROM range WHERE range_id = $1 AND is_active = true",
-            [id],
-          );
-
-          if (rangeCheck.rowCount === 0) {
-            return errorResponse(
-              res,
-              400,
-              `Invalid range ID: ${id}. Range does not exist or is not active.`,
-            );
-          }
-        }
-      }
-    }
-
-    if (dwelling_type_id) {
-      const dwellingTypeIdsArray = Array.isArray(dwelling_type_id)
-        ? dwelling_type_id
-        : [dwelling_type_id];
-
-      for (const id of dwellingTypeIdsArray) {
-        if (id) {
-          const dwellingTypeCheck = await client.query(
-            "SELECT 1 FROM dwelling_type WHERE dwelling_type_id = $1 AND is_active = true",
-            [id],
-          );
-
-          if (dwellingTypeCheck.rowCount === 0) {
-            return errorResponse(
-              res,
-              400,
-              `Invalid dwelling type ID: ${id}. Dwelling type does not exist or is not active.`,
-            );
-          }
-        }
-      }
-    }
-
-    await client.query("BEGIN");
-
-    const checkExisting = await client.query(
-      `
-      SELECT *
-      FROM price_list_item
-      WHERE price_list_item_id = $1
-        AND builder_id = $2
-        AND company_id = $3
-      LIMIT 1
-      `,
-      [price_list_item_id, builderId, companyId],
-    );
-
-    if (checkExisting.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Item not found or unauthorized.");
-    }
-
-    const old = checkExisting.rows[0];
-    const currentStatus = old.status;
-
-    let requestedStatus;
-    const statusInBody = req.body.status !== undefined;
-
-    if (statusInBody) {
-      const inputStatus = String(req.body.status).trim().toLowerCase();
-      if (inputStatus === "active") {
-        requestedStatus = "active";
-      } else if (inputStatus === "inactive") {
-        requestedStatus = "inactive";
-      } else {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "Invalid value for status. Must be 'Active' or 'Inactive'.",
-        );
-      }
-    }
-
-    const requestedStatusActive = requestedStatus === "active";
-    const requestedStatusInactive = requestedStatus === "inactive";
-
-    const fieldsToCheck = [
-      "item_description",
-      "short_description",
-      "cost_type",
-      "cost_type_text",
-      "cost_option",
-      "cost",
-      "builder_cost",
-      "sort_order",
-      "uom",
-      "include_by_default",
-      "allow_remove_from_quotation",
-      "show_in_hl_package",
-      "show_only_in_package",
-      "range_id",
-      "dwelling_type_id",
-    ];
-
-    const updatingOtherFields = fieldsToCheck.some(
-      (field) => req.body[field] !== undefined,
-    );
-
-    const updatingFieldsExceptSortOrder = fieldsToCheck
-      .filter((field) => field !== "sort_order")
-      .some((field) => req.body[field] !== undefined);
-
-    // if (currentStatus === "active" && statusInBody) {
-    //   if (requestedStatusInactive) {
-    //     if (updatingFieldsExceptSortOrder) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "To deactivate an active price list item, only 'status' and 'sort_order' are allowed in the request.",
-    //       );
-    //     }
-    //   }
-    // }
-
-    // if (currentStatus === "inactive") {
-    //   if (requestedStatusActive) {
-    //     if (updatingFieldsExceptSortOrder) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "To activate an inactive price list item, only 'status' and 'sort_order' can be updated.",
-    //       );
-    //     }
-    //   }
-
-    //   if (updatingFieldsExceptSortOrder) {
-    //     if (!requestedStatusActive) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "Cannot update non-'sort_order' and non-'status' fields when the price list item is currently Inactive.",
-    //       );
-    //     }
-    //   }
-
-    //   if (statusInBody && requestedStatusInactive) {
-    //     if (updatingFieldsExceptSortOrder) {
-    //       await client.query("ROLLBACK");
-    //       return errorResponse(
-    //         res,
-    //         403,
-    //         "Price list item is already Inactive. Only 'sort_order' or 'status' (to 'Active') can be updated.",
-    //       );
-    //     }
-    //   }
-    // }
-
-    if (req.body.price_list_id) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 400, "You cannot update price_list_id.");
-    }
-
-    const finalCostType = cost_type ?? old.cost_type;
-    let finalCostTypeText;
-    let finalCostOption;
-    let finalCost;
-    let finalBuilderCost;
-
-    if (cost_type === "Included") {
-      if (
-        req.body.cost_option !== undefined ||
-        req.body.cost !== undefined ||
-        req.body.builder_cost !== undefined
-      ) {
-        await client.query("ROLLBACK");
-        return errorResponse(
-          res,
-          400,
-          "You cannot send cost_option, cost, or builder_cost when cost_type = 'Included'.",
-        );
-      }
-    }
-
-    if (cost_type !== undefined) {
-      if (cost_type === "Included") {
-        if (!cost_type_text) {
-          await client.query("ROLLBACK");
-          return errorResponse(res, 400, "cost_type_text is required.");
-        }
-
-        finalCostTypeText = cost_type_text;
-        finalCostOption = null;
-        finalCost = null;
-        finalBuilderCost = null;
-      }
-
-      if (cost_type === "Fixed" || cost_type === "Variable") {
-        if (cost_type_text) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            400,
-            "cost_type_text is not allowed when cost_type is Fixed or Variable.",
-          );
-        }
-
-        finalCostTypeText = null;
-
-        finalCostOption = cost_option !== undefined ? cost_option : old.cost_option;
-        finalCost = cost !== undefined ? cost : old.cost;
-        finalBuilderCost = builder_cost !== undefined ? builder_cost : old.builder_cost;
-
-        if (
-          finalCostOption === null ||
-          finalCost === null ||
-          finalBuilderCost === null
-        ) {
-          await client.query("ROLLBACK");
-          return errorResponse(
-            res,
-            400,
-            "cost_option, cost and builder_cost are required.",
-          );
-        }
-      }
-    } else {
-      finalCostTypeText = old.cost_type_text;
-      
-      if (old.cost_type === "Included") {
-        finalCostOption = null;
-        finalCost = null;
-        finalBuilderCost = null;
-      } else {
-        finalCostOption = cost_option !== undefined ? cost_option : old.cost_option;
-        finalCost = cost !== undefined ? cost : old.cost;
-        finalBuilderCost = builder_cost !== undefined ? builder_cost : old.builder_cost;
-      }
-    }
-
-    const finalSortOrder = sort_order ?? old.sort_order;
-    const oldSortOrder = old.sort_order;
-
-    if (sort_order !== undefined && sort_order !== oldSortOrder) {
-      if (sort_order < oldSortOrder) {
-        await client.query(
-          `UPDATE price_list_item
-           SET sort_order = sort_order + 1
-           WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 
-             AND sort_order >= $4 AND sort_order < $5 AND price_list_item_id != $6`,
-          [
-            companyId,
-            builderId,
-            old.price_list_id,
-            sort_order,
-            oldSortOrder,
-            price_list_item_id,
-          ],
-        );
-      } else if (sort_order > oldSortOrder) {
-        await client.query(
-          `UPDATE price_list_item
-           SET sort_order = sort_order - 1
-           WHERE company_id = $1 AND builder_id = $2 AND price_list_id = $3 
-             AND sort_order > $4 AND sort_order <= $5 AND price_list_item_id != $6`,
-          [
-            companyId,
-            builderId,
-            old.price_list_id,
-            oldSortOrder,
-            sort_order,
-            price_list_item_id,
-          ],
-        );
-      }
-    }
-
-    const fields = [];
-    const values = [];
-    let i = 1;
-
-    const push = (column, value) => {
-      fields.push(`${column} = $${i++}`);
-      values.push(value);
-    };
-
-    if (item_description) {
-      push("item_description", item_description);
-    }
-    if (short_description !== undefined) {
-      push("short_description", short_description);
-    }
-
-    if (cost_type) {
-      push("cost_type", finalCostType);
-    }
-    push("cost_type_text", finalCostTypeText);
-    push("cost_option", finalCostOption);
-    push("cost", finalCost);
-    push("builder_cost", finalBuilderCost);
-
-    push("sort_order", finalSortOrder);
-
-    if (uom !== undefined) {
-      push("uom", uom);
-    }
-    if (requestedStatus) {
-      push("status", requestedStatus);
-    }
-
-    if (include_by_default !== undefined) {
-      push("include_by_default", include_by_default);
-    }
-    if (allow_remove_from_quotation !== undefined) {
-      push("allow_remove_from_quotation", allow_remove_from_quotation);
-    }
-    if (show_in_hl_package !== undefined) {
-      push("show_in_hl_package", show_in_hl_package);
-    }
-    if (show_only_in_package !== undefined) {
-      push("show_only_in_package", show_only_in_package);
-    }
-    if (range_id !== undefined) {
-      push("range_id", range_id);
-    }
-    if (dwelling_type_id !== undefined) {
-      push("dwelling_type_id", dwelling_type_id);
-    }
-    if (is_system_data !== undefined) {
-      push("is_system_data", is_system_data);
-    }
-
-    push("updated_by", userId);
-
-    if (fields.length === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(
-        res,
-        400,
-        "At least one field is required to update.",
-      );
-    }
-
-    values.push(price_list_item_id);
-
-    const updateQuery = `
-      UPDATE price_list_item
-      SET ${fields.join(", ")}
-      WHERE price_list_item_id = $${i}
-      RETURNING *;
-    `;
-
-    const updated = await client.query(updateQuery, values);
-
-    // Update conditions
-    if (conditions !== undefined) {
-      await client.query(
-        "DELETE FROM price_list_item_condition WHERE price_list_item_id = $1",
-        [price_list_item_id],
-      );
-
-      if (Array.isArray(conditions) && conditions.length > 0) {
-        const conditionValues = [];
-        const placeholders = [];
-
-        conditions.forEach((c, index) => {
-          const baseIndex = index * 5;
-          placeholders.push(
-            `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`,
-          );
-          conditionValues.push(
-            price_list_item_id,
-            c.condition_name,
-            c.condition_name === "corner_block" ? c.status : null,
-            c.condition_name === "corner_block" ? null : c.range_start,
-            c.condition_name === "corner_block" ? null : c.range_end,
-          );
-        });
-
-        await client.query(
-          `INSERT INTO price_list_item_condition
-           (price_list_item_id, condition_name, status, range_start, range_end)
-           VALUES ${placeholders.join(",")}`,
-          conditionValues,
-        );
-      }
-    }
-
-    await client.query("COMMIT");
-
-    const getUpdatedItemQuery = `
-      SELECT 
-        pli.*,
-        pl.name as price_list_name,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', r.range_id,
-              'name', r.name
-            )
-          )
-          FROM range r
-          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
-        ) as range_data,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', dt.dwelling_type_id,
-              'name', dt.name
-            )
-          )
-          FROM dwelling_type dt
-          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'priceListItemConditionId', plic.price_list_item_condition_id,
-              'conditionName', plic.condition_name,
-              'status', plic.status,
-              'rangeStart', plic.range_start,
-              'rangeEnd', plic.range_end
-            ) ORDER BY plic.price_list_item_condition_id
-          )
-          FROM price_list_item_condition plic
-          WHERE plic.price_list_item_id = pli.price_list_item_id
-        ) as conditions_data
-      FROM price_list_item pli
-      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-      WHERE pli.price_list_item_id = $1
-    `;
-
-    const updatedItemResult = await client.query(getUpdatedItemQuery, [
+    const result = await updatePriceListItemService({
+      builderId,
+      companyId,
+      userId,
       price_list_item_id,
-    ]);
-    const updatedItem = keysToCamelCase(updatedItemResult.rows[0]);
+      requestBody: req.body,
+      item_description,
+      short_description,
+      cost_type,
+      cost_type_text,
+      cost_option,
+      cost,
+      builder_cost,
+      sort_order,
+      uom,
+      status,
+      include_by_default,
+      allow_remove_from_quotation,
+      show_in_hl_package,
+      show_only_in_package,
+      range_id,
+      dwelling_type_id,
+      conditions,
+    });
 
-    const formattedItem = {
-      priceListItemId: updatedItem.priceListItemId,
-      priceList: {
-        id: updatedItem.priceListId,
-        name: updatedItem.priceListName,
-      },
-      companyId: updatedItem.companyId,
-      builderId: updatedItem.builderId,
-      itemDescription: updatedItem.itemDescription,
-      shortDescription: updatedItem.shortDescription,
-      costType: updatedItem.costType,
-      costTypeText: updatedItem.costTypeText,
-      costOption: updatedItem.costOption,
-      cost: updatedItem.cost ? updatedItem.cost.toString() : null,
-      builderCost: updatedItem.builderCost
-        ? updatedItem.builderCost.toString()
-        : null,
-      sortOrder: updatedItem.sortOrder,
-      uom: updatedItem.uom,
-      status: updatedItem.status,
-      includeByDefault: updatedItem.includeByDefault,
-      allowRemoveFromQuotation: updatedItem.allowRemoveFromQuotation,
-      showInHlPackage: updatedItem.showInHlPackage,
-      showOnlyInPackage: updatedItem.showOnlyInPackage,
-      range: updatedItem.rangeData || [],
-      dwellingType: updatedItem.dwellingTypeData || [],
-      conditions: updatedItem.conditionsData || [],
-      createdBy: updatedItem.createdBy,
-      updatedBy: updatedItem.updatedBy,
-      createdAt: updatedItem.createdAt,
-      updatedAt: updatedItem.updatedAt,
-    };
+    if (result.error) {
+      return errorResponse(res, result.error.status, result.error.message);
+    }
 
-    return successResponse(
-      res,
-      formattedItem,
-      "Price list item updated successfully.",
-    );
+    return successResponse(res, result.data, "Price list item updated successfully.");
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error updating price list item:", error);
-    return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
+    return errorResponse(res, 500, error.message || "Internal Server Error.");
   }
 }
-
 export async function copyPriceListItem(req, res) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
     const { price_list_item_id } = req.params;
     const { price_list_id, item_description, sort_order } = req.body;
-    const userId = req.user.users_id;
+    const userId = req.user.user_id;
     const builderId = req.user.builder_id;
     const companyId = req.user.company_id;
 
-    await client.query("BEGIN");
-
-    // 1. Shift sort order in the target price list
-    await client.query(
-      `UPDATE price_list_item 
-       SET sort_order = sort_order + 1 
-       WHERE price_list_id = $1 AND sort_order >= $2`,
-      [price_list_id, sort_order]
-    );
-
-    // 2. Fetch source item
-    const sourceItemResult = await client.query(
-      "SELECT * FROM price_list_item WHERE price_list_item_id = $1",
-      [price_list_item_id]
-    );
-
-    if (sourceItemResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return errorResponse(res, 404, "Source price list item not found.");
+    if (missingUserContext(builderId, companyId)) {
+      return errorResponse(res, 401, "Unauthorized: Builder or Company ID missing.");
     }
 
-    const s = sourceItemResult.rows[0];
-
-    // 3. Insert new item (duplicate)
-    const insertItemQuery = `
-      INSERT INTO price_list_item (
-        price_list_id, company_id, builder_id, item_description, short_description,
-        cost_type, cost_type_text, cost_option, cost, builder_cost,
-        sort_order, uom, status, include_by_default, allow_remove_from_quotation,
-        show_in_hl_package, show_only_in_package, range_id, dwelling_type_id, additional_item,
-        created_by, updated_by
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
-      ) RETURNING *
-    `;
-
-    const newItemResult = await client.query(insertItemQuery, [
+    const { data, error } = await copyPriceListItemService({
+      priceListItemId: price_list_item_id,
       price_list_id,
-      companyId,
-      builderId,
       item_description,
-      s.short_description,
-      s.cost_type,
-      s.cost_type_text,
-      s.cost_option,
-      s.cost,
-      s.builder_cost,
       sort_order,
-      s.uom,
-      s.status,
-      s.include_by_default,
-      s.allow_remove_from_quotation,
-      s.show_in_hl_package,
-      s.show_only_in_package,
-      s.range_id,
-      s.dwelling_type_id,
-      s.additional_item,
       userId,
-      userId,
-    ]);
+      builderId,
+      companyId,
+    });
 
-    const newItem = newItemResult.rows[0];
-
-    // 4. Copy conditions
-    const conditionsResult = await client.query(
-      "SELECT * FROM price_list_item_condition WHERE price_list_item_id = $1",
-      [price_list_item_id]
-    );
-
-    for (const condition of conditionsResult.rows) {
-      await client.query(
-        `INSERT INTO price_list_item_condition (
-          price_list_item_id, condition_name, status, range_start, range_end
-        ) VALUES ($1, $2, $3, $4, $5)`,
-        [
-          newItem.price_list_item_id,
-          condition.condition_name,
-          condition.status,
-          condition.range_start,
-          condition.range_end,
-        ]
-      );
+    if (error) {
+      return errorResponse(res, error.status, error.message);
     }
 
-    await client.query("COMMIT");
-
-    // Fetch the enriched item data for the response
-    const getUpdatedItemQuery = `
-      SELECT 
-        pli.*,
-        pl.name as price_list_name,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', r.range_id,
-              'name', r.name
-            )
-          )
-          FROM range r
-          WHERE r.range_id = ANY(pli.range_id) AND r.is_active = true
-        ) as range_data,
-        (
-          SELECT json_agg(
-            jsonb_build_object(
-              'id', dt.dwelling_type_id,
-              'name', dt.name
-            )
-          )
-          FROM dwelling_type dt
-          WHERE dt.dwelling_type_id = ANY(pli.dwelling_type_id) AND dt.is_active = true
-        ) as dwelling_type_data,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'priceListItemConditionId', plic.price_list_item_condition_id,
-              'conditionName', plic.condition_name,
-              'status', plic.status,
-              'rangeStart', plic.range_start,
-              'rangeEnd', plic.range_end
-            ) ORDER BY plic.price_list_item_condition_id
-          )
-          FROM price_list_item_condition plic
-          WHERE plic.price_list_item_id = pli.price_list_item_id
-        ) as conditions_data
-      FROM price_list_item pli
-      LEFT JOIN price_list pl ON pli.price_list_id = pl.price_list_id
-      WHERE pli.price_list_item_id = $1
-    `;
-
-    const updatedItemResult = await client.query(getUpdatedItemQuery, [
-      newItem.price_list_item_id,
-    ]);
-    const updatedItem = keysToCamelCase(updatedItemResult.rows[0]);
-
-    const formattedItem = {
-      priceListItemId: updatedItem.priceListItemId,
-      priceList: {
-        id: updatedItem.priceListId,
-        name: updatedItem.priceListName,
-      },
-      companyId: updatedItem.companyId,
-      builderId: updatedItem.builderId,
-      itemDescription: updatedItem.itemDescription,
-      shortDescription: updatedItem.shortDescription,
-      costType: updatedItem.costType,
-      costTypeText: updatedItem.costTypeText,
-      costOption: updatedItem.costOption,
-      cost: updatedItem.cost ? updatedItem.cost.toString() : null,
-      builderCost: updatedItem.builderCost
-        ? updatedItem.builderCost.toString()
-        : null,
-      sortOrder: updatedItem.sortOrder,
-      uom: updatedItem.uom,
-      status: updatedItem.status,
-      includeByDefault: updatedItem.includeByDefault,
-      allowRemoveFromQuotation: updatedItem.allowRemoveFromQuotation,
-      showInHlPackage: updatedItem.showInHlPackage,
-      showOnlyInPackage: updatedItem.showOnlyInPackage,
-      range: updatedItem.rangeData || [],
-      dwellingType: updatedItem.dwellingTypeData || [],
-      conditions: updatedItem.conditionsData || [],
-      createdBy: updatedItem.createdBy,
-      updatedBy: updatedItem.updatedBy,
-      createdAt: updatedItem.createdAt,
-      updatedAt: updatedItem.updatedAt,
-    };
-
+    // Use the service to fetch the formatted item
     return successResponse(
       res,
-      formattedItem,
+      formatItemResponse(data),
       "Price list item copied successfully.",
     );
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error copying price list item:", error);
     return errorResponse(res, 500, error.message || "Internal Server Error");
-  } finally {
-    client.release();
   }
 }

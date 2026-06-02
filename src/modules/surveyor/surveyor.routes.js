@@ -2,12 +2,12 @@ import express from "express";
 
 const router = express.Router();
 
-import { 
+import {
   getAllSurveyor,
   updateSurveyor,
   createSurveyor,
   deleteSurveyor,
- } from "./surveyor.controller.js";
+} from "./surveyor.controller.js";
 
 import {
   createSurveyorSchema,

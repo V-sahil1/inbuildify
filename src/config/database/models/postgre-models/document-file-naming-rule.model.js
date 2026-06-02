@@ -22,7 +22,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "document_file_naming_rule", modelName: "DocumentFileNamingRule", underscored: true }
+    { sequelize, tableName: "document_file_naming_rule", modelName: "DocumentFileNamingRule", underscored: true },
   );
   return DocumentFileNamingRule;
 };

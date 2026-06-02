@@ -110,7 +110,7 @@ export const addExtraQuotationItemSchema = Joi.object({
     otherwise: Joi.when("extra_type", {
       is: "complimentry",
       then: Joi.optional(),
-      otherwise: Joi.forbidden()
+      otherwise: Joi.forbidden(),
     }),
   }),
   price_list_item_cost_type_text: Joi.string().when("price_list_item_cost_type", {
@@ -141,14 +141,14 @@ export const addExtraQuotationItemSchema = Joi.object({
     "FEET",
     "NOS",
     "UNITS",
-    "LITER"
+    "LITER",
   ).when("extra_type", {
     is: "item",
     then: Joi.required(),
     otherwise: Joi.when("extra_type", {
       is: "complimentry",
       then: Joi.optional(),
-      otherwise: Joi.forbidden()
+      otherwise: Joi.forbidden(),
     }),
   }),
   price_list_item_cost: Joi.number().precision(2).when("price_list_item_cost_type", {
@@ -160,7 +160,7 @@ export const addExtraQuotationItemSchema = Joi.object({
       otherwise: Joi.when("extra_type", {
         is: "complimentry",
         then: Joi.optional(),
-        otherwise: Joi.forbidden()
+        otherwise: Joi.forbidden(),
       }),
     }),
   }),
@@ -173,7 +173,7 @@ export const addExtraQuotationItemSchema = Joi.object({
       otherwise: Joi.when("extra_type", {
         is: "complimentry",
         then: Joi.optional(),
-        otherwise: Joi.forbidden()
+        otherwise: Joi.forbidden(),
       }),
     }),
   }),
@@ -235,4 +235,3 @@ export default {
   addExtraQuotationItemSchema,
   updateExtraQuotationItemSchema,
 };
-

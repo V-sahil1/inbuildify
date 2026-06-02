@@ -30,7 +30,7 @@ export default (sequelize) => {
       tableName: "color_type",
       modelName: "ColorType",
       underscored: true,
-    }
+    },
   );
   return ColorType;
 };

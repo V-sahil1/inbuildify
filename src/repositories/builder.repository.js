@@ -1,64 +1,50 @@
-import getPool from "../config/database.js";
+import db from "../config/database/models/postgre-models/index.js";
 
+/**
+ * Get address details for a builder
+ * @param {string} builderId
+ * @returns {Promise<object|null>}
+ */
 export async function getBuilderAddress(builderId) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const result = await client.query(
-      `
-      SELECT 
-        a.address_id,
-        a.address_line1,
-        a.address_line2,
-        a.city,
-        a.state_id,
-        a.country_id,
-        a.zip_code,
-        a.created_at,
-        a.updated_at
-      FROM builder b
-      LEFT JOIN address a ON a.address_id = b.address_id
-      WHERE b.builder_id = $1
-      LIMIT 1
-      `,
-      [builderId],
-    );
+    const builder = await db.Builder.findOne({
+      where: { builder_id: builderId },
+      include: [
+        {
+          model: db.Address,
+          as: "address",
+        },
+      ],
+    });
 
-    return result.rows[0] || null;
-  } finally {
-    client.release();
+    return builder?.address ? builder.address.get({ plain: true }) : null;
+  } catch (error) {
+    console.error("Error in getBuilderAddress repository:", error);
+    throw error;
   }
 }
 
+/**
+ * Get address details for a company associated with a builder
+ * @param {string} builderId
+ * @returns {Promise<object|null>}
+ */
 export async function getCompanyAddress(builderId) {
-  const pool = getPool();
-  const client = await pool.connect();
-
   try {
-    const result = await client.query(
-      `
-      SELECT 
-        a.address_id,
-        a.address_line1,
-        a.address_line2,
-        a.city,
-        a.state_id,
-        a.country_id,
-        a.zip_code,
-        a.created_at,
-        a.updated_at
-      FROM company c
-      LEFT JOIN address a ON a.address_id = c.address_id
-      WHERE c.builder_id = $1
-      LIMIT 1
-      `,
-      [builderId],
-    );
+    const company = await db.Company.findOne({
+      where: { builder_id: builderId },
+      include: [
+        {
+          model: db.Address,
+          as: "address",
+        },
+      ],
+    });
 
-    return result.rows[0] || null;
-  } finally {
-    client.release();
+    return company?.address ? company.address.get({ plain: true }) : null;
+  } catch (error) {
+    console.error("Error in getCompanyAddress repository:", error);
+    throw error;
   }
 }
 

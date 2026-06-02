@@ -9,6 +9,11 @@ export class HouseLandPackage extends Model {
     HouseLandPackage.belongsTo(models.HouseFeature, { foreignKey: "house_feature_id", as: "houseFeature", onDelete: "SET NULL" });
     HouseLandPackage.belongsTo(models.Users, { foreignKey: "created_by", as: "createdByUser", onDelete: "SET NULL" });
     HouseLandPackage.belongsTo(models.Users, { foreignKey: "updated_by", as: "updatedByUser", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Users, { foreignKey: "contact_id", as: "contact", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.TemplateEmail, { foreignKey: "template_id", as: "template", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Lot, { foreignKey: "lot_id", as: "lot", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.DwellingType, { foreignKey: "dwelling_type_id", as: "dwellingType", onDelete: "SET NULL" });
+    HouseLandPackage.belongsTo(models.Range, { foreignKey: "range_id", as: "range", onDelete: "SET NULL" });
   }
 }
 
@@ -32,15 +37,15 @@ export default (sequelize) => {
       package_group_id: { type: DataTypes.UUID, allowNull: true },
       package_description: { type: DataTypes.STRING(3000), allowNull: true },
       house_feature_id: { type: DataTypes.UUID, allowNull: true },
-      disclaimer_type: { type: DataTypes.STRING(255), allowNull: true },
       disclaimer_description: { type: DataTypes.STRING(3000), allowNull: true },
-      attach_files: { type: DataTypes.STRING(500), allowNull: true },
+      disclaimer_type: { type: DataTypes.STRING(255), allowNull: true },
+      attach_files: { type: DataTypes.JSONB, defaultValue: [] },
       created_by: { type: DataTypes.UUID, allowNull: true },
       updated_by: { type: DataTypes.UUID, allowNull: true },
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "house_land_package", modelName: "HouseLandPackage", underscored: true }
+    { sequelize, tableName: "house_land_package", modelName: "HouseLandPackage", underscored: true },
   );
   return HouseLandPackage;
 };

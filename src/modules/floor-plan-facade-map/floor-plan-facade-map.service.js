@@ -1,99 +1,81 @@
-import getPool from "../../config/database.js";
 import { keysToCamelCase } from "../../utils/common.js";
+import db from "../../config/database/models/postgre-models/index.js";
 
 /**
  * CREATE FLOOR PLAN FACADE MAP
  */
 export async function createFloorPlanFacadeMap(currentUser, payload) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const { floor_plan_id, facade_id } = payload;
+  const builderId = currentUser.builder_id;
+  const companyId = currentUser.company_id;
 
+  const transaction = await db.sequelize.transaction();
   try {
-    await client.query("BEGIN");
+    // 1. Validate floor plan exists and belongs to user's organization
+    const floorPlan = await db.FloorPlan.findOne({
+      where: {
+        floor_plan_id,
+        [db.Sequelize.Op.or]: [
+          { company_id: companyId },
+          { builder_id: builderId },
+        ],
+      },
+      transaction,
+    });
 
-    const { floor_plan_id, facade_id } = payload;
-    const builderId = currentUser.builder_id;
-    const companyId = currentUser.company_id;
-
-    // Validate floor plan exists and belongs to user's organization
-    const floorPlanCheck = await client.query(
-      `
-      SELECT floor_plan_id, name 
-      FROM floor_plan
-      WHERE floor_plan_id = $1
-        AND (company_id = $2 OR builder_id = $3)
-      `,
-      [floor_plan_id, companyId, builderId],
-    );
-
-    if (floorPlanCheck.rows.length === 0) {
-      throw {
-        status: 404,
-        message: "Floor plan not found or does not belong to your organization",
-      };
+    if (!floorPlan) {
+      const error = new Error("Floor plan not found or does not belong to your organization");
+      error.status = 404;
+      throw error;
     }
 
-    // Validate facade exists and belongs to user's organization
-    const facadeCheck = await client.query(
-      `
-      SELECT facade_id, name 
-      FROM facade
-      WHERE facade_id = $1
-        AND (company_id = $2 OR builder_id = $3)
-      `,
-      [facade_id, companyId, builderId],
-    );
+    // 2. Validate facade exists and belongs to user's organization
+    const facade = await db.Facade.findOne({
+      where: {
+        facade_id,
+        [db.Sequelize.Op.or]: [
+          { company_id: companyId },
+          { builder_id: builderId },
+        ],
+      },
+      transaction,
+    });
 
-    if (facadeCheck.rows.length === 0) {
-      throw {
-        status: 404,
-        message: "Facade not found or does not belong to your organization",
-      };
+    if (!facade) {
+      const error = new Error("Facade not found or does not belong to your organization");
+      error.status = 404;
+      throw error;
     }
 
-    // Check for duplicate mapping
-    const duplicateCheck = await client.query(
-      `
-      SELECT id 
-      FROM floor_plan_facade_map
-      WHERE floor_plan_id = $1 AND facade_id = $2
-      `,
-      [floor_plan_id, facade_id],
-    );
+    // 3. Check for duplicate mapping
+    const existing = await db.FloorPlanFacadeMap.findOne({
+      where: { floor_plan_id, facade_id },
+      transaction,
+    });
 
-    if (duplicateCheck.rows.length > 0) {
-      throw {
-        status: 409,
-        message: "This floor plan is already mapped to this facade",
-      };
+    if (existing) {
+      const error = new Error("This floor plan is already mapped to this facade");
+      error.status = 409;
+      throw error;
     }
 
-    // Create the mapping
-    const { rows } = await client.query(
-      `
-      INSERT INTO floor_plan_facade_map
-      (floor_plan_id, facade_id)
-      VALUES ($1, $2)
-      RETURNING *
-      `,
-      [floor_plan_id, facade_id],
+    // 4. Create the mapping
+    const mapping = await db.FloorPlanFacadeMap.create(
+      { floor_plan_id, facade_id },
+      { transaction }
     );
 
-    await client.query("COMMIT");
+    await transaction.commit();
 
-    // Transform the response to return just the mapping with IDs
-    const newMapping = rows[0];
     return {
-      id: newMapping.id,
-      floorPlanId: newMapping.floor_plan_id,
-      facadeId: newMapping.facade_id,
-      createdAt: newMapping.created_at,
+      id: mapping.id,
+      floorPlanId: mapping.floor_plan_id,
+      facadeId: mapping.facade_id,
+      createdAt: mapping.createdAt || null, // Explicitly handle null if needed for parity
     };
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (transaction) await transaction.rollback();
     throw error;
-  } finally {
-    client.release();
   }
 }
 
@@ -101,89 +83,70 @@ export async function createFloorPlanFacadeMap(currentUser, payload) {
  * GET ALL FLOOR PLAN FACADE MAPS
  */
 export async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
-  const pool = getPool();
+  const { floor_plan_id, facade_id, page = 1, limit = 25 } = filters;
+  const pageValue = parseInt(page, 10) || 1;
+  const limitValue = parseInt(limit, 10) || 25;
+  const offset = (pageValue - 1) * limitValue;
 
+  const { Op } = db.Sequelize;
   const builderId = currentUser.builder_id;
   const companyId = currentUser.company_id;
-  const { floor_plan_id, facade_id, page = 1, limit = 25 } = filters;
 
-  const offset = (page - 1) * limit;
-
-  let whereClause = "WHERE (fp.company_id = $1 OR fp.builder_id = $2)";
-  const values = [companyId, builderId];
-  let paramIndex = 3;
-
+  const where = {};
   if (floor_plan_id) {
-    whereClause += ` AND fpfm.floor_plan_id = $${paramIndex++}`;
-    values.push(floor_plan_id);
+    where.floor_plan_id = floor_plan_id;
   }
-
   if (facade_id) {
-    whereClause += ` AND fpfm.facade_id = $${paramIndex++}`;
-    values.push(facade_id);
+    where.facade_id = facade_id;
   }
 
-  const { rows } = await pool.query(
-    `
-    SELECT 
-      fpfm.id,
-      fpfm.floor_plan_id,
-      fpfm.facade_id,
-      fpfm.created_at,
-      fpfm.updated_at
-    FROM floor_plan_facade_map fpfm
-    INNER JOIN floor_plan fp ON fp.floor_plan_id = fpfm.floor_plan_id
-    INNER JOIN facade f ON f.facade_id = fpfm.facade_id
-    ${whereClause}
-    ORDER BY fpfm.created_at DESC
-    LIMIT $${paramIndex++} OFFSET $${paramIndex++}
-    `,
-    [...values, limit, offset],
-  );
+  const { count, rows } = await db.FloorPlanFacadeMap.findAndCountAll({
+    where,
+    include: [
+      {
+        model: db.FloorPlan,
+        as: "floorPlan",
+        attributes: ["builder_id", "company_id"],
+        required: true,
+        where: {
+          [Op.or]: [
+            { company_id: companyId },
+            { builder_id: builderId },
+          ],
+        },
+      },
+      {
+        model: db.Facade,
+        as: "facade",
+        attributes: ["name"],
+        required: true,
+      },
+    ],
+    order: [["created_at", "DESC"]],
+    limit: limitValue,
+    offset,
+  });
 
-  const countValues = [companyId, builderId];
-  let countParamIndex = 3;
-  let countWhereClause = "WHERE (fp.company_id = $1 OR fp.builder_id = $2)";
+  const mappings = rows.map((row) => {
+    const plain = row.get({ plain: true });
+    return {
+      id: plain.id,
+      floorPlanId: plain.floor_plan_id,
+      facadeId: plain.facade_id,
+      createdAt: plain.createdAt || null,
+      updatedAt: plain.updatedAt || null,
+    };
+  });
 
-  if (floor_plan_id) {
-    countWhereClause += ` AND fpfm.floor_plan_id = $${countParamIndex++}`;
-    countValues.push(floor_plan_id);
-  }
-
-  if (facade_id) {
-    countWhereClause += ` AND fpfm.facade_id = $${countParamIndex++}`;
-    countValues.push(facade_id);
-  }
-
-  const countResult = await pool.query(
-    `
-    SELECT COUNT(*)::int
-    FROM floor_plan_facade_map fpfm
-    INNER JOIN floor_plan fp ON fp.floor_plan_id = fpfm.floor_plan_id
-    INNER JOIN facade f ON f.facade_id = fpfm.facade_id
-    ${countWhereClause}
-    `,
-    countValues,
-  );
-
-  const mappings = rows.map((row) => ({
-    id: row.id,
-    floorPlanId: row.floor_plan_id,
-    facadeId: row.facade_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
-
-  const totalRecords = parseInt(countResult.rows[0].count, 10);
-  const totalPages = Math.ceil(totalRecords / limit);
+  const totalPages = Math.ceil(count / limitValue);
 
   return {
     mappings: keysToCamelCase(mappings),
     pagination: {
-      currentPage: page,
+      currentPage: pageValue,
       totalPages,
-      totalRecords,
-      limit,
+      totalRecords: count,
+      limit: limitValue,
     },
   };
 }
@@ -192,44 +155,55 @@ export async function getFloorPlanFacadeMaps(currentUser, filters = {}) {
  * DELETE FLOOR PLAN FACADE MAP
  */
 export async function deleteFloorPlanFacadeMap(currentUser, id) {
-  const pool = getPool();
-  const client = await pool.connect();
+  const builderId = currentUser.builder_id;
+  const companyId = currentUser.company_id;
 
+  const transaction = await db.sequelize.transaction();
   try {
-    await client.query("BEGIN");
+    // 1. Verify existence and ownership
+    const mapping = await db.FloorPlanFacadeMap.findOne({
+      where: { id },
+      include: [
+        {
+          model: db.FloorPlan,
+          as: "floorPlan",
+          required: true,
+          where: {
+            [db.Sequelize.Op.or]: [
+              { company_id: companyId },
+              { builder_id: builderId },
+            ],
+          },
+        },
+        {
+          model: db.Facade,
+          as: "facade",
+          required: true,
+          where: {
+            [db.Sequelize.Op.or]: [
+              { company_id: companyId },
+              { builder_id: builderId },
+            ],
+          },
+        },
+      ],
+      transaction,
+    });
 
-    const builderId = currentUser.builder_id;
-    const companyId = currentUser.company_id;
-
-    const existingCheck = await client.query(
-      `
-      SELECT fpfm.id
-      FROM floor_plan_facade_map fpfm
-      INNER JOIN floor_plan fp ON fp.floor_plan_id = fpfm.floor_plan_id
-      INNER JOIN facade f ON f.facade_id = fpfm.facade_id
-      WHERE fpfm.id = $1
-        AND (fp.company_id = $2 OR fp.builder_id = $3)
-        AND (f.company_id = $2 OR f.builder_id = $3)
-      `,
-      [id, companyId, builderId],
-    );
-
-    if (existingCheck.rows.length === 0) {
-      throw {
-        status: 404,
-        message:
-          "Floor plan facade mapping not found or does not belong to your organization",
-      };
+    if (!mapping) {
+      const error = new Error("Floor plan facade mapping not found or does not belong to your organization");
+      error.status = 404;
+      throw error;
     }
 
-    await client.query("DELETE FROM floor_plan_facade_map WHERE id = $1", [id]);
+    // 2. Delete the mapping
+    await mapping.destroy({ transaction });
 
-    await client.query("COMMIT");
+    await transaction.commit();
+    return true;
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (transaction) await transaction.rollback();
     throw error;
-  } finally {
-    client.release();
   }
 }
 

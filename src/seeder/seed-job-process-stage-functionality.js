@@ -45,11 +45,13 @@ export const seedJobProcessStageFunctionalities = async () => {
 };
 
 // Check if run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")))) {
   seedJobProcessStageFunctionalities()
     .catch((err) => console.error(err))
     .finally(async () => {
-      if (db.sequelize) await db.sequelize.close();
+      if (db.sequelize) {
+        await db.sequelize.close();
+      }
       process.exit(0);
     });
 }

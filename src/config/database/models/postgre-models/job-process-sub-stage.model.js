@@ -17,7 +17,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_process_sub_stage", modelName: "JobProcessSubStage", underscored: true }
+    { sequelize, tableName: "job_process_sub_stage", modelName: "JobProcessSubStage", underscored: true },
   );
   return JobProcessSubStage;
 };

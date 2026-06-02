@@ -19,7 +19,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "quotation_version_pricelist_item_map", modelName: "QuotationVersionPricelistItemMap", underscored: true }
+    { sequelize, tableName: "quotation_version_pricelist_item_map", modelName: "QuotationVersionPricelistItemMap", underscored: true },
   );
   return QuotationVersionPricelistItemMap;
 };

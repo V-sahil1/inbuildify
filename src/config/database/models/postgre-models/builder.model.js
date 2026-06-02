@@ -98,7 +98,7 @@ export default (sequelize) => {
       tableName: "builder",
       modelName: "Builder",
       underscored: true,
-    }
+    },
   );
 
   return Builder;

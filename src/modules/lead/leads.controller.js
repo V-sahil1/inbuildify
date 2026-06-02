@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import leadsService from "./leads.service.js";
 import { successResponse, errorResponse } from "../../helper/response.js";
 
@@ -39,7 +40,7 @@ export async function createLead(req, res) {
         moduleId: result.data.leadsId,
         recordName: result.data.name,
         action: "CREATE",
-        description: `Lead created: ${result.data.name}`
+        description: `Lead created: ${result.data.name}`,
       });
       return successResponse(res, result.data, result.message);
     } if (result.emailExists) {
@@ -91,7 +92,7 @@ export async function forceCreateLead(req, res) {
         moduleId: result.data.leadsId,
         recordName: result.data.name,
         action: "CREATE",
-        description: `Lead created: ${result.data.name}`
+        description: `Lead created: ${result.data.name}`,
       });
       return successResponse(res, result.data, result.message);
     }
@@ -99,6 +100,59 @@ export async function forceCreateLead(req, res) {
 
   } catch (error) {
     console.error("Force create lead error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function createPublicLead(req, res) {
+  try {
+    const { builder_id, company_id, featur_facade_id, ...leadData } = req.body;
+
+    if (!builder_id) {
+      return errorResponse(res, 400, "Builder ID is required");
+    }
+
+    // 2. Create Lead via Service
+    const result = await leadsService.createPublicLead(
+      leadData,
+      builder_id,
+      company_id || null,
+      featur_facade_id
+    );
+
+    if (result.success) {
+      await logActivity(null, {
+        userId: null,
+        leadsId: result.data.leadsId,
+        module: "Lead",
+        moduleId: result.data.leadsId,
+        recordName: result.data.name,
+        action: "CREATE",
+        description: `Lead created via Public API: ${result.data.name}`,
+      });
+      return successResponse(res, result.data, "Lead created successfully from website");
+    }
+
+    if (result.emailExists) {
+      return errorResponse(res, 409, result.message, {
+        emailExists: true,
+        existingLead: result.existingLead,
+        featuredFacadeLead: result.featuredFacadeLead,
+      });
+    }
+
+    if (result.nameExists) {
+      return errorResponse(res, 409, result.message, {
+        nameExists: true,
+        existingLead: result.existingLead,
+        featuredFacadeLead: result.featuredFacadeLead,
+      });
+    }
+
+    return errorResponse(res, 400, result.message);
+
+  } catch (error) {
+    console.error("Public create lead error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
 }
@@ -113,8 +167,12 @@ export async function getAllLeads(req, res) {
     }
 
     const toArray = (value) => {
-      if (!value) return undefined;
-      if (Array.isArray(value)) return value;
+      if (!value) {
+        return undefined;
+      }
+      if (Array.isArray(value)) {
+        return value;
+      }
       return String(value)
         .split(",")
         .map((item) => item.trim())
@@ -131,6 +189,7 @@ export async function getAllLeads(req, res) {
       region_id: req.query.region_id,
       assignee_id: toArray(req.query.assignee_id),
       search: req.query.search,
+      email: req.query.email,
       created_at: req.query.created_at,
       sort_by: req.query.sort_by,
       sort_order: req.query.sort_order,
@@ -168,6 +227,29 @@ export async function getLeadById(req, res) {
 
   } catch (error) {
     console.error("Get lead by ID error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+}
+
+export async function getLeadDocuments(req, res) {
+  try {
+    const { leads_id } = req.params;
+    const builderId = req.user?.builder_id;
+    const companyId = req.user?.company_id;
+
+    if (!builderId && !companyId) {
+      return errorResponse(res, 401, "Unauthorized: Builder or company ID missing");
+    }
+
+    const result = await leadsService.getLeadDocuments(leads_id, builderId, companyId);
+
+    if (result.success) {
+      return successResponse(res, result.data, result.message);
+    }
+    return errorResponse(res, 404, result.message);
+
+  } catch (error) {
+    console.error("Get lead documents error:", error);
     return errorResponse(res, 500, "Internal server error");
   }
 }
@@ -210,7 +292,7 @@ export async function updateLead(req, res) {
         moduleId: leads_id,
         recordName: result.data.name,
         oldData: existingLeadResult.data,
-        newData: result.data
+        newData: result.data,
       });
       return successResponse(res, result.data, result.message);
     }
@@ -233,7 +315,7 @@ export async function deleteLead(req, res) {
     }
 
     const existingLeadResult = await leadsService.getLeadById(leads_id, builderId, companyId);
-    
+
     if (!existingLeadResult.success) {
       return errorResponse(res, 404, "Lead not found");
     }
@@ -434,14 +516,14 @@ export const removeHLPackage = async (req, res) => {
       leads_id,
       { remove_hl_package_lot_quotation },
       builder_id,
-      company_id
+      company_id,
     );
 
     if (result.success) {
       return successResponse(res, null, result.message);
-    } else {
-      return errorResponse(res, 400, result.message);
     }
+    return errorResponse(res, 400, result.message);
+
   } catch (error) {
     console.error("Remove HL Package error:", error);
     return errorResponse(res, 500, "Internal server error");
@@ -492,7 +574,7 @@ export async function getLeadActivityLog(req, res) {
       search,
       limit: limitValue,
       offset,
-      page: pageValue
+      page: pageValue,
     });
 
     if (result.success) {
@@ -505,4 +587,3 @@ export async function getLeadActivityLog(req, res) {
     return errorResponse(res, 500, "Internal server error");
   }
 }
-

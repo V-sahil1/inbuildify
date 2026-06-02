@@ -50,19 +50,21 @@ function ownerWhere(builderId, companyId) {
 
 export async function getAllCustomFieldsService({ builderId, companyId, page, limit, moduleId }) {
   const offset = (page - 1) * limit;
- 
+
   const where = { builder_id: builderId, company_id: companyId };
-  if (moduleId) where.module_id = moduleId;
- 
+  if (moduleId) {
+    where.module_id = moduleId;
+  }
+
   const { rows: customFields, count: totalRecords } = await db.CustomField.findAndCountAll({
     where,
     order: [["sort_order", "ASC"]],
     limit,
     offset,
   });
- 
+
   const totalPages = Math.ceil(totalRecords / limit);
- 
+
   return {
     customFields: keysToCamelCase(customFields.map((cf) => cf.toJSON())),
     pagination: { currentPage: page, totalPages, totalRecords, limit },
@@ -73,20 +75,20 @@ export async function getAllCustomFieldsService({ builderId, companyId, page, li
 
 export async function createCustomFieldService({ builderId, companyId, userId, payload }) {
   let { module_id, field_name, field_type, sort_order, is_active } = payload;
- 
+
   if (!VALID_FIELD_TYPES.includes(field_type?.toLowerCase())) {
     const error = new Error("Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.");
     error.status = 400;
     throw error;
   }
- 
+
   const validModule = await db.CustomFieldModule.findOne({ where: { module_id }, attributes: ["module_id"] });
   if (!validModule) {
     const error = new Error("Invalid module_id. Module not found in custom_field_module.");
     error.status = 400;
     throw error;
   }
- 
+
   const duplicateField = await db.CustomField.findOne({
     where: {
       module_id, builder_id: builderId, company_id: companyId,
@@ -99,20 +101,22 @@ export async function createCustomFieldService({ builderId, companyId, userId, p
     error.status = 400;
     throw error;
   }
- 
-  if (sort_order === undefined || sort_order === null) sort_order = 1;
- 
+
+  if (sort_order === undefined || sort_order === null) {
+    sort_order = 1;
+  }
+
   const maxSortOrderResult = await db.CustomField.max("sort_order", {
     where: { module_id, company_id: companyId, builder_id: builderId },
   });
   const maxSortOrder = maxSortOrderResult || 0;
- 
+
   if (sort_order < 1 || sort_order > maxSortOrder + 1) {
     const error = new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
     error.status = 400;
     throw error;
   }
- 
+
   // ── Transaction: shift + insert ───────────────────────────────────────────
   const t = await db.sequelize.transaction();
   try {
@@ -121,14 +125,14 @@ export async function createCustomFieldService({ builderId, companyId, userId, p
       where: { sort_order: { [Op.gte]: sort_order }, module_id, company_id: companyId, builder_id: builderId },
       transaction: t,
     });
- 
+
     const newField = await db.CustomField.create({
       company_id: companyId, builder_id: builderId, module_id,
       field_name: field_name.trim(), field_type: field_type.toLowerCase(),
       sort_order, is_active: is_active ?? true,
       created_by: userId || null, updated_by: userId || null,
     }, { transaction: t });
- 
+
     await t.commit();
     return keysToCamelCase(newField.toJSON());
   } catch (err) {
@@ -141,7 +145,7 @@ export async function createCustomFieldService({ builderId, companyId, userId, p
 
 export async function updateCustomFieldService({ id, builderId, companyId, userId, payload }) {
   const { field_name, field_type, sort_order } = payload;
- 
+
   const existing = await db.CustomField.findOne({ where: { custom_field_id: id, builder_id: builderId } });
   if (!existing) {
     const error = new Error("Custom field not found or not owned by this builder.");
@@ -153,22 +157,22 @@ export async function updateCustomFieldService({ id, builderId, companyId, userI
     error.status = 404;
     throw error;
   }
- 
+
   const moduleId = existing.module_id;
   const existingSortOrder = existing.sort_order;
- 
+
   if (field_type && Array.isArray(existing.options) && existing.options.length > 0 && field_type.toLowerCase() !== existing.field_type) {
     const error = new Error("Field type cannot be updated because options already exist for this field.");
     error.status = 400;
     throw error;
   }
- 
+
   if (field_type && !VALID_FIELD_TYPES.includes(field_type.toLowerCase())) {
     const error = new Error("Invalid field_type. Must be one of: text, number, date, checkbox, list, multiline.");
     error.status = 400;
     throw error;
   }
- 
+
   if (field_name) {
     const duplicate = await db.CustomField.findOne({
       where: {
@@ -184,19 +188,19 @@ export async function updateCustomFieldService({ id, builderId, companyId, userI
       throw error;
     }
   }
- 
+
   if (sort_order !== undefined && sort_order !== null) {
     const maxSortOrder = await db.CustomField.max("sort_order", {
       where: { module_id: moduleId, is_active: true, ...ownerWhere(builderId, companyId) },
     }) || 0;
- 
+
     if (sort_order < 1 || sort_order > maxSortOrder) {
       const error = new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`);
       error.status = 400;
       throw error;
     }
   }
- 
+
   // ── Transaction: rebalance + update ──────────────────────────────────────
   const t = await db.sequelize.transaction();
   try {
@@ -207,7 +211,7 @@ export async function updateCustomFieldService({ id, builderId, companyId, userI
         is_active: true,
         ...ownerWhere(builderId, companyId),
       };
- 
+
       if (sort_order > existingSortOrder) {
         await db.CustomField.decrement("sort_order", {
           by: 1,
@@ -222,7 +226,7 @@ export async function updateCustomFieldService({ id, builderId, companyId, userI
         });
       }
     }
- 
+
     const [, [updatedField]] = await db.CustomField.update({
       field_name: field_name || existing.field_name,
       field_type: field_type ? field_type.toLowerCase() : existing.field_type,
@@ -231,7 +235,7 @@ export async function updateCustomFieldService({ id, builderId, companyId, userI
       company_id: companyId,
       builder_id: builderId,
     }, { where: { custom_field_id: id }, returning: true, transaction: t });
- 
+
     await t.commit();
     return keysToCamelCase(updatedField.toJSON());
   } catch (err) {
@@ -247,13 +251,13 @@ export async function deleteCustomFieldService({ id, builderId, companyId }) {
     where: { custom_field_id: id, ...ownerWhere(builderId, companyId) },
     attributes: ["custom_field_id", "sort_order", "module_id"],
   });
- 
+
   if (!existing) {
     const error = new Error("Custom field not found.");
     error.status = 404;
     throw error;
   }
- 
+
   // ── Transaction: shift + destroy ──────────────────────────────────────────
   const t = await db.sequelize.transaction();
   try {
@@ -262,12 +266,12 @@ export async function deleteCustomFieldService({ id, builderId, companyId }) {
       where: { module_id: existing.module_id, sort_order: { [Op.gt]: existing.sort_order }, ...ownerWhere(builderId, companyId) },
       transaction: t,
     });
- 
+
     await db.CustomField.destroy({
       where: { custom_field_id: id, ...ownerWhere(builderId, companyId) },
       transaction: t,
     });
- 
+
     await t.commit();
   } catch (err) {
     await t.rollback();
@@ -287,7 +291,7 @@ export async function updateCustomFieldIsActiveService({ id, builderId, userId, 
     error.status = 404;
     throw error;
   }
- 
+
   const [, [updated]] = await db.CustomField.update(
     { is_active, updated_by: userId || null },
     { where: { custom_field_id: id }, returning: true },
@@ -312,17 +316,17 @@ export async function createOptionService({ custom_field_id, options, builderId,
     error.status = 400;
     throw error;
   }
- 
+
   const existingOptions = field.options || [];
   const normalizedExisting = existingOptions.map((o) => o.toLowerCase());
   const newUniqueOptions = options.map((o) => o.trim()).filter((o) => o && !normalizedExisting.includes(o.toLowerCase()));
- 
+
   if (newUniqueOptions.length === 0) {
     const error = new Error("All provided options already exist.");
     error.status = 409;
     throw error;
   }
- 
+
   const [, [updated]] = await db.CustomField.update(
     { options: [...existingOptions, ...newUniqueOptions], updated_by: userId || null },
     { where: { custom_field_id }, returning: true },
@@ -347,17 +351,17 @@ export async function deleteOptionService({ custom_field_id, options, builderId,
     error.status = 400;
     throw error;
   }
- 
+
   const existingOptions = field.options || [];
   const optionsToDelete = options.map((o) => o.toLowerCase());
   const filteredOptions = existingOptions.filter((opt) => !optionsToDelete.includes(opt.toLowerCase()));
- 
+
   if (filteredOptions.length === existingOptions.length) {
     const error = new Error("None of the provided options exist.");
     error.status = 404;
     throw error;
   }
- 
+
   const [, [updated]] = await db.CustomField.update(
     { options: filteredOptions, updated_by: userId || null },
     { where: { custom_field_id }, returning: true },

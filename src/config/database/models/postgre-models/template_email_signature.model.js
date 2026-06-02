@@ -22,7 +22,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "template_email_signature", modelName: "TemplateEmailSignature", underscored: true }
+    { sequelize, tableName: "template_email_signature", modelName: "TemplateEmailSignature", underscored: true },
   );
   return TemplateEmailSignature;
 };

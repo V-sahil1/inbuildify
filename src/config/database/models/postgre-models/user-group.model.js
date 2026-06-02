@@ -23,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "user_group", modelName: "UserGroup", underscored: true }
+    { sequelize, tableName: "user_group", modelName: "UserGroup", underscored: true },
   );
   return UserGroup;
 };

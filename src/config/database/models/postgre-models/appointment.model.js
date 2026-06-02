@@ -91,7 +91,7 @@ export default (sequelize) => {
       tableName: "appointment",
       modelName: "Appointment",
       underscored: true,
-    }
+    },
   );
 
   return Appointment;

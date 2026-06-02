@@ -32,17 +32,17 @@ router.post(
 
 router.get("/", getAllConstructionOptions);
 
-router.delete(
-  "/:id",
-  validateRequest(deleteConstructionOptionSchema, REQUEST_SOURCE.PARAMS),
-  deleteConstructionOption,
-);
-
 router.put(
   "/:id",
   validateRequest(updateConstructionOptionParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateConstructionOptionSchema, REQUEST_SOURCE.BODY),
   updateConstructionOption,
+);
+
+router.delete(
+  "/:id",
+  validateRequest(deleteConstructionOptionSchema, REQUEST_SOURCE.PARAMS),
+  deleteConstructionOption,
 );
 
 export default router;

@@ -12,6 +12,10 @@ export class ConstructionChecklist extends Model {
     ConstructionChecklist.hasMany(models.ConstructionChecklistPredecessor, { foreignKey: "construction_checklist_id", as: "predecessors" });
     ConstructionChecklist.hasMany(models.ConstructionSubChecklist, { foreignKey: "construction_checklist_id", as: "subChecklists" });
     ConstructionChecklist.hasMany(models.CostCenterChecklistMap, { foreignKey: "construction_checklist_id", as: "costCenterMaps" });
+    ConstructionChecklist.belongsTo(models.Builder, { foreignKey: "builder", as: "builderDetail", onDelete: "CASCADE" });
+    ConstructionChecklist.belongsTo(models.SupplierType, { foreignKey: "supplier_type_id", as: "supplierType", onDelete: "SET NULL" });
+    ConstructionChecklist.belongsTo(models.DocumentCommonFolder, { foreignKey: "po_folder_id", as: "poFolder", onDelete: "SET NULL" });
+    ConstructionChecklist.belongsTo(models.DocumentCommonFolder, { foreignKey: "job_documents_folder_id", as: "jobDocumentFolder", onDelete: "SET NULL" });
   }
 }
 
@@ -55,7 +59,7 @@ export default (sequelize) => {
       tableName: "construction_checklist",
       modelName: "ConstructionChecklist",
       underscored: true,
-    }
+    },
   );
   return ConstructionChecklist;
 };

@@ -153,26 +153,26 @@ export async function getAllTodos(req, res) {
 
     if (date_filter) {
       switch (date_filter) {
-        case "today":
-          conditions.push("t.booking_date = CURRENT_DATE");
-          conditions.push("t.status <> 'Cancelled'");
-          break;
-        case "tomorrow":
-          conditions.push("t.booking_date = CURRENT_DATE + INTERVAL '1 day'");
-          conditions.push("t.status <> 'Cancelled'");
-          break;
-        case "this_week":
-          conditions.push("t.booking_date BETWEEN date_trunc('week', CURRENT_DATE) AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'");
-          conditions.push("t.status <> 'Cancelled'");
-          break;
-        case "next_week":
-          conditions.push("t.booking_date BETWEEN date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days'");
-          conditions.push("t.status <> 'Cancelled'");
-          break;
-        case "overdue":
-          conditions.push("t.booking_date < CURRENT_DATE");
-          conditions.push("t.status <> 'Cancelled'");
-          break;
+      case "today":
+        conditions.push("t.booking_date = CURRENT_DATE");
+        conditions.push("t.status <> 'Cancelled'");
+        break;
+      case "tomorrow":
+        conditions.push("t.booking_date = CURRENT_DATE + INTERVAL '1 day'");
+        conditions.push("t.status <> 'Cancelled'");
+        break;
+      case "this_week":
+        conditions.push("t.booking_date BETWEEN date_trunc('week', CURRENT_DATE) AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'");
+        conditions.push("t.status <> 'Cancelled'");
+        break;
+      case "next_week":
+        conditions.push("t.booking_date BETWEEN date_trunc('week', CURRENT_DATE) + INTERVAL '7 days' AND date_trunc('week', CURRENT_DATE) + INTERVAL '13 days'");
+        conditions.push("t.status <> 'Cancelled'");
+        break;
+      case "overdue":
+        conditions.push("t.booking_date < CURRENT_DATE");
+        conditions.push("t.status <> 'Cancelled'");
+        break;
       }
     }
 
@@ -189,7 +189,7 @@ export async function getAllTodos(req, res) {
         COUNT(*) FILTER (WHERE t.booking_date < CURRENT_DATE AND t.status <> 'Cancelled') AS overdue_count
        FROM todo t
        WHERE t.builder_id = :builderId`,
-      { type: QueryTypes.SELECT, replacements: { builderId } }
+      { type: QueryTypes.SELECT, replacements: { builderId } },
     );
 
     const counters = {
@@ -210,7 +210,7 @@ export async function getAllTodos(req, res) {
        LEFT JOIN property_detail pd ON l.property_detail_id = pd.property_detail_id
        LEFT JOIN state st ON pd.state_id = st.state_id
        ${whereClause}`,
-      { type: QueryTypes.SELECT, replacements }
+      { type: QueryTypes.SELECT, replacements },
     );
     const totalRecords = parseInt(countRows[0]?.total, 10) || 0;
     const totalPages = Math.ceil(totalRecords / limitValue);
@@ -257,7 +257,7 @@ export async function getAllTodos(req, res) {
        ${whereClause}
        ORDER BY t.created_at DESC
        LIMIT ${limitValue} OFFSET ${offset}`,
-      { type: QueryTypes.SELECT, replacements }
+      { type: QueryTypes.SELECT, replacements },
     );
 
     const todos = keysToCamelCase(dataRows);
@@ -265,7 +265,7 @@ export async function getAllTodos(req, res) {
     return successResponse(
       res,
       { todos, pagination: { currentPage: pageValue, totalPages, totalRecords, limit: limitValue }, counters },
-      "Todos fetched successfully"
+      "Todos fetched successfully",
     );
   } catch (err) {
     console.error("Error fetching todos:", err);
@@ -307,7 +307,7 @@ export async function getTodoById(req, res) {
        LEFT JOIN users u ON t.site_supervisor_id = u.users_id
        LEFT JOIN supplier s ON t.supplier_id = s.supplier_id
        WHERE t.todo_id = :todoId AND t.builder_id = :builderId`,
-      { type: QueryTypes.SELECT, replacements: { todoId: todo_id, builderId } }
+      { type: QueryTypes.SELECT, replacements: { todoId: todo_id, builderId } },
     );
 
     if (rows.length === 0) {
@@ -346,8 +346,12 @@ export async function updateTodo(req, res) {
     } = req.body;
 
     const updateData = { updated_by: updatedBy };
-    if (job_id !== undefined) updateData.job_id = job_id || null;
-    if (task_name !== undefined) updateData.task_name = task_name;
+    if (job_id !== undefined) {
+      updateData.job_id = job_id || null;
+    }
+    if (task_name !== undefined) {
+      updateData.task_name = task_name;
+    }
     if (supplier_id !== undefined) {
       if (!supplier_id) {
         return errorResponse(res, 400, "supplier_id cannot be empty");
@@ -363,15 +367,27 @@ export async function updateTodo(req, res) {
       // To-do assignment is supplier-only.
       updateData.site_supervisor_id = null;
     }
-    if (booking_date !== undefined) updateData.booking_date = booking_date || null;
-    if (start_date !== undefined) updateData.start_date = start_date || null;
-    if (finish_date !== undefined) updateData.finish_date = finish_date || null;
+    if (booking_date !== undefined) {
+      updateData.booking_date = booking_date || null;
+    }
+    if (start_date !== undefined) {
+      updateData.start_date = start_date || null;
+    }
+    if (finish_date !== undefined) {
+      updateData.finish_date = finish_date || null;
+    }
     if (site_supervisor_id !== undefined && supplier_id === undefined) {
       updateData.site_supervisor_id = null;
     }
-    if (subject !== undefined) updateData.subject = subject || null;
-    if (message !== undefined) updateData.message = message || null;
-    if (status !== undefined) updateData.status = status;
+    if (subject !== undefined) {
+      updateData.subject = subject || null;
+    }
+    if (message !== undefined) {
+      updateData.message = message || null;
+    }
+    if (status !== undefined) {
+      updateData.status = status;
+    }
 
     await todo.update(updateData);
 

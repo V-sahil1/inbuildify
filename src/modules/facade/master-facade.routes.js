@@ -8,6 +8,8 @@ import {
   getMasterFacadeById,
   updateMasterFacade,
   deleteMasterFacade,
+  toggleMasterFacadeCollab,
+  getPublicCollabFacades,
 } from "./master-facade.controller.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
@@ -23,6 +25,12 @@ import {
   deleteMasterFacadeSchema,
 } from "./master-facade.validation.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
+
+// Public API
+router.get(
+  "/public-collab",
+  getPublicCollabFacades,
+);
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -50,6 +58,13 @@ router.get(
   camelToSnakeMiddleware,
   validateRequest(getMasterFacadeByIdSchema, REQUEST_SOURCE.PARAMS),
   getMasterFacadeById,
+);
+
+router.put(
+  "/toggle-collab/:id",
+  camelToSnakeMiddleware,
+  validateRequest(getMasterFacadeByIdSchema, REQUEST_SOURCE.PARAMS),
+  toggleMasterFacadeCollab,
 );
 
 router.put(

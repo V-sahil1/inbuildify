@@ -57,13 +57,6 @@ export const getAllSurveyTemplateSchema = Joi.object({
   }),
 });
 
-export const deleteSurveyTemplateSchema = Joi.object({
-  survey_template_id: Joi.string().uuid().required().messages({
-    "string.guid": "Survey template ID must be a valid UUID",
-    "any.required": "Survey template ID is required",
-  }),
-});
-
 export const updateSurveyTemplateParamsSchema = Joi.object({
   survey_template_id: Joi.string().uuid().required().messages({
     "string.guid": "Survey template ID must be a valid UUID",
@@ -100,7 +93,6 @@ export const updateSurveyTemplateSchema = Joi.object({
 export default {
   createSurveyTemplateSchema,
   getAllSurveyTemplateSchema,
-  deleteSurveyTemplateSchema,
   updateSurveyTemplateParamsSchema,
   updateSurveyTemplateSchema,
 };

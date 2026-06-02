@@ -5,14 +5,11 @@ const router = express.Router();
 import {
   createHoliday,
   getAllHolidays,
-  deleteHoliday,
   updateHoliday,
-  toggleHolidayStatus,
 } from "./holiday.controller.js";
 import {
   createHolidaySchema,
   getAllHolidaySchema,
-  deleteHolidaySchema,
   updateHolidayParamsSchema,
   updateHolidaySchema,
 } from "./holiday.validation.js";
@@ -38,11 +35,6 @@ router.get(
   getAllHolidays,
 );
 
-router.delete(
-  "/:id",
-  validateRequest(deleteHolidaySchema, REQUEST_SOURCE.PARAMS),
-  deleteHoliday,
-);
 
 router.put(
   "/:holiday_id",
@@ -51,10 +43,5 @@ router.put(
   updateHoliday,
 );
 
-router.put(
-  "/is-active/:holiday_id",
-  validateRequest(updateHolidayParamsSchema, REQUEST_SOURCE.PARAMS),
-  toggleHolidayStatus,
-);
 
 export default router;

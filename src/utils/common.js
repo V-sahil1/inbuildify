@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.config.js";
+import db from "../config/database/models/postgre-models/index.js";
 
 import { ALLOWED_FILE_TYPES, ALLOWED_FILE_SIZE } from "../config/constants.js";
 
@@ -65,14 +66,14 @@ function toSnakeCase(str) {
   return str.replace(/([A-Z])/g, "_$1").toLowerCase();
 }
 function toCamelCase(str) {
-  return str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+  return str.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
 }
 
 export function formatCamelCaseToReadable(text) {
   if (!text || typeof text !== 'string') {
     return text;
   }
-  
+
   return text
     .replace(/_/g, ' ') // Replace underscores with spaces
     .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between lowercase and uppercase
@@ -83,9 +84,14 @@ export function formatCamelCaseToReadable(text) {
 export function keysToSnakeCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
-  } if (Array.isArray(obj)) {
+  }
+  if (obj !== null && typeof obj === "object" && typeof obj.toJSON === "function") {
+    obj = obj.toJSON();
+  }
+  if (Array.isArray(obj)) {
     return obj.map(keysToSnakeCase);
-  } if (obj !== null && typeof obj === "object") {
+  }
+  if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj).map(([key, value]) => [
         toSnakeCase(key),
@@ -99,9 +105,14 @@ export function keysToSnakeCase(obj) {
 export function keysToCamelCase(obj) {
   if (obj instanceof Date) {
     return obj.toISOString();
-  } if (Array.isArray(obj)) {
+  }
+  if (obj !== null && typeof obj === "object" && typeof obj.toJSON === "function") {
+    obj = obj.toJSON();
+  }
+  if (Array.isArray(obj)) {
     return obj.map(keysToCamelCase);
-  } if (obj !== null && typeof obj === "object") {
+  }
+  if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj).map(([key, value]) => [
         toCamelCase(key),
@@ -122,34 +133,32 @@ export function allowedFileData() {
 export const generateDynamicReferenceNumber = async ({
   prefix,
   tableName,
-  client,
   user,
   column = "reference_no",
   padding = 4,
   includeYear = true,
+  transaction = null,
 }) => {
-  if (!prefix || !tableName || !client) {
-    throw new Error("prefix, tableName and client are required");
+  if (!prefix || !tableName) {
+    throw new Error("prefix and tableName are required");
   }
 
   const year = includeYear ? new Date().getFullYear().toString() : "";
   const base = `${prefix}${year}`;
 
-  // Auto user scope
   const where = [];
-  const values = [];
+  const replacements = { base: `${base}%` };
 
   if (user?.company_id) {
-    where.push(`company_id = $${values.length + 1}`);
-    values.push(user.company_id);
+    where.push(`company_id = :companyId`);
+    replacements.companyId = user.company_id;
   }
   if (user?.builder_id) {
-    where.push(`builder_id = $${values.length + 1}`);
-    values.push(user.builder_id);
+    where.push(`builder_id = :builderId`);
+    replacements.builderId = user.builder_id;
   }
 
-  where.push(`${column} LIKE $${values.length + 1}`);
-  values.push(`${base}%`);
+  where.push(`${column} LIKE :base`);
 
   const query = `
     SELECT MAX(${column}) AS max_ref
@@ -157,9 +166,13 @@ export const generateDynamicReferenceNumber = async ({
     WHERE ${where.join(" AND ")}
   `;
 
-  const { rows } = await client.query(query, values);
-  const last = rows[0]?.max_ref;
+  const rows = await db.sequelize.query(query, {
+    replacements,
+    type: db.Sequelize.QueryTypes.SELECT,
+    transaction,
+  });
 
+  const last = rows[0]?.max_ref;
   const next = last ? parseInt(last.replace(base, ""), 10) + 1 : 1;
 
   return `${base}${String(next).padStart(padding, "0")}`;

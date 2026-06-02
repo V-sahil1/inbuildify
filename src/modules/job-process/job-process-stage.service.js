@@ -1,395 +1,37 @@
-import getPool from "../../config/database.js";
+import db from "../../config/database/models/postgre-models/index.js";
 import { ensureWorkflowStageByStageId } from "./job-process-workflow.guard.js";
+import { Sequelize } from "sequelize";
+
+const { Op } = Sequelize;
 
 /**
  * CREATE STAGE
  */
 export async function createStage(companyId, builderId, payload) {
-  const pool = getPool();
-  const duplicateCheck = await pool.query(
-    `
-    SELECT stage_id 
-    FROM job_process_stage
-    WHERE company_id = $1 
-      AND builder_id = $2 
-      AND name = $3
-    `,
-    [companyId, builderId, payload.name],
-  );
+  const { JobProcessStage, JobProcessStageFunctionality } = db;
 
-  if (duplicateCheck.rows.length > 0) {
-    throw new Error(
-      `Stage with name ${payload.name} already exists for this company/builder`,
-    );
-  }
+  return await db.sequelize.transaction(async (t) => {
+    // 1. Duplicate check
+    const existing = await JobProcessStage.findOne({
+      where: {
+        company_id: companyId,
+        builder_id: builderId,
+        name: payload.name,
+      },
+      transaction: t,
+    });
 
-  const maxSortOrderQuery = `
-    SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-    FROM job_process_stage
-    WHERE company_id = $1 
-      AND builder_id = $2
-  `;
-
-  const maxSortOrderResult = await pool.query(maxSortOrderQuery, [
-    companyId,
-    builderId,
-  ]);
-
-  const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
-
-  let finalSortOrder;
-
-  if (payload.sort_order !== undefined) {
-    finalSortOrder = payload.sort_order;
-  } else {
-    finalSortOrder = maxSortOrder + 1;
-  }
-
-  if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-    throw new Error(
-      `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-    );
-  }
-
-  if (payload.sort_order !== undefined) {
-    const shiftSortOrderQuery = `
-      UPDATE job_process_stage
-      SET sort_order = sort_order + 1
-      WHERE company_id = $1 
-        AND builder_id = $2 
-        AND sort_order >= $3
-    `;
-
-    await pool.query(shiftSortOrderQuery, [
-      companyId,
-      builderId,
-      payload.sort_order,
-    ]);
-  }
-
-  const result = await pool.query(
-    `
-    INSERT INTO job_process_stage
-    (company_id, builder_id, name, functionality_id, sort_order, dependent_stage_id)
-    VALUES ($1,$2,$3,$4,$5,$6)
-    RETURNING *
-    `,
-
-    [
-      companyId,
-      builderId,
-      payload.name,
-      payload.functionality_id,
-      finalSortOrder,
-      payload.dependent_stage_id || null,
-    ],
-  );
-
-  const { rows: createdRows } = await pool.query(
-    `
-    SELECT 
-      s.*,
-      ds.name AS dependent_stage_name,
-      f.functionality_id,
-      f.name AS functionality_name,
-      f.is_workflow
-    FROM job_process_stage s
-    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-    WHERE s.stage_id = $1
-    `,
-
-    [result.rows[0].stage_id],
-  );
-
-  const stageData = createdRows[0];
-
-  return {
-    stageId: stageData.stage_id,
-    name: stageData.name,
-    sortOrder: stageData.sort_order,
-    dependentStage: stageData.dependent_stage_id
-      ? {
-        id: stageData.dependent_stage_id,
-        name: stageData.dependent_stage_name,
-      }
-      : null,
-
-    functionality: {
-      id: stageData.functionality_id,
-      name: stageData.functionality_name,
-    },
-    isWorkflow: stageData.is_workflow,
-    companyId: stageData.company_id,
-    builderId: stageData.builder_id,
-    createdAt: stageData.created_at,
-    updatedAt: stageData.updated_at,
-  };
-}
-
-/**
- * UPDATE STAGE
- */
-export async function updateStage(stageId, payload, builderId, companyId) {
-  const pool = getPool();
-  const checkQuery = await pool.query(
-    `
-    SELECT stage_id, builder_id, company_id, name, sort_order
-    FROM job_process_stage
-    WHERE stage_id = $1 AND builder_id = $2 AND company_id = $3
-    `,
-
-    [stageId, builderId, companyId],
-  );
-
-  if (checkQuery.rows.length === 0) {
-    throw new Error("Stage not found");
-  }
-
-  const existingStage = checkQuery.rows[0];
-
-  if (payload.name && payload.name !== existingStage.name) {
-    const duplicateCheck = await pool.query(
-      `
-      SELECT stage_id 
-      FROM job_process_stage
-      WHERE company_id = $1 
-        AND builder_id = $2 
-        AND name = $3
-        AND stage_id != $4
-      `,
-
-      [
-        existingStage.company_id,
-        existingStage.builder_id,
-        payload.name,
-        stageId,
-      ],
-    );
-
-    if (duplicateCheck.rows.length > 0) {
-      throw new Error(
-        `Stage with name ${payload.name} already exists for this company/builder`,
-      );
-    }
-  }
-
-  if (
-    payload.sort_order !== undefined &&
-    payload.sort_order !== existingStage.sort_order
-  ) {
-    const maxSortOrderQuery = `
-      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-      FROM job_process_stage
-      WHERE company_id = $1 
-        AND builder_id = $2
-    `;
-
-    const maxSortOrderResult = await pool.query(maxSortOrderQuery, [
-      existingStage.company_id,
-      existingStage.builder_id,
-    ]);
-
-    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
-
-    if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
-      throw new Error(
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-      );
+    if (existing) {
+      throw new Error(`Stage with name ${payload.name} already exists for this company/builder`);
     }
 
-    if (payload.sort_order > existingStage.sort_order) {
-      await pool.query(
-        `
-        UPDATE job_process_stage
-        SET sort_order = sort_order - 1
-        WHERE sort_order > $1
-          AND sort_order <= $2
-          AND stage_id != $3
-          AND builder_id = $4
-        `,
-
-        [
-          existingStage.sort_order,
-          payload.sort_order,
-          stageId,
-          existingStage.builder_id,
-        ],
-      );
-    } else {
-      await pool.query(
-        `
-        UPDATE job_process_stage
-        SET sort_order = sort_order + 1
-        WHERE sort_order >= $1
-          AND sort_order < $2
-          AND stage_id != $3
-          AND builder_id = $4
-        `,
-
-        [
-          payload.sort_order,
-          existingStage.sort_order,
-          stageId,
-          existingStage.builder_id,
-        ],
-      );
-    }
-  }
-
-  const result = await pool.query(
-    `
-    UPDATE job_process_stage
-    SET
-      name = COALESCE($2, name),
-      sort_order = COALESCE($3, sort_order),
-      dependent_stage_id = COALESCE($4, dependent_stage_id),
-      functionality_id = COALESCE($5, functionality_id),
-      updated_at = NOW()
-    WHERE stage_id = $1
-    RETURNING *
-    `,
-
-    [
-      stageId,
-      payload.name,
-      payload.sort_order,
-      payload.dependent_stage_id,
-      payload.functionality_id,
-    ],
-  );
-
-  if (!result.rowCount) {
-    throw new Error("Stage not found");
-  }
-
-  const { rows: updatedRows } = await pool.query(
-    `
-    SELECT 
-      s.*,
-      ds.name AS dependent_stage_name,
-      f.functionality_id,
-      f.name AS functionality_name,
-      f.is_workflow
-    FROM job_process_stage s
-    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-    WHERE s.stage_id = $1
-    `,
-
-    [stageId],
-  );
-
-  const stageData = updatedRows[0];
-
-  return {
-    stageId: stageData.stage_id,
-    name: stageData.name,
-    sortOrder: stageData.sort_order,
-    dependentStage: stageData.dependent_stage_id
-      ? {
-        id: stageData.dependent_stage_id,
-        name: stageData.dependent_stage_name,
-      }
-      : null,
-
-    functionality: {
-      id: stageData.functionality_id,
-      name: stageData.functionality_name,
-    },
-
-    isWorkflow: stageData.is_workflow,
-    companyId: stageData.company_id,
-    builderId: stageData.builder_id,
-    updatedAt: stageData.updated_at,
-  };
-}
-
-/**
- * DELETE STAGE
- */
-export async function deleteStage(stageId, builderId) {
-  const pool = getPool();
-
-  const checkQuery = await pool.query(
-    `
-    SELECT stage_id, builder_id, sort_order
-    FROM job_process_stage
-    WHERE stage_id = $1
-    `,
-
-    [stageId],
-  );
-
-  if (checkQuery.rows.length === 0) {
-    throw new Error("Stage not found");
-  }
-
-  const stageBuilderId = checkQuery.rows[0].builder_id;
-
-  if (stageBuilderId !== builderId) {
-    throw new Error("You can only delete your own stages");
-  }
-
-  await pool.query("DELETE FROM job_process_stage WHERE stage_id = $1", [
-    stageId,
-  ]);
-}
-
-export async function createSubStage(stageId, payload) {
-  await ensureWorkflowStageByStageId(stageId);
-
-  const pool = getPool();
-
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-
-    const stageQuery = await client.query(
-      `
-      SELECT company_id, builder_id
-      FROM job_process_stage
-      WHERE stage_id = $1
-      `,
-
-      [stageId],
-    );
-
-    if (stageQuery.rows.length === 0) {
-      throw new Error("Parent stage not found");
-    }
-
-    const { company_id: companyId, builder_id: builderId } = stageQuery.rows[0];
-
-    const duplicateCheck = await client.query(
-      `
-      SELECT sub_stage_id 
-      FROM job_process_sub_stage
-      WHERE stage_id = $1 
-        AND name = $2
-      `,
-
-      [stageId, payload.name],
-    );
-
-    if (duplicateCheck.rows.length > 0) {
-      throw new Error(
-        `Sub-stage with name ${payload.name} already exists for this stage`,
-      );
-    }
-
-    const maxSortOrderQuery = `
-      SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-      FROM job_process_sub_stage
-      WHERE stage_id = $1
-    `;
-
-    const maxSortOrderResult = await client.query(maxSortOrderQuery, [stageId]);
-    const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
+    // 2. Sort Order Logic
+    const maxSortOrder = (await JobProcessStage.max("sort_order", {
+      where: { company_id: companyId, builder_id: builderId },
+      transaction: t,
+    })) || 0;
 
     let finalSortOrder;
-
     if (payload.sort_order !== undefined) {
       finalSortOrder = payload.sort_order;
     } else {
@@ -397,615 +39,610 @@ export async function createSubStage(stageId, payload) {
     }
 
     if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
-      throw new Error(
-        `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-      );
+      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
+    }
+
+    // Shift existing stages if sort_order is provided
+    if (payload.sort_order !== undefined) {
+      await JobProcessStage.increment("sort_order", {
+        by: 1,
+        where: {
+          company_id: companyId,
+          builder_id: builderId,
+          sort_order: { [Op.gte]: payload.sort_order },
+        },
+        transaction: t,
+      });
+    }
+
+    // 3. Create Stage
+    const stage = await JobProcessStage.create({
+      company_id: companyId,
+      builder_id: builderId,
+      name: payload.name,
+      functionality_id: payload.functionality_id,
+      sort_order: finalSortOrder,
+      dependent_stage_id: payload.dependent_stage_id || null,
+    }, { transaction: t });
+
+    // 4. Fetch with relations for consistent response
+    const stageData = await JobProcessStage.findByPk(stage.stage_id, {
+      include: [
+        { model: JobProcessStage, as: "dependentStage", attributes: ["stage_id", "name"] },
+        { model: JobProcessStageFunctionality, as: "functionality", attributes: ["functionality_id", "name", "is_workflow"] },
+      ],
+      transaction: t,
+    });
+
+    const plain = stageData.get({ plain: true });
+
+    return {
+      stageId: plain.stage_id,
+      name: plain.name,
+      sortOrder: plain.sort_order,
+      dependentStage: plain.dependentStage
+        ? { id: plain.dependentStage.stage_id, name: plain.dependentStage.name }
+        : null,
+      functionality: {
+        id: plain.functionality.functionality_id,
+        name: plain.functionality.name,
+      },
+      isWorkflow: plain.functionality.is_workflow,
+      companyId: plain.company_id,
+      builderId: plain.builder_id,
+      createdAt: plain.created_at,
+      updatedAt: plain.updated_at,
+    };
+  });
+}
+
+/**
+ * UPDATE STAGE
+ */
+export async function updateStage(stageId, payload, builderId, companyId) {
+  const { JobProcessStage, JobProcessStageFunctionality } = db;
+
+  return await db.sequelize.transaction(async (t) => {
+    const stage = await JobProcessStage.findOne({
+      where: { stage_id: stageId, builder_id: builderId, company_id: companyId },
+      transaction: t,
+    });
+
+    if (!stage) {
+      throw new Error("Stage not found");
+    }
+
+    // Duplicate check for name change
+    if (payload.name && payload.name !== stage.name) {
+      const duplicate = await JobProcessStage.findOne({
+        where: {
+          company_id: companyId,
+          builder_id: builderId,
+          name: payload.name,
+          stage_id: { [Op.ne]: stageId },
+        },
+        transaction: t,
+      });
+
+      if (duplicate) {
+        throw new Error(`Stage with name ${payload.name} already exists for this company/builder`);
+      }
+    }
+
+    // Sort order rebalancing
+    if (payload.sort_order !== undefined && payload.sort_order !== stage.sort_order) {
+      const maxSortOrder = await JobProcessStage.max("sort_order", {
+        where: { company_id: companyId, builder_id: builderId },
+        transaction: t,
+      });
+
+      if (payload.sort_order < 1 || payload.sort_order > maxSortOrder) {
+        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`);
+      }
+
+      const oldOrder = stage.sort_order;
+      const newOrder = payload.sort_order;
+
+      if (newOrder > oldOrder) {
+        // Shift intermediate stages down
+        await JobProcessStage.decrement("sort_order", {
+          by: 1,
+          where: {
+            builder_id: builderId,
+            company_id: companyId,
+            sort_order: { [Op.gt]: oldOrder, [Op.lte]: newOrder },
+            stage_id: { [Op.ne]: stageId },
+          },
+          transaction: t,
+        });
+      } else {
+        // Shift intermediate stages up
+        await JobProcessStage.increment("sort_order", {
+          by: 1,
+          where: {
+            builder_id: builderId,
+            company_id: companyId,
+            sort_order: { [Op.lt]: oldOrder, [Op.gte]: newOrder },
+            stage_id: { [Op.ne]: stageId },
+          },
+          transaction: t,
+        });
+      }
+    }
+
+    // Update Stage
+    await stage.update({
+      name: payload.name,
+      sort_order: payload.sort_order,
+      dependent_stage_id: payload.dependent_stage_id,
+      functionality_id: payload.functionality_id,
+      updated_at: new Date(),
+    }, { transaction: t });
+
+    // Fetch refreshed data
+    const stageData = await JobProcessStage.findByPk(stageId, {
+      include: [
+        { model: JobProcessStage, as: "dependentStage", attributes: ["stage_id", "name"] },
+        { model: JobProcessStageFunctionality, as: "functionality", attributes: ["functionality_id", "name", "is_workflow"] },
+      ],
+      transaction: t,
+    });
+
+    const plain = stageData.get({ plain: true });
+
+    return {
+      stageId: plain.stage_id,
+      name: plain.name,
+      sortOrder: plain.sort_order,
+      dependentStage: plain.dependentStage
+        ? { id: plain.dependentStage.stage_id, name: plain.dependentStage.name }
+        : null,
+      functionality: {
+        id: plain.functionality.functionality_id,
+        name: plain.functionality.name,
+      },
+      isWorkflow: plain.functionality.is_workflow,
+      companyId: plain.company_id,
+      builderId: plain.builder_id,
+      updatedAt: plain.updated_at,
+    };
+  });
+}
+
+/**
+ * DELETE STAGE
+ */
+export async function deleteStage(stageId, builderId, companyId) {
+  const { JobProcessStage } = db;
+
+  return await db.sequelize.transaction(async (t) => {
+    const stage = await JobProcessStage.findOne({
+      where: { stage_id: stageId, builder_id: builderId, company_id: companyId },
+      transaction: t,
+    });
+
+    if (!stage) {
+      throw new Error("Stage not found");
+    }
+
+    const deletedOrder = stage.sort_order;
+
+    await stage.destroy({ transaction: t });
+
+    // Rebalance sort orders for subsequent stages
+    await JobProcessStage.decrement("sort_order", {
+      by: 1,
+      where: {
+        company_id: companyId,
+        builder_id: builderId,
+        sort_order: { [Op.gt]: deletedOrder },
+      },
+      transaction: t,
+    });
+  });
+}
+
+export async function createSubStage(stageId, payload) {
+  await ensureWorkflowStageByStageId(stageId);
+
+  const { JobProcessStage, JobProcessSubStage } = db;
+
+  return await db.sequelize.transaction(async (t) => {
+    const parentStage = await JobProcessStage.findByPk(stageId, { transaction: t });
+    if (!parentStage) {
+      throw new Error("Parent stage not found");
+    }
+
+    // Duplicate check
+    const existing = await JobProcessSubStage.findOne({
+      where: { stage_id: stageId, name: payload.name },
+      transaction: t,
+    });
+
+    if (existing) {
+      throw new Error(`Sub-stage with name ${payload.name} already exists for this stage`);
+    }
+
+    // Sort order rebalancing
+    const maxSortOrder = (await JobProcessSubStage.max("sort_order", {
+      where: { stage_id: stageId },
+      transaction: t,
+    })) || 0;
+
+    let finalSortOrder;
+    if (payload.sort_order !== undefined) {
+      finalSortOrder = payload.sort_order;
+    } else {
+      finalSortOrder = maxSortOrder + 1;
+    }
+
+    if (finalSortOrder < 1 || finalSortOrder > maxSortOrder + 1) {
+      throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`);
     }
 
     if (payload.sort_order !== undefined) {
-      const shiftSortOrderQuery = `
-        UPDATE job_process_sub_stage
-        SET sort_order = sort_order + 1
-        WHERE stage_id = $1 
-          AND sort_order >= $2
-      `;
-
-      await client.query(shiftSortOrderQuery, [stageId, payload.sort_order]);
+      await JobProcessSubStage.increment("sort_order", {
+        by: 1,
+        where: {
+          stage_id: stageId,
+          sort_order: { [Op.gte]: payload.sort_order },
+        },
+        transaction: t,
+      });
     }
 
-    const result = await client.query(
-      `
-      INSERT INTO job_process_sub_stage
-      (stage_id, name, sort_order)
-      VALUES ($1, $2, $3)
-      RETURNING *
-      `,
+    const subStage = await JobProcessSubStage.create({
+      stage_id: stageId,
+      name: payload.name,
+      sort_order: finalSortOrder,
+    }, { transaction: t });
 
-      [stageId, payload.name, finalSortOrder],
-    );
-
-    await client.query("COMMIT");
-
-    return result.rows[0];
-  } catch (err) {
-    await client.query("ROLLBACK");
-
-    throw err;
-  } finally {
-    client.release();
-  }
+    return subStage.get({ plain: true });
+  });
 }
 
 export async function updateSubStage(subStageId, payload, builderId, companyId) {
-  const pool = getPool();
+  const { JobProcessSubStage, JobProcessStage } = db;
 
-  const client = await pool.connect();
+  return await db.sequelize.transaction(async (t) => {
+    const subStage = await JobProcessSubStage.findOne({
+      where: { sub_stage_id: subStageId },
+      include: [{
+        model: JobProcessStage,
+        as: "stage",
+        where: { builder_id: builderId, company_id: companyId },
+      }],
+      transaction: t,
+    });
 
-  try {
-    await client.query("BEGIN");
-
-    const checkQuery = await client.query(
-      `
-      SELECT ss.sub_stage_id, ss.stage_id, ss.name, ss.sort_order, s.builder_id, s.company_id
-      FROM job_process_sub_stage ss
-      JOIN job_process_stage s ON s.stage_id = ss.stage_id
-      WHERE ss.sub_stage_id = $1
-      `,
-
-      [subStageId],
-    );
-
-    if (checkQuery.rows.length === 0) {
+    if (!subStage) {
       throw new Error("Sub-stage not found");
     }
 
-    const existingSubStage = checkQuery.rows[0];
+    // Duplicate check
+    if (payload.name && payload.name !== subStage.name) {
+      const duplicate = await JobProcessSubStage.findOne({
+        where: {
+          stage_id: subStage.stage_id,
+          name: payload.name,
+          sub_stage_id: { [Op.ne]: subStageId },
+        },
+        transaction: t,
+      });
 
-    if (
-      existingSubStage.builder_id !== builderId &&
-      existingSubStage.company_id !== companyId
-    ) {
-      throw new Error("You can only update your own sub-stages");
-    }
-
-    if (payload.name && payload.name !== existingSubStage.name) {
-      const duplicateCheck = await client.query(
-        `
-        SELECT sub_stage_id 
-        FROM job_process_sub_stage
-        WHERE stage_id = $1 
-          AND name = $2
-          AND sub_stage_id != $3
-        `,
-
-        [existingSubStage.stage_id, payload.name, subStageId],
-      );
-
-      if (duplicateCheck.rows.length > 0) {
-        throw new Error(
-          `Sub-stage with name ${payload.name} already exists for this stage`,
-        );
+      if (duplicate) {
+        throw new Error(`Sub-stage with name ${payload.name} already exists for this stage`);
       }
     }
 
-    if (
-      payload.sort_order !== undefined &&
-      payload.sort_order !== existingSubStage.sort_order
-    ) {
-      const maxSortOrderQuery = `
-        SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order
-        FROM job_process_sub_stage
-        WHERE stage_id = $1
-      `;
+    // Sort order rebalancing
+    if (payload.sort_order !== undefined && payload.sort_order !== subStage.sort_order) {
+      const maxSortOrder = await JobProcessSubStage.max("sort_order", {
+        where: { stage_id: subStage.stage_id },
+        transaction: t,
+      });
 
-      const maxSortOrderResult = await client.query(maxSortOrderQuery, [
-        existingSubStage.stage_id,
-      ]);
-
-      const maxSortOrder = maxSortOrderResult.rows[0].max_sort_order;
-
-      if (payload.sort_order < 1 || payload.sort_order > maxSortOrder + 1) {
-        throw new Error(
-          `Invalid sort_order. Allowed range is 1 to ${maxSortOrder + 1}.`,
-        );
+      if (payload.sort_order < 1 || payload.sort_order > maxSortOrder) {
+        throw new Error(`Invalid sort_order. Allowed range is 1 to ${maxSortOrder}.`);
       }
 
-      if (payload.sort_order > existingSubStage.sort_order) {
-        await client.query(
-          `
-          UPDATE job_process_sub_stage
-          SET sort_order = sort_order - 1
-          WHERE sort_order > $1
-            AND sort_order <= $2
-            AND sub_stage_id != $3
-            AND stage_id = $4
-          `,
+      const oldOrder = subStage.sort_order;
+      const newOrder = payload.sort_order;
 
-          [
-            existingSubStage.sort_order,
-            payload.sort_order,
-            subStageId,
-            existingSubStage.stage_id,
-          ],
-        );
+      if (newOrder > oldOrder) {
+        await JobProcessSubStage.decrement("sort_order", {
+          by: 1,
+          where: {
+            stage_id: subStage.stage_id,
+            sort_order: { [Op.gt]: oldOrder, [Op.lte]: newOrder },
+            sub_stage_id: { [Op.ne]: subStageId },
+          },
+          transaction: t,
+        });
       } else {
-        await client.query(
-          `
-          UPDATE job_process_sub_stage
-          SET sort_order = sort_order + 1
-          WHERE sort_order >= $1
-            AND sort_order < $2
-            AND sub_stage_id != $3
-            AND stage_id = $4
-          `,
-
-          [
-            payload.sort_order,
-            existingSubStage.sort_order,
-            subStageId,
-            existingSubStage.stage_id,
-          ],
-        );
+        await JobProcessSubStage.increment("sort_order", {
+          by: 1,
+          where: {
+            stage_id: subStage.stage_id,
+            sort_order: { [Op.lt]: oldOrder, [Op.gte]: newOrder },
+            sub_stage_id: { [Op.ne]: subStageId },
+          },
+          transaction: t,
+        });
       }
     }
 
-    const { rows, rowCount } = await client.query(
-      `
-      UPDATE job_process_sub_stage
-      SET
-        name = COALESCE($2, name),
-        sort_order = COALESCE($3, sort_order),
-        updated_at = NOW()
-      WHERE sub_stage_id = $1
-      RETURNING *
-      `,
+    await subStage.update({
+      name: payload.name,
+      sort_order: payload.sort_order,
+      updated_at: new Date(),
+    }, { transaction: t });
 
-      [subStageId, payload.name, payload.sort_order],
-    );
-
-    if (!rowCount) {
-      throw new Error("Sub-stage not found");
-    }
-
-    await client.query("COMMIT");
-
-    return rows[0];
-  } catch (err) {
-    await client.query("ROLLBACK");
-
-    throw err;
-  } finally {
-    client.release();
-  }
+    return subStage.get({ plain: true });
+  });
 }
 
 export async function deleteSubStage(subStageId, builderId, companyId, taskId = null) {
-  const pool = getPool();
+  const { JobProcessSubStage, JobProcessStage, JobProcessTask } = db;
 
-  const client = await pool.connect();
+  return await db.sequelize.transaction(async (t) => {
+    const subStage = await JobProcessSubStage.findOne({
+      where: { sub_stage_id: subStageId },
+      include: [{
+        model: JobProcessStage,
+        as: "stage",
+        where: { builder_id: builderId, company_id: companyId },
+      }],
+      transaction: t,
+    });
 
-  try {
-    await client.query("BEGIN");
-
-    const checkQuery = await client.query(
-      `
-      SELECT ss.sub_stage_id, ss.stage_id, ss.sort_order, s.builder_id, s.company_id
-      FROM job_process_sub_stage ss
-      JOIN job_process_stage s ON s.stage_id = ss.stage_id
-      WHERE ss.sub_stage_id = $1 AND s.builder_id = $2 AND s.company_id = $3
-      `,
-
-      [subStageId, builderId, companyId],
-    );
-
-    if (checkQuery.rows.length === 0) {
+    if (!subStage) {
       throw new Error("Sub-stage not found");
     }
 
-    const subStageInfo = checkQuery.rows[0];
+    const existingSortOrder = subStage.sort_order;
+    const stageId = subStage.stage_id;
 
-    const existingSortOrder = subStageInfo.sort_order;
-
-    const stageId = subStageInfo.stage_id;
-
-    const tasksInDeletedSubStage = await client.query(
-      `
-      SELECT job_process_task_id, sort_order
-      FROM job_process_task
-      WHERE sub_stage_id = $1
-      ORDER BY sort_order
-      `,
-
-      [subStageId],
-    );
+    // Fetch tasks in this sub-stage
+    const tasks = await JobProcessTask.findAll({
+      where: { sub_stage_id: subStageId },
+      order: [["sort_order", "ASC"]],
+      transaction: t,
+    });
 
     if (taskId) {
-      const taskQuery = await client.query(
-        `
-        SELECT sub_stage_id, sort_order
-        FROM job_process_task
-        WHERE job_process_task_id = $1
-        `,
-
-        [taskId],
-      );
-
-      if (taskQuery.rows.length === 0) {
+      // Logic for moving tasks to a specific task's parent sub-stage
+      const targetTask = await JobProcessTask.findByPk(taskId, { transaction: t });
+      if (!targetTask) {
         throw new Error("Task not found");
       }
 
-      const targetSubStageId = taskQuery.rows[0].sub_stage_id;
-      const targetTaskSortOrder = taskQuery.rows[0].sort_order;
+      const targetSubStageId = targetTask.sub_stage_id;
+      const targetTaskSortOrder = targetTask.sort_order;
 
-      await client.query(
-        `
-        UPDATE job_process_task
-        SET sort_order = sort_order + $1
-        WHERE sub_stage_id = $2 AND sort_order > $3
-        `,
+      // Shift target sub-stage tasks to make room
+      await JobProcessTask.increment("sort_order", {
+        by: tasks.length,
+        where: {
+          sub_stage_id: targetSubStageId,
+          sort_order: { [Op.gt]: targetTaskSortOrder },
+        },
+        transaction: t,
+      });
 
-        [
-          tasksInDeletedSubStage.rows.length,
-          targetSubStageId,
-          targetTaskSortOrder,
-        ],
-      );
-
-      for (let i = 0; i < tasksInDeletedSubStage.rows.length; i++) {
-        const task = tasksInDeletedSubStage.rows[i];
-        const newSortOrder = targetTaskSortOrder + 1 + i;
-
-        await client.query(
-          `
-          UPDATE job_process_task
-          SET sub_stage_id = $1, sort_order = $2
-          WHERE job_process_task_id = $3
-          `,
-
-          [targetSubStageId, newSortOrder, task.job_process_task_id],
-        );
+      // Move tasks to target sub-stage
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        await task.update({
+          sub_stage_id: targetSubStageId,
+          sort_order: targetTaskSortOrder + 1 + i,
+        }, { transaction: t });
       }
     } else {
-      await handleAllTaskRelocation(
-        client,
-        subStageId,
-        stageId,
-        existingSortOrder,
-      );
+      // General relocation to the next sub-stage
+      await handleAllTaskRelocation(t, subStageId, stageId, existingSortOrder);
     }
 
-    await client.query(
-      `
-      UPDATE job_process_sub_stage
-      SET sort_order = sort_order - 1
-      WHERE stage_id = $1 
-        AND sort_order > $2
-      `,
+    // Shift remaining sub-stages
+    await JobProcessSubStage.decrement("sort_order", {
+      by: 1,
+      where: {
+        stage_id: stageId,
+        sort_order: { [Op.gt]: existingSortOrder },
+      },
+      transaction: t,
+    });
 
-      [stageId, existingSortOrder],
-    );
-
-    await client.query(
-      "DELETE FROM job_process_sub_stage WHERE sub_stage_id = $1",
-
-      [subStageId],
-    );
-
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-
-    throw err;
-  } finally {
-    client.release();
-  }
+    await subStage.destroy({ transaction: t });
+  });
 }
 
 async function handleAllTaskRelocation(
-  client,
+  transaction,
   deletedSubStageId,
   stageId,
   deletedSortOrder,
   specificTasks = null,
 ) {
-  let targetSubStageQuery;
+  const { JobProcessSubStage, JobProcessTask } = db;
+
+  let targetSubStage;
 
   if (specificTasks) {
-    targetSubStageQuery = await client.query(
-      `
-      SELECT sub_stage_id, sort_order
-      FROM job_process_sub_stage
-      WHERE stage_id = (
-        SELECT stage_id FROM job_process_sub_stage WHERE sub_stage_id = $1
-      )
-      AND sub_stage_id != $1
-      ORDER BY sort_order
-      LIMIT 1
-      `,
-
-      [deletedSubStageId],
-    );
+    targetSubStage = await JobProcessSubStage.findOne({
+      where: {
+        stage_id: {
+          [Op.in]: Sequelize.literal(`(SELECT stage_id FROM job_process_sub_stage WHERE sub_stage_id = '${deletedSubStageId}')`),
+        },
+        sub_stage_id: { [Op.ne]: deletedSubStageId },
+      },
+      order: [["sort_order", "ASC"]],
+      transaction,
+    });
   } else {
-    targetSubStageQuery = await client.query(
-      `
-      SELECT sub_stage_id, sort_order
-      FROM job_process_sub_stage
-      WHERE stage_id = $1 AND sort_order > $2
-      ORDER BY sort_order
-      LIMIT 1
-      `,
-
-      [stageId, deletedSortOrder],
-    );
+    targetSubStage = await JobProcessSubStage.findOne({
+      where: {
+        stage_id: stageId,
+        sort_order: { [Op.gt]: deletedSortOrder },
+      },
+      order: [["sort_order", "ASC"]],
+      transaction,
+    });
   }
 
-  if (targetSubStageQuery.rows.length === 0) {
+  if (!targetSubStage) {
     throw new Error("No target sub-stage available for task relocation");
   }
 
-  const targetSubStageId = targetSubStageQuery.rows[0].sub_stage_id;
+  const tasksToMove = specificTasks || (await JobProcessTask.findAll({
+    where: { sub_stage_id: deletedSubStageId },
+    order: [["sort_order", "ASC"]],
+    transaction,
+  }));
 
-  const tasksToMove =
-    specificTasks ||
-    (await client.query(
-      `
-    SELECT job_process_task_id, sort_order
-    FROM job_process_task
-    WHERE sub_stage_id = $1
-    ORDER BY sort_order
-    `,
+  const maxTaskSortOrder = (await JobProcessTask.max("sort_order", {
+    where: { sub_stage_id: targetSubStage.sub_stage_id },
+    transaction,
+  })) || 0;
 
-      [deletedSubStageId],
-    ));
-
-  const maxSortOrderQuery = await client.query(
-    `
-    SELECT COALESCE(MAX(sort_order), 0) as max_sort_order
-    FROM job_process_task
-    WHERE sub_stage_id = $1
-    `,
-
-    [targetSubStageId],
-  );
-
-  const maxSortOrder = maxSortOrderQuery.rows[0].max_sort_order;
-
-  for (let i = 0; i < tasksToMove.rows.length; i++) {
-    const task = tasksToMove.rows[i];
-
-    const newSortOrder = maxSortOrder + i + 1;
-
-    await client.query(
-      `
-      UPDATE job_process_task
-      SET sub_stage_id = $1, sort_order = $2
-      WHERE job_process_task_id = $3
-      `,
-
-      [targetSubStageId, newSortOrder, task.job_process_task_id],
-    );
+  for (let i = 0; i < tasksToMove.length; i++) {
+    const task = tasksToMove[i];
+    await task.update({
+      sub_stage_id: targetSubStage.sub_stage_id,
+      sort_order: maxTaskSortOrder + i + 1,
+    }, { transaction });
   }
 }
 
 export async function getJobProcess(companyId, builderId) {
-  const pool = getPool();
+  const { JobProcessStage, JobProcessSubStage, JobProcessTask, JobProcessSubtask, JobProcessTaskDependency, JobProcessStageFunctionality } = db;
 
-  const { rows } = await pool.query(
-    `
-    SELECT
-      s.stage_id,
-      s.name AS stage_name,
-      s.sort_order AS stage_order,
-      s.dependent_stage_id,
-      ds.name AS dependent_stage_name,
-      f.functionality_id,
-      f.name AS functionality_name,
-      f.is_workflow,
-      ss.sub_stage_id,
-      ss.name AS sub_stage_name,
-      ss.sort_order AS sub_stage_order,
-      t.job_process_task_id,
-      t.name AS task_name,
-      t.sort_order AS task_order,
-      d.predecessor_task_id,
-      pt.name AS predecessor_task_name,
-      st.job_process_subtask_id,
-      st.name AS subtask_name,
-      st.sort_order AS subtask_order
-    FROM job_process_stage s
-    JOIN job_process_stage_functionality f ON f.functionality_id = s.functionality_id
-    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-    LEFT JOIN job_process_sub_stage ss ON ss.stage_id = s.stage_id
-    LEFT JOIN job_process_task t ON t.sub_stage_id = ss.sub_stage_id
-    LEFT JOIN job_process_task_dependency d ON d.task_id = t.job_process_task_id
-    LEFT JOIN job_process_task pt ON d.predecessor_task_id = pt.job_process_task_id
-    LEFT JOIN job_process_subtask st ON st.job_process_task_id = t.job_process_task_id
-    WHERE s.company_id = $1 AND s.builder_id = $2
-    ORDER BY
-      s.sort_order,
-      ss.sort_order,
-      t.sort_order,
-      st.sort_order
-  `,
+  const data = await JobProcessStage.findAll({
+    where: { company_id: companyId, builder_id: builderId },
+    include: [
+      { model: JobProcessStageFunctionality, as: "functionality" },
+      { model: JobProcessStage, as: "dependentStage", attributes: ["stage_id", "name"] },
+      {
+        model: JobProcessSubStage,
+        as: "subStages",
+        include: [
+          {
+            model: JobProcessTask,
+            as: "tasks",
+            include: [
+              { model: JobProcessSubtask, as: "subtasks" },
+              {
+                model: JobProcessTaskDependency,
+                as: "taskDependencies",
+                include: [{ model: JobProcessTask, as: "predecessorTask", attributes: ["job_process_task_id", "name"] }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    order: [
+      ["sort_order", "ASC"],
+      [{ model: JobProcessSubStage, as: "subStages" }, "sort_order", "ASC"],
+      [{ model: JobProcessSubStage, as: "subStages" }, { model: JobProcessTask, as: "tasks" }, "sort_order", "ASC"],
+      [{ model: JobProcessSubStage, as: "subStages" }, { model: JobProcessTask, as: "tasks" }, { model: JobProcessSubtask, as: "subtasks" }, "sort_order", "ASC"],
+    ],
+  });
 
-    [companyId, builderId],
-  );
-
-  const stageMap = new Map();
-
-  for (const r of rows) {
-    if (!stageMap.has(r.stage_id)) {
-      stageMap.set(r.stage_id, {
-        stageId: r.stage_id,
-        name: r.stage_name,
-        sortOrder: r.stage_order,
-        dependentStage: r.dependent_stage_id
-          ? {
-            id: r.dependent_stage_id,
-            name: r.dependent_stage_name,
-          }
-          : null,
-        functionality: {
-          id: r.functionality_id,
-          name: r.functionality_name,
-          isWorkflow: r.is_workflow,
-        },
-        subStages: [],
-      });
-    }
-
-    const stage = stageMap.get(r.stage_id);
-
-    if (r.sub_stage_id) {
-      let subStage = stage.subStages.find(
-        (s) => s.subStageId === r.sub_stage_id,
-      );
-
-      if (!subStage) {
-        subStage = {
-          subStageId: r.sub_stage_id,
-          name: r.sub_stage_name,
-          sortOrder: r.sub_stage_order,
-          tasks: [],
-        };
-
-        stage.subStages.push(subStage);
-      }
-
-      if (r.job_process_task_id) {
-        let task = subStage.tasks.find(
-          (t) => t.taskId === r.job_process_task_id,
-        );
-
-        if (!task) {
-          task = {
-            taskId: r.job_process_task_id,
-            name: r.task_name,
-            sortOrder: r.task_order,
-            dependencies: [],
-            subTasks: [],
-          };
-
-          subStage.tasks.push(task);
-        }
-
-        if (
-          r.predecessor_task_id &&
-          !task.dependencies.find((dep) => dep.id === r.predecessor_task_id)
-        ) {
-          task.dependencies.push({
-            id: r.predecessor_task_id,
-            name: r.predecessor_task_name,
-          });
-        }
-
-        if (r.job_process_subtask_id) {
-          if (
-            !task.subTasks.find(
-              (st) => st.subTaskId === r.job_process_subtask_id,
-            )
-          ) {
-            task.subTasks.push({
-              subTaskId: r.job_process_subtask_id,
-              name: r.subtask_name,
-              sortOrder: r.subtask_order,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  return Array.from(stageMap.values());
+  return data.map((s) => {
+    const stage = s.get({ plain: true });
+    return {
+      stageId: stage.stage_id,
+      name: stage.name,
+      sortOrder: stage.sort_order,
+      dependentStage: stage.dependentStage
+        ? { id: stage.dependentStage.stage_id, name: stage.dependentStage.name }
+        : null,
+      functionality: {
+        id: stage.functionality.functionality_id,
+        name: stage.functionality.name,
+        isWorkflow: stage.functionality.is_workflow,
+      },
+      subStages: (stage.subStages || []).map((ss) => ({
+        subStageId: ss.sub_stage_id,
+        name: ss.name,
+        sortOrder: ss.sort_order,
+        tasks: (ss.tasks || []).map((t) => ({
+          taskId: t.job_process_task_id,
+          name: t.name,
+          sortOrder: t.sort_order,
+          dependencies: (t.taskDependencies || []).map((d) => ({
+            id: d.predecessor_task_id,
+            name: d.predecessorTask?.name,
+          })),
+          subTasks: (t.subtasks || []).map((st) => ({
+            subTaskId: st.job_process_subtask_id,
+            name: st.name,
+            sortOrder: st.sort_order,
+          })),
+        })),
+      })),
+    };
+  });
 }
 
 export async function getStages(companyId, builderId) {
-  const pool = getPool();
+  const { JobProcessStage, JobProcessStageFunctionality } = db;
 
-  const { rows } = await pool.query(
-    `
-    SELECT
-      s.stage_id,
-      s.name,
-      s.sort_order,
-      s.dependent_stage_id,
-      ds.name AS dependent_stage_name,
-      f.functionality_id,
-      f.name AS functionality_name,
-      f.is_workflow
-    FROM job_process_stage s
-    JOIN job_process_stage_functionality f
-    ON f.functionality_id = s.functionality_id
-    LEFT JOIN job_process_stage ds ON s.dependent_stage_id = ds.stage_id
-    WHERE s.company_id = $1
-      AND s.builder_id = $2
-    ORDER BY s.sort_order
-    `,
+  const stages = await JobProcessStage.findAll({
+    where: { company_id: companyId, builder_id: builderId },
+    include: [
+      { model: JobProcessStage, as: "dependentStage", attributes: ["stage_id", "name"] },
+      { model: JobProcessStageFunctionality, as: "functionality", attributes: ["functionality_id", "name", "is_workflow"] },
+    ],
+    order: [["sort_order", "ASC"]],
+  });
 
-    [companyId, builderId],
-  );
-
-  return rows.map((row) => ({
-    stageId: row.stage_id,
-    name: row.name,
-    sortOrder: row.sort_order,
-    dependentStage: row.dependent_stage_id
-      ? {
-        id: row.dependent_stage_id,
-        name: row.dependent_stage_name,
-      }
-      : null,
-    functionality: {
-      id: row.functionality_id,
-      name: row.functionality_name,
-    },
-    isWorkflow: row.is_workflow,
-  }));
+  return stages.map((s) => {
+    const plain = s.get({ plain: true });
+    return {
+      stageId: plain.stage_id,
+      name: plain.name,
+      sortOrder: plain.sort_order,
+      dependentStage: plain.dependentStage
+        ? { id: plain.dependentStage.stage_id, name: plain.dependentStage.name }
+        : null,
+      functionality: {
+        id: plain.functionality.functionality_id,
+        name: plain.functionality.name,
+      },
+      isWorkflow: plain.functionality.is_workflow,
+    };
+  });
 }
 
 export async function getSubStages(stageId) {
-  const pool = getPool();
+  const { JobProcessStage, JobProcessStageFunctionality, JobProcessSubStage } = db;
 
-  const workflowCheck = await pool.query(
-    `
-    SELECT f.is_workflow
-    FROM job_process_stage s
-    JOIN job_process_stage_functionality f
-      ON f.functionality_id = s.functionality_id
-    WHERE s.stage_id = $1
-    `,
+  const stage = await JobProcessStage.findByPk(stageId, {
+    include: [{ model: JobProcessStageFunctionality, as: "functionality" }],
+  });
 
-    [stageId],
-  );
-
-  if (!workflowCheck.rows[0]?.is_workflow) {
+  if (!stage || !stage.functionality?.is_workflow) {
     throw new Error("Sub-stages allowed only for workflow stages");
   }
 
-  const { rows } = await pool.query(
-    `
-    SELECT
-      sub_stage_id,
-      name,
-      sort_order
-    FROM job_process_sub_stage
-    WHERE stage_id = $1
-    ORDER BY sort_order
-    `,
-    [stageId],
-  );
+  const subStages = await JobProcessSubStage.findAll({
+    where: { stage_id: stageId },
+    order: [["sort_order", "ASC"]],
+  });
 
-  return rows;
+  return subStages.map((ss) => ss.get({ plain: true }));
 }
 
 export async function getStageFunctionalities() {
-  const pool = getPool();
+  const { JobProcessStageFunctionality } = db;
 
-  const { rows } = await pool.query(
-    "SELECT * FROM job_process_stage_functionality ORDER BY name",
-  );
+  const result = await JobProcessStageFunctionality.findAll({
+    order: [["name", "ASC"]],
+  });
 
-  return rows;
+  return result.map((f) => f.get({ plain: true }));
 }
 
 export default {

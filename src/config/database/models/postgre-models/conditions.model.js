@@ -24,7 +24,7 @@ export default (sequelize) => {
       tableName: "conditions",
       modelName: "Conditions",
       underscored: true,
-    }
+    },
   );
   return Conditions;
 };

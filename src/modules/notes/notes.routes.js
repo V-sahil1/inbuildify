@@ -31,13 +31,13 @@ router.post(
   handleMulterError,
   camelToSnakeMiddleware,
   validateRequest(createNoteSchema, REQUEST_SOURCE.FORM_DATA),
-  createNote
+  createNote,
 );
 
 router.get(
   "/",
   validateRequest(getAllNotesSchema, REQUEST_SOURCE.QUERY),
-  getAllNotes
+  getAllNotes,
 );
 
 router.get("/:notes_id", getNoteById);
@@ -49,13 +49,13 @@ router.put(
   camelToSnakeMiddleware,
   validateRequest(noteParamsSchema, REQUEST_SOURCE.PARAMS),
   validateRequest(updateNoteSchema, REQUEST_SOURCE.FORM_DATA),
-  updateNote
+  updateNote,
 );
 
 router.delete(
   "/:notes_id",
   validateRequest(noteParamsSchema, REQUEST_SOURCE.PARAMS),
-  deleteNote
+  deleteNote,
 );
 
 export default router;

@@ -162,6 +162,13 @@ export const deleteSupplierSchema = Joi.object({
   }),
 });
 
+export const getSupplierByIdSchema = Joi.object({
+  supplier_id: Joi.string().uuid().required().messages({
+    "string.guid": "Supplier ID must be a valid UUID",
+    "any.required": "Supplier ID is required",
+  }),
+});
+
 export const updateSupplierParamsSchema = Joi.object({
   supplier_id: Joi.string().uuid().required().messages({
     "string.guid": "Supplier ID must be a valid UUID",
@@ -298,6 +305,7 @@ export default {
   createSupplierSchema,
   getAllSupplierSchema,
   deleteSupplierSchema,
+  getSupplierByIdSchema,
   updateSupplierParamsSchema,
   updateSupplierSchema,
 };

@@ -19,7 +19,7 @@ export async function createGeneralSettingService({
 
   if (existingSettings) {
     const error = new Error(
-      "General settings already exist for this company and builder."
+      "General settings already exist for this company and builder.",
     );
     error.status = 400;
     throw error;
@@ -29,7 +29,7 @@ export async function createGeneralSettingService({
   if (pdf_password_protected === true) {
     if (!pdf_password) {
       const error = new Error(
-        "PDF password is required when password protection is enabled."
+        "PDF password is required when password protection is enabled.",
       );
       error.status = 400;
       throw error;
@@ -99,7 +99,7 @@ export async function updateGeneralSettingsService({
   // Cannot set password when protection is disabled
   if (finalProtection === false && pdf_password !== undefined) {
     const error = new Error(
-      "Cannot update or define PDF password when password protection is disabled."
+      "Cannot update or define PDF password when password protection is disabled.",
     );
     error.status = 400;
     throw error;
@@ -108,33 +108,42 @@ export async function updateGeneralSettingsService({
   // Build update payload
   const updatePayload = {};
 
-  if (notification_referral_partner !== undefined)
+  if (notification_referral_partner !== undefined) {
     updatePayload.notification_referral_partner = notification_referral_partner;
+  }
 
-  if (pdf_password_protected !== undefined)
+  if (pdf_password_protected !== undefined) {
     updatePayload.pdf_password_protected = pdf_password_protected;
+  }
 
-  if (finalProtection === true && pdf_password !== undefined)
+  if (finalProtection === true && pdf_password !== undefined) {
     updatePayload.pdf_password = pdf_password;
+  }
 
   // Clear password if protection is being turned off
-  if (currentProtection === true && finalProtection === false)
+  if (currentProtection === true && finalProtection === false) {
     updatePayload.pdf_password = null;
+  }
 
-  if (round_of_cost !== undefined)
+  if (round_of_cost !== undefined) {
     updatePayload.round_of_cost = round_of_cost;
+  }
 
-  if (negative_value_show !== undefined)
+  if (negative_value_show !== undefined) {
     updatePayload.negative_value_show = negative_value_show;
+  }
 
-  if (negative_value_color !== undefined)
+  if (negative_value_color !== undefined) {
     updatePayload.negative_value_color = negative_value_color;
+  }
 
-  if (show_reference_id_in_pdf !== undefined)
+  if (show_reference_id_in_pdf !== undefined) {
     updatePayload.show_reference_id_in_pdf = show_reference_id_in_pdf;
+  }
 
-  if (job_id_label !== undefined)
+  if (job_id_label !== undefined) {
     updatePayload.job_id_label = job_id_label;
+  }
 
   updatePayload.company_id = companyId;
 

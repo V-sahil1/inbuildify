@@ -6,6 +6,7 @@ export class JobProcessStage extends Model {
     JobProcessStage.belongsTo(models.Builder, { foreignKey: "builder_id", as: "builder", onDelete: "CASCADE" });
     JobProcessStage.belongsTo(models.JobProcessStage, { foreignKey: "dependent_stage_id", as: "dependentStage", onDelete: "SET NULL" });
     JobProcessStage.hasMany(models.JobProcessSubStage, { foreignKey: "stage_id", as: "subStages" });
+    JobProcessStage.belongsTo(models.JobProcessStageFunctionality, { foreignKey: "functionality_id", as: "functionality" });
   }
 }
 
@@ -22,7 +23,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "job_process_stage", modelName: "JobProcessStage", underscored: true }
+    { sequelize, tableName: "job_process_stage", modelName: "JobProcessStage", underscored: true },
   );
   return JobProcessStage;
 };

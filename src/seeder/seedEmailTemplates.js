@@ -99,7 +99,9 @@ const seedEmailTemplates = async () => {
   } catch (error) {
     console.error("❌ Seeding failed:", error);
   } finally {
-    if (db.sequelize) await db.sequelize.close();
+    if (db.sequelize) {
+      await db.sequelize.close();
+    }
     process.exit(0);
   }
 };

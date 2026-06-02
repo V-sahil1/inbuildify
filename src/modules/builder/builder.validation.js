@@ -136,7 +136,7 @@ export const upsertBuilderSchema = Joi.object({
     "string.min": "Registration number must be at least 10 characters long",
     "string.max": "Registration number must not exceed 100 characters",
   }),
- registered_building_practitioner: Joi.string().min(2).max(255).allow(null, "").messages({
+  registered_building_practitioner: Joi.string().min(2).max(255).allow(null, "").messages({
     "string.min": "Registered building practitioner must be at least 2 characters long",
     "string.max": "Registered building practitioner must not exceed 255 characters",
   }),

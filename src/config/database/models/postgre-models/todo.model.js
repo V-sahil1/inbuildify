@@ -42,7 +42,7 @@ export default (sequelize) => {
       tableName: "todo",
       modelName: "Todo",
       underscored: true,
-    }
+    },
   );
   return Todo;
 };

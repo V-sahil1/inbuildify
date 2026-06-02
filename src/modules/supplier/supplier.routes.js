@@ -2,11 +2,12 @@ import express from "express";
 
 const router = express.Router();
 
-import { createSupplier, getAllSuppliers, deleteSupplier, updateSupplier } from "./supplier.controller.js";
+import { createSupplier, getAllSuppliers, deleteSupplier, updateSupplier, getSupplierById } from "./supplier.controller.js";
 import {
   createSupplierSchema,
   getAllSupplierSchema,
   deleteSupplierSchema,
+  getSupplierByIdSchema,
   updateSupplierParamsSchema,
   updateSupplierSchema,
 } from "./supplier.validation.js";
@@ -15,9 +16,9 @@ import authMiddleware from "../../middleware/authMiddleware.js";
 import roleMiddleware from "../../middleware/roleMiddleware.js";
 import camelToSnakeMiddleware from "../../middleware/caseConverterMiddleware.js";
 import { REQUEST_SOURCE } from "../../config/constants.js";
-import { createUpload, handleMulterError } from "../../utils/s3Upload.js";
+import { createUpload,createPdfUpload, handleMulterError } from "../../utils/s3Upload.js";
 
-const upload = createUpload("supplier");
+const upload = createPdfUpload("supplier");
 
 router.use(authMiddleware);
 router.use(roleMiddleware);
@@ -70,6 +71,13 @@ router.delete(
   camelToSnakeMiddleware,
   validateRequest(deleteSupplierSchema, REQUEST_SOURCE.PARAMS),
   deleteSupplier,
+);
+
+router.get(
+  "/:supplier_id",
+  camelToSnakeMiddleware,
+  validateRequest(getSupplierByIdSchema, REQUEST_SOURCE.PARAMS),
+  getSupplierById,
 );
 
 router.put(

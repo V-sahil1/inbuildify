@@ -16,7 +16,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "floor_plan_facade_map", modelName: "FloorPlanFacadeMap", underscored: true }
+    { sequelize, tableName: "floor_plan_facade_map", modelName: "FloorPlanFacadeMap", underscored: true },
   );
   return FloorPlanFacadeMap;
 };

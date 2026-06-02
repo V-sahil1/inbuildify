@@ -25,7 +25,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "master_price_list_categories", modelName: "MasterPriceListCategories", underscored: true }
+    { sequelize, tableName: "master_price_list_categories", modelName: "MasterPriceListCategories", underscored: true },
   );
   return MasterPriceListCategories;
 };

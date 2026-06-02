@@ -30,7 +30,7 @@ export default (sequelize) => {
       tableName: "construction_option",
       modelName: "ConstructionOption",
       underscored: true,
-    }
+    },
   );
   return ConstructionOption;
 };

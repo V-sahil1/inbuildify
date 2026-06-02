@@ -22,7 +22,7 @@ export default (sequelize) => {
       createdAt: { type: DataTypes.DATE },
       updatedAt: { type: DataTypes.DATE },
     },
-    { sequelize, tableName: "template_pdf", modelName: "TemplatePdf", underscored: true }
+    { sequelize, tableName: "template_pdf", modelName: "TemplatePdf", underscored: true },
   );
   return TemplatePdf;
 };
