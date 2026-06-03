@@ -1282,11 +1282,6 @@ class QuotationService {
    */
   async sendEngineerEmail(versionId, builderId, companyId, emailData = {}) {
     try {
-      const { subject, email_body: emailBody } = emailData;
-      if (!subject || !emailBody) {
-        return { success: false, message: "Subject and email body are required" };
-      }
-
       const quotationVersion = await this._fetchQuotationVersionForEngineer(versionId);
 
       if (!quotationVersion) {
@@ -1308,6 +1303,20 @@ class QuotationService {
 
       const versionPlain = quotationVersion.get({ plain: true });
       const property = versionPlain.quotation?.lead?.propertyDetail || {};
+
+      // Generate sensible defaults when the frontend omits subject/body
+      // (e.g. the InfoCards quick-send flow sends no body at all).
+      const subject = emailData.subject || `Engineering Requirement – ${
+        [property.lot_number ? `Lot ${property.lot_number}` : null, property.street, property.city]
+          .filter(Boolean).join(", ") || "New Request"
+      }`;
+      const emailBody = emailData.email_body || [
+        `<p>Hi ${engineer.name || "Engineer"},</p>`,
+        `<p>Please find attached the Engineering Requirement documents for your review.</p>`,
+        property.lot_number ? `<p><strong>Property:</strong> Lot ${property.lot_number}, ${property.street || ""}, ${property.city || ""} ${property.zip_code || ""}</p>` : "",
+        `<p>Kindly review and upload your structural report at your earliest convenience.</p>`,
+        `<p>Thank you.</p>`,
+      ].filter(Boolean).join("\n");
 
       // Resolve S3 keys: Engineering Requirement (required) + Compaction Report
       // (property level, optional).

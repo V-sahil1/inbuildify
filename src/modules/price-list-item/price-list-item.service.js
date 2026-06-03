@@ -459,6 +459,79 @@ export async function updatePriceListItemService({
     });
 
     if (!old) {
+      // Intercept and check if this is an extra item in quotation_version_items
+      const { QuotationVersionItem, QuotationVersion, Quotation, Leads } = db.sequelize?.models || db;
+      const extraItemExists = await QuotationVersionItem.findOne({
+        where: { quotation_version_item_id: price_list_item_id, extra_item: true },
+        include: [{
+          model: QuotationVersion,
+          as: "quotationVersion",
+          include: [{
+            model: Quotation,
+            as: "quotation",
+            include: [{
+              model: Leads,
+              as: "lead",
+              where: {
+                [Op.or]: [
+                  ...(companyId ? [{ company_id: companyId }] : []),
+                  ...(builderId ? [{ builder_id: builderId }] : []),
+                ],
+              },
+            }],
+          }],
+        }],
+        transaction,
+      });
+
+      if (extraItemExists) {
+        await transaction.rollback();
+        const mappedData = {};
+        if (item_description !== undefined) mappedData.price_list_item_description = item_description;
+        if (cost_type !== undefined) mappedData.price_list_item_cost_type = cost_type;
+        if (cost_type_text !== undefined) mappedData.price_list_item_cost_type_text = cost_type_text;
+        if (cost !== undefined) mappedData.price_list_item_cost = cost;
+        if (builder_cost !== undefined) mappedData.price_list_item_builder_cost = builder_cost;
+        if (uom !== undefined) mappedData.price_list_item_uom = uom;
+        if (range_id !== undefined) mappedData.price_list_item_range_id = range_id;
+        if (dwelling_type_id !== undefined) mappedData.price_list_item_dwelling_type_id = dwelling_type_id;
+
+        const { default: quotationVersionItemService } = await import("../quotation-version-item/quotation-version-item.service.js");
+        const updateResult = await quotationVersionItemService.updateExtraQuotationItemService(
+          price_list_item_id,
+          mappedData,
+          builderId,
+          companyId
+        );
+
+        if (updateResult.success) {
+          const extraItemData = updateResult.data;
+          const formatted = {
+            priceListItemId: extraItemData.quotationVersionItemId,
+            priceListId: extraItemData.priceListId,
+            priceList: {
+              id: extraItemData.priceListId,
+              name: extraItemData.priceListName
+            },
+            itemDescription: extraItemData.priceListItemDescription,
+            costType: extraItemData.priceListItemCostType,
+            costTypeText: extraItemData.priceListItemCostTypeText,
+            cost: extraItemData.priceListItemCost !== null && extraItemData.priceListItemCost !== undefined ? extraItemData.priceListItemCost.toString() : null,
+            builderCost: extraItemData.priceListItemBuilderCost !== null && extraItemData.priceListItemBuilderCost !== undefined ? extraItemData.priceListItemBuilderCost.toString() : null,
+            uom: extraItemData.priceListItemUom,
+            extraItem: extraItemData.extraItem,
+            extraType: extraItemData.extraType,
+            quotationVersionItemId: extraItemData.quotationVersionItemId,
+            quantity: extraItemData.quantity,
+            note: extraItemData.note,
+            totalPrice: extraItemData.totalPrice,
+          };
+          return { data: formatted };
+        } else {
+          return { error: { status: 400, message: updateResult.message || "Failed to update extra item." } };
+        }
+      }
+
       await transaction.rollback();
       return { error: { status: 404, message: "Item not found or unauthorized." } };
     }

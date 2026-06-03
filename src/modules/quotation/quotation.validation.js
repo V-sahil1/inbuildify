@@ -65,13 +65,11 @@ export const updateQuotationVersionBodySchema = Joi.object({
 });
 
 export const sendEngineerEmailBodySchema = Joi.object({
-  subject: Joi.string().trim().min(1).required().messages({
-    "string.empty": "Subject is required",
-    "any.required": "Subject is required",
+  subject: Joi.string().trim().min(1).optional().allow(null, "").messages({
+    "string.empty": "Subject must not be empty when provided",
   }),
-  email_body: Joi.string().trim().min(1).required().messages({
-    "string.empty": "Email body is required",
-    "any.required": "Email body is required",
+  email_body: Joi.string().trim().min(1).optional().allow(null, "").messages({
+    "string.empty": "Email body must not be empty when provided",
   }),
   template_email_id: Joi.string().uuid().optional().allow(null, "").messages({
     "string.guid": "Template Email ID must be a valid UUID",
