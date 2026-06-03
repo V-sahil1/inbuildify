@@ -9,12 +9,34 @@ const transporter = nodemailer.createTransport({
     user: env.EMAIL.GMAIL,
     pass: env.EMAIL.PASSWORD,
   },
+  // Reuse SMTP connections instead of dialing a fresh one per email — fewer
+  // handshakes means fewer "Connection timeout" failures under bursts/throttling.
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 50,
+  // Bound connection setup so a dead SMTP host fails fast and the job can retry.
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  // Engineer emails attach the Engineering Requirement PDF, which can be several
+  // MB. A 6 MB attachment takes ~60s to upload to Gmail — a short socket timeout
+  // aborts mid-upload as "Timeout" and the mail never sends. Keep the data
+  // socket open long enough for large attachments (stays under Bull lockDuration).
+  socketTimeout: 180000,
 });
 
 import { createSharedBullClient } from "../config/redisBull.config.js";
 
 const notificationQueue = new Bull("notificationQueue", {
-  createClient: createSharedBullClient
+  createClient: createSharedBullClient,
+  // The engineer-email path downloads PDF attachments from S3 inside the
+  // processor before sending. With remote Redis latency, that work can exceed
+  // Bull's default 30s lock window, causing "job stalled"/"Missing lock"
+  // failures (engineer emails never sent). Widen the lock and stall window.
+  settings: {
+    lockDuration: 300000, // 5 min — long enough for S3 attachment download + SMTP send
+    stalledInterval: 60000,
+    maxStalledCount: 1,
+  },
 });
 
 notificationQueue.process(async (job) => {

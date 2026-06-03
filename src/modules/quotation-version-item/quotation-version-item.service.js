@@ -720,6 +720,7 @@ class QuotationVersionItemService {
     const {
       extra_type,
       price_list_id,
+      price_list_item_id,
       price_list_item_description,
       price_list_item_cost_type,
       price_list_item_builder_cost,
@@ -803,6 +804,7 @@ class QuotationVersionItemService {
       const newItem = await QuotationVersionItem.create({
         quotation_version_id: quotationVersionId,
         price_list_id,
+        price_list_item_id: price_list_item_id || null,
         price_list_name: priceList.name,
         price_list_item_description,
         price_list_item_cost_type: pCostType,
@@ -818,14 +820,17 @@ class QuotationVersionItemService {
         price_list_item_dwelling_type_id: price_list_item_dwelling_type_id || [],
         price_list_item_cost_type_text: price_list_item_cost_type_text || null,
       }, { transaction: t });
+      const plainItem = newItem.get({ plain: true });
+      if (!plainItem.price_list_item_id) {
+        plainItem.price_list_item_id = plainItem.quotation_version_item_id;
+      }
 
       const enrichedMetadata = await this.getEnrichedMetadata(newItem.price_list_item_range_id, newItem.price_list_item_dwelling_type_id);
 
       await t.commit();
       return {
         success: true,
-        data: keysToCamelCase({ ...newItem.get({ plain: true }), ...enrichedMetadata }),
-        message: "Extra item added successfully",
+        data: keysToCamelCase({ ...plainItem, ...enrichedMetadata }), message: "Extra item added successfully",
       };
     } catch (error) {
       await t.rollback();
@@ -941,13 +946,17 @@ class QuotationVersionItemService {
         price_list_item_dwelling_type_id: price_list_item_dwelling_type_id !== undefined ? price_list_item_dwelling_type_id : item.price_list_item_dwelling_type_id,
         updatedAt: new Date(),
       }, { transaction: t });
+      const plainItem = item.get({ plain: true });
+      if (!plainItem.price_list_item_id) {
+        plainItem.price_list_item_id = plainItem.quotation_version_item_id;
+      }
 
       const enrichedMetadata = await this.getEnrichedMetadata(item.price_list_item_range_id, item.price_list_item_dwelling_type_id);
 
       await t.commit();
       return {
         success: true,
-        data: keysToCamelCase({ ...item.get({ plain: true }), ...enrichedMetadata }),
+        data: keysToCamelCase({ ...plainItem, ...enrichedMetadata }),
         message: "Extra item updated successfully",
       };
     } catch (error) {

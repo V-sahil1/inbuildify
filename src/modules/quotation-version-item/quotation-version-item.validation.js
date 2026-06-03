@@ -178,6 +178,9 @@ export const addExtraQuotationItemSchema = Joi.object({
     }),
   }),
   note: Joi.string().max(500).optional().allow(null, ""),
+  price_list_item_id: Joi.string().uuid().optional().allow(null).messages({
+    "string.guid": "Price List Item ID must be a valid UUID",
+  }),
 });
 
 export const updateExtraQuotationItemSchema = Joi.object({

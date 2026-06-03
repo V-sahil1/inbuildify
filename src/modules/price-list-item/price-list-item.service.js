@@ -896,7 +896,11 @@ export async function getAllPriceListItemsService({
       finalAndConditions.push({ "$PriceListItem.is_system_data$": false });
     }
   }
-
+  finalAndConditions.push(
+    db.sequelize.literal(
+      '"PriceListItem"."price_list_item_id" NOT IN (SELECT "price_list_item_id" FROM "quotation_version_items" WHERE "extra_item" = true AND "price_list_item_id" IS NOT NULL)',
+    ),
+  );
   const where = { [Op.and]: finalAndConditions };
 
   const priceListInclude = {

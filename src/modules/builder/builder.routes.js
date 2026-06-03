@@ -18,14 +18,20 @@ const upload = createUpload("builder-logo");
 router.get("/all", getAllBuilders);
 
 router.get("/", getMyBuilderProfile);
-router.post(
-  "/",
+
+// upsertBuilder create-or-updates the caller's builder profile. The frontend
+// uses POST to create and PUT to update, so both verbs map to the same
+// upsert handler and middleware chain.
+const upsertBuilderChain = [
   upload.single("logo"),
   handleMulterError,
   parseFormDataJson,
   camelToSnakeMiddleware,
   validateRequest(upsertBuilderSchema, REQUEST_SOURCE.FORM_DATA),
   upsertBuilder,
-);
+];
+
+router.post("/", ...upsertBuilderChain);
+router.put("/", ...upsertBuilderChain);
 
 export default router;

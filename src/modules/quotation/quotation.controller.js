@@ -290,7 +290,8 @@ export async function updateQuotationVersion(req, res) {
     // as a DriveFile (sub_reference_type=StructureEngineerUpload). Per the
     // DriveFile blueprint we no longer write the legacy upload_report column
     // — strip it out of req.body so nothing trickles through to the service.
-    if (req.file && req.file.fieldname === "uploadReport") {
+    const reportUploaded = req.file && req.file.fieldname === "uploadReport";
+    if (reportUploaded) {
       await upsertQuotationDriveFile({
         versionId: quotation_version_id,
         subReferenceType: DRIVE_FILE_MAPPING.SUB_REFERENCES.STRUCTURE_ENGINEER_UPLOAD,
@@ -305,6 +306,14 @@ export async function updateQuotationVersion(req, res) {
     }
     delete req.body.upload_report;
 
+    // A report-only upload carries no quotation columns to change. The DriveFile
+    // upsert above IS the update, so calling the service with an empty payload
+    // would return "No valid fields provided for update" — a false 400 even
+    // though the file was saved. Short-circuit to success in that case.
+    if (reportUploaded && Object.keys(req.body).length === 0) {
+      return successResponse(res, null, "Report uploaded successfully");
+    }
+
     const result = await quotationService.updateQuotationVersion(
       quotation_version_id,
       req.body,
@@ -315,6 +324,11 @@ export async function updateQuotationVersion(req, res) {
 
     if (result.success) {
       return successResponse(res, result.data, result.message);
+    }
+    // The columns updated fine but the report file still saved above — don't
+    // surface the "no valid fields" error when a report was uploaded.
+    if (reportUploaded && result.message === "No valid fields provided for update") {
+      return successResponse(res, null, "Report uploaded successfully");
     }
     return errorResponse(res, 400, result.message);
 

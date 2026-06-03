@@ -19,7 +19,6 @@ import {
 } from "../../config/database/models/postgre-models/drive-file.constants.js";
 import { Op } from "sequelize";
 import { generatePDF } from "./pdf.service.js";
-import sendEmail from "../../service/sendMail.service.js";
 import { generateQuotationHTML } from "../../utils/template.js";
 import { uploadFile, getObject, generatePresignedDownloadUrl } from "../../service/s3.service.js";
 import { deleteFromS3 } from "../../utils/s3Upload.js";
@@ -31,6 +30,7 @@ import { env } from "../../config/env.config.js";
 import engineerEmailQueue from "../../workers/engineerEmailWorker.js";
 import quotationEmailQueue from "../../workers/quotationEmailWorker.js";
 import pdfGenerationQueue from "../../workers/pdfGenerationWorker.js";
+import sendEmail, { sendEmailNow } from "../../service/sendMail.service.js";
 
 const syncQuotationVersionFiles = async (quotationVersion, leadsId, transaction) => {
   const { DriveFile } = db;
@@ -1306,10 +1306,9 @@ class QuotationService {
 
       // Generate sensible defaults when the frontend omits subject/body
       // (e.g. the InfoCards quick-send flow sends no body at all).
-      const subject = emailData.subject || `Engineering Requirement – ${
-        [property.lot_number ? `Lot ${property.lot_number}` : null, property.street, property.city]
+      const subject = emailData.subject || `Engineering Requirement – ${[property.lot_number ? `Lot ${property.lot_number}` : null, property.street, property.city]
           .filter(Boolean).join(", ") || "New Request"
-      }`;
+        }`;
       const emailBody = emailData.email_body || [
         `<p>Hi ${engineer.name || "Engineer"},</p>`,
         `<p>Please find attached the Engineering Requirement documents for your review.</p>`,
@@ -1379,7 +1378,7 @@ class QuotationService {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim() || "Please find the attached engineering requirement documents.";
-
+      await sendEmailNow(engineer.email, subject, plainText, html, [], null, attachmentKeys);
       await sendEmail(engineer.email, subject, plainText, html, [], null, attachmentKeys);
 
       // Mark as sent. The updateQuotationVersion safeguard then blocks changing

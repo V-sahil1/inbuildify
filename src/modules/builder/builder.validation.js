@@ -132,9 +132,9 @@ export const upsertBuilderSchema = Joi.object({
     "string.max": "ACN number must not exceed 9 characters",
   }),
   hia_membership_no: Joi.string().min(2).max(100).allow(null, ""),
-  registration_number: Joi.string().min(10).max(100).optional().allow(null, "").messages({
-    "string.min": "Registration number must be at least 10 characters long",
-    "string.max": "Registration number must not exceed 100 characters",
+  registration_number: Joi.string().min(6).max(12).optional().allow(null, "").messages({
+    "string.min": "Registration number must be at least 6 characters long",
+    "string.max": "Registration number must not exceed 12 characters",
   }),
   registered_building_practitioner: Joi.string().min(2).max(255).allow(null, "").messages({
     "string.min": "Registered building practitioner must be at least 2 characters long",
@@ -186,6 +186,6 @@ export const upsertBuilderSchema = Joi.object({
   logo: Joi.string().allow(null, ""),
   address: addressSchema.optional(),
   insurer: insurerSchema.optional(),
-}).min(1);
+}).min(1).unknown(true);
 
 export default { upsertBuilderSchema };
