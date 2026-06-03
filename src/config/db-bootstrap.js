@@ -13,11 +13,21 @@ export async function ensureDatabase() {
   const isProduction = env.NODE_ENV === "production";
 
   // Connect to the default "postgres" database to check/create the application database
-  const sequelize = new Sequelize("postgres", env.DB.DB_USER, env.DB.DB_PASSWORD, {
-    host: env.DB.DB_HOST,
-    port: parseInt(env.DB.DB_PORT),
-    dialect: "postgres",
-    logging: false,
+  let connectionString;
+  if (isProduction && process.env.DATABASE_URL) {
+    try {
+      const url = new URL(process.env.DATABASE_URL);
+      url.pathname = "/postgres";
+      connectionString = url.toString();
+    } catch (e) {
+      connectionString = `postgresql://${env.DB.DB_USER}:${env.DB.DB_PASSWORD}@${env.DB.DB_HOST}:${env.DB.DB_PORT}/postgres`;
+    }
+  } else {
+    connectionString = `postgresql://${env.DB.DB_USER}:${env.DB.DB_PASSWORD}@${env.DB.DB_HOST}:${env.DB.DB_PORT}/postgres`;
+  }
+
+  const sequelize = new Sequelize(connectionString, {
+    dialect: 'postgres',
     dialectOptions: isProduction ? {
       ssl: {
         require: true,
