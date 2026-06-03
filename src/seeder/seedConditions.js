@@ -1,6 +1,9 @@
 import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
-const seedConditions = async () => {
+/**
+ * Core conditions seeding logic.
+ */
+export const seedConditions = async () => {
   try {
     console.log("🌱 Starting conditions seeding...");
 
@@ -49,12 +52,20 @@ const seedConditions = async () => {
     console.log("✅ Conditions seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
-  } finally {
-    if (db.sequelize) {
-      await db.sequelize.close();
-    }
-    process.exit(0);
+    throw error;
   }
 };
 
-seedConditions();
+// Check if run directly
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")))) {
+  seedConditions()
+    .catch((err) => console.error(err))
+    .finally(async () => {
+      if (db.sequelize) {
+        await db.sequelize.close();
+      }
+      process.exit(0);
+    });
+}
+
+export default { seedConditions };

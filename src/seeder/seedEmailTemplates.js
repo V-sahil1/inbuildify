@@ -1,7 +1,10 @@
 import db, { initModels } from "../config/database/models/postgre-models/index.js";
 import { env } from "../config/env.config.js";
 
-const seedEmailTemplates = async () => {
+/**
+ * Core email-template seeding logic.
+ */
+export const seedEmailTemplates = async () => {
   try {
     console.log("🌱 Starting email_templates seeding...");
 
@@ -98,12 +101,20 @@ const seedEmailTemplates = async () => {
     console.log("✅ Email templates seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
-  } finally {
-    if (db.sequelize) {
-      await db.sequelize.close();
-    }
-    process.exit(0);
+    throw error;
   }
 };
 
-seedEmailTemplates();
+// Check if run directly
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")))) {
+  seedEmailTemplates()
+    .catch((err) => console.error(err))
+    .finally(async () => {
+      if (db.sequelize) {
+        await db.sequelize.close();
+      }
+      process.exit(0);
+    });
+}
+
+export default { seedEmailTemplates };

@@ -5,7 +5,10 @@ import { env } from "../../config/env.config.js";
 export async function registerRoot(req, res) {
   try {
     const data = await AuthService.registerRoot(req.body);
-    return successResponse(res, data, "Root user registered. OTP sent.");
+    const message = data.isVerified
+      ? "Root user registered and verified."
+      : "Root user registered. OTP sent.";
+    return successResponse(res, data, message);
   } catch (err) {
     return errorResponse(res, err.statusCode || 500, err.message);
   }

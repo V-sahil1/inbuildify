@@ -1,7 +1,9 @@
-
 import db, { initModels } from "../config/database/models/postgre-models/index.js";
 
-const seedCategories = async () => {
+/**
+ * Core admin-category seeding logic.
+ */
+export const seedCategories = async () => {
   try {
     console.log("🌱 Starting categories seeding...");
 
@@ -60,12 +62,20 @@ const seedCategories = async () => {
     console.log("✅ Categories seeding completed.");
   } catch (error) {
     console.error("❌ Seeding failed:", error);
-  } finally {
-    if (db.sequelize) {
-      await db.sequelize.close();
-    }
-    process.exit(0);
+    throw error;
   }
 };
 
-seedCategories();
+// Check if run directly
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/")))) {
+  seedCategories()
+    .catch((err) => console.error(err))
+    .finally(async () => {
+      if (db.sequelize) {
+        await db.sequelize.close();
+      }
+      process.exit(0);
+    });
+}
+
+export default { seedCategories };

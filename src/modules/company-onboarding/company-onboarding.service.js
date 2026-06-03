@@ -75,6 +75,10 @@ export async function companySignUp({
   const { Users, Company, Builder, sequelize } = db;
   const lowerEmail = email.toLowerCase();
 
+  // In production, bypass email OTP verification for new sign-ups: the user is
+  // marked verified immediately and no OTP email is dispatched.
+  const bypassOtpVerification = env.NODE_ENV === "production";
+
   const existingUser = await Users.findOne({
     where: sequelize.where(
       sequelize.fn("LOWER", sequelize.col("email")),
@@ -127,10 +131,12 @@ export async function companySignUp({
         email: lowerEmail,
         role_id: effectiveRoleId,
         password: encrypt(password),
-        otp,
-        expires_at: sequelize.literal("NOW() + INTERVAL '10 minutes'"),
+        otp: bypassOtpVerification ? null : otp,
+        expires_at: bypassOtpVerification
+          ? null
+          : sequelize.literal("NOW() + INTERVAL '10 minutes'"),
         root_user: true,
-        is_verified: false,
+        is_verified: bypassOtpVerification,
       },
       { transaction: t },
     );
@@ -148,10 +154,13 @@ export async function companySignUp({
       companyId: company.company_id,
       usersId: user.users_id,
       isOnboardingFinished: false,
+      isVerified: bypassOtpVerification,
     };
   });
 
-  await dispatchOtpEmail(lowerEmail, otp);
+  if (!bypassOtpVerification) {
+    await dispatchOtpEmail(lowerEmail, otp);
+  }
 
   return result;
 }

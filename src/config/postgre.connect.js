@@ -42,13 +42,17 @@ export const connectPostgre = async () => {
     console.timeEnd("⏱️  Migrations");
 
 
-    // Step 4: Auto-seed essentials if database was just created
-    if (created) {
-      console.log("🌱 New database detected — running essential seeds...");
-      console.time("⏱️  Seeding");
-      await runDeveloperEssentialSeeds();
-      console.timeEnd("⏱️  Seeding");
-    }
+    // Step 4: Auto-seed essentials. Each seeder runs only when its table is
+    // empty, so this covers both a brand-new database and an existing one
+    // whose essential tables were never seeded, and is a no-op otherwise.
+    console.log(
+      created
+        ? "🌱 New database detected — running essential seeds..."
+        : "🌱 Checking essential tables — seeding any that are empty...",
+    );
+    console.time("⏱️  Seeding");
+    await runDeveloperEssentialSeeds();
+    console.timeEnd("⏱️  Seeding");
 
   } catch (error) {
     console.error("Database connection error:", error);

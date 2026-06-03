@@ -7,37 +7,58 @@ import { seedCustomFieldModules } from "./seed-custom-field-module.js";
 import { seedComplianceTypes } from "./seed-compliance-type.js";
 import { seedRoleTypes } from "./seed-role-type.js";
 import { seedJobProcessStageFunctionalities } from "./seed-job-process-stage-functionality.js";
+import { seedCategories } from "./seedCategories.js";
+import { seedConditions } from "./seedConditions.js";
+import { seedEmailTemplates } from "./seedEmailTemplates.js";
+
+/**
+ * Run `seedFn` only when its backing table is empty. Each essential seeder is
+ * gated independently on the row count of its representative model, so startup
+ * seeding becomes "auto-seed any table that is still empty" instead of an
+ * all-or-nothing run. Re-running is a no-op once a table is populated.
+ */
+const seedIfEmpty = async (modelName, seedFn) => {
+  const model = db[modelName];
+  if (!model) {
+    console.warn(`⚠️  Model "${modelName}" not registered — skipping its seeder.`);
+    return;
+  }
+
+  const count = await model.count();
+  if (count > 0) {
+    console.log(`⏭️  ${modelName} already has ${count} row(s) — skipping seeder.`);
+    return;
+  }
+
+  console.log(`🌱 ${modelName} is empty — running seeder...`);
+  await seedFn();
+};
 
 /**
  * Core seeding logic — can be called from connectPostgre or run standalone.
- * Does NOT call initModels() or process.exit() — caller is responsible for that.
+ * Each seeder only runs when its table is empty. Does NOT call process.exit()
+ * — caller is responsible for that.
  */
 export const runDeveloperEssentialSeeds = async () => {
   console.log("🚀 Starting Developer Essentials Seeding...");
 
-  // 1. Seed Roles
-  await seedRoles();
+  // Models must be registered before we can count rows / run seeders.
+  // initModels() is idempotent, so this is safe even when the caller already
+  // initialized models.
+  await initModels();
 
-  // 1.1 Seed Role Types
-  await seedRoleTypes();
-
-  // 2. Seed Countries and States
-  await seedCountriesAndStates();
-
-  // 3. Seed Timezones
-  await seedTimezones();
-
-  // 4. Seed Screens and Functionalities
-  await seedScreensAndFunctionalities();
-
-  // 5. Seed Custom Field Modules
-  await seedCustomFieldModules();
-
-  // 6. Seed Compliance Types
-  await seedComplianceTypes();
-
-  // 7. Seed Job Process Stage Functionalities
-  await seedJobProcessStageFunctionalities();
+  // Order matters: role types depend on roles already existing.
+  await seedIfEmpty("Role", seedRoles);
+  await seedIfEmpty("RoleType", seedRoleTypes);
+  await seedIfEmpty("Country", seedCountriesAndStates);
+  await seedIfEmpty("Timezones", seedTimezones);
+  await seedIfEmpty("Screen", seedScreensAndFunctionalities);
+  await seedIfEmpty("CustomFieldModule", seedCustomFieldModules);
+  await seedIfEmpty("ComplianceType", seedComplianceTypes);
+  await seedIfEmpty("JobProcessStageFunctionality", seedJobProcessStageFunctionalities);
+  await seedIfEmpty("AdminCategory", seedCategories);
+  await seedIfEmpty("Conditions", seedConditions);
+  await seedIfEmpty("EmailTemplates", seedEmailTemplates);
 
   console.log("🏁 All developer essentials seeded successfully.");
 };

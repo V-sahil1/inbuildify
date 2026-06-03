@@ -36,6 +36,10 @@ export async function registerRoot({ name, email, password, role_id }) {
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+  // In production, bypass email OTP verification for new sign-ups: the user is
+  // marked verified immediately and no verification email is dispatched.
+  const bypassOtpVerification = env.NODE_ENV === "production";
+
   const result = await sequelize.transaction(async (t) => {
     // Create builder
     const builder = await Builder.create(
@@ -52,9 +56,12 @@ export async function registerRoot({ name, email, password, role_id }) {
         email: lowerEmail,
         role_id,
         password: encrypt(password),
-        otp,
-        expires_at: sequelize.literal("NOW() + INTERVAL '10 minutes'"),
+        otp: bypassOtpVerification ? null : otp,
+        expires_at: bypassOtpVerification
+          ? null
+          : sequelize.literal("NOW() + INTERVAL '10 minutes'"),
         root_user: true,
+        is_verified: bypassOtpVerification,
       },
       { transaction: t },
     );
@@ -90,11 +97,14 @@ export async function registerRoot({ name, email, password, role_id }) {
       transaction: t, // Use the Sequelize transaction
     });
 
-    return { email: lowerEmail };
+    return { email: lowerEmail, isVerified: bypassOtpVerification };
   });
 
-  // Send OTP email OUTSIDE transaction (side effect, non-rollbackable)
-  await sendVerificationEmail(lowerEmail, otp);
+  // Send OTP email OUTSIDE transaction (side effect, non-rollbackable).
+  // Skipped in production where OTP verification is bypassed.
+  if (!bypassOtpVerification) {
+    await sendVerificationEmail(lowerEmail, otp);
+  }
 
   return result;
 }

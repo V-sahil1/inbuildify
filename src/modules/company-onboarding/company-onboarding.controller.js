@@ -4,11 +4,10 @@ import companyOnboardingService from "./company-onboarding.service.js";
 export async function companySignUp(req, res) {
   try {
     const data = await companyOnboardingService.companySignUp(req.body);
-    return successResponse(
-      res,
-      data,
-      "Company registered. Verify your email with the OTP we just sent, then complete onboarding.",
-    );
+    const message = data.isVerified
+      ? "Company registered. You can proceed to complete onboarding."
+      : "Company registered. Verify your email with the OTP we just sent, then complete onboarding.";
+    return successResponse(res, data, message);
   } catch (err) {
     return errorResponse(res, err.statusCode || 500, err.message);
   }
