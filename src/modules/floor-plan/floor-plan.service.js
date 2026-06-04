@@ -402,7 +402,7 @@ export async function updateFloorPlanService({
         namePrefix: `floor_plan_detailed_${floor_plan_id}`,
       }, t);
       updatedDetailedImageId = driveFile.file_id;
-    } else if (payload.hasOwnProperty("detailed_image") && !detailed_image) {
+    } else if (payload.hasOwnProperty("detailed_image") && detailed_image !== undefined && !detailed_image) {
       await removeImageByRef(updatedDetailedImageId, t);
       updatedDetailedImageId = null;
     }
@@ -421,7 +421,7 @@ export async function updateFloorPlanService({
         namePrefix: `floor_plan_simple_${floor_plan_id}`,
       }, t);
       updatedSimpleImageId = driveFile.file_id;
-    } else if (payload.hasOwnProperty("simple_image") && !simple_image) {
+    } else if (payload.hasOwnProperty("simple_image") && simple_image !== undefined && !simple_image) {
       await removeImageByRef(updatedSimpleImageId, t);
       updatedSimpleImageId = null;
     }
