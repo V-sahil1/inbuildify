@@ -104,7 +104,7 @@ export async function getAllUserGroups(currentUser, query) {
 
   const where = { builder_id: builderId };
   if (is_active !== undefined && is_active !== "") {
-    where.is_active = is_active === "true";
+    where.is_active = is_active === "true" || is_active === true;
   }
 
   if (search) {
