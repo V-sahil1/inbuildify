@@ -1140,7 +1140,16 @@ class LeadsService {
             }
           }
 
-          log.description = `Updated ${readableField}${context} from ${oldValue} to ${newValue}`;
+          const isUrlOrReport = 
+            /url|report/i.test(log.fieldName) || 
+            (typeof log.oldValue === 'string' && /^https?:\/\//i.test(log.oldValue)) || 
+            (typeof log.newValue === 'string' && /^https?:\/\//i.test(log.newValue));
+
+          if (isUrlOrReport) {
+            log.description = `Updated ${readableField}${context}`;
+          } else {
+            log.description = `Updated ${readableField}${context} from ${oldValue} to ${newValue}`;
+          }
         } else if (log.action === 'CREATE') {
           log.description = `Created ${log.module} ${log.recordName || ""}`.trim();
         } else if (log.action === 'DELETE') {

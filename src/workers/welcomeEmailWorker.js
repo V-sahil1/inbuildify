@@ -11,7 +11,13 @@ notificationQueue.process("welcomeEmail", async (job) => {
 
   const lead = await Leads.findByPk(leadsId);
   if (!lead) {
-    throw new Error(`Lead ${leadsId} not found`);
+    console.warn(`[WelcomeEmailWorker] Lead ${leadsId} not found in database.`);
+    const maxAttempts = job.opts?.attempts || 3;
+    if (job.attemptsMade < maxAttempts - 1) {
+      throw new Error(`Lead ${leadsId} not found (will retry)`);
+    }
+    console.log(`[WelcomeEmailWorker] Lead ${leadsId} permanently not found after ${job.attemptsMade + 1} attempts — skipping welcome email.`);
+    return { success: true, skipped: true, reason: "Lead not found" };
   }
 
   if (!lead.email) {

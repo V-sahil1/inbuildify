@@ -50,11 +50,27 @@ notificationQueue.process("appointmentEmail", async (job) => {
 
   // 1. Fetch appointment details
   const appointment = await Appointment.findByPk(appointmentId);
-  if (!appointment) throw new Error(`Appointment ${appointmentId} not found`);
+  if (!appointment) {
+    console.warn(`[AppointmentEmailWorker] Appointment ${appointmentId} not found in database.`);
+    const maxAttempts = job.opts?.attempts || 3;
+    if (job.attemptsMade < maxAttempts - 1) {
+      throw new Error(`Appointment ${appointmentId} not found (will retry)`);
+    }
+    console.log(`[AppointmentEmailWorker] Appointment ${appointmentId} permanently not found after ${job.attemptsMade + 1} attempts — skipping appointment email.`);
+    return { success: true, skipped: true, reason: "Appointment not found" };
+  }
 
   // 2. Fetch lead details
   const lead = await Leads.findByPk(leadId);
-  if (!lead) throw new Error(`Lead ${leadId} not found`);
+  if (!lead) {
+    console.warn(`[AppointmentEmailWorker] Lead ${leadId} not found in database.`);
+    const maxAttempts = job.opts?.attempts || 3;
+    if (job.attemptsMade < maxAttempts - 1) {
+      throw new Error(`Lead ${leadId} not found (will retry)`);
+    }
+    console.log(`[AppointmentEmailWorker] Lead ${leadId} permanently not found after ${job.attemptsMade + 1} attempts — skipping appointment email.`);
+    return { success: true, skipped: true, reason: "Lead not found" };
+  }
   if (!lead.email) {
     console.log(`[AppointmentEmailWorker] Lead ${leadId} has no email — skipping`);
     return { success: true, skipped: true };
