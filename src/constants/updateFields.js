@@ -1,6 +1,8 @@
 // builderUpdateFields
 export var BUILDER_UPDATE_FIELDS = {
   name: "name",
+  firm_name: "firm_name",
+  slogan: "slogan",
   email: "email",
   phone_number: "phone_number",
   abn_number: "abn_number",

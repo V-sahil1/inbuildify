@@ -9,6 +9,8 @@ export async function getAllBuildersService() {
     attributes: [
       "builder_id",
       "name",
+      "firm_name",
+      "slogan",
       "email",
       "phone_number",
       "abn_number",
@@ -244,6 +246,8 @@ export async function upsertBuilderService(builderId, payload, logoUrl) {
         builder_id: builderId,
         company_id: payload.company_id,
         name: payload.name,
+        firm_name: payload.firm_name,
+        slogan: payload.slogan,
         email: payload.email,
         phone_number: payload.phone_number,
         abn_number: payload.abn_number,

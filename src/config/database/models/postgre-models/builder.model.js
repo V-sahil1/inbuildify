@@ -22,6 +22,14 @@ export default (sequelize) => {
         type: DataTypes.STRING(150),
         allowNull: false,
       },
+      firm_name: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
+      slogan: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
       email: {
         type: DataTypes.STRING(150),
         allowNull: true,

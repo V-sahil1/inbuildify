@@ -111,6 +111,21 @@ export const upsertBuilderSchema = Joi.object({
       "string.min": "Name must be at least 2 characters long",
       "string.max": "Name must not exceed 150 characters",
     }),
+  firm_name: Joi.string()
+    .min(2)
+    .max(150)
+    .pattern(/^(?=.*[a-zA-Z])[a-zA-Z0-9\s,./#-]+$/)
+    .optional()
+    .allow(null, "")
+    .messages({
+      "string.pattern.base": "Firm name must contain at least one letter",
+      "string.min": "Firm name must be at least 2 characters long",
+      "string.max": "Firm name must not exceed 150 characters",
+    }),
+  slogan: Joi.string().min(2).max(255).optional().allow(null, "").messages({
+    "string.min": "Slogan must be at least 2 characters long",
+    "string.max": "Slogan must not exceed 255 characters",
+  }),
   email: Joi.string().email().optional(),
   phone_number: Joi.string()
     .pattern(/^[0-9]+$/)
