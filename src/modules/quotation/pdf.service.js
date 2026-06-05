@@ -1,7 +1,93 @@
 import puppeteer from "puppeteer";
+import fs from "fs";
+import path from "path";
 
 let cachedBrowser = null;
 let browserLaunchPromise = null;
+
+/**
+ * Resolve the Chrome executable path.
+ * Priority:
+ *   1. PUPPETEER_EXECUTABLE_PATH env var (explicit, works on Render)
+ *   2. puppeteer.executablePath() — the path bundled with the puppeteer package
+ *      (works locally after `npm install` downloads Chromium)
+ * Throws a clear, actionable error at startup instead of a cryptic one at
+ * request time when neither path exists.
+ */
+const resolveChromePath = () => {
+  // 1. Explicit override (set in .env / Render environment variables)
+  const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (envPath && envPath.trim()) {
+    if (fs.existsSync(envPath.trim())) {
+      console.log(`[pdf] Using Chrome from PUPPETEER_EXECUTABLE_PATH: ${envPath.trim()}`);
+      return envPath.trim();
+    }
+    // Env var is set but path doesn't exist — try to find it under the cache dir
+    const cacheDir = process.env.PUPPETEER_CACHE_DIR;
+    if (cacheDir && fs.existsSync(cacheDir)) {
+      // Walk one level: <cache>/chrome/<version>/chrome-linux64/chrome
+      try {
+        const chromeSub = path.join(cacheDir, "chrome");
+        const versions = fs.readdirSync(chromeSub);
+        for (const ver of versions) {
+          const candidates = [
+            path.join(chromeSub, ver, "chrome-linux64", "chrome"),
+            path.join(chromeSub, ver, "chrome-win64", "chrome.exe"),
+            path.join(chromeSub, ver, "chrome-mac-x64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+          ];
+          for (const c of candidates) {
+            if (fs.existsSync(c)) {
+              console.log(`[pdf] Auto-resolved Chrome under PUPPETEER_CACHE_DIR: ${c}`);
+              return c;
+            }
+          }
+        }
+      } catch (_) { /* fall through */ }
+    }
+    console.warn(`[pdf] PUPPETEER_EXECUTABLE_PATH set to "${envPath}" but file not found — falling back to bundled Chromium.`);
+  }
+
+  // 2. puppeteer.executablePath() — resolves using the package's own install record
+  try {
+    const bundled = puppeteer.executablePath();
+    if (bundled && fs.existsSync(bundled)) {
+      console.log(`[pdf] Using bundled Chromium: ${bundled}`);
+      return bundled;
+    }
+  } catch (_) { /* puppeteer-core has no bundled binary */ }
+
+  // 3. Scan the default Puppeteer cache dir (~/.cache/puppeteer) for any installed Chrome
+  //    This handles local dev on Windows/Mac/Linux without any env var needed.
+  const homeCacheDir = path.join(
+    process.env.HOME || process.env.USERPROFILE || "",
+    ".cache", "puppeteer", "chrome"
+  );
+  if (fs.existsSync(homeCacheDir)) {
+    try {
+      const versions = fs.readdirSync(homeCacheDir);
+      for (const ver of versions) {
+        const candidates = [
+          path.join(homeCacheDir, ver, "chrome-win64", "chrome.exe"),
+          path.join(homeCacheDir, ver, "chrome-linux64", "chrome"),
+          path.join(homeCacheDir, ver, "chrome-mac-x64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+        ];
+        for (const c of candidates) {
+          if (fs.existsSync(c)) {
+            console.log(`[pdf] Auto-resolved Chrome from home cache: ${c}`);
+            return c;
+          }
+        }
+      }
+    } catch (_) { /* fall through */ }
+  }
+
+
+  throw new Error(
+    "[pdf] No Chrome/Chromium binary found. " +
+    "On Render: set PUPPETEER_EXECUTABLE_PATH in your environment variables to the full path of the chrome binary inside PUPPETEER_CACHE_DIR. " +
+    "Locally: run `npx puppeteer browsers install chrome` to download Chromium."
+  );
+};
 
 /**
  * Get or launch the shared Puppeteer browser instance.
@@ -16,10 +102,12 @@ const getBrowser = async () => {
     return browserLaunchPromise;
   }
 
+  const executablePath = resolveChromePath();
+
   browserLaunchPromise = puppeteer
     .launch({
       headless: "new",
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      executablePath,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -71,25 +159,27 @@ export const generatePDF = async (htmlContent) => {
     const tBrowser = Date.now();
     page = await browser.newPage();
 
-    // All images are inlined as data URIs before we get here, so the PDF needs
-    // no network access. Block any external (http/https) request as a hard
-    // safeguard: a slow/blocked asset (e.g. a Google Fonts @import) under
-    // "networkidle2" used to stall rendering until the 30s timeout and surface
-    // as a 504. Aborting them keeps generation fast and deterministic.
+    // Allow data URIs and requests to our own S3 bucket (for floor plan /
+    // facade images). Block everything else (Google Fonts, CDNs, etc.) so a
+    // slow external asset can't stall or timeout PDF generation.
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const url = req.url();
-      if (url.startsWith("http://") || url.startsWith("https://")) {
+      const s3Bucket = process.env.AWS_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME || "";
+      const isS3 = s3Bucket && url.includes(s3Bucket);
+      const isAmazonS3 = url.includes(".s3.") && url.includes("amazonaws.com");
+      if (url.startsWith("data:") || isS3 || isAmazonS3) {
+        req.continue().catch(() => {});
+      } else if (url.startsWith("http://") || url.startsWith("https://")) {
         req.abort().catch(() => {});
       } else {
         req.continue().catch(() => {});
       }
     });
 
-    // "load" fires once the DOM and inlined (data-URI) assets are ready. With
-    // external requests aborted above there is nothing to wait on the network
-    // for, so this resolves quickly instead of hanging on "networkidle2".
-    await page.setContent(htmlContent, { waitUntil: "load", timeout: 30000 });
+    // "networkidle2" waits until no more than 2 network connections for at
+    // least 500ms — handles the async S3 image loads gracefully.
+    await page.setContent(htmlContent, { waitUntil: "networkidle2", timeout: 30000 });
     const tContent = Date.now();
 
     const pdfUint8Array = await page.pdf({

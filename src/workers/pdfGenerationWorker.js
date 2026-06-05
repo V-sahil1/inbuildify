@@ -4,7 +4,7 @@ import db from "../config/database/models/postgre-models/index.js";
 import quotationRepository from "../modules/quotation/quotation.repository.js";
 import { generatePDF } from "../modules/quotation/pdf.service.js";
 import { generateQuotationHTML } from "../utils/template.js";
-import { uploadFile } from "../service/s3.service.js";
+import { uploadFile, generatePresignedDownloadUrl } from "../service/s3.service.js";
 import { Op } from "sequelize";
 
 import { createSharedBullClient } from "../config/redisBull.config.js";
@@ -53,7 +53,42 @@ pdfGenerationQueue.process(async (job) => {
     throw new Error(`Details not found for version ${quotation_version_id}`);
   }
 
-  // 3. Generate HTML and PDF
+  // 3. Resolve floor plan / facade image UUIDs → presigned S3 URLs so
+  //    Puppeteer can load them (the PDF renderer allows amazonaws.com requests).
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const isUuid = (v) => typeof v === "string" && uuidRe.test(v);
+  const fp = versionDetails.floorPlan || {};
+  const fc = versionDetails.facade || {};
+  const uuidsToResolve = [fp.detailedImage, fp.simpleImage, fc.image].filter(isUuid);
+  const uuidToKey = new Map();
+  if (uuidsToResolve.length) {
+    const { DriveFile } = db.sequelize?.models || db;
+    const rows = await DriveFile.findAll({ where: { file_id: uuidsToResolve }, attributes: ["file_id", "s3_key"] });
+    rows.forEach((r) => uuidToKey.set(r.file_id, r.s3_key));
+  }
+  const resolveKey = (val) => {
+    if (!val || typeof val !== "string") return null;
+    if (isUuid(val)) return uuidToKey.get(val) || null;
+    if (val.startsWith("https://") || val.startsWith("http://")) {
+      try { return decodeURIComponent(new URL(val).pathname.replace(/^\//, "")); } catch (_) { return null; }
+    }
+    return val;
+  };
+  const toPresigned = async (val) => {
+    const key = resolveKey(val);
+    if (!key) return null;
+    try {
+      const r = await generatePresignedDownloadUrl(key, 3600);
+      return r?.success ? r.url : null;
+    } catch (_) { return null; }
+  };
+  const [fpDetailed, fpSimple, facadeImg] = await Promise.all([
+    toPresigned(fp.detailedImage), toPresigned(fp.simpleImage), toPresigned(fc.image),
+  ]);
+  if (versionDetails.floorPlan) { versionDetails.floorPlan.detailedImage = fpDetailed; versionDetails.floorPlan.simpleImage = fpSimple; }
+  if (versionDetails.facade) { versionDetails.facade.image = facadeImg; }
+
+  // 4. Generate HTML and PDF
   const htmlContent = generateQuotationHTML(versionDetails);
   const pdfBuffer = await generatePDF(htmlContent);
   

@@ -32,6 +32,77 @@ import quotationEmailQueue from "../../workers/quotationEmailWorker.js";
 import pdfGenerationQueue from "../../workers/pdfGenerationWorker.js";
 import sendEmail, { sendEmailNow } from "../../service/sendMail.service.js";
 
+/**
+ * Resolve image fields on a versionDetails object to presigned S3 URLs.
+ * DriveFile UUID FKs are resolved to S3 keys, then presigned so Puppeteer
+ * can load them. The PDF renderer now allows requests to amazonaws.com so
+ * presigned URLs load without needing base64 inlining.
+ *
+ * Mutates versionDetails.floorPlan.{detailedImage,simpleImage} and
+ * versionDetails.facade.image in-place and returns the same object.
+ */
+const inlineQuotationImages = async (versionDetails) => {
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const isUuid = (v) => typeof v === "string" && uuidRe.test(v);
+
+  const fp = versionDetails.floorPlan || {};
+  const fc = versionDetails.facade || {};
+
+  // Collect any UUID values that need to be resolved to an S3 key first
+  const uuidsToResolve = [fp.detailedImage, fp.simpleImage, fc.image].filter(isUuid);
+
+  const uuidToKey = new Map();
+  if (uuidsToResolve.length) {
+    const { DriveFile } = db.sequelize?.models || db;
+    const rows = await DriveFile.findAll({
+      where: { file_id: uuidsToResolve },
+      attributes: ["file_id", "s3_key"],
+    });
+    rows.forEach((r) => uuidToKey.set(r.file_id, r.s3_key));
+  }
+
+  // Resolve UUID → S3 key, or keep existing S3 key/URL as-is
+  const resolveKey = (val) => {
+    if (!val || typeof val !== "string") return null;
+    if (isUuid(val)) return uuidToKey.get(val) || null;
+    // Already an S3 key or URL — extract the key part
+    if (val.startsWith("https://") || val.startsWith("http://")) {
+      try {
+        return decodeURIComponent(new URL(val).pathname.replace(/^\//, ""));
+      } catch (_) { return null; }
+    }
+    return val; // raw S3 key
+  };
+
+  // Generate presigned download URLs (1 hour) in parallel
+  const toPresigned = async (val) => {
+    const key = resolveKey(val);
+    if (!key) return null;
+    try {
+      const result = await generatePresignedDownloadUrl(key, 3600);
+      return result?.success ? result.url : null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const [fpDetailed, fpSimple, facadeImg] = await Promise.all([
+    toPresigned(fp.detailedImage),
+    toPresigned(fp.simpleImage),
+    toPresigned(fc.image),
+  ]);
+
+  if (versionDetails.floorPlan) {
+    versionDetails.floorPlan.detailedImage = fpDetailed;
+    versionDetails.floorPlan.simpleImage = fpSimple;
+  }
+  if (versionDetails.facade) {
+    versionDetails.facade.image = facadeImg;
+  }
+
+  return versionDetails;
+};
+
 const syncQuotationVersionFiles = async (quotationVersion, leadsId, transaction) => {
   const { DriveFile } = db;
   const qvId = quotationVersion.quotation_version_id;
@@ -1696,7 +1767,7 @@ class QuotationService {
     }
   }
 
-  async getQuotationPDF(versionId, builderId, companyId) {
+  async getQuotationPDF(versionId, builderId, companyId, { forceRegenerate = false } = {}) {
     try {
       const { QuotationVersion, Quotation, Leads } = db.sequelize?.models || db;
 
@@ -1729,7 +1800,37 @@ class QuotationService {
       const fileName = `Quotation_v${versionDetails.quotationVersionNo}_${versionDetails.quotationId}.pdf`;
 
       // 2. Smart Retry Path: read the quotation report S3 key from DriveFile.
-      // If not yet present, wait briefly for the background worker.
+      // forceRegenerate=true clears the old cached PDF first so our updated
+      // image-inlining code always runs (needed after the fix for broken images).
+      // Skip the background-worker wait and go straight to inline generation so
+      // a stale worker can't race ahead and re-cache a broken PDF.
+      if (forceRegenerate) {
+        console.log(`[QuotationPDF] Force-regenerating PDF for version ${versionId}`);
+        await quotationRepository.clearPdfUrl(versionId);
+        await inlineQuotationImages(versionDetails);
+        const htmlContent = generateQuotationHTML(versionDetails);
+        const pdfBuffer = await generatePDF(htmlContent);
+        const newS3Key = `quotations/${versionId}/${fileName}`;
+        const uploadResult = await uploadFile(newS3Key, pdfBuffer, "application/pdf");
+        if (uploadResult.success) {
+          await quotationRepository.updatePdfUrl(versionId, uploadResult.key, {
+            size: pdfBuffer.length,
+            originalName: fileName,
+            builderId,
+            companyId,
+          });
+        }
+        const presigned = uploadResult.success ? await generatePresignedDownloadUrl(uploadResult.key) : null;
+        return {
+          success: true,
+          data: {
+            fileName,
+            pdfUrl: presigned?.success ? presigned.url : uploadResult.success ? uploadResult.location : null,
+            s3Key: uploadResult.success ? uploadResult.key : null,
+          },
+        };
+      }
+
       let s3Key = await getQuotationDriveFileS3Key(
         versionId,
         DRIVE_FILE_MAPPING.SUB_REFERENCES.QUOTATION_REPORT,
@@ -1758,6 +1859,10 @@ class QuotationService {
       console.log(`[DEBUG] PDF still missing for ${versionId} after wait, starting sync generation...`);
 
       // Generate fresh PDF, upload to S3, save DriveFile + column FK
+      // Inline floor plan / facade images as base64 data URIs before building
+      // the HTML — Puppeteer blocks all http/https requests so S3 URLs would
+      // render as broken images without this step.
+      await inlineQuotationImages(versionDetails);
       const htmlContent = generateQuotationHTML(versionDetails);
       const pdfBuffer = await generatePDF(htmlContent);
 

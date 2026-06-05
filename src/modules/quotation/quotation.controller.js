@@ -468,7 +468,7 @@ export const removePackageFromVersion = async (req, res) => {
 export async function previewPDF(req, res) {
   try {
     const { quotation_version_id } = req.params;
-    const { download } = req.query;
+    const { download, regenerate } = req.query;
     const builderId = req.user?.builder_id;
     const companyId = req.user?.company_id;
 
@@ -480,6 +480,7 @@ export async function previewPDF(req, res) {
       quotation_version_id,
       builderId,
       companyId,
+      { forceRegenerate: regenerate === "true" },
     );
 
     if (result.success) {
@@ -494,6 +495,7 @@ export async function previewPDF(req, res) {
     return errorResponse(res, error.status || 500, error.message || "Internal server error");
   }
 }
+
 
 export async function sendQuotationEmail(req, res) {
   try {
