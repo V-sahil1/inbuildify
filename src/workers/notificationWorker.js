@@ -4,7 +4,10 @@ import { env } from "../config/env.config.js";
 import { getObject } from "../service/s3.service.js";
 
 const transporter = nodemailer.createTransport({
-  service: "Gmail",
+  host: "smtp.gmail.com",      // 👈 explicit instead of service: "Gmail"
+  port: 587,                   // 👈 explicit port
+  secure: false,               // false for 587 (STARTTLS)
+  requireTLS: true,
   auth: {
     user: env.EMAIL.GMAIL,
     pass: env.EMAIL.PASSWORD,

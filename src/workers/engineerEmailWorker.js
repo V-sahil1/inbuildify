@@ -11,7 +11,10 @@ import { DRIVE_FILE_MAPPING } from "../constants/driveFile.js";
 import { createSharedBullClient } from "../config/redisBull.config.js";
 
 const transporter = nodemailer.createTransport({
-  service: "Gmail",
+  host: "smtp.gmail.com",      // 👈 explicit instead of service: "Gmail"
+  port: 587,                   // 👈 explicit port
+  secure: false,               // false for 587 (STARTTLS)
+  requireTLS: true,
   auth: {
     user: env.EMAIL.GMAIL,
     pass: env.EMAIL.PASSWORD,
