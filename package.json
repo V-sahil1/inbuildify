@@ -41,7 +41,7 @@
     "pdf-lib": "^1.17.1",
     "pg": "^8.20.0",
     "pg-hstore": "^2.3.4",
-    "puppeteer": "^24.40.0",
+    "puppeteer": "^24.43.1",
     "redis": "^5.12.1",
     "seeder": "^0.2.4",
     "sequelize": "^6.37.8",
