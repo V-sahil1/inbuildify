@@ -106,7 +106,7 @@ export const updatePackageSchema = Joi.object({
     .optional()
     .allow(null),
 
-  sort_order: Joi.number().integer().default(0).min(0).optional(),
+  sort_order: Joi.number().integer().min(1).optional(),
 
   status: Joi.boolean().optional(),
 

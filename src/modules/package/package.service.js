@@ -30,8 +30,8 @@ export async function getAllPackagesService({ builder_id, query }) {
   if (search && search.trim() !== "") {
     const searchVal = `%${search.trim().toLowerCase()}%`;
     where[Op.or] = [
-      db.sequelize.where(db.sequelize.fn("LOWER", db.sequelize.col("name")), { [Op.like]: searchVal }),
-      db.sequelize.where(db.sequelize.cast(db.sequelize.col("cost"), "text"), { [Op.like]: searchVal }),
+      db.sequelize.where(db.sequelize.fn("LOWER", db.sequelize.col("Package.name")), { [Op.like]: searchVal }),
+      db.sequelize.where(db.sequelize.cast(db.sequelize.col("Package.cost"), "text"), { [Op.like]: searchVal }),
     ];
   }
 
@@ -462,7 +462,7 @@ export async function updatePackageService({ package_id, builder_id, company_id,
         name: name !== undefined ? name.trim() : packageInstance.name,
         cost: cost !== undefined ? cost : packageInstance.cost,
         builder_cost: builder_cost !== undefined ? builder_cost : packageInstance.builder_cost,
-        sort_order: finalSortOrder,
+        sort_order: (sort_order !== undefined && sort_order !== null && sort_order !== "") ? Number(sort_order) : packageInstance.sort_order,
         status: status !== undefined ? (typeof status === "string" ? status === "true" : status) : packageInstance.status,
         allow_add_item_from_pricelist: allow_add_item_from_pricelist !== undefined ? allow_add_item_from_pricelist : packageInstance.allow_add_item_from_pricelist,
         allow_remove_package_items: allow_remove_package_items !== undefined ? allow_remove_package_items : packageInstance.allow_remove_package_items,
